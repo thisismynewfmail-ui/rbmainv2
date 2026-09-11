@@ -190,6 +190,17 @@ templates/                 server-rendered pages
 tools/                     dev server helper, bot client, test suites
 ```
 
+### Static assets
+
+Every `/static` URL is rendered with a `?v=` stamp taken from the file's mtime
+and size, and a stamped URL is served with a year of `immutable` caching. A
+bare `/static` URL revalidates on every request instead (the ETag makes that a
+304 with no body). That split is the point: without it a browser holds an asset
+for as long as its `max-age` says and never asks again, so a phone that already
+had the previous `site.js` kept running it against freshly rendered HTML — new
+markup, old handlers, and buttons that quietly did nothing on one device while
+working on another.
+
 ### Processes and ports
 
 Everything the network sees is on **one port (8972)**. Internally:
@@ -327,6 +338,11 @@ clicking any item tile.
   out of the conversation. The "To" box has the same type-ahead the compose
   page does. A switch in `/settings` turns the whole bubble off; it is on by
   default.
+* **Character previews keep their own night sky** in both themes — the profile
+  preview, the welcome character and every avatar thumbnail in the friends,
+  people and message lists. The rig is lit for a dark background, so an avatar
+  that changed colour with the theme toggle read as a rendering fault rather
+  than as a theme.
 * **Compose** (`/messages/compose`) remembers where you came from and sends you
   back there — the profile, the home page, the inbox, wherever it was.
 * **Removing a friend** asks first, in the page's own dialog. Cancelling a

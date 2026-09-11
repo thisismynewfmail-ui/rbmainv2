@@ -360,8 +360,19 @@ def serve_static(root: str, rel_path: str, req: Request) -> Response:
     etag = '"%x-%x"' % (int(stat.st_mtime), stat.st_size)
     if req.headers.get("if-none-match") == etag:
         return Response(b"", 304, ctype, {"ETag": etag})
-    max_age = 0 if config.DEBUG else 3600
+    # Templates link every asset with a ?v= stamp derived from the file, so a
+    # stamped URL can be kept forever: when the file changes the URL changes
+    # with it.  A bare URL -- a bookmark, a hand-typed path, an old page still
+    # open -- has to revalidate every time, because holding one of those was
+    # what let a phone run last week's site.js against today's markup.  The
+    # ETag makes revalidation a 304 with no body, so it stays cheap.
+    if config.DEBUG:
+        cache = "no-store"
+    elif req.query.get("v"):
+        cache = "public, max-age=31536000, immutable"
+    else:
+        cache = "no-cache"
     return Response(data, 200, ctype, {
         "ETag": etag,
-        "Cache-Control": "public, max-age=%d" % max_age,
+        "Cache-Control": cache,
     })

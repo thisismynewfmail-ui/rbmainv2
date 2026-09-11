@@ -190,9 +190,40 @@ def _include(path: str, ctx: Dict[str, Any]) -> str:
     return _load(path)(ctx)
 
 
+# Stamped static URLs.  Browsers are told to keep /static files for a year,
+# which is only safe because the URL changes whenever the file does: without
+# that, a phone that already had the old site.js kept running it for an hour
+# after a deploy against freshly rendered HTML -- new markup, old handlers,
+# and buttons that quietly did nothing.  The stamp is the file's mtime and
+# size, so it moves on every edit and costs one stat per template render.
+_ASSET_CACHE: Dict[str, Any] = {}
+_ASSET_LOCK = threading.RLock()
+
+
+def asset(path: str) -> str:
+    """``/static/js/ui/site.js`` -> ``/static/js/ui/site.js?v=6aa44af5``."""
+    if not path or "?" in path or not path.startswith("/static/"):
+        return path
+    full = os.path.join(str(config.STATIC_DIR), path[len("/static/"):])
+    try:
+        stat = os.stat(full)
+    except OSError:
+        return path
+    key = (stat.st_mtime_ns, stat.st_size)
+    with _ASSET_LOCK:
+        hit = _ASSET_CACHE.get(path)
+        if hit and hit[0] == key:
+            return hit[1]
+        stamped = "%s?v=%x" % (path, (stat.st_mtime_ns ^ (stat.st_size << 17))
+                               & 0xFFFFFFFF)
+        _ASSET_CACHE[path] = (key, stamped)
+    return stamped
+
+
 GLOBALS: Dict[str, Any] = {
     "SITE_NAME": config.SITE_NAME,
     "SITE_TAGLINE": config.SITE_TAGLINE,
+    "asset": asset,
     "Markup": Markup,
     "len": len,
     "str": str,

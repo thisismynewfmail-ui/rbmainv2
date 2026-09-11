@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ world.name }} | {{ SITE_NAME }}</title>
-<link rel="stylesheet" href="/static/css/game.css">
-<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{ asset('/static/css/game.css') }}">
+<link rel="icon" href="{{ asset('/static/img/favicon.svg') }}" type="image/svg+xml">
 <script>
 window.BH = {
   csrf: "{{ csrf }}",
@@ -177,19 +177,19 @@ window.BH = {
   </div>
 </div>
 
-<script src="/static/js/engine/gl.js"></script>
-<script src="/static/js/engine/geometry.js"></script>
-<script src="/static/js/engine/textures.js"></script>
-<script src="/static/js/engine/renderer.js"></script>
-<script src="/static/js/engine/avatar.js"></script>
-<script src="/static/js/engine/particles.js"></script>
-<script src="/static/js/engine/audio.js"></script>
-<script src="/static/js/ui/thumbs.js"></script>
-<script src="/static/js/game/settings.js"></script>
-<script src="/static/js/game/net.js"></script>
-<script src="/static/js/game/physics.js"></script>
-<script src="/static/js/game/hud.js"></script>
-<script src="/static/js/game/world_extras.js"></script>
-<script src="/static/js/game/client.js"></script>
+<script src="{{ asset('/static/js/engine/gl.js') }}"></script>
+<script src="{{ asset('/static/js/engine/geometry.js') }}"></script>
+<script src="{{ asset('/static/js/engine/textures.js') }}"></script>
+<script src="{{ asset('/static/js/engine/renderer.js') }}"></script>
+<script src="{{ asset('/static/js/engine/avatar.js') }}"></script>
+<script src="{{ asset('/static/js/engine/particles.js') }}"></script>
+<script src="{{ asset('/static/js/engine/audio.js') }}"></script>
+<script src="{{ asset('/static/js/ui/thumbs.js') }}"></script>
+<script src="{{ asset('/static/js/game/settings.js') }}"></script>
+<script src="{{ asset('/static/js/game/net.js') }}"></script>
+<script src="{{ asset('/static/js/game/physics.js') }}"></script>
+<script src="{{ asset('/static/js/game/hud.js') }}"></script>
+<script src="{{ asset('/static/js/game/world_extras.js') }}"></script>
+<script src="{{ asset('/static/js/game/client.js') }}"></script>
 </body>
 </html>

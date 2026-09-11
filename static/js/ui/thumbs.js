@@ -69,6 +69,16 @@
       }).catch(function () { return null; });
   };
 
+  /* Characters are always shown against a night sky, in both themes.  The rig
+     is lit for a dark background, the panels behind these canvases are dark in
+     both palettes (see --preview-bg), and an avatar whose skin tone shifted
+     every time somebody flipped the theme toggle read as a rendering fault
+     rather than as a theme.  Item icons are the exception -- they sit on their
+     own tier-coloured tile and keep the bright sky. */
+  var AVATAR_SKY = { top: '#16222e', horizon: '#243545', sun: [0.4, 0.8, 0.35],
+                     clouds: 0.0, tint: '#4c6580' };
+  var AVATAR_AMBIENT = '#43586e';
+
   var THUMB_FOV = 40;
 
   /* Place the camera so the subject's bounding box fits the frame exactly.
@@ -423,7 +433,7 @@
         });
         var hat = (descriptor.items || {}).hat;
         var source = renderParts(parts, {
-          angle: -0.35, tilt: 0.12, padding: 1.07,
+          angle: -0.35, tilt: 0.12, padding: 1.07, sky: AVATAR_SKY,
           effect: hat && hat.tier === 'unusual' ? hat.effect : '',
           anchor: hat ? Avatar.hatAnchor([0, 0, 0], 0, hat) : null
         });
@@ -606,28 +616,21 @@
     this.descriptor = descriptor;
   };
 
-  /* The preview draws its own sky, so it has to follow the site theme or a
-     dark page ends up with a bright white window punched in it.  The welcome
-     stage is the exception: that panel is deep blue in both themes, so its
-     preview stays on a night sky rather than punching a white hole in it. */
+  /* The preview paints its own sky, and it is a night one whichever theme the
+     page is wearing -- see AVATAR_SKY.  The welcome stage is a deeper blue so
+     it sits inside the hero panel rather than on top of it. */
   LivePreview.prototype.applyTheme = function () {
+    this.dark = true;
     if (this.skyMode === 'stage') {
-      this.dark = true;
       this.renderer.setSky({ top: '#0f2540', horizon: '#1d4570',
                              sun: [0.35, 0.85, 0.4], clouds: 0.0,
                              tint: '#7fb0e0' });
       this.renderer.setAmbient('#5b7ea8');
       return;
     }
-    var dark = window.Site ? Site.isDark() : false;
-    this.dark = dark;
-    this.renderer.setSky(dark
-      ? { top: '#16222e', horizon: '#243545', sun: [0.4, 0.8, 0.35],
-          clouds: 0.0, tint: '#4c6580' }
-      : { top: '#bcdcf5', horizon: '#f4f9fc', sun: [0.4, 0.8, 0.35],
-          clouds: 0.18, tint: '#ffffff' });
+    this.renderer.setSky(AVATAR_SKY);
     // keep a little ambient bounce so a dark scene does not crush the model
-    this.renderer.setAmbient(dark ? '#43586e' : '#8f9fb5');
+    this.renderer.setAmbient(AVATAR_AMBIENT);
   };
 
   LivePreview.prototype.loop = function (now) {
