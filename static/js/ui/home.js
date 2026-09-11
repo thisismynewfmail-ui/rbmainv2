@@ -57,43 +57,19 @@
   }
 
   // ------------------------------------------------------- the character
-  var POSES = ['idle', 'walk', 'run', 'jump', 'sit'];
+  /* The welcome character dresses itself.  Everything it wears is rolled out
+     of the live catalogue by thumbs.js; this end names the look and keeps the
+     rolls coming on a slow timer, pausing while somebody is actually looking
+     at (or spinning) the one on screen. */
+  var SHUFFLE_MS = 10000;
 
   function bindHero() {
     var stage = document.querySelector('.avatar-view[data-avatar-hero]');
     if (!stage) return;
     var nameNode = document.getElementById('hero-look-name');
     var chipNode = document.getElementById('hero-chips');
-    var poseIndex = 0;
     var autoTimer = 0;
     var paused = false;
-
-    function describe(look) {
-      if (!look) return;
-      if (nameNode) {
-        var hat = look.hat ? look.hat.name : 'no hat';
-        nameNode.textContent = look.unusual
-          ? hat + ' — Unusual'
-          : hat;
-        nameNode.classList.toggle('unu', !!look.unusual);
-      }
-      if (chipNode) {
-        var chips = look.chips.slice(0, 4).map(function (chip) {
-          return '<span class="chip">' + escapeHtml(chip.name) + '</span>';
-        });
-        var body = look.descriptor.body_type === 'female' ? 'Female' : 'Male';
-        chips.unshift('<span class="chip body">' + body + '</span>');
-        if (look.unusual) {
-          chips.push('<span class="chip unusual">' +
-                     escapeHtml(look.unusualName) + '</span>');
-        }
-        var preview = stage.__preview;
-        var pose = preview && Thumbs.posePreviewLabel
-          ? Thumbs.posePreviewLabel(preview.poseState) : '';
-        if (pose) chips.push('<span class="chip pose">' + escapeHtml(pose) + '</span>');
-        chipNode.innerHTML = chips.join('');
-      }
-    }
 
     function escapeHtml(text) {
       var div = document.createElement('div');
@@ -101,69 +77,61 @@
       return div.innerHTML;
     }
 
-    function shuffle(pose) {
-      var preview = stage.__preview;
-      if (!preview || !window.Thumbs || !Thumbs.randomLook) return;
-      var look = Thumbs.randomLook(pose ? { pose: pose } : {});
-      stage.__look = look;
-      stage.classList.remove('swapping');
-      // force the fade to restart even on a rapid second click
-      void stage.offsetWidth;
-      stage.classList.add('swapping');
-      preview.setDescriptor(look.descriptor);
-      preview.setPose(look.pose);
-      poseIndex = Math.max(0, POSES.indexOf(look.pose));
-      describe(look);
-      setTimeout(function () { stage.classList.remove('swapping'); }, 460);
+    function describe(look) {
+      if (!look) return;
+      if (nameNode) {
+        nameNode.textContent = look.hat
+          ? (look.unusual ? look.hat.name + ' \u2014 Unusual' : look.hat.name)
+          : 'No hat today';
+        nameNode.classList.toggle('unu', !!look.unusual);
+      }
+      if (!chipNode) return;
+      var chips = look.chips.slice(0, 4).map(function (chip) {
+        return '<span class="chip">' + escapeHtml(chip.name) + '</span>';
+      });
+      chips.unshift('<span class="chip body">' +
+        (look.descriptor.body_type === 'female' ? 'Female' : 'Male') + '</span>');
+      if (look.unusual) {
+        chips.push('<span class="chip unusual">' +
+                   escapeHtml(look.unusualName) + '</span>');
+      }
+      var pose = window.Thumbs && Thumbs.posePreviewLabel
+        ? Thumbs.posePreviewLabel(look.pose) : '';
+      if (pose) chips.push('<span class="chip pose">' + escapeHtml(pose) + '</span>');
+      chipNode.innerHTML = chips.join('');
     }
 
-    function nextPose() {
-      var preview = stage.__preview;
-      if (!preview) return;
-      poseIndex = (poseIndex + 1) % POSES.length;
-      preview.setPose(POSES[poseIndex]);
-      describe(stage.__look);
+    function shuffle() {
+      if (!window.Thumbs || !Thumbs.dressHero) return;
+      stage.classList.remove('swapping');
+      void stage.offsetWidth;          // restart the fade on a rapid re-roll
+      stage.classList.add('swapping');
+      // dressHero puts the camera back where it started as well, so a viewer
+      // who zoomed in or stopped the spin gets a clean look at the next one
+      Thumbs.dressHero(stage);
+      setTimeout(function () { stage.classList.remove('swapping'); }, 460);
     }
 
     stage.addEventListener('look', function (event) { describe(event.detail); });
     if (stage.__look) describe(stage.__look);
 
-    document.addEventListener('click', function (event) {
-      var button = event.target.closest('[data-hero]');
-      if (!button) return;
-      event.preventDefault();
-      if (button.dataset.hero === 'shuffle') shuffle();
-      else if (button.dataset.hero === 'pose') nextPose();
-      restart();
-    });
-
-    // A character that only ever moves when you poke it is a screenshot.  It
-    // rolls a new look on a slow timer as well, pausing while the pointer is
-    // on the stage so nobody loses the outfit they were looking at.
-    function restart() {
-      clearInterval(autoTimer);
-      autoTimer = setInterval(function () {
-        if (paused || document.hidden) return;
-        shuffle();
-      }, 9000);
-    }
+    autoTimer = setInterval(function () {
+      if (paused || document.hidden) return;
+      shuffle();
+    }, SHUFFLE_MS);
     ['pointerenter', 'focusin'].forEach(function (name) {
       stage.addEventListener(name, function () { paused = true; });
     });
     ['pointerleave', 'focusout'].forEach(function (name) {
       stage.addEventListener(name, function () { paused = false; });
     });
-    restart();
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     bindCountdown();
     bindCounters();
-    // the hero preview is created by thumbs.js once the catalogue lands
-    if (window.Thumbs && Thumbs.loadCatalog) {
-      Thumbs.loadCatalog().then(function () { setTimeout(bindHero, 0); });
-    } else {
-      bindHero();
-    }
+    // thumbs.js builds the preview in its own DOMContentLoaded handler, which
+    // runs before this one, so the stage is already there to listen to
+    bindHero();
   });
 })();

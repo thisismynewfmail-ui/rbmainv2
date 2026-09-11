@@ -550,6 +550,7 @@
     this.time = 0;
     this.poseState = 'idle';
     this.poseSpeed = 0;
+    this.markHome();
     this.bindInput();
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
@@ -672,6 +673,24 @@
     this.particles.draw(this.renderer);
   };
 
+  /* Remember the current camera as "home".  Called once the caller has
+     finished positioning the preview, so resetView goes back to the framing
+     the page asked for rather than the constructor's defaults. */
+  LivePreview.prototype.markHome = function () {
+    this.home = { angle: this.angle, tilt: this.tilt, distance: this.distance };
+  };
+
+  /* Put the camera back where it started.  A shuffled character deserves the
+     same first impression as the one before it, so a viewer who zoomed in or
+     stopped the spin does not carry that over onto the next outfit. */
+  LivePreview.prototype.resetView = function () {
+    var home = this.home || { angle: -0.45, tilt: 0.2, distance: 12.5 };
+    this.angle = home.angle;
+    this.tilt = home.tilt;
+    this.distance = home.distance;
+    this.spin = true;
+  };
+
   LivePreview.prototype.setPose = function (state) {
     this.poseState = state || 'idle';
     this.poseSpeed = (state === 'run') ? 1 : (state === 'walk' ? 0.6 : 0);
@@ -686,10 +705,12 @@
      with the same 3D rig the profile and the game use.  Nothing here is
      hand-drawn, so a hat added to the catalogue can turn up on the front page
      the same day. */
-  var HERO_POSES = ['idle', 'walk', 'run', 'jump', 'sit', 'fall'];
+  // No sitting: there is no chair on the stage, so a seated pose reads as a
+  // character floating in mid-air.
+  var HERO_POSES = ['idle', 'walk', 'run', 'jump'];
   var HERO_POSE_LABELS = {
     idle: 'Standing by', walk: 'On the move', run: 'Sprinting',
-    jump: 'Mid-jump', sit: 'Taking a seat', fall: 'Falling'
+    jump: 'Mid-jump'
   };
 
   function pick(list) {
@@ -710,9 +731,17 @@
     return out;
   }
 
+  // Used for the very first character, before /api/catalog has answered.
+  var FALLBACK_PALETTE = ['#f5cd30', '#c4281c', '#0d69ac', '#2f9e55', '#8b3fd6',
+                          '#d3592b', '#1b2a35', '#a3a2a5', '#f3cf9b', '#008f9c'];
+
   function paletteHex() {
-    var entry = pick(Thumbs.palette || []);
-    return (entry && entry.hex) || '#f5cd30';
+    var list = Thumbs.palette;
+    if (list && list.length) {
+      var entry = pick(list);
+      if (entry && entry.hex) return entry.hex;
+    }
+    return pick(FALLBACK_PALETTE);
   }
 
   Thumbs.randomLook = function (options) {
@@ -813,30 +842,52 @@
   Thumbs.paint = paint;
   Thumbs.rescan = observe;
 
+  /* Hand a hero stage a freshly rolled look, reframed as if it were the first
+     one: the camera goes home, so a viewer who zoomed in or stopped the spin
+     on the last outfit still gets a clean look at the next. */
+  Thumbs.dressHero = function (el, options) {
+    var preview = el && el.__preview;
+    if (!preview || preview.failed) return null;
+    var look = Thumbs.randomLook(options);
+    preview.setDescriptor(look.descriptor);
+    preview.setPose(look.pose);
+    preview.resetView();
+    el.__look = look;
+    el.dispatchEvent(new CustomEvent('look', { bubbles: true, detail: look }));
+    return look;
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     if (typeof Renderer === 'undefined') return;
+    /* None of this waits on the catalogue.  Every painter below fetches it
+       for itself and the hero starts on a character it can build without one,
+       because hanging the whole page off a single request is what left a
+       phone on a weak connection looking at empty panels. */
+    observe();
+    document.querySelectorAll('.avatar-view[data-avatar]').forEach(function (el) {
+      var descriptor;
+      try { descriptor = JSON.parse(el.dataset.avatar); } catch (e) { return; }
+      el.__preview = new LivePreview(el, descriptor);
+    });
+    document.querySelectorAll('.avatar-view[data-avatar-hero]').forEach(function (el) {
+      var look = Thumbs.randomLook();
+      var preview = new LivePreview(el, look.descriptor);
+      if (preview.failed) return;
+      preview.skyMode = 'stage';
+      preview.applyTheme();
+      preview.setPose(look.pose);
+      // a little further out and aimed a little higher, so a tall hat and
+      // its effect have somewhere to be instead of running off the top
+      preview.distance = 14.5;
+      preview.focusY = 3.3;
+      preview.markHome();
+      el.__preview = preview;
+      el.__look = look;
+      el.dispatchEvent(new CustomEvent('look', { bubbles: true, detail: look }));
+      // ...then dress it properly once the catalogue turns up
+      Thumbs.loadCatalog().then(function () { Thumbs.dressHero(el); });
+    });
     Thumbs.loadCatalog().then(function () {
-      observe();
-      document.querySelectorAll('.avatar-view[data-avatar]').forEach(function (el) {
-        var descriptor;
-        try { descriptor = JSON.parse(el.dataset.avatar); } catch (e) { return; }
-        el.__preview = new LivePreview(el, descriptor);
-      });
-      document.querySelectorAll('.avatar-view[data-avatar-hero]').forEach(function (el) {
-        var look = Thumbs.randomLook();
-        var preview = new LivePreview(el, look.descriptor);
-        preview.skyMode = 'stage';
-        preview.applyTheme();
-        preview.setPose(look.pose);
-        // a little further out and aimed a little higher, so a tall hat and
-        // its effect have somewhere to be instead of running off the top
-        preview.distance = 14.5;
-        preview.focusY = 3.3;
-        el.__preview = preview;
-        el.__look = look;
-        el.dispatchEvent(new CustomEvent('look', { bubbles: true,
-                                                   detail: look }));
-      });
       document.querySelectorAll('.avatar-view[data-avatar-demo]').forEach(function (el) {
         el.__preview = new LivePreview(el, {
           body_type: el.dataset.avatarDemo === 'female' ? 'female' : 'male',

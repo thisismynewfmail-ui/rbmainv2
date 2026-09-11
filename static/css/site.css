@@ -640,21 +640,30 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(63,191,74,.6);} 60% { box-shadow: 0 0 0 4px rgba(63,191,74,0);} }
 
 /* ----------------------------------------------------------- avatar tiles */
-.userlist { display: flex; flex-wrap: wrap; gap: 8px; }
+/* A grid rather than a wrapping flex row: the cards share out whatever width
+   the panel has, so a list of players reaches the right-hand edge instead of
+   stopping short of it with a ragged gap. */
+.userlist {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+}
 .usercard {
-  width: 88px; text-align: center; padding: 4px; border: 1px solid var(--line-soft);
+  min-width: 0; text-align: center; padding: 4px; border: 1px solid var(--line-soft);
   border-radius: 4px; background: var(--panel-alt); transition: transform .12s, box-shadow .12s;
 }
 .usercard:hover { transform: translateY(-2px); box-shadow: 0 3px 6px var(--shadow-lift); border-color: var(--line); }
 .usercard .thumb {
-  width: 100%; max-width: 78px; aspect-ratio: 1 / 1; height: auto;
+  width: 100%; max-width: none; aspect-ratio: 1 / 1; height: auto;
   margin: 0 auto 3px; border-radius: 3px;
   background: var(--preview-bg); border: 1px solid var(--line-soft);
   display: block;
 }
 .usercard .uname { display: block; font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.usercard.small { width: 74px; }
-.usercard.small .thumb { max-width: 64px; }
+/* The narrow profile column wants smaller tiles, but still a full row of
+   them -- the track minimum is what decides how many fit. */
+.userlist:has(.usercard.small) {
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+}
 
 /* --------------------------------------------------------------- item tiles */
 .itemgrid {
@@ -1107,7 +1116,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   /* top bar: brand, wallet, burger -- everything else moves into the drawer */
   .topbar .wrap {
-    height: auto; min-height: 48px; padding: 7px 10px; gap: 8px; flex-wrap: nowrap;
+    height: auto; min-height: 56px; padding: 11px 10px; gap: 8px; flex-wrap: nowrap;
   }
   .brand-mark { font-size: 18px; padding: 2px 6px 3px; }
   .brand-tag { display: none; }
@@ -1115,7 +1124,9 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .topbar .topnav { display: none; }
   .topbar .themetoggle { display: none; }
   .topbar .wallet { margin-left: auto; padding: 4px 7px; font-size: 11px; }
-  .navtoggle { display: block; }
+  /* Its own auto margin, so the burger sits against the right edge whether or
+     not there is a wallet beside it to push it there. */
+  .navtoggle { display: block; margin-left: auto; }
 
   /* the red strip becomes the drawer instead of a row that overflows */
   .tabbar { border-bottom-width: 0; }
@@ -1142,9 +1153,10 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .itemgrid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 7px; }
   .itemgrid.compact { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
   .worldgrid { grid-template-columns: minmax(0, 1fr); }
-  .userlist { justify-content: flex-start; }
-  .usercard { width: calc(33.333% - 6px); max-width: 110px; }
-  .usercard .thumb { max-width: none; }
+  .userlist { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+  .userlist:has(.usercard.small) {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  }
   dl.stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   dl.stats dd { font-size: 13px; }
   .kv { grid-template-columns: 92px minmax(0, 1fr); }
@@ -1176,7 +1188,9 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 480px) {
   .steps { grid-template-columns: minmax(0, 1fr); }
   .itemgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .usercard { width: calc(50% - 4px); }
+  .userlist, .userlist:has(.usercard.small) {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
   .swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   dl.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pinrow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -1331,10 +1345,6 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .hero-chips .chip.unusual {
   background: rgba(139,63,214,.44); border-color: rgba(199,139,255,.6); color: #f0e2ff;
 }
-.hero-stage-bar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
-.hero-note {
-  text-align: center; font-size: 10px; color: #a8c8e8; margin: 0;
-}
 
 /* ==========================================================================
    PHONE ORDERING
@@ -1344,8 +1354,16 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
    direct child of the row and can be ordered on its own.
    ========================================================================== */
 @media (max-width: 860px) {
+  /* Two inherited values have to go for the stacked layout to behave.
+     `.row` aligns to flex-start, which along a column axis means every panel
+     shrinks to its own content -- that is what left Site statistics as a
+     half-width box.  And `.row` wraps, which in a column container means
+     wrapping into *columns*: the panels then get stretched to fill a wrap
+     line, which is what blew the friends panel up to four times its content.
+     Stacked, they want full width and one single column. */
   .profile-row, .landing-row {
-    display: flex; flex-direction: column; gap: 0;
+    display: flex; flex-direction: column; flex-wrap: nowrap;
+    align-items: stretch; gap: 0;
   }
   .profile-row > .col, .profile-row > .col-side, .profile-row > .col-narrow,
   .landing-row > .col, .landing-row > .col-side { display: contents; }
@@ -1369,7 +1387,10 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .landing-row .l-newest  { order: 5; }
 
   /* Signed-in home: people you can reach, then the inbox, then friends. */
-  .home-side { display: flex; flex-direction: column; gap: 0; }
+  .home-side {
+    display: flex; flex-direction: column; flex-wrap: nowrap;
+    align-items: stretch; gap: 0;
+  }
   .home-side .h-me       { order: 1; }
   .home-side .h-requests { order: 2; }
   .home-side .h-online   { order: 3; }
