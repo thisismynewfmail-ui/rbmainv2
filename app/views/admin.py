@@ -61,7 +61,7 @@ def dashboard(req: Request):
     term = req.query.get("q", "")
     return render(req, "admin.html",
                   live=_live_payload(),
-                  user_rows=users.search(term, 40),
+                  user_rows=users.search(term, 40, order="seen"),
                   term=term,
                   audit=db.rows_to_dicts(db.query(
                       "SELECT a.*, u.username FROM audit_log a"
@@ -81,10 +81,105 @@ def dashboard(req: Request):
                   })
 
 
+# ------------------------------------------------------------- social graph
+NETWORK_LIMIT = 220
+
+
+def _network_payload() -> Dict[str, Any]:
+    """Nodes and edges for the animated connection map.
+
+    Everything is derived from the same tables the site itself reads, so the
+    graph is a view of live state rather than a second copy of it.  The node
+    list is capped -- the busiest accounts first -- so a large instance still
+    renders something a browser can draw at sixty frames a second.
+    """
+    people = db.rows_to_dicts(db.query(
+        "SELECT id, username, created_at, last_seen, is_admin, is_banned"
+        " FROM users"))
+    friend_rows = db.rows_to_dicts(db.query(
+        "SELECT user_low, user_high, status FROM friendships"))
+    follow_rows = db.rows_to_dicts(db.query(
+        "SELECT follower_id, followee_id FROM follows"))
+
+    degree: Dict[int, int] = {}
+    for row in friend_rows:
+        if row["status"] != "accepted":
+            continue
+        degree[int(row["user_low"])] = degree.get(int(row["user_low"]), 0) + 1
+        degree[int(row["user_high"])] = degree.get(int(row["user_high"]), 0) + 1
+
+    in_game = {}
+    for world in worlds.all_worlds():
+        for player in game_registry.players_in(world["id"]):
+            in_game[int(player.get("user_id", 0))] = world["name"]
+
+    # busiest first, then newest -- a lone brand new account still gets in
+    people.sort(key=lambda u: (-degree.get(int(u["id"]), 0),
+                               -int(u["created_at"] or 0)))
+    people = people[:NETWORK_LIMIT]
+    keep = {int(u["id"]) for u in people}
+
+    nodes = []
+    for row in people:
+        uid = int(row["id"])
+        nodes.append({
+            "id": uid,
+            "name": row["username"],
+            "degree": degree.get(uid, 0),
+            "admin": bool(row["is_admin"]),
+            "banned": bool(row["is_banned"]),
+            "online": users.is_online(row),
+            "playing": in_game.get(uid, ""),
+            "joined": int(row["created_at"] or 0),
+            "last_seen": int(row["last_seen"] or 0),
+        })
+
+    edges = []
+    for row in friend_rows:
+        a, b = int(row["user_low"]), int(row["user_high"])
+        if a in keep and b in keep:
+            edges.append({"a": a, "b": b,
+                          "kind": "friend" if row["status"] == "accepted"
+                                  else "pending"})
+    seen = {(e["a"], e["b"]) for e in edges}
+    for row in follow_rows:
+        a, b = int(row["follower_id"]), int(row["followee_id"])
+        if a not in keep or b not in keep:
+            continue
+        pair = (a, b) if a < b else (b, a)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        edges.append({"a": a, "b": b, "kind": "follow"})
+
+    isolated = sum(1 for n in nodes if not n["degree"])
+    return {
+        "at": int(time.time()),
+        "nodes": nodes,
+        "edges": edges,
+        "truncated": max(0, users.count_users() - len(nodes)),
+        "summary": {
+            "people": len(nodes),
+            "friendships": sum(1 for e in edges if e["kind"] == "friend"),
+            "pending": sum(1 for e in edges if e["kind"] == "pending"),
+            "follows": sum(1 for e in edges if e["kind"] == "follow"),
+            "isolated": isolated,
+            "online": sum(1 for n in nodes if n["online"]),
+            "playing": sum(1 for n in nodes if n["playing"]),
+        },
+    }
+
+
 @router.get("/api/admin/live")
 @admin_required
 def live(req: Request):
     return api_ok(**_live_payload())
+
+
+@router.get("/api/admin/network")
+@admin_required
+def network(req: Request):
+    return api_ok(**_network_payload())
 
 
 @router.get("/api/admin/user")

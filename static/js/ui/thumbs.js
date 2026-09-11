@@ -146,7 +146,8 @@
     parts.forEach(function (part) { renderer.push(part); });
     frameCamera(renderer, parts, options.padding, options.angle, options.tilt);
     if (options.effect && Thumbs.particles && Thumbs.effects) {
-      var def = Thumbs.effects[options.effect];
+      var def = Thumbs.scaleEffect(Thumbs.effectDef(options.effect),
+                                   options.effectScale);
       if (def) {
         Thumbs.particles.count = 0;
         Thumbs.particles.emitters = {};
@@ -180,6 +181,49 @@
     ctx.drawImage(source, 0, 0, target.width, target.height);
   }
 
+  // --------------------------------------------------------- unusual effects
+  /* An Unusual effect is authored for a whole character standing in a world.
+     An item tile frames one hat from a couple of units away, so the same
+     numbers would throw particles clean off the tile.  This shrinks the
+     effect to the piece it is sitting on -- every length in the definition,
+     so the plume keeps its shape instead of turning into a puff of confetti
+     -- and the caller pads the camera to leave the plume somewhere to go. */
+  var EFFECT_TILE_SCALE = 0.42;
+
+  Thumbs.scaleEffect = function (def, factor) {
+    if (!def) return null;
+    if (!factor || factor === 1) return def;
+    var out = {};
+    for (var key in def) { if (def.hasOwnProperty(key)) out[key] = def[key]; }
+    var size = def.size || [0.3, 0.5];
+    var rise = def.rise || [0.5, 1.2];
+    out.size = [size[0] * factor, size[1] * factor];
+    out.rise = [rise[0] * factor, rise[1] * factor];
+    out.radius = (def.radius === undefined ? 0.5 : def.radius) * factor;
+    out.spread = (def.spread || 0.4) * factor;
+    out.gravity = (def.gravity || 0) * factor;
+    out.grow = (def.grow || 0) * factor;
+    return out;
+  };
+
+  Thumbs.effectDef = function (effect) {
+    if (!effect || !Thumbs.effects) return null;
+    return Thumbs.effects[effect] || null;
+  };
+
+  /* Emit from the crown of the piece rather than from a fixed height, so a
+     tall hat throws its flames from the top of the hat and a flat cap does
+     not spit them out of its own brim. */
+  function topOf(parts) {
+    var top = -1e9, x = 0, z = 0, n = 0;
+    parts.forEach(function (piece) {
+      top = Math.max(top, piece.p[1] + piece.s[1] * 0.5);
+      x += piece.p[0]; z += piece.p[2]; n++;
+    });
+    if (!n) return [0, 0.35, 0];
+    return [x / n, top + 0.10, z / n];
+  }
+
   // ------------------------------------------------------------ item icons
   Thumbs.itemParts = function (item, effect) {
     var slot = item.slot;
@@ -191,8 +235,11 @@
                  decSlot: piece.decal ? Textures.decal(piece.decal) : null };
       });
       if (!parts.length) parts.push({ t: 'box', p: [0, 0, 0], s: [1, 1, 1], c: '#c8cbcd' });
-      return { parts: parts, angle: -0.62, tilt: 0.15, padding: 1.12,
-               anchor: [0, 0.35, 0] };
+      // an effect needs headroom above the piece or the plume is guillotined
+      return { parts: parts, angle: -0.62, tilt: 0.15,
+               padding: effect ? 1.52 : 1.12,
+               effectScale: EFFECT_TILE_SCALE,
+               anchor: topOf(parts) };
     }
     if (slot === 'usable') {
       var weaponParts = (data.parts || []).map(function (piece) {
@@ -240,11 +287,127 @@
       var spec = Thumbs.itemParts(item, effect);
       var source = renderParts(spec.parts, {
         angle: spec.angle, tilt: spec.tilt, padding: spec.padding,
-        effect: effect, anchor: spec.anchor
+        effect: effect, effectScale: spec.effectScale, anchor: spec.anchor
       });
       if (!source) return;
       Thumbs.imageCache[key] = snapshot(source);
       blit(canvas, Thumbs.imageCache[key]);
+    });
+  };
+
+  /* ---------------------------------------------------------- live effects
+     A still frame is the right answer for a wall of item tiles -- it renders
+     once and is cached -- but the moment a piece is the subject (the preview
+     popup, a pinned item on a profile) a frozen puff of flame reads as a
+     drawing rather than an effect.  These run the real emitter at frame rate
+     against the shared offscreen renderer and blit it out, and they stop the
+     moment the canvas leaves the page, so nothing keeps burning CPU behind a
+     closed dialog. */
+  var LIVE_MAX = 4;
+  var live = [];
+  var liveFrame = 0;
+  var particlePool = [];
+
+  function borrowParticles() {
+    var renderer = ensureRenderer();
+    if (!renderer) return null;
+    var system = particlePool.pop();
+    if (!system) system = new Particles(renderer.gl);
+    system.count = 0;
+    system.emitters = {};
+    system.enabled = true;
+    return system;
+  }
+
+  function releaseParticles(system) {
+    if (!system) return;
+    system.count = 0;
+    system.emitters = {};
+    if (particlePool.length < LIVE_MAX) particlePool.push(system);
+  }
+
+  function liveTick(now) {
+    var renderer = Thumbs.renderer;
+    if (!live.length || !renderer) { liveFrame = 0; return; }
+    liveFrame = requestAnimationFrame(liveTick);
+    for (var i = live.length - 1; i >= 0; i--) {
+      var job = live[i];
+      if (!job.canvas.isConnected) { Thumbs.stopLive(job.canvas); continue; }
+      var dt = Math.min(0.05, (now - (job.last || now)) / 1000);
+      job.last = now;
+      // off-screen or in a hidden tab: keep the state, skip the work
+      if (document.hidden || !job.canvas.offsetParent) continue;
+      // renderWorld borrows the shared buffer at a different size; sit out
+      // those frames rather than drawing an item into a 512x288 canvas
+      if (renderer.canvas.width !== OFFSCREEN ||
+          renderer.canvas.height !== OFFSCREEN) continue;
+      renderer.setSky({ top: '#bcdcf5', horizon: '#f4f9fc',
+                        sun: [0.45, 0.8, 0.35], clouds: 0, tint: '#ffffff' });
+      renderer.buildStatic([]);
+      renderer.beginFrame(dt);
+      for (var n = 0; n < job.parts.length; n++) renderer.push(job.parts[n]);
+      frameCamera(renderer, job.parts, job.padding, job.angle, job.tilt);
+      job.particles.setEmitter('fx', job.def, job.anchor);
+      job.particles.update(dt);
+      renderer.render();
+      job.particles.draw(renderer);
+      blit(job.canvas, renderer.canvas);
+    }
+  }
+
+  Thumbs.stopLive = function (canvas) {
+    for (var i = 0; i < live.length; i++) {
+      if (live[i].canvas !== canvas) continue;
+      releaseParticles(live[i].particles);
+      live.splice(i, 1);
+      return true;
+    }
+    return false;
+  };
+
+  Thumbs.stopAllLive = function () {
+    while (live.length) Thumbs.stopLive(live[live.length - 1].canvas);
+  };
+
+  /* Animate one item's Unusual effect into a canvas.  Falls back to the
+     ordinary still icon when there is no effect, no WebGL, or when too many
+     previews are already running. */
+  Thumbs.animateItem = function (canvas, itemId, effect, options) {
+    options = options || {};
+    if (!canvas || !effect) {
+      if (canvas && itemId) Thumbs.renderItem(canvas, itemId, effect);
+      return;
+    }
+    Thumbs.stopLive(canvas);
+    Thumbs.loadCatalog().then(function (catalog) {
+      var item = catalog[itemId];
+      if (!item || !ensureRenderer()) return;
+      // draw the still first so the tile is never blank while we spin up
+      Thumbs.renderItem(canvas, itemId, effect);
+      var def = Thumbs.effectDef(effect);
+      if (!def) return;
+      if (live.length >= LIVE_MAX) return;
+      var spec = Thumbs.itemParts(item, effect);
+      var system = borrowParticles();
+      if (!system) return;
+      var job = {
+        canvas: canvas,
+        parts: spec.parts,
+        angle: spec.angle,
+        tilt: spec.tilt,
+        padding: spec.padding,
+        anchor: spec.anchor || [0, 0.35, 0],
+        def: Thumbs.scaleEffect(def, options.scale || spec.effectScale),
+        particles: system,
+        last: 0
+      };
+      // a couple of seconds of pre-roll, so it opens mid-effect not empty
+      for (var step = 0; step < 70; step++) {
+        system.setEmitter('fx', job.def, job.anchor);
+        system.update(1 / 60);
+      }
+      live.push(job);
+      if (!liveFrame) liveFrame = requestAnimationFrame(liveTick);
     });
   };
 
@@ -385,6 +548,8 @@
     this.distance = 12.5;
     this.spin = true;
     this.time = 0;
+    this.poseState = 'idle';
+    this.poseSpeed = 0;
     this.bindInput();
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
@@ -441,8 +606,18 @@
   };
 
   /* The preview draws its own sky, so it has to follow the site theme or a
-     dark page ends up with a bright white window punched in it. */
+     dark page ends up with a bright white window punched in it.  The welcome
+     stage is the exception: that panel is deep blue in both themes, so its
+     preview stays on a night sky rather than punching a white hole in it. */
   LivePreview.prototype.applyTheme = function () {
+    if (this.skyMode === 'stage') {
+      this.dark = true;
+      this.renderer.setSky({ top: '#0f2540', horizon: '#1d4570',
+                             sun: [0.35, 0.85, 0.4], clouds: 0.0,
+                             tint: '#7fb0e0' });
+      this.renderer.setAmbient('#5b7ea8');
+      return;
+    }
     var dark = window.Site ? Site.isDark() : false;
     this.dark = dark;
     this.renderer.setSky(dark
@@ -465,7 +640,7 @@
     this.renderer.resize();
     var parts = Avatar.build(this.descriptor, {
       position: [0, 0, 0], yaw: 0, time: this.time,
-      pose: Avatar.pose('idle', this.time, 0)
+      pose: Avatar.pose(this.poseState, this.time, this.poseSpeed)
     });
     // The projection fixes the vertical field of view, so a narrow panel is
     // the one that crops: pull the camera back until the character's width
@@ -478,7 +653,7 @@
     // simple ground shadow
     this.renderer.pushRaw('cyl', 0, 0.02, 0, 0, 0, 0, 5.2, 0.04, 4.0,
                           [0.35, 0.42, 0.5], 0.32, 0, 0, 0.8, null);
-    var centre = [0, 2.9, 0];
+    var centre = [0, this.focusY === undefined ? 2.9 : this.focusY, 0];
     var eye = [
       centre[0] + Math.sin(this.angle) * distance,
       centre[1] + Math.sin(this.tilt) * distance * 0.85 + 0.6,
@@ -497,7 +672,100 @@
     this.particles.draw(this.renderer);
   };
 
+  LivePreview.prototype.setPose = function (state) {
+    this.poseState = state || 'idle';
+    this.poseSpeed = (state === 'run') ? 1 : (state === 'walk' ? 0.6 : 0);
+  };
+
   Thumbs.LivePreview = LivePreview;
+
+  // ----------------------------------------------------- random characters
+  /* The welcome page shows one character rather than a shelf of them, so that
+     character has to earn its place: every reload (and every Shuffle) rolls a
+     fresh build, outfit, face and palette straight out of the live catalogue,
+     with the same 3D rig the profile and the game use.  Nothing here is
+     hand-drawn, so a hat added to the catalogue can turn up on the front page
+     the same day. */
+  var HERO_POSES = ['idle', 'walk', 'run', 'jump', 'sit', 'fall'];
+  var HERO_POSE_LABELS = {
+    idle: 'Standing by', walk: 'On the move', run: 'Sprinting',
+    jump: 'Mid-jump', sit: 'Taking a seat', fall: 'Falling'
+  };
+
+  function pick(list) {
+    return list.length ? list[Math.floor(Math.random() * list.length)] : null;
+  }
+
+  function bySlot(slot) {
+    var out = [];
+    for (var id in Thumbs.catalog) {
+      if (!Thumbs.catalog.hasOwnProperty(id)) continue;
+      var item = Thumbs.catalog[id];
+      if (item.slot !== slot) continue;
+      // "No Shirt" and "No Pants" are catalogue entries meaning bare; a random
+      // look that rolls them reads as an unfinished character, not a choice
+      if (/_none$/.test(id)) continue;
+      out.push(item);
+    }
+    return out;
+  }
+
+  function paletteHex() {
+    var entry = pick(Thumbs.palette || []);
+    return (entry && entry.hex) || '#f5cd30';
+  }
+
+  Thumbs.randomLook = function (options) {
+    options = options || {};
+    var skin = paletteHex();
+    var legs = paletteHex();
+    var descriptor = {
+      body_type: Math.random() < 0.5 ? 'female' : 'male',
+      colors: {
+        head: skin, torso: paletteHex(), left_arm: skin, right_arm: skin,
+        left_leg: legs, right_leg: legs
+      },
+      items: {}
+    };
+    var chips = [];
+    function wear(slot, chance) {
+      var item = pick(bySlot(slot));
+      if (!item || Math.random() > chance) return null;
+      descriptor.items[slot] = { item_id: item.id, slot: slot, data: item.data,
+                                 tier: 'normal', effect: '' };
+      chips.push({ slot: slot, name: item.name, rarity: item.rarity });
+      return item;
+    }
+    var face = wear('face', 1);
+    var hat = wear('hat', 0.92);
+    wear('shirt', 0.8);
+    wear('pants', 0.72);
+    wear('back', 0.34);
+    // roughly one look in four wears an Unusual, which is the whole point of
+    // the hat aisle and the thing worth showing a visitor
+    var effectIds = Object.keys(Thumbs.effects || {});
+    var unusual = '';
+    if (hat && effectIds.length && Math.random() < (options.unusualChance || 0.28)) {
+      unusual = pick(effectIds);
+      descriptor.items.hat.tier = 'unusual';
+      descriptor.items.hat.effect = unusual;
+      descriptor.items.hat.effect_def = Thumbs.effects[unusual];
+    }
+    return {
+      descriptor: descriptor,
+      chips: chips,
+      hat: hat,
+      face: face,
+      unusual: unusual,
+      unusualName: unusual ? (Thumbs.effects[unusual] || {}).name : '',
+      pose: options.pose || pick(HERO_POSES)
+    };
+  };
+
+  Thumbs.heroPoses = HERO_POSES;
+  Thumbs.posePreviewLabel = function (state) {
+    return HERO_POSE_LABELS[state] || 'Standing by';
+  };
 
   Thumbs.retheme = function () {
     document.querySelectorAll('.avatar-view').forEach(function (el) {
@@ -528,7 +796,13 @@
 
   function paint(el) {
     if (el.dataset.item !== undefined && el.classList.contains('item-thumb')) {
-      if (el.dataset.item) Thumbs.renderItem(el, el.dataset.item, el.dataset.effect);
+      if (!el.dataset.item) return;
+      // a tile that asked for it runs the effect live instead of as a still
+      if (el.dataset.liveEffect && el.dataset.effect) {
+        Thumbs.animateItem(el, el.dataset.item, el.dataset.effect);
+      } else {
+        Thumbs.renderItem(el, el.dataset.item, el.dataset.effect);
+      }
     } else if (el.dataset.user) {
       Thumbs.renderAvatarFor(el, el.dataset.user);
     } else if (el.dataset.world) {
@@ -547,6 +821,21 @@
         var descriptor;
         try { descriptor = JSON.parse(el.dataset.avatar); } catch (e) { return; }
         el.__preview = new LivePreview(el, descriptor);
+      });
+      document.querySelectorAll('.avatar-view[data-avatar-hero]').forEach(function (el) {
+        var look = Thumbs.randomLook();
+        var preview = new LivePreview(el, look.descriptor);
+        preview.skyMode = 'stage';
+        preview.applyTheme();
+        preview.setPose(look.pose);
+        // a little further out and aimed a little higher, so a tall hat and
+        // its effect have somewhere to be instead of running off the top
+        preview.distance = 14.5;
+        preview.focusY = 3.3;
+        el.__preview = preview;
+        el.__look = look;
+        el.dispatchEvent(new CustomEvent('look', { bubbles: true,
+                                                   detail: look }));
       });
       document.querySelectorAll('.avatar-view[data-avatar-demo]').forEach(function (el) {
         el.__preview = new LivePreview(el, {

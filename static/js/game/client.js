@@ -44,6 +44,17 @@
     this.scoped = false;
     this.mouseGrabbed = false;
     this.paused = false;
+    // Pointer-lock bookkeeping.  Esc is handled by the browser before the
+    // page ever sees the key, so the lock going away *is* the Esc press --
+    // see bindInput.
+    this.releasedAt = 0;        // when we let the lock go on purpose
+    this.escapedAt = 0;         // when a lock loss was read as an Esc press
+    this.blurredAt = -1e9;      // when the window last lost focus
+    this.unlockTimer = 0;
+    this.wantLock = false;      // we are trying to get the mouse back
+    this.lockTries = 0;
+    this.lockTimer = 0;
+    this.kicked = false;
     this.keys = {};
     this.time = 0;
     this.accumulator = 0;
@@ -98,13 +109,66 @@
        paused.  Alt-tabbing, hitting the Windows key or clicking another
        monitor releases the mouse cleanly and the round keeps running; only
        Esc opens the pause menu.  The overlay below tells the player how to
-       get the mouse back. */
+       get the mouse back.
+
+       The catch is that the browser owns Esc while the pointer is locked: it
+       swallows the keydown and releases the lock itself, which is why Esc
+       used to need pressing twice -- the first press only freed the mouse.
+       So an unlock we did not ask for, while the window still has focus, IS
+       the Esc press, and it pauses.  A tab-away releases the lock too, but
+       the window has lost focus by then, which is how the two are told
+       apart. */
     document.addEventListener('pointerlockchange', function () {
       var locked = document.pointerLockElement === canvas;
       canvas.classList.toggle('freelook', !locked);
       self.mouseGrabbed = locked;
-      if (!locked) { self.firing = false; self.keys = {}; }
-      if (!self.paused && !self.hud.chatOpen) self.hud.showFocusHint(!locked);
+      if (locked) {
+        self.wantLock = false;
+        self.lockTries = 0;
+        clearTimeout(self.lockTimer);
+        self.hud.showFocusHint(false);
+        return;
+      }
+      self.firing = false;
+      self.keys = {};
+      if (performance.now() - self.releasedAt < 400) return;   // we did it
+      /* Whether this was Esc or a tab-away is decided a beat later rather
+         than right now: the blur and the pointerlockchange arrive in either
+         order depending on the browser, so reading the focus flag on this
+         very tick gets it wrong about half the time.  120ms later the answer
+         is settled -- still focused means Esc, focus gone means the window
+         went away and the round carries on. */
+      clearTimeout(self.unlockTimer);
+      self.unlockTimer = setTimeout(function () {
+        if (self.paused || self.hud.chatOpen) return;
+        if (document.pointerLockElement === canvas) return;
+        var focused = (document.hasFocus ? document.hasFocus() : true) &&
+                      document.visibilityState !== 'hidden' &&
+                      performance.now() - self.blurredAt > 600;
+        if (focused) {
+          self.escapedAt = performance.now();
+          self.setPaused(true);
+        } else {
+          self.hud.showFocusHint(true);
+        }
+      }, 120);
+    });
+
+    /* The browser refuses a fresh lock for about a second after the user
+       pressed Esc, so a Resume that asks once lands on that cooldown and
+       leaves the player staring at a free cursor.  Keep asking, backing off,
+       and fall back to the "click to take the mouse back" hint. */
+    document.addEventListener('pointerlockerror', function () {
+      if (!self.wantLock || self.paused || self.hud.chatOpen) return;
+      if (self.lockTries >= 7) {
+        self.wantLock = false;
+        self.hud.showFocusHint(true);
+        return;
+      }
+      var wait = 160 + self.lockTries * 180;
+      self.lockTries += 1;
+      clearTimeout(self.lockTimer);
+      self.lockTimer = setTimeout(function () { self.grabMouse(true); }, wait);
     });
 
     document.addEventListener('mousemove', function (event) {
@@ -154,6 +218,10 @@
       var action = Settings.actionFor(event.code);
       if (event.code === 'Escape') {
         event.preventDefault();
+        // The lock release for this very press already opened the menu (some
+        // browsers deliver the keydown as well).  Toggling again here is what
+        // used to slam the menu straight back shut.
+        if (performance.now() - self.escapedAt < 500) return;
         self.setPaused(!self.paused);
         return;
       }
@@ -179,8 +247,16 @@
     });
 
     // Tabbing away releases the keys so the character does not run on, but the
-    // match keeps going and the game stays unpaused.
-    window.addEventListener('blur', function () { self.keys = {}; self.firing = false; });
+    // match keeps going and the game stays unpaused.  The stamp is what the
+    // pointerlockchange handler above uses to tell a tab-away from an Esc.
+    window.addEventListener('blur', function () {
+      self.blurredAt = performance.now();
+      self.keys = {};
+      self.firing = false;
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') self.blurredAt = performance.now();
+    });
     window.addEventListener('focus', function () {
       if (!self.paused && !self.hud.chatOpen) self.hud.showFocusHint(!self.mouseGrabbed);
     });
@@ -201,36 +277,61 @@
     var text = (input.value || '').trim();
     if (text) this.net.send({ t: 'chat', m: text, team: this.hud.chatTeam });
     input.value = '';
-    this.hud.closeChat();
-    if (!this.paused) this.canvas.requestPointerLock();
+    this.hud.closeChat();          // which takes the mouse back for us
   };
 
-  Client.prototype.grabMouse = function () {
+  Client.prototype.grabMouse = function (retrying) {
     if (document.pointerLockElement === this.canvas) return;
-    var request = this.canvas.requestPointerLock({ unadjustedMovement: true });
+    if (this.paused || this.hud.chatOpen) return;
+    if (!retrying) { this.lockTries = 0; clearTimeout(this.lockTimer); }
+    this.wantLock = true;
+    var canvas = this.canvas;
+    var request;
+    try {
+      request = canvas.requestPointerLock({ unadjustedMovement: true });
+    } catch (e) {
+      request = null;
+    }
     // unadjustedMovement is only supported on some platforms; the promise
-    // form rejects there, so fall back to a plain lock.
+    // form rejects there, so fall back to a plain lock.  A plain lock that
+    // fails too raises pointerlockerror, which schedules the retry.
     if (request && typeof request.catch === 'function') {
-      var canvas = this.canvas;
       request.catch(function () {
         try { canvas.requestPointerLock(); } catch (e) {}
       });
     }
   };
 
+  Client.prototype.releaseMouse = function () {
+    this.wantLock = false;
+    clearTimeout(this.lockTimer);
+    if (document.pointerLockElement) {
+      // remembered so pointerlockchange knows this unlock was ours and not
+      // the player reaching for Esc
+      this.releasedAt = performance.now();
+      document.exitPointerLock();
+    }
+  };
+
   Client.prototype.setPaused = function (value) {
+    value = !!value;
+    if (this.paused === value) return;
     this.paused = value;
     this.hud.show('pause', value);
     if (!value) {
       this.hud.show('settings', false);
       this.hud.show('helpbox', false);
+      // the menu is gone, so the hint should be too until we know the lock
+      // request has actually failed
+      this.hud.showFocusHint(false);
       if (!this.hud.chatOpen) this.grabMouse();
-    } else if (document.pointerLockElement) {
-      document.exitPointerLock();
-    }
-    if (value) {
+    } else {
+      this.releaseMouse();
       this.hud.showFocusHint(false);
       if (this.scoped) { this.scoped = false; this.hud.setScope(false); }
+      // so Enter/Space work straight away and the cursor has an obvious home
+      var resume = document.getElementById('btn-resume');
+      if (resume) setTimeout(function () { try { resume.focus(); } catch (e) {} }, 20);
     }
   };
 
@@ -510,8 +611,40 @@
       var badge = document.getElementById('ping-badge');
       if (badge) badge.textContent = ms + ' ms';
     });
+    /* One live session per account.  Pressing Play in a second window pulls
+       this one out before the new one connects, so the round it was in never
+       has two copies of the same character in it.  The card says so plainly
+       rather than leaving a "disconnected" message that looks like a fault. */
+    net.on('kicked', function (msg) {
+      self.kicked = true;
+      self.net.closedByUs = true;       // this is not a dropped connection
+      self.paused = false;
+      self.hud.show('pause', false);
+      self.hud.show('settings', false);
+      self.hud.show('helpbox', false);
+      self.hud.showFocusHint(false);
+      // deliberately not grabbing the mouse back: this window is finished,
+      // and asking for a lock with no user gesture behind it only earns a
+      // console error
+      self.releaseMouse();
+      self.restoreFullscreen();
+      var loading = document.getElementById('loading');
+      if (loading) loading.classList.remove('hide');
+      var body = document.getElementById('load-msg');
+      if (body) {
+        body.innerHTML =
+          '<b>' + self.hud.escape(msg && msg.reason
+            ? msg.reason : 'You started playing in another window.') + '</b><br>' +
+          'This window has left the round so the other one can take over.<br>' +
+          '<a href="/' + self.world.id + '" style="color:#ffd95e">Play here instead</a>' +
+          ' &bull; <a href="/worlds" style="color:#ffd95e">World browser</a>';
+      }
+      self.net.close();
+    });
+
     net.on('close', function (info) {
       if (info && info.byUs) return;
+      if (self.kicked) return;
       document.getElementById('loading').classList.remove('hide');
       document.getElementById('load-msg').innerHTML =
         'Disconnected from the game host.<br>' +

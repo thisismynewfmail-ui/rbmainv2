@@ -126,8 +126,8 @@ def get_session(token: str) -> Optional[Dict[str, Any]]:
     if not token:
         return None
     row = db.query_one(
-        "SELECT s.token, s.user_id, s.csrf, s.expires_at FROM sessions s"
-        " WHERE s.token=?", (token,))
+        "SELECT s.token, s.user_id, s.csrf, s.expires_at, s.spotlight_seen"
+        " FROM sessions s WHERE s.token=?", (token,))
     if not row:
         return None
     if row["expires_at"] < _now():
@@ -139,6 +139,22 @@ def get_session(token: str) -> Optional[Dict[str, Any]]:
 def end_session(token: str) -> None:
     if token:
         db.execute("DELETE FROM sessions WHERE token=?", (token,))
+
+
+def claim_spotlight(token: str) -> bool:
+    """True exactly once per sign-in, for the weekly spotlight banner.
+
+    The flag lives on the session row rather than the account, so it survives
+    a reload (the banner does not come back on every page) and is gone the
+    moment the player signs out and back in -- a new session, a new greeting.
+    The UPDATE is conditional, so two tabs racing each other still only get
+    one claim between them.
+    """
+    if not token:
+        return False
+    cur = db.execute("UPDATE sessions SET spotlight_seen=1 WHERE token=?"
+                     " AND spotlight_seen=0", (token,))
+    return bool(cur.rowcount)
 
 
 def touch(user_id: int) -> None:
@@ -173,15 +189,38 @@ def update_profile(user_id: int, blurb: str, location: str) -> None:
                 user_id))
 
 
-def search(term: str, limit: int = 40) -> List[Dict[str, Any]]:
+def search(term: str, limit: int = 40,
+           order: str = "joined") -> List[Dict[str, Any]]:
+    """Player lookup.
+
+    ``order`` is "joined" (newest accounts first, which is what the People
+    browser shows) or "seen" (most recently active first, used by the admin
+    dashboard where recency is the useful sort).
+    """
+    column = "created_at" if order == "joined" else "last_seen"
     term = (term or "").strip().lower()
     if term:
         rows = db.query(
-            "SELECT * FROM users WHERE username_lower LIKE ? ORDER BY last_seen DESC"
-            " LIMIT ?", ("%" + term.replace("%", "") + "%", limit))
+            "SELECT * FROM users WHERE username_lower LIKE ?"
+            " ORDER BY %s DESC, id DESC LIMIT ?" % column,
+            ("%" + term.replace("%", "") + "%", limit))
     else:
-        rows = db.query("SELECT * FROM users ORDER BY last_seen DESC LIMIT ?",
-                        (limit,))
+        rows = db.query("SELECT * FROM users ORDER BY %s DESC, id DESC"
+                        " LIMIT ?" % column, (limit,))
+    return db.rows_to_dicts(rows)
+
+
+def suggest(term: str, limit: int = 8,
+            exclude_id: int = 0) -> List[Dict[str, Any]]:
+    """Type-ahead for the "To" box: prefix matches first, then substrings."""
+    term = (term or "").strip().lower().replace("%", "")
+    if not term:
+        return []
+    rows = db.query(
+        "SELECT id, username, last_seen FROM users"
+        " WHERE username_lower LIKE ? AND id<>?"
+        " ORDER BY (username_lower LIKE ?) DESC, last_seen DESC LIMIT ?",
+        ("%" + term + "%", exclude_id, term + "%", limit))
     return db.rows_to_dicts(rows)
 
 
@@ -243,6 +282,38 @@ PRIVACY_LABELS = [
 ]
 
 MAX_PINNED = 3
+
+
+# Small per-account interface switches.  They live in one JSON blob so a new
+# switch is a key here rather than another column and another migration.
+PREF_DEFAULTS: Dict[str, Any] = {
+    "messenger": True,       # the floating message bubble, on by default
+}
+
+
+def prefs_of(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    merged = dict(PREF_DEFAULTS)
+    raw = (user or {}).get("prefs") or "{}"
+    try:
+        stored = json.loads(raw)
+    except (TypeError, ValueError):
+        stored = {}
+    if isinstance(stored, dict):
+        for key, value in stored.items():
+            if key in PREF_DEFAULTS:
+                merged[key] = bool(value) if isinstance(
+                    PREF_DEFAULTS[key], bool) else value
+    return merged
+
+
+def set_prefs(user_id: int, values: Dict[str, Any]) -> Dict[str, Any]:
+    merged = prefs_of(get_by_id(user_id))
+    for key, value in (values or {}).items():
+        if key in PREF_DEFAULTS:
+            merged[key] = bool(value) if isinstance(
+                PREF_DEFAULTS[key], bool) else value
+    db.execute("UPDATE users SET prefs=? WHERE id=?", (_json(merged), user_id))
+    return merged
 
 
 def theme_of(user: Optional[Dict[str, Any]]) -> str:

@@ -440,6 +440,34 @@ class GameInstance:
             self.system_message("%s joined the server." % username)
             return player
 
+    def drop_user(self, user_id: int, reason: str = "",
+                  keep_pid: int = 0) -> int:
+        """Disconnect every connection belonging to one account.
+
+        Used to enforce one live session per player: opening a world in a
+        second window pulls the first one out of whatever it was in before the
+        new connection is allowed to join.  The socket is closed rather than
+        just forgotten, so the reader thread unwinds and ``remove_player``
+        runs through the normal path (stats flushed, everybody told).
+        """
+        with self.lock:
+            doomed = [p for p in self.players.values()
+                      if p.user_id == user_id and p.pid != keep_pid]
+        for player in doomed:
+            try:
+                player.send({"t": "kicked", "reason": reason or
+                             "You opened this game in another window."})
+            except Exception:
+                pass
+            player.connected = False
+            try:
+                if player.ws is not None:
+                    player.ws.close()
+            except Exception:
+                pass
+            self.remove_player(player.pid)
+        return len(doomed)
+
     def remove_player(self, pid: int) -> None:
         with self.lock:
             player = self.players.pop(pid, None)

@@ -1,5 +1,6 @@
 {% include "partials/head.html" %}
 
+{% if show_spotlight %}
 <div class="eventbar" data-countdown="{{ spotlight_left }}">
   <span class="glow"></span>
   <div class="inner">
@@ -17,10 +18,11 @@
     <a class="btn go" href="{{ spotlight.href }}">{{ spotlight.cta }}</a>
   </div>
 </div>
+{% endif %}
 
-<div class="row">
-  <div class="col-side">
-    <div class="panel">
+<div class="row home-row">
+  <div class="col-side home-side">
+    <div class="panel h-me">
       <div class="panel-head">{{ user.username }}</div>
       <div class="panel-body">
         <div class="avatar-view" style="height:230px" data-avatar="{{ to_json(avatar) }}"></div>
@@ -41,7 +43,7 @@
     </div>
 
     {% if requests %}
-    <div class="panel">
+    <div class="panel h-requests">
       <div class="panel-head red">Friend requests ({{ nav_requests }})</div>
       <div class="panel-body">
         {% for r in requests %}
@@ -58,7 +60,7 @@
     </div>
     {% endif %}
 
-    <div class="panel">
+    <div class="panel h-friends">
       <div class="panel-head green">Friends ({{ nav_friends }})</div>
       <div class="panel-body">
         {% if friends_list %}
@@ -77,7 +79,7 @@
       <div class="panel-foot"><a href="/friends">Manage friends</a></div>
     </div>
 
-    <div class="panel">
+    <div class="panel h-online">
       <div class="panel-head">Online now</div>
       <div class="panel-body flush">
         <div class="tablewrap">
@@ -90,6 +92,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Phone layout only: the inbox is one of the two things people come
+         here for on a phone, so it gets its own button between Online now
+         and the friends grid rather than living in the drawer. -->
+    <a class="btn big block primary h-messages only-mobile" href="/messages">
+      &#9993; Messages{% if nav_unread %} <span class="badge alert">{{ nav_unread }}</span>{% endif %}
+    </a>
   </div>
 
   <div class="col">

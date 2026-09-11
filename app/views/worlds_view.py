@@ -96,6 +96,15 @@ def join_ticket(req: Request):
     uid = int(req.user["id"])
     if not db.rate_limit("join:%d" % uid, 40, 300):
         return api_error("You are joining servers too quickly.")
+    # One live game session per account.  If this player is already in a
+    # world -- the same one in another tab, or a different one entirely --
+    # that session is pulled first, so the two windows can never both be
+    # holding the same character.  This happens before the ticket exists, so
+    # the older instance is gone by the time the new socket opens.
+    previous = game_registry.drop_user_everywhere(
+        uid, "You started playing in another window.")
+    if previous:
+        db.audit(uid, "game.takeover", world_id, {"dropped": previous})
     avatar = avatars.descriptor(uid, req.user["username"])
     ticket = security.sign({
         "uid": uid,

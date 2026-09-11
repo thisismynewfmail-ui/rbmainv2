@@ -78,13 +78,48 @@ def close_in(mover: Bot, others: List[Bot], target, distance: float = 8.0,
     return remaining
 
 
+SEED_ACCOUNTS = [
+    ("admin_system", "passman69"), ("admin_test", "passman69"),
+    ("builderman_x", "blockhaven"), ("RetroKid2007", "blockhaven"),
+    ("BlockSmith", "blockhaven"), ("NoobSlayer99", "blockhaven"),
+    ("PixelPatty", "blockhaven"), ("CartPusher", "blockhaven"),
+    ("FlagRunner", "blockhaven"), ("GrillMaster", "blockhaven")]
+
+SIM_PASSWORD = "blockhaven"
+
+
+def sim_accounts(count: int) -> List[tuple]:
+    """``count`` accounts, each of which only one bot will ever hold.
+
+    The platform allows one live game session per account -- pressing Play in
+    a second window pulls the first one out -- so a test that wants seventeen
+    players in a world needs seventeen players, not one player holding
+    seventeen sockets.  The seeded demo accounts come first; beyond those,
+    throwaway `simbot_NN` accounts are registered on demand and reused by
+    every later run.
+    """
+    import urllib.error
+    import urllib.request
+    from urllib.parse import urlencode
+
+    out = list(SEED_ACCOUNTS[:count])
+    for index in range(len(out), count):
+        name = "simbot_%02d" % index
+        body = urlencode({"username": name, "password": SIM_PASSWORD,
+                          "confirm": SIM_PASSWORD}).encode()
+        try:
+            # already registered by an earlier run?  The form just says the
+            # name is taken, which is exactly what we want to hear.
+            urllib.request.urlopen(
+                "http://%s:%d/register" % (HOST, PORT), body, timeout=10).read()
+        except urllib.error.URLError:
+            pass
+        out.append((name, SIM_PASSWORD))
+    return out
+
+
 def spawn_bots(world: str, count: int, accounts=None) -> List[Bot]:
-    accounts = accounts or [
-        ("admin_system", "passman69"), ("admin_test", "passman69"),
-        ("builderman_x", "blockhaven"), ("RetroKid2007", "blockhaven"),
-        ("BlockSmith", "blockhaven"), ("NoobSlayer99", "blockhaven"),
-        ("PixelPatty", "blockhaven"), ("CartPusher", "blockhaven"),
-        ("FlagRunner", "blockhaven"), ("GrillMaster", "blockhaven")]
+    accounts = accounts or sim_accounts(count)
     bots = []
     for i in range(count):
         user, password = accounts[i % len(accounts)]
@@ -421,14 +456,11 @@ def test_instances() -> None:
     import urllib.request
     bots = []
     try:
-        # capture_the_flag holds 16; open 17 sockets to force a second instance
-        accounts = [("admin_system", "passman69"), ("admin_test", "passman69"),
-                    ("builderman_x", "blockhaven"), ("RetroKid2007", "blockhaven"),
-                    ("BlockSmith", "blockhaven"), ("NoobSlayer99", "blockhaven"),
-                    ("PixelPatty", "blockhaven"), ("CartPusher", "blockhaven"),
-                    ("FlagRunner", "blockhaven"), ("GrillMaster", "blockhaven")]
-        for i in range(17):
-            user, password = accounts[i % len(accounts)]
+        # capture_the_flag holds 16, so seventeen *different* players force a
+        # second instance.  One session per account is enforced now, so these
+        # have to be seventeen accounts rather than seventeen sockets.
+        accounts = sim_accounts(17)
+        for user, password in accounts:
             bot = Bot(HOST, PORT, user, password, "capture_the_flag")
             bot.start()
             bots.append(bot)

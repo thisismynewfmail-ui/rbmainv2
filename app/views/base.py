@@ -49,7 +49,7 @@ def site_ticker() -> str:
     if time.time() - TICKER_CACHE["at"] < 60 and TICKER_CACHE["text"]:
         return TICKER_CACHE["text"]
     from ..game import registry as game_registry
-    from ..models import inventory, worlds
+    from ..models import inventory, users, worlds
     from ..social import feed
     bits = []
     stats = feed.stats_snapshot()
@@ -57,6 +57,15 @@ def site_ticker() -> str:
     playing = game_registry.total_players()
     bits.append("%d player%s in game right now" % (playing, "" if playing == 1 else "s"))
     bits.append("%d place visits logged" % stats["visits"])
+    # New sign-ups are the friendliest thing on the strip, so they lead.
+    now = time.time()
+    for row in users.recent(4):
+        age = now - int(row.get("created_at") or 0)
+        if age < 7 * 86400:
+            bits.append("WELCOME %s -- joined %s"
+                        % (row["username"], ago(row["created_at"])))
+        else:
+            bits.append("%s is one of the newest builders here" % row["username"])
     for row in inventory.unusual_showcase(3):
         bits.append("%s pulled an UNUSUAL %s (%s)"
                     % (row["username"], row["name"], row["effect_name"]))
@@ -134,6 +143,7 @@ def context(req: Request, **extra: Any) -> Dict[str, Any]:
         "nav_requests": friends.pending_count(user["id"]) if user else 0,
         "nav_friends": friends.count_friends(user["id"]) if user else 0,
         "is_admin": bool(user and user["is_admin"]),
+        "prefs": users.prefs_of(user) if user else dict(users.PREF_DEFAULTS),
         "theme": theme_for(req),
         "fmt_time": fmt_time,
         "fmt_date": fmt_date,

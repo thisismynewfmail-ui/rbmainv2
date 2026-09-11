@@ -13,9 +13,22 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
           <span class="hint">drag to rotate &bull; scroll to zoom</span>
         </div>
         <div class="spread" style="margin-top:8px">
-          <button class="btn small" id="spin-toggle">Pause spin</button>
+          <button class="btn small" id="spin-toggle" type="button">Pause spin</button>
           <a class="btn small" href="/profile/{{ user.username }}">View profile</a>
         </div>
+        <!-- Everything in this editor saves as you click it, so this button is
+             the "I am done" full stop.  On a brand new account it finishes the
+             sign-up trip and hands the player their profile; afterwards it is
+             an ordinary Apply that confirms the look is live. -->
+        {% if welcome %}
+        <a class="btn primary big block finish-avatar" href="/profile/{{ user.username }}">
+          Finish &amp; view profile</a>
+        <p class="tiny muted center" style="margin-top:6px">Your changes are already saved.</p>
+        {% else %}
+        <button class="btn primary big block finish-avatar" id="apply-avatar" type="button">
+          Apply</button>
+        <p class="tiny muted center" style="margin-top:6px">Changes save as you make them.</p>
+        {% endif %}
       </div>
     </div>
 

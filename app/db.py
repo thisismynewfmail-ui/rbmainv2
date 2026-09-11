@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS users (
     forum_posts     INTEGER NOT NULL DEFAULT 0,
     theme           TEXT NOT NULL DEFAULT 'auto',
     privacy         TEXT NOT NULL DEFAULT '{}',
-    pinned          TEXT NOT NULL DEFAULT '[]'
+    pinned          TEXT NOT NULL DEFAULT '[]',
+    prefs           TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -47,7 +48,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at  INTEGER NOT NULL,
     expires_at  INTEGER NOT NULL,
     user_agent  TEXT NOT NULL DEFAULT '',
-    ip          TEXT NOT NULL DEFAULT ''
+    ip          TEXT NOT NULL DEFAULT '',
+    spotlight_seen INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
@@ -272,7 +274,12 @@ MIGRATIONS = [
     ("users", "theme", "TEXT NOT NULL DEFAULT 'auto'"),
     ("users", "privacy", "TEXT NOT NULL DEFAULT '{}'"),
     ("users", "pinned", "TEXT NOT NULL DEFAULT '[]'"),
+    ("users", "prefs", "TEXT NOT NULL DEFAULT '{}'"),
     ("avatars", "body_type", "TEXT NOT NULL DEFAULT 'male'"),
+    # The weekly spotlight banner is a once-per-sign-in greeting, so the fact
+    # that it has been shown belongs to the session rather than the account:
+    # signing out and back in issues a new session row and the banner returns.
+    ("sessions", "spotlight_seen", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

@@ -5,6 +5,12 @@
     <span class="head-links">live &mdash; refreshing every 3 seconds
       <span class="dot on"></span></span>
   </div>
+  <div class="panel-body" style="padding-bottom:0">
+    <div class="tabs" id="admin-tabs">
+      <a data-admin-tab="overview" class="on">Overview</a>
+      <a data-admin-tab="network">Connections</a>
+    </div>
+  </div>
   <div class="panel-body">
     <dl class="stats" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))">
       <div><dt>Accounts</dt><dd id="s-users">{{ fmt_num(live.site.users) }}</dd></div>
@@ -17,7 +23,7 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row" data-admin-panel="overview">
   <div class="col">
     <div class="panel">
       <div class="panel-head">Worlds &amp; instances</div>
@@ -141,6 +147,53 @@
           {% endfor %}
         </table></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div data-admin-panel="network" class="hidden">
+  <div class="panel">
+    <div class="panel-head purple">
+      <span>Connection map</span>
+      <span class="head-links">
+        friends, requests and follows &mdash; live
+        <span class="dot on"></span></span>
+    </div>
+    <div class="panel-body flush">
+      <div class="netgraph" id="netgraph">
+        <canvas id="net-canvas"></canvas>
+        <div class="net-empty" id="net-empty">Building the graph&hellip;</div>
+
+        <div class="net-toolbar">
+          <button class="btn small" data-net="key" id="net-key-btn" aria-pressed="true">Key</button>
+          <button class="btn small" data-net="labels" id="net-labels-btn" aria-pressed="true">Names</button>
+          <button class="btn small" data-net="loners" id="net-loners-btn" aria-pressed="true">Loners</button>
+          <button class="btn small" data-net="replay">Re-settle</button>
+          <button class="btn small" data-net="fit">Fit</button>
+        </div>
+
+        <div class="net-key" id="net-key">
+          <b>Key</b>
+          <span><i style="background:#e0514b"></i> administrator</span>
+          <span><i style="background:#37c26a"></i> online now</span>
+          <span><i style="background:#f0b429"></i> in a world</span>
+          <span><i style="background:#6aa9e0"></i> registered</span>
+          <span><i style="background:#8c93a1"></i> no connections</span>
+          <hr>
+          <span><u class="e-friend"></u> friends</span>
+          <span><u class="e-pending"></u> request pending</span>
+          <span><u class="e-follow"></u> follows</span>
+          <div class="tiny muted" style="margin-top:4px">Node size is the friend count.
+            Click a node to pin it and see who it reaches.</div>
+        </div>
+
+        <div class="net-stats" id="net-stats"></div>
+        <div class="net-card hidden" id="net-card"></div>
+      </div>
+    </div>
+    <div class="panel-foot spread">
+      <span class="tiny muted" id="net-foot">&nbsp;</span>
+      <span class="tiny muted">Drag to pan &bull; scroll or pinch to zoom &bull; drag a node to place it</span>
     </div>
   </div>
 </div>

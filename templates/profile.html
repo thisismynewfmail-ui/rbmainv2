@@ -1,7 +1,7 @@
 {% include "partials/head.html" %}
-<div class="row">
+<div class="row profile-row">
   <div class="col-side">
-    <div class="panel">
+    <div class="panel p-character">
       <div class="panel-head">{{ profile.username }}'s character</div>
       <div class="panel-body">
         <div class="avatar-view" style="height:300px" data-avatar="{{ to_json(avatar) }}">
@@ -49,7 +49,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel p-stats">
       <div class="panel-head gold">Statistics</div>
       <div class="panel-body">
         {% if show_stats %}
@@ -78,7 +78,7 @@
     </div>
 
     {% if show_inventory %}
-    <div class="panel">
+    <div class="panel p-items">
       <div class="panel-head green">
         <span>Items</span>
         <span class="head-links">{{ inventory_summary.total }} owned</span>
@@ -114,7 +114,7 @@
   </div>
 
   <div class="col">
-    <div class="panel">
+    <div class="panel p-bio">
       <div class="panel-head">
         <span>{{ profile.username }}{{ ' [ADMIN]' if profile.is_admin else '' }}</span>
         <span class="head-links">member since {{ fmt_date(profile.created_at) }}</span>
@@ -126,10 +126,11 @@
     </div>
 
     {% if pinned or is_self %}
-    <div class="panel">
+    <div class="panel p-pinned">
       <div class="panel-head purple">
         <span>&#9733; Pinned items</span>
-        {% if is_self %}<span class="head-links"><a href="/profile-editor#pins">Change</a></span>{% endif %}
+        {% if is_self %}<span class="head-links"><a href="/profile-editor#pins">Change</a></span>
+        {% elif not show_inventory and pinned %}<span class="head-links">shown by {{ profile.username }}</span>{% endif %}
       </div>
       <div class="panel-body">
         <div class="pinrow">
@@ -139,10 +140,11 @@
                data-slot-label="{{ it.slot_label }}" data-serial="{{ it.serial }}"
                data-tier="{{ it.tier }}" data-effect="{{ it.effect }}"
                data-effect-name="{{ it.effect_name }}" data-rarity="{{ it.rarity }}"
-               data-href="/inventory/{{ profile.username }}">
+               data-href="{{ '/inventory/' + profile.username if show_inventory else '' }}">
             <div class="thumb-wrap">
               <canvas class="thumb item-thumb" width="216" height="216"
-                      data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"></canvas>
+                      data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"
+                      data-live-effect="1"></canvas>
               <span class="tier-flag {{ it.tier }}">{{ it.tier_label }}</span>
               {% if it.effect_name %}<span class="effect-flag">{{ it.effect_name }}</span>{% endif %}
             </div>
@@ -161,7 +163,7 @@
     {% endif %}
 
     {% if posts_list %}
-    <div class="panel">
+    <div class="panel p-posts">
       <div class="panel-head">Posts</div>
       <div class="panel-body">
         {% for p in posts_list %}{% set post = p %}{% include "partials/post.html" %}{% endfor %}
@@ -169,7 +171,7 @@
     </div>
     {% endif %}
 
-    <div class="panel">
+    <div class="panel p-wall">
       <div class="panel-head">Profile comments ({{ wall_count }})</div>
       <div class="panel-body">
         {% if user and can_comment %}
@@ -203,7 +205,7 @@
   </div>
 
   <div class="col-narrow">
-    <div class="panel">
+    <div class="panel p-friends">
       <div class="panel-head">Friends ({{ friend_count }})</div>
       <div class="panel-body">
         {% if show_friends %}
@@ -223,7 +225,7 @@
     </div>
 
     {% if favourites %}
-    <div class="panel">
+    <div class="panel p-fav">
       <div class="panel-head gold">Favourite worlds</div>
       <div class="panel-body">
         {% for w in favourites %}
@@ -234,21 +236,6 @@
     </div>
     {% endif %}
 
-    {% if show_stats %}
-    <div class="panel">
-      <div class="panel-head">Per-world record</div>
-      <div class="panel-body flush">
-        <div class="tablewrap">
-          <table class="grid">
-            <tr><th>World</th><th class="right">K</th><th class="right">D</th></tr>
-            {% for wid, row in stats.worlds.items() %}
-            <tr><td class="tiny">{{ wid }}</td><td class="right">{{ row.kills }}</td><td class="right">{{ row.deaths }}</td></tr>
-            {% endfor %}
-          </table>
-        </div>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 {% include "partials/foot.html" %}

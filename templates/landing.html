@@ -16,31 +16,64 @@
     <a class="btn go" href="{{ spotlight.href }}">{{ spotlight.cta }}</a>
   </div>
 </div>
-<div class="hero">
-  <div class="cloud" style="width:160px;height:34px;top:22px;animation-duration:52s"></div>
-  <div class="cloud" style="width:110px;height:26px;top:74px;animation-duration:38s;animation-delay:-12s"></div>
-  <div class="cloud" style="width:200px;height:40px;top:120px;animation-duration:64s;animation-delay:-30s"></div>
-  <div class="inner row">
-    <div class="col">
-      <h1>Build it. Play it. Live it.</h1>
-      <p>{{ SITE_NAME }} is a block world platform: make an avatar out of coloured bricks,
-         buy hats with a tiny chance of being <b style="color:#c78bff">Unusual</b>, then drop into
-         a first or third person shooter world with your friends.</p>
-      <p style="margin-top:12px">
+<!-- The first thing a visitor sees.  One character, alive: it poses, it
+     changes its outfit, it can be dragged around, and every look it wears is
+     rolled out of the real catalogue rather than drawn in. -->
+<section class="hero" id="hero">
+  <div class="hero-sky" aria-hidden="true">
+    <span class="sun"></span>
+    <span class="cloud" style="--w:170px;--h:36px;--top:14%;--dur:64s"></span>
+    <span class="cloud" style="--w:112px;--h:26px;--top:44%;--dur:47s;--delay:-14s"></span>
+    <span class="cloud" style="--w:210px;--h:42px;--top:70%;--dur:82s;--delay:-38s"></span>
+    <span class="brick" style="--x:3%;--y:82%;--d:7.5s;--c:#c4281c"></span>
+    <span class="brick" style="--x:12%;--y:9%;--d:9.5s;--delay:-2s;--c:#f5cd30"></span>
+    <span class="brick" style="--x:46%;--y:91%;--d:8.5s;--delay:-4s;--c:#2f9e55"></span>
+    <span class="brick" style="--x:73%;--y:16%;--d:10.5s;--delay:-1s;--c:#8b3fd6"></span>
+    <span class="brick" style="--x:88%;--y:62%;--d:8s;--delay:-6s;--c:#2c7fc0"></span>
+  </div>
+
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="hero-kicker"><i></i> Free &bull; no download &bull; runs in your browser</span>
+      <h1>Build it. <em>Play it.</em> Live it.</h1>
+      <p class="hero-lede">{{ SITE_NAME }} is a block world platform. Make a character out of
+        coloured bricks, buy hats with a tiny chance of coming out
+        <b class="unu">Unusual</b>, then drop into a first or third person shooter
+        world with your friends.</p>
+      <div class="hero-cta">
         <a class="btn go big" href="/register">Create a free account</a>
-        <a class="btn big" href="/worlds">Browse the worlds</a>
-      </p>
+        <a class="btn big hollow" href="/worlds">Browse the worlds</a>
+      </div>
+      <ul class="hero-facts">
+        <li><b data-count="{{ site_stats.users }}">0</b><span>builders</span></li>
+        <li><b data-count="{{ site_stats.items_owned }}">0</b><span>items owned</span></li>
+        <li><b data-count="{{ site_stats.unusuals }}">0</b><span>Unusuals pulled</span></li>
+        <li><b data-count="{{ len(worlds) }}">0</b><span>worlds live</span></li>
+      </ul>
     </div>
-    <div class="col-narrow">
-      <div class="avatar-view" style="height:220px" data-avatar-demo="male"></div>
-      <div class="avatar-view" style="height:150px;margin-top:8px" data-avatar-demo="female"></div>
+
+    <div class="hero-stage">
+      <div class="avatar-view hero-avatar" data-avatar-hero="1">
+        <span class="tag3d">3D</span>
+        <span class="hint">drag to spin</span>
+      </div>
+      <div class="hero-look">
+        <span class="hero-look-name" id="hero-look-name">rolling a look&hellip;</span>
+        <span class="hero-chips" id="hero-chips"></span>
+      </div>
+      <div class="hero-stage-bar">
+        <button type="button" class="btn small hollow" data-hero="shuffle">&#10227; Shuffle look</button>
+        <button type="button" class="btn small hollow" data-hero="pose">&#9654; Next pose</button>
+      </div>
+      <p class="hero-note">Every hat, face and outfit here is a real catalogue item.
+        Yours starts free.</p>
     </div>
   </div>
-</div>
+</section>
 
-<div class="row" style="margin-top:12px">
+<div class="row landing-row" style="margin-top:12px">
   <div class="col">
-    <div class="panel">
+    <div class="panel l-worlds">
       <div class="panel-head">Worlds you can play right now</div>
       <div class="panel-body">
         <div class="worldgrid">
@@ -49,7 +82,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel l-how">
       <div class="panel-head green">How it works</div>
       <div class="panel-body">
         <div class="steps">
@@ -68,7 +101,7 @@
   </div>
 
   <div class="col-side">
-    <div class="panel">
+    <div class="panel l-stats">
       <div class="panel-head gold">Site statistics</div>
       <div class="panel-body">
         <dl class="stats">
@@ -82,7 +115,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel l-unusual">
       <div class="panel-head purple">Unusual sightings</div>
       <div class="panel-body">
         {% if showcase %}
@@ -97,7 +130,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel l-newest">
       <div class="panel-head">Newest builders</div>
       <div class="panel-body">
         <div class="userlist">

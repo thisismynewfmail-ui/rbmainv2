@@ -102,6 +102,52 @@ def players_in(world_id: str) -> List[Dict[str, Any]]:
     return out
 
 
+def drop_user_everywhere(user_id: int, reason: str = "",
+                         timeout: float = 1.5) -> int:
+    """Pull one account out of every running world, now.
+
+    Hosts are separate processes, so this is a short signed POST to each
+    host's own port -- the same HMAC the heartbeat uses.  It is synchronous on
+    purpose: ``/api/game/join`` calls it *before* it mints a ticket, so by the
+    time the browser opens its socket the player's older session has already
+    been disconnected rather than being told about it two seconds later.
+    Hosts that are down or slow are skipped; the host the new connection lands
+    on enforces the same rule again locally, so nothing is lost if one of
+    these calls does not land.
+    """
+    import http.client
+    import json
+
+    from .. import security
+
+    if int(user_id or 0) <= 0:
+        return 0
+    body = json.dumps({"action": "drop", "user_id": int(user_id),
+                       "reason": reason}).encode()
+    signature = security.service_signature(body)
+    dropped = 0
+    for world_id, (host, port) in all_backends().items():
+        conn = None
+        try:
+            conn = http.client.HTTPConnection(host, port, timeout=timeout)
+            conn.request("POST", "/control", body, {
+                "Content-Type": "application/json",
+                "X-Service-Signature": signature,
+            })
+            response = conn.getresponse()
+            payload = json.loads(response.read().decode("utf-8") or "{}")
+            dropped += int(payload.get("dropped", 0) or 0)
+        except Exception:
+            continue
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+    return dropped
+
+
 def online_player_ids() -> List[int]:
     ids = []
     for world_id in list(_hosts.keys()):

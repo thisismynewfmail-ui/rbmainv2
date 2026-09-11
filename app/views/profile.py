@@ -33,6 +33,11 @@ def profile(req: Request, username: str = ""):
     show_online = visible("online")
     playing = game_registry.player_world(pid) if show_server else ""
 
+    # Pinned items are a deliberate exception to the inventory privacy
+    # setting: pinning something is the owner saying "show this off", so the
+    # three pins stay on the profile even when the rest of the inventory is
+    # set to friends-only or private.  Only the *rest* of the collection --
+    # the strip, the counts and the /inventory/<name> page -- is gated.
     pinned = [by_inv[i] for i in users.pinned_of(profile_user) if i in by_inv]
     pinned_ids = {int(row["inv_id"]) for row in pinned}
     # everything else goes in the smaller strip under Statistics

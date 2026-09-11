@@ -44,25 +44,62 @@ def inbox(req: Request):
                   unread=messages.unread_count(uid))
 
 
+def _safe_back(value: str, fallback: str = "/messages") -> str:
+    """Where "Send" should land.
+
+    Only same-site paths are honoured, so the parameter cannot be used to
+    bounce somebody off the site after they press Send.
+    """
+    value = (value or "").strip()
+    if not value.startswith("/") or value.startswith("//"):
+        return fallback
+    return value
+
+
+def _referring_page(req: Request, fallback: str = "/messages") -> str:
+    """The page the compose form was opened from, for the Back/After-send trip."""
+    explicit = req.query.get("back", "")
+    if explicit:
+        return _safe_back(explicit, fallback)
+    referer = req.headers.get("referer", "")
+    if referer:
+        try:
+            from urllib.parse import urlsplit
+            parts = urlsplit(referer)
+            host = req.headers.get("host", "")
+            if not parts.netloc or not host or parts.netloc == host:
+                path = parts.path + (("?" + parts.query) if parts.query else "")
+                if not path.startswith("/messages/compose"):
+                    return _safe_back(path, fallback)
+        except ValueError:
+            pass
+    return fallback
+
+
 @router.get("/messages/compose")
 @login_required
 def compose(req: Request):
     return render(req, "compose.html", to=req.query.get("to", ""),
-                  subject=req.query.get("subject", ""), body="", error="")
+                  subject=req.query.get("subject", ""), body="", error="",
+                  back=_referring_page(req))
 
 
 @router.post("/messages/compose")
 @login_required
 def compose_post(req: Request):
     form = req.data()
+    back = _safe_back(str(form.get("back", "")))
     try:
         messages.send(int(req.user["id"]), str(form.get("to", "")),
                       str(form.get("subject", "")), str(form.get("body", "")))
     except messages.MessageError as exc:
         return render(req, "compose.html", to=str(form.get("to", "")),
                       subject=str(form.get("subject", "")),
-                      body=str(form.get("body", "")), error=str(exc))
-    return flash_redirect("/messages", "Message sent.")
+                      body=str(form.get("body", "")), error=str(exc),
+                      back=back)
+    # Back to wherever they were -- a profile, the home page, the inbox --
+    # rather than always dropping them in the inbox.
+    return flash_redirect(back, "Message sent.")
 
 
 @router.get("/messages/<message_id:int>")
@@ -105,6 +142,38 @@ def api_send(req: Request):
 @login_required
 def api_recent(req: Request):
     return api_ok(rows=messages.recent(int(req.user["id"]), 8))
+
+
+@router.get("/api/messages/thread")
+@login_required
+def api_thread(req: Request):
+    """The conversation with one player, for the floating messenger."""
+    uid = int(req.user["id"])
+    other = users.get_by_username(req.query.get("with", ""))
+    if other is None:
+        return api_error("No such player.", 404)
+    rows = messages.conversation(uid, int(other["id"]), 20)
+    messages.mark_thread_read(uid, int(other["id"]))
+    return api_ok(other=other["username"], rows=rows,
+                  unread=messages.unread_count(uid))
+
+
+@router.get("/api/users/suggest")
+@login_required
+def api_user_suggest(req: Request):
+    """Type-ahead for any "who do you mean" box (the compose To field)."""
+    return api_ok(users=users.suggest(req.query.get("q", ""), 8,
+                                      int(req.user["id"])))
+
+
+@router.post("/api/settings/prefs")
+@login_required
+def api_prefs(req: Request):
+    data = req.data()
+    values = {}
+    if "messenger" in data:
+        values["messenger"] = bool(data.get("messenger"))
+    return api_ok(prefs=users.set_prefs(int(req.user["id"]), values))
 
 
 @router.get("/api/social/counts")

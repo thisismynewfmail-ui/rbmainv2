@@ -394,16 +394,41 @@ canvas { max-width: 100%; }
 }
 .themetoggle .knob {
   position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
-  border-radius: 50%; background: radial-gradient(circle at 34% 30%, #fff6cf, #ffce3d 62%, #e5a411);
+  border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 34% 30%, #fff6cf, #ffce3d 62%, #e5a411);
   box-shadow: 0 1px 3px rgba(0,0,0,.45), 0 0 8px rgba(255,214,90,.85);
   transition: transform .35s cubic-bezier(.5,-0.3,.4,1.4), background .35s ease,
               box-shadow .35s ease;
 }
-.themetoggle .knob::after {
-  /* the crescent bite that turns the sun into a moon */
-  content: ""; position: absolute; inset: -4px -4px -4px 5px; border-radius: 50%;
-  background: transparent; transition: background .35s ease, transform .35s ease;
-  transform: scale(.2);
+/* The moon is built the way the sky builds it: half the disc lit, half in
+   shadow, and an ellipse across the middle whose width is how far round the
+   terminator has swung.  Site.moonPhase() works out tonight's phase and sets
+   the three custom properties, so the knob shows a crescent on a crescent
+   night and a full disc on a full one instead of one fixed cartoon bite.
+   Both layers only exist in dark mode -- in light mode the knob is the sun. */
+.themetoggle .knob .limb,
+.themetoggle .knob .term { display: none; }
+.themetoggle[aria-pressed="true"] .knob {
+  --moon-lit: #f2f6fd;
+  --moon-dark: #16212e;
+}
+.themetoggle[aria-pressed="true"] .knob .limb,
+.themetoggle[aria-pressed="true"] .knob .term {
+  display: block; position: absolute; top: -1px; bottom: -1px;
+}
+.themetoggle[aria-pressed="true"] .knob .limb {
+  width: 52%; left: var(--limb-side, 0%); background: var(--moon-dark);
+}
+.themetoggle[aria-pressed="true"] .knob .term {
+  left: 50%; width: var(--term-w, 0%); transform: translateX(-50%);
+  border-radius: 50%; background: var(--term-fill, var(--moon-dark));
+  transition: width .4s ease, background .4s ease;
+}
+/* A hairline rim, so a new moon is still a disc you can see and press rather
+   than a hole in the switch. */
+.themetoggle[aria-pressed="true"] .knob::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(196,220,248,.45); pointer-events: none;
 }
 .themetoggle .sky { position: absolute; inset: 0; pointer-events: none; }
 .themetoggle .sky i {
@@ -418,13 +443,11 @@ canvas { max-width: 100%; }
   background: linear-gradient(#152a44, #060e18);
   border-color: rgba(140,190,240,.4);
 }
+/* A touch smaller than the sun: the moon is the smaller light. */
 .themetoggle[aria-pressed="true"] .knob {
-  transform: translateX(22px);
-  background: radial-gradient(circle at 38% 34%, #f4f8ff, #c3d3e6 68%, #93a7bd);
-  box-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 10px rgba(190,215,245,.6);
-}
-.themetoggle[aria-pressed="true"] .knob::after {
-  background: #0b1522; transform: scale(1);
+  transform: translateX(23px) scale(.82);
+  background: radial-gradient(circle at 38% 34%, #f7faff, #dbe6f3 62%, #b6c6d8);
+  box-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 9px rgba(190,215,245,.55);
 }
 .themetoggle[aria-pressed="true"] .sky i { opacity: .9; }
 .themetoggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -485,9 +508,12 @@ canvas { max-width: 100%; }
 .ticker .wrap { display: flex; align-items: center; gap: 8px; }
 .ticker b { color: var(--ticker-tag); flex: 0 0 auto; }
 .ticker-window { position: relative; overflow: hidden; height: 20px; flex: 1 1 auto; }
+/* Slow enough to actually read a headline on the way past.  The strip is one
+   long line, so the duration is the whole lap: halving the speed is doubling
+   this number, and hovering parks it. */
 .ticker-track {
   display: inline-flex; white-space: nowrap; will-change: transform;
-  animation: tick 60s linear infinite;
+  animation: tick 135s linear infinite;
 }
 .ticker-track span { padding-right: 2.4em; }
 .ticker-window:hover .ticker-track { animation-play-state: paused; }
@@ -1130,8 +1156,15 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .hotslot { min-height: 70px; }
   .dock { right: 10px; bottom: 10px; }
   .dock-panel { width: calc(100vw - 20px); max-height: 66vh; }
+  /* A sheet glued to the bottom edge is right for a yes/no.  Anything you are
+     meant to look at -- an item preview above all -- sits in the middle of the
+     screen with a gutter down each side instead. */
   .modal-scrim { align-items: flex-end; padding: 0; }
   .modal-scrim .panel { width: 100%; border-radius: 8px 8px 0 0; max-height: 86vh; }
+  .modal-scrim.centered { align-items: center; padding: 14px; }
+  .modal-scrim.centered .panel {
+    width: 100%; border-radius: 6px; max-height: calc(100vh - 28px);
+  }
   .footer { margin-bottom: 74px; }
   .hero .inner { padding: 16px; }
   .hero h1 { font-size: 21px; }
@@ -1156,3 +1189,457 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .dot.on, .dot.game { animation: none !important; }
   * { transition-duration: .01ms !important; }
 }
+
+/* ==========================================================================
+   WELCOME HERO
+   The first screen a visitor sees.  One character on a stage, a sky that
+   moves, and numbers that count themselves up -- all of it built out of the
+   same 3D rig and the same catalogue the rest of the site runs on, so it is
+   a demonstration rather than a picture of one.
+   ========================================================================== */
+.hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  border: 1px solid var(--hero-edge); border-radius: 7px;
+  background: var(--hero); color: #eaf4ff;
+}
+.hero-sky { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.hero-sky .sun {
+  position: absolute; right: -70px; top: -90px; width: 280px; height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,226,143,.42), rgba(255,226,143,0) 66%);
+}
+.hero-sky .cloud {
+  position: absolute; left: -30%; top: var(--top, 20%);
+  width: var(--w, 150px); height: var(--h, 32px); border-radius: 999px;
+  background: rgba(255,255,255,.085);
+  box-shadow: 0 0 40px 22px rgba(255,255,255,.045);
+  animation: heroDrift var(--dur, 60s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes heroDrift {
+  from { transform: translateX(-14vw); }
+  to   { transform: translateX(128vw); }
+}
+/* Loose bricks bobbing in the background: the platform's own vocabulary,
+   used as scenery rather than as another gradient. */
+.hero-sky .brick {
+  position: absolute; left: var(--x, 10%); top: var(--y, 40%);
+  width: 15px; height: 15px; border-radius: 3px; background: var(--c, #f5cd30);
+  opacity: .2; box-shadow: inset 0 -4px 0 rgba(0,0,0,.28);
+  animation: heroFloat var(--d, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-18px) rotate(16deg); }
+}
+
+.hero-inner {
+  position: relative; z-index: 1; display: grid; gap: 22px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  align-items: center; padding: 26px 24px 22px;
+}
+.hero-kicker {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 10px; font-weight: bold; letter-spacing: .8px; text-transform: uppercase;
+  color: #cfe6ff; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px; padding: 4px 11px;
+}
+.hero-kicker i {
+  width: 7px; height: 7px; border-radius: 50%; background: #4ce07a;
+  box-shadow: 0 0 0 0 rgba(76,224,122,.6); animation: heroPulse 2.4s ease-out infinite;
+}
+@keyframes heroPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(76,224,122,.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(76,224,122,0); }
+  100% { box-shadow: 0 0 0 0 rgba(76,224,122,0); }
+}
+.hero-copy h1 {
+  color: #fff; font-size: 38px; line-height: 1.04; margin: 10px 0 8px;
+  text-shadow: 0 3px 0 rgba(0,0,0,.32);
+}
+.hero-copy h1 em {
+  font-style: normal;
+  background: linear-gradient(92deg, #ffd95e, #ff9d5c 45%, #ffd95e);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: heroSheen 7s ease-in-out infinite;
+}
+@keyframes heroSheen {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.hero-lede { color: #cfe6ff; font-size: 12.5px; line-height: 1.6; max-width: 46ch; }
+.hero-lede .unu { color: #d8aaff; }
+.hero-cta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.btn.hollow {
+  background: rgba(255,255,255,.08); color: #eaf4ff !important;
+  border-color: rgba(255,255,255,.38); text-shadow: none;
+}
+.btn.hollow:hover { background: rgba(255,255,255,.18); }
+
+.hero-facts {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px; margin: 16px 0 0; padding: 0; list-style: none;
+}
+.hero-facts li {
+  background: rgba(0,0,0,.26); border: 1px solid rgba(255,255,255,.16);
+  border-radius: 5px; padding: 7px 8px; min-width: 0;
+}
+.hero-facts b {
+  display: block; font-size: 17px; color: #ffe08a; font-variant-numeric: tabular-nums;
+}
+.hero-facts span {
+  display: block; font-size: 8.5px; text-transform: uppercase; letter-spacing: .6px;
+  color: #bfe0ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- the stage */
+.hero-stage { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.avatar-view.hero-avatar {
+  height: 320px; border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 38%, rgba(120,190,255,.20),
+              rgba(4,14,26,.42) 68%);
+  border: 1px solid rgba(140,190,240,.36);
+  box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+}
+/* the stage is dark in both themes, so its labels are light in both */
+.avatar-view.hero-avatar .hint, .avatar-view.hero-avatar .tag3d {
+  background: rgba(6,18,30,.6); color: #cfe0f0; border-color: rgba(140,190,240,.3);
+}
+.avatar-view.hero-avatar.swapping canvas { animation: heroSwap .45s ease-out; }
+@keyframes heroSwap {
+  0%   { opacity: 0; transform: scale(.93) translateY(6px); }
+  100% { opacity: 1; transform: none; }
+}
+.hero-look { text-align: center; min-height: 34px; }
+.hero-look-name {
+  display: block; font-size: 12px; font-weight: bold; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hero-look-name.unu { color: #d8aaff; text-shadow: 0 0 12px rgba(199,139,255,.5); }
+.hero-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 5px;
+}
+.hero-chips .chip, .net-near .chip {
+  font-size: 9px; padding: 2px 7px; border-radius: 999px;
+  background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.2); color: #cfe6ff;
+  max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hero-chips .chip.body { background: rgba(44,127,192,.34); }
+.hero-chips .chip.pose { background: rgba(63,143,69,.32); }
+.hero-chips .chip.unusual {
+  background: rgba(139,63,214,.44); border-color: rgba(199,139,255,.6); color: #f0e2ff;
+}
+.hero-stage-bar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.hero-note {
+  text-align: center; font-size: 10px; color: #a8c8e8; margin: 0;
+}
+
+/* ==========================================================================
+   PHONE ORDERING
+   Three pages want a different vertical order on a phone from the one the
+   three-column desktop layout gives them.  Rather than duplicate the markup,
+   the columns become `display: contents` at phone width so every panel is a
+   direct child of the row and can be ordered on its own.
+   ========================================================================== */
+@media (max-width: 860px) {
+  .profile-row, .landing-row {
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .profile-row > .col, .profile-row > .col-side, .profile-row > .col-narrow,
+  .landing-row > .col, .landing-row > .col-side { display: contents; }
+
+  /* Profile: who they are, what they chose to show off, then the numbers. */
+  .profile-row .p-character { order: 1; }
+  .profile-row .p-bio       { order: 2; }
+  .profile-row .p-pinned    { order: 3; }
+  .profile-row .p-stats     { order: 4; }
+  .profile-row .p-items     { order: 5; }
+  .profile-row .p-friends   { order: 6; }
+  .profile-row .p-fav       { order: 7; }
+  .profile-row .p-posts     { order: 8; }
+  .profile-row .p-wall      { order: 9; }
+
+  /* Welcome page: the pitch, then the size of the place, then the detail. */
+  .landing-row .l-stats   { order: 1; }
+  .landing-row .l-worlds  { order: 2; }
+  .landing-row .l-how     { order: 3; }
+  .landing-row .l-unusual { order: 4; }
+  .landing-row .l-newest  { order: 5; }
+
+  /* Signed-in home: people you can reach, then the inbox, then friends. */
+  .home-side { display: flex; flex-direction: column; gap: 0; }
+  .home-side .h-me       { order: 1; }
+  .home-side .h-requests { order: 2; }
+  .home-side .h-online   { order: 3; }
+  .home-side .h-messages { order: 4; }
+  .home-side .h-friends  { order: 5; }
+  .home-side .h-messages.only-mobile {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .hero-inner { grid-template-columns: minmax(0, 1fr); padding: 18px 14px 16px; gap: 16px; }
+  .hero-copy h1 { font-size: 27px; }
+  .hero-lede { font-size: 12px; }
+  .hero-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .avatar-view.hero-avatar { height: 270px; }
+  .hero-cta .btn { flex: 1 1 160px; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .hero-copy h1 { font-size: 23px; }
+  .avatar-view.hero-avatar { height: 240px; }
+}
+
+/* ==========================================================================
+   FLOATING MESSENGER -- the two screens
+   The bubble carries a conversation list and a direct-message view on one
+   track.  Opening a conversation slides across instead of navigating, and
+   Back slides straight home, so writing a note never costs the page you were
+   reading.  It is the same two screens on a phone, just wider.
+   ========================================================================== */
+.dock-head .dock-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dock-head .dock-back {
+  display: none; width: 20px; height: 20px; padding: 0; flex: 0 0 auto;
+  border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px;
+  line-height: 1; color: #eaf4ff; background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.28);
+}
+.dock-head .dock-back.on { display: block; }
+.dock-head .dock-back:hover { background: rgba(255,255,255,.28); }
+.dock-head #dock-heading {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dock-headlinks { font-size: 10px; font-weight: normal; flex: 0 0 auto; }
+.dock-headlinks a { color: #e6f2ff; }
+
+.dock-screens {
+  display: flex; width: 200%; flex: 1 1 auto; min-height: 0;
+  transition: transform .3s cubic-bezier(.35, .85, .35, 1);
+}
+.dock-screens.at-dm { transform: translateX(-50%); }
+.dock-screen {
+  width: 50%; flex: 0 0 50%; display: flex; flex-direction: column; min-height: 0;
+}
+.dock-dm { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.dock-to {
+  display: flex; align-items: center; gap: 7px; padding: 7px 9px;
+  border-bottom: 1px solid var(--line-soft); background: var(--panel-alt);
+}
+.dock-to.hidden { display: none; }
+.dock-to label { font-size: 10px; color: var(--ink-soft); flex: 0 0 auto; margin: 0; }
+.dock-to .ac-wrap { flex: 1 1 auto; min-width: 0; }
+.dock-to input { width: 100%; }
+.dock-thread {
+  flex: 1 1 auto; min-height: 120px; overflow-y: auto; padding: 9px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dock-thread .bubble { max-width: 86%; }
+.dock-compose { display: flex; gap: 6px; align-items: flex-end; }
+.dock-compose textarea {
+  flex: 1 1 auto; min-width: 0; resize: none; font-size: 11px; line-height: 1.4;
+}
+.dock-compose .btn { flex: 0 0 auto; }
+.dock-blank {
+  padding: 22px 14px; text-align: center; color: var(--ink-soft); font-size: 11px;
+}
+.dock-blank b { display: block; color: var(--ink-strong); margin-bottom: 3px; }
+
+/* ==========================================================================
+   TYPE-AHEAD
+   One list, shared by the compose page and the messenger, anchored to the
+   field itself so a phone keyboard sliding the page around cannot strand it.
+   ========================================================================== */
+.ac-wrap { position: relative; }
+.ac-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 40;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 4px; box-shadow: 0 8px 22px var(--shadow-lift);
+  max-height: 46vh; overflow-y: auto;
+}
+.ac-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 6px 8px; background: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--ink);
+  border-bottom: 1px solid var(--line-dot);
+}
+.ac-row:last-child { border-bottom: 0; }
+.ac-row:hover, .ac-row.on { background: var(--info-bg); }
+.ac-face {
+  width: 26px; height: 26px; flex: 0 0 26px; border-radius: 3px;
+  background: var(--tile-normal); border: 1px solid var(--line-soft);
+}
+.ac-name {
+  flex: 1 1 auto; min-width: 0; font-weight: bold; color: var(--ink-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ac-when { flex: 0 0 auto; font-size: 9px; color: var(--ok-ink); }
+
+.compose-panel { max-width: 640px; }
+.compose-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.compose-actions .btn { flex: 0 1 auto; }
+
+/* ==========================================================================
+   SWITCHES
+   ========================================================================== */
+.switch {
+  position: relative; width: 42px; height: 22px; flex: 0 0 auto; padding: 0;
+  border-radius: 11px; cursor: pointer; border: 1px solid var(--line);
+  background: var(--sunken); transition: background .25s ease, border-color .25s ease;
+}
+.switch i {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--btn); border: 1px solid var(--btn-edge);
+  transition: transform .25s cubic-bezier(.5, -0.2, .4, 1.4);
+}
+.switch[aria-checked="true"] { background: var(--head-green); border-color: var(--head-green-edge); }
+.switch[aria-checked="true"] i { transform: translateX(20px); background: #fff; border-color: #fff; }
+.switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ==========================================================================
+   PINNED ITEMS -- drag and drop
+   ========================================================================== */
+.pin-targets .pinslot {
+  position: relative; flex-direction: column; gap: 3px; overflow: hidden;
+  transition: border-color .15s ease, background .15s ease, transform .12s ease;
+  touch-action: none;
+}
+.pin-targets .pinslot .slot-n {
+  position: absolute; top: 4px; left: 5px; font-size: 9px; font-weight: bold;
+  color: var(--ink-soft); opacity: .75;
+}
+.pin-targets .pinslot .slot-hint { padding: 0 6px; }
+.pin-targets .pinslot.filled {
+  border-style: solid; padding: 0; cursor: grab; display: block; aspect-ratio: auto;
+}
+.pin-targets .pinslot.filled:active { cursor: grabbing; }
+.pin-targets .pinslot.filled .thumb-wrap { aspect-ratio: 1 / 1; }
+.pin-targets .pinslot.filled .meta { padding: 4px 6px; }
+.pin-targets .pinslot .slot-clear {
+  position: absolute; top: 3px; right: 3px; z-index: 3; width: 18px; height: 18px;
+  padding: 0; line-height: 1; border-radius: 3px; cursor: pointer;
+  font-family: inherit; font-size: 13px; color: var(--bad-ink);
+  background: var(--panel); border: 1px solid var(--line);
+}
+.pin-targets .pinslot .slot-clear:hover { background: var(--bad-bg); }
+.pin-targets .pinslot.over {
+  border-color: var(--gold); background: var(--warn-bg);
+  box-shadow: 0 0 0 2px var(--gold); transform: translateY(-2px);
+}
+.pin-pool { touch-action: none; }
+.pin-pool .pick { cursor: grab; }
+.pin-pool .pick:active { cursor: grabbing; }
+.pin-pool.over { outline: 2px dashed var(--line); outline-offset: 3px; border-radius: 4px; }
+.pin-pool .pick.dragging, .pin-targets .pinslot.dragging { opacity: .35; }
+body.pin-dragging { user-select: none; -webkit-user-select: none; }
+.pin-ghost {
+  position: fixed; top: 0; left: 0; z-index: 1200; pointer-events: none;
+  width: 68px; padding: 4px; text-align: center; border-radius: 4px;
+  background: var(--panel); border: 1px solid var(--gold);
+  box-shadow: 0 8px 20px rgba(0,0,0,.4); opacity: .95;
+}
+.pin-ghost canvas { width: 56px; height: 56px; display: block; margin: 0 auto; }
+.pin-ghost span {
+  display: block; font-size: 9px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   ADMIN -- the connection map
+   A canvas that fills the panel and re-fits itself, with the controls and the
+   key floating over it so the graph keeps the whole box.  The aspect ratio is
+   the thing that changes between a landscape monitor and a phone held
+   upright: tall and narrow gets a taller box, not a letterbox.
+   ========================================================================== */
+.netgraph {
+  position: relative; width: 100%; height: 60vh; min-height: 320px;
+  max-height: 720px; overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 40%, var(--panel-alt), var(--panel) 72%);
+  border-bottom: 1px solid var(--line-soft);
+}
+.netgraph canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.net-empty {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; color: var(--ink-soft); font-size: 11px;
+  pointer-events: none;
+}
+.net-toolbar {
+  position: absolute; top: 8px; left: 8px; display: flex; flex-wrap: wrap; gap: 4px;
+  z-index: 3;
+}
+.net-toolbar .btn[aria-pressed="false"] { opacity: .55; }
+.net-key {
+  position: absolute; top: 8px; right: 8px; z-index: 3; width: 172px;
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+  padding: 8px 9px; font-size: 10px; box-shadow: 0 4px 14px var(--shadow);
+}
+.net-key b { font-size: 10px; color: var(--ink-strong); }
+.net-key span { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.net-key i { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.net-key u { width: 16px; height: 0; flex: 0 0 auto; border-top: 2px solid; }
+.net-key u.e-friend  { border-color: var(--link); border-top-style: solid; }
+.net-key u.e-pending { border-color: #f0b429; border-top-style: dashed; }
+.net-key u.e-follow  { border-color: var(--ink-soft); border-top-style: dotted; }
+.net-key hr { margin: 4px 0; }
+.net-stats {
+  position: absolute; left: 8px; bottom: 8px; z-index: 3; display: flex;
+  flex-wrap: wrap; gap: 4px; max-width: calc(100% - 16px);
+}
+.net-stats span {
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 999px;
+  padding: 2px 9px; font-size: 10px; color: var(--ink-soft);
+}
+.net-stats b { color: var(--ink-strong); }
+.net-card {
+  position: absolute; right: 8px; bottom: 8px; z-index: 4; width: 232px;
+  max-width: calc(100% - 16px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+  padding: 9px 10px; font-size: 11px; box-shadow: 0 6px 18px var(--shadow-lift);
+}
+.net-card-close {
+  position: absolute; top: 4px; right: 5px; width: 18px; height: 18px; padding: 0;
+  line-height: 1; cursor: pointer; font-family: inherit; font-size: 13px;
+  color: var(--ink-soft); background: none; border: 0;
+}
+.net-near { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+.net-near .chip {
+  background: var(--panel-alt); border: 1px solid var(--line-soft);
+  color: var(--ink); cursor: pointer; font-family: inherit;
+}
+.net-near .chip:hover { border-color: var(--link); color: var(--link-hover); }
+.net-near .chip.more { cursor: default; opacity: .7; }
+.net-card-links { display: flex; gap: 5px; margin-top: 8px; }
+
+@media (max-width: 860px) {
+  /* Narrow enough that the floating panels have to take turns down the
+     screen instead of sitting in opposite corners: toolbar, then the running
+     totals, then the graph itself, with the key laid out as a strip along the
+     bottom and any selected node's card just above it. */
+  .netgraph { height: 66vh; min-height: 380px; }
+  .net-toolbar { right: 8px; }
+  .net-stats { top: 46px; bottom: auto; left: 8px; right: 8px; max-width: none; }
+  /* The key starts closed on a phone so the graph keeps the whole box, and
+     opens as a strip right under the totals rather than in a corner there is
+     no room for. */
+  .net-key {
+    top: 78px; bottom: auto; left: 8px; right: 8px; width: auto;
+    flex-direction: row; flex-wrap: wrap; align-items: center;
+    gap: 3px 10px; font-size: 9px; padding: 6px 8px;
+  }
+  .net-key b { flex-basis: 100%; }
+  .net-key hr, .net-key .tiny { display: none; }
+  .net-card { left: 8px; right: 8px; width: auto; bottom: 8px; }
+}
+@media (orientation: portrait) and (max-width: 860px) {
+  /* Held upright there is height to spare and none to waste sideways. */
+  .netgraph { height: 62vh; }
+}
+
+/* ==========================================================================
+   ODDS AND ENDS
+   ========================================================================== */
+.finish-avatar { margin-top: 10px; }
