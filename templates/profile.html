@@ -1,0 +1,254 @@
+{% include "partials/head.html" %}
+<div class="row">
+  <div class="col-side">
+    <div class="panel">
+      <div class="panel-head">{{ profile.username }}'s character</div>
+      <div class="panel-body">
+        <div class="avatar-view" style="height:300px" data-avatar="{{ to_json(avatar) }}">
+          <span class="tag3d">3D</span>
+          <span class="hint">drag to rotate</span>
+        </div>
+        <div class="center" style="margin-top:6px">
+          {% if playing %}
+            <span class="pill green"><span class="dot game"></span> Playing {{ playing }}</span>
+          {% elif online %}
+            <span class="pill green"><span class="dot on"></span> Online</span>
+          {% elif show_online %}
+            <span class="pill"><span class="dot off"></span> Offline &mdash; {{ ago(profile.last_seen) }}</span>
+          {% else %}
+            <span class="pill">Activity hidden</span>
+          {% endif %}
+        </div>
+        <div style="margin-top:8px" class="stack">
+          {% if is_self %}
+            <a class="btn block primary" href="/profile-editor">&#9998; Edit profile</a>
+            <a class="btn block" href="/avatar">Edit my avatar</a>
+            {% if show_inventory %}<a class="btn block" href="/inventory">My inventory ({{ inventory_summary.total }})</a>{% endif %}
+          {% else %}
+            {% if show_inventory %}
+            <a class="btn block" href="/inventory/{{ profile.username }}">View inventory ({{ inventory_summary.total }})</a>
+            {% endif %}
+            {% if user %}
+            <a class="btn block" href="/messages/compose?to={{ profile.username }}">Send message</a>
+            <button class="btn block {{ 'danger' if friend_status in ('friends', 'pending_out') else 'go' }}"
+                    id="friend-btn" data-username="{{ profile.username }}" data-state="{{ friend_status }}"
+                    data-friend="{{ 'remove' if friend_status in ('friends', 'pending_out') else ('accept' if friend_status == 'pending_in' else 'request') }}"
+                    title="{{ 'Click to cancel the request' if friend_status == 'pending_out' else '' }}">
+              {% if friend_status == 'friends' %}Remove friend
+              {% elif friend_status == 'pending_out' %}Request sent
+              {% elif friend_status == 'pending_in' %}Accept request
+              {% else %}Add friend{% endif %}
+            </button>
+            <button class="btn block" id="follow-btn" data-username="{{ profile.username }}" data-state="{{ 1 if following else 0 }}">
+              {{ 'Unfollow' if following else 'Follow' }}</button>
+            {% else %}
+            <a class="btn block primary" href="/login">Sign in to interact</a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head gold">Statistics</div>
+      <div class="panel-body">
+        {% if show_stats %}
+        <dl class="stats">
+          <div><dt>Kills</dt><dd>{{ fmt_num(stats.total.kills) }}</dd></div>
+          <div><dt>Deaths</dt><dd>{{ fmt_num(stats.total.deaths) }}</dd></div>
+          <div><dt>K/D</dt><dd>{{ stats.total.kdr }}</dd></div>
+          <div><dt>Wins</dt><dd>{{ fmt_num(stats.total.wins) }}</dd></div>
+          <div><dt>Rounds</dt><dd>{{ fmt_num(stats.total.rounds) }}</dd></div>
+          <div><dt>Score</dt><dd>{{ fmt_num(stats.total.score) }}</dd></div>
+        </dl>
+        {% else %}
+        <p class="muted tiny">{{ profile.username }} keeps their combat record private.</p>
+        {% endif %}
+        <hr>
+        <dl class="kv">
+          <dt>Joined</dt><dd>{{ fmt_date(profile.created_at) }}</dd>
+          <dt>Place visits</dt><dd>{{ fmt_num(profile.place_visits) }}</dd>
+          <dt>Friends</dt><dd>{{ friend_count }}</dd>
+          <dt>Followers</dt><dd>{{ follow_counts.followers }}</dd>
+          <dt>Following</dt><dd>{{ follow_counts.following }}</dd>
+          {% if profile.location %}<dt>Location</dt><dd>{{ profile.location }}</dd>{% endif %}
+          {% if mutuals and not is_self %}<dt>Mutuals</dt><dd>{{ mutuals }}</dd>{% endif %}
+        </dl>
+      </div>
+    </div>
+
+    {% if show_inventory %}
+    <div class="panel">
+      <div class="panel-head green">
+        <span>Items</span>
+        <span class="head-links">{{ inventory_summary.total }} owned</span>
+      </div>
+      <div class="panel-body">
+        {% if inventory_strip %}
+        <div class="itemgrid compact">
+          {% for it in inventory_strip %}
+          <a class="item tier-{{ it.tier }}" href="/inventory/{{ profile.username }}"
+             data-item-peek="{{ it.item_id }}" data-name="{{ it.name }}"
+             data-slot-label="{{ it.slot_label }}" data-serial="{{ it.serial }}"
+             data-tier="{{ it.tier }}" data-effect="{{ it.effect }}"
+             data-effect-name="{{ it.effect_name }}" data-rarity="{{ it.rarity }}"
+             data-href="/inventory/{{ profile.username }}"
+             title="{{ it.name }}{{ ' -- Unusual: ' + it.effect_name if it.effect_name else '' }}">
+            <div class="thumb-wrap">
+              <canvas class="thumb item-thumb" width="160" height="160"
+                      data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"></canvas>
+              <span class="tier-flag {{ it.tier }}">{{ it.tier_label }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}<p class="muted tiny">Nothing else in the inventory yet.</p>{% endif %}
+      </div>
+      <div class="panel-foot">
+        <a href="/inventory/{{ profile.username }}">See all {{ inventory_summary.total }} items</a>
+        {% if inventory_summary.unusual %} &mdash; including
+        <b style="color:var(--unusual-ink)">{{ inventory_summary.unusual }} Unusual</b>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <div class="panel-head">
+        <span>{{ profile.username }}{{ ' [ADMIN]' if profile.is_admin else '' }}</span>
+        <span class="head-links">member since {{ fmt_date(profile.created_at) }}</span>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:12px">{{ profile.blurb if profile.blurb else 'This builder has not written anything yet.' }}</p>
+        {% if is_self %}<a class="btn small" href="/profile-editor">Edit description</a>{% endif %}
+      </div>
+    </div>
+
+    {% if pinned or is_self %}
+    <div class="panel">
+      <div class="panel-head purple">
+        <span>&#9733; Pinned items</span>
+        {% if is_self %}<span class="head-links"><a href="/profile-editor#pins">Change</a></span>{% endif %}
+      </div>
+      <div class="panel-body">
+        <div class="pinrow">
+          {% for it in pinned %}
+          <div class="item tier-{{ it.tier }}" style="cursor:pointer"
+               data-item-peek="{{ it.item_id }}" data-name="{{ it.name }}"
+               data-slot-label="{{ it.slot_label }}" data-serial="{{ it.serial }}"
+               data-tier="{{ it.tier }}" data-effect="{{ it.effect }}"
+               data-effect-name="{{ it.effect_name }}" data-rarity="{{ it.rarity }}"
+               data-href="/inventory/{{ profile.username }}">
+            <div class="thumb-wrap">
+              <canvas class="thumb item-thumb" width="216" height="216"
+                      data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"></canvas>
+              <span class="tier-flag {{ it.tier }}">{{ it.tier_label }}</span>
+              {% if it.effect_name %}<span class="effect-flag">{{ it.effect_name }}</span>{% endif %}
+            </div>
+            <div class="meta">
+              <span class="iname" title="{{ it.name }}">{{ it.name }}</span>
+              <span class="islot">{{ it.slot_label }} &bull; #{{ it.serial }}</span>
+            </div>
+          </div>
+          {% endfor %}
+          {% for i in range(pinned_slots - len(pinned)) %}
+          <div class="pinslot">{% if is_self %}<a href="/profile-editor#pins">Pin an item</a>{% else %}empty{% endif %}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if posts_list %}
+    <div class="panel">
+      <div class="panel-head">Posts</div>
+      <div class="panel-body">
+        {% for p in posts_list %}{% set post = p %}{% include "partials/post.html" %}{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <div class="panel-head">Profile comments ({{ wall_count }})</div>
+      <div class="panel-body">
+        {% if user and can_comment %}
+        <form class="commentbox" id="wall-form" data-username="{{ profile.username }}" onsubmit="return false">
+          <input type="text" id="wall-body" maxlength="300" placeholder="Leave a comment on {{ profile.username }}'s profile">
+          <button class="btn primary">Post</button>
+        </form>
+        <hr>
+        {% elif user %}
+        <p class="muted tiny">{{ profile.username }} has limited who can comment here.</p>
+        <hr>
+        {% else %}
+        <p class="muted"><a href="/login">Sign in</a> to leave a comment.</p>
+        {% endif %}
+        <div id="wall-list">
+          {% for c in wall %}
+          <div class="post" data-wall="{{ c.id }}">
+            <div class="spread">
+              <div><a class="who" href="/profile/{{ c.username }}">{{ c.username }}</a>
+                   <span class="when">{{ ago(c.created_at) }}</span></div>
+              {% if user and (user.id == c.author_id or user.id == profile.id or is_admin) %}
+              <a class="tiny muted" data-wall-delete="{{ c.id }}">delete</a>
+              {% endif %}
+            </div>
+            <div class="body">{{ c.body }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-narrow">
+    <div class="panel">
+      <div class="panel-head">Friends ({{ friend_count }})</div>
+      <div class="panel-body">
+        {% if show_friends %}
+        <div class="userlist">
+          {% for f in friends_list %}
+          <a class="usercard small" href="/profile/{{ f.username }}">
+            <canvas class="thumb avatar-thumb" width="128" height="128" data-user="{{ f.username }}"></canvas>
+            <span class="uname">{{ f.username }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% if not friends_list %}<p class="muted tiny">No friends yet.</p>{% endif %}
+        {% else %}
+        <p class="muted tiny">This friends list is private.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if favourites %}
+    <div class="panel">
+      <div class="panel-head gold">Favourite worlds</div>
+      <div class="panel-body">
+        {% for w in favourites %}
+        <div style="padding:4px 0"><a href="/worlds/{{ w.id }}">{{ w.name }}</a>
+          <div class="tiny muted">{{ w.genre }}</div></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if show_stats %}
+    <div class="panel">
+      <div class="panel-head">Per-world record</div>
+      <div class="panel-body flush">
+        <div class="tablewrap">
+          <table class="grid">
+            <tr><th>World</th><th class="right">K</th><th class="right">D</th></tr>
+            {% for wid, row in stats.worlds.items() %}
+            <tr><td class="tiny">{{ wid }}</td><td class="right">{{ row.kills }}</td><td class="right">{{ row.deaths }}</td></tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% include "partials/foot.html" %}
