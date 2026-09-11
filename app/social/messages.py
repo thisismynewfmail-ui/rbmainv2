@@ -122,6 +122,42 @@ def recent(user_id: int, limit: int = 8) -> List[Dict[str, Any]]:
     } for row in rows]
 
 
+def conversation(user_id: int, other_id: int,
+                 limit: int = 20) -> List[Dict[str, Any]]:
+    """Everything exchanged with one player, oldest first.
+
+    Scoped exactly like :func:`get`: only rows where the viewer is one of the
+    two participants are ever returned, and each side's own deletions are
+    respected.
+    """
+    rows = db.query(
+        "SELECT m.id, m.sender_id, m.recipient_id, m.subject, m.body,"
+        " m.created_at, m.read_at, s.username AS sender_name FROM messages m"
+        " JOIN users s ON s.id=m.sender_id"
+        " WHERE ((m.sender_id=? AND m.recipient_id=? AND m.del_sender=0)"
+        "     OR (m.sender_id=? AND m.recipient_id=? AND m.del_recipient=0))"
+        " ORDER BY m.id DESC LIMIT ?",
+        (user_id, other_id, other_id, user_id, limit))
+    out = []
+    for row in reversed(db.rows_to_dicts(rows)):
+        out.append({
+            "id": int(row["id"]),
+            "mine": int(row["sender_id"]) == user_id,
+            "who": row["sender_name"],
+            "subject": row["subject"],
+            "body": row["body"],
+            "created_at": int(row["created_at"]),
+        })
+    return out
+
+
+def mark_thread_read(user_id: int, other_id: int) -> None:
+    """Opening a conversation clears its unread flags in one go."""
+    db.execute("UPDATE messages SET read_at=? WHERE recipient_id=?"
+               " AND sender_id=? AND read_at=0",
+               (int(time.time()), user_id, other_id))
+
+
 def thread_for(message: Dict[str, Any], user_id: int,
                limit: int = 12) -> List[Dict[str, Any]]:
     """Every message exchanged with the other party, oldest first.

@@ -174,6 +174,28 @@
       });
     }
 
+    /* Apply.  Every control on this page already saves the moment it is
+       clicked, so this is the full stop rather than the save: it re-reads the
+       avatar the server actually holds, repaints the preview from that, and
+       says so -- which is the reassurance the button is there to give.  On a
+       first session the template swaps it for "Finish & view profile", which
+       is the same full stop with somewhere to go next. */
+    var apply = document.getElementById('apply-avatar');
+    if (apply) {
+      apply.addEventListener('click', function () {
+        apply.disabled = true;
+        Site.get('/api/avatar').then(function (res) {
+          apply.disabled = false;
+          if (!res.ok) { Site.toast(res.error || 'Could not reach the server.', 'bad'); return; }
+          applyDescriptor(res.avatar);
+          Site.toast('Avatar applied \u2014 this is what everybody sees.');
+        }).catch(function () {
+          apply.disabled = false;
+          Site.toast('Could not reach the server.', 'bad');
+        });
+      });
+    }
+
     Site.get('/api/avatar').then(function (res) {
       if (res.ok) refreshHotbar(res.avatar);
     });

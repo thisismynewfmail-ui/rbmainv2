@@ -1,15 +1,47 @@
 </div>
-{% if user %}
+{% if user and prefs.messenger %}
+<!-- The floating messenger.  It is two screens in one panel -- the
+     conversation list and a direct-message view -- that slide across rather
+     than navigating away, so writing a note never costs you the page you were
+     reading.  A toggle in /settings turns the whole thing off. -->
 <div class="dock" id="msg-dock">
   <div class="dock-panel">
     <div class="dock-head">
-      <span>Messages</span>
-      <span><a href="/messages/compose">New</a> &middot; <a href="/messages">Inbox</a></span>
+      <span class="dock-title">
+        <button class="dock-back" id="dock-back" type="button" aria-label="Back to messages"
+                title="Back to the message list">&#8592;</button>
+        <span id="dock-heading">Messages</span>
+      </span>
+      <span class="dock-headlinks"><a href="/messages">Open inbox</a></span>
     </div>
-    <div class="dock-body" id="dock-body">
-      <div class="muted tiny" style="padding:12px">Loading...</div>
+    <div class="dock-screens" id="dock-screens">
+      <div class="dock-screen" id="dock-screen-list">
+        <div class="dock-body" id="dock-body">
+          <div class="muted tiny" style="padding:12px">Loading...</div>
+        </div>
+        <div class="dock-foot">
+          <button class="btn small block primary" id="dock-new" type="button">Write a new message</button>
+        </div>
+      </div>
+      <div class="dock-screen" id="dock-screen-dm">
+        <div class="dock-dm" id="dock-dm">
+          <div class="dock-to" id="dock-to-row">
+            <label for="dock-to">To</label>
+            <div class="ac-wrap">
+              <input type="text" id="dock-to" maxlength="20" autocomplete="off"
+                     spellcheck="false" placeholder="Who are you writing to?"
+                     data-user-autocomplete="1">
+            </div>
+          </div>
+          <div class="dock-thread" id="dock-thread"></div>
+        </div>
+        <div class="dock-foot dock-compose">
+          <textarea id="dock-body-text" rows="2" maxlength="2000"
+                    placeholder="Write a message and press Enter"></textarea>
+          <button class="btn small primary" id="dock-send" type="button">Send</button>
+        </div>
+      </div>
     </div>
-    <div class="dock-foot"><a class="btn small block primary" href="/messages/compose">Write a message</a></div>
   </div>
   <button class="dock-toggle" id="dock-toggle" type="button" aria-expanded="false">
     <span>&#9993; Messages</span>

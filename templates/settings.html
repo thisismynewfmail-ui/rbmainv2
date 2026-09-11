@@ -49,11 +49,21 @@
           <button class="themetoggle" type="button" aria-pressed="false"
                   aria-label="Toggle dark mode">
             <span class="sky"><i></i><i></i><i></i><i></i></span>
-            <span class="knob"></span>
+            <span class="knob"><i class="limb"></i><i class="term"></i></span>
           </button>
         </div>
         <p class="tiny muted" style="margin-top:8px">Stored on your account, so it follows
           you between your phone and your desktop.</p>
+        <hr>
+        <div class="spread">
+          <span>Floating message bubble</span>
+          <button class="switch" id="messenger-toggle" type="button" role="switch"
+                  aria-checked="{{ 'true' if prefs.messenger else 'false' }}"
+                  aria-label="Show the floating message bubble"><i></i></button>
+        </div>
+        <p class="tiny muted" style="margin-top:8px">The bubble in the bottom corner that
+          opens your conversations without leaving the page. Turn it off and messages
+          live in the <a href="/messages">inbox</a> only.</p>
       </div>
     </div>
     <div class="panel">

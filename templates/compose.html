@@ -1,16 +1,34 @@
 {% include "partials/head.html" %}
-<div class="panel" style="max-width:640px">
-  <div class="panel-head">Compose message</div>
+<div class="panel compose-panel">
+  <div class="panel-head">
+    <span>Compose message</span>
+    <span class="head-links"><a href="{{ back }}">&larr; Back</a></span>
+  </div>
   <div class="panel-body">
     {% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
-    <form method="post" action="/messages/compose">
+    <form method="post" action="/messages/compose" id="compose-form">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <div class="field"><label>To</label><input type="text" name="to" value="{{ to }}" maxlength="20"></div>
-      <div class="field"><label>Subject</label><input type="text" name="subject" value="{{ subject }}" maxlength="80"></div>
-      <div class="field"><label>Message</label><textarea name="body" rows="8" maxlength="2000">{{ body }}</textarea></div>
-      <button class="btn primary">Send</button>
-      <a class="btn" href="/messages">Cancel</a>
+      <input type="hidden" name="back" value="{{ back }}">
+      <div class="field">
+        <label for="compose-to">To</label>
+        <div class="ac-wrap">
+          <input type="text" id="compose-to" name="to" value="{{ to }}" maxlength="20"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="Start typing a player's name"
+                 data-user-autocomplete="1">
+        </div>
+        <small class="muted tiny">Pick a name from the list, or type it in full.</small>
+      </div>
+      <div class="field"><label for="compose-subject">Subject</label>
+        <input type="text" id="compose-subject" name="subject" value="{{ subject }}" maxlength="80"></div>
+      <div class="field"><label for="compose-body">Message</label>
+        <textarea id="compose-body" name="body" rows="8" maxlength="2000">{{ body }}</textarea></div>
+      <div class="compose-actions">
+        <button class="btn primary">Send</button>
+        <a class="btn" href="{{ back }}">Cancel</a>
+      </div>
     </form>
   </div>
+  <div class="panel-foot tiny muted">Sending takes you back to where you were.</div>
 </div>
 {% include "partials/foot.html" %}

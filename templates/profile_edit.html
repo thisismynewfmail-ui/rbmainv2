@@ -26,19 +26,29 @@
         <span class="head-links">up to {{ pin_slots }}, shown at the top of your profile</span>
       </div>
       <div class="panel-body">
-        <p class="muted">Pick the three pieces you want people to see first. Everything else
-          stays in your inventory strip.</p>
-        <div class="pinrow" id="pin-preview">
+        <p class="muted">Drag the pieces you want people to see first into the slots.
+          Drop one on top of a pinned item to swap them, or drag a pinned item back down
+          to your inventory to unpin it.</p>
+        <!-- Three real drop targets rather than a click-to-replace list: the
+             arrangement on the profile is spatial, so setting it up should be
+             too.  Pointer events drive it, so the same drag works with a
+             mouse, a trackpad and a finger. -->
+        <div class="pinrow pin-targets" id="pin-preview">
           {% for i in range(pin_slots) %}
-          <div class="pinslot" data-pin-preview="{{ i }}">empty</div>
+          <div class="pinslot" data-pin-slot="{{ i }}" aria-label="Pinned slot {{ i + 1 }}">
+            <span class="slot-n">{{ i + 1 }}</span>
+            <span class="slot-hint">drag an item here</span>
+          </div>
           {% endfor %}
         </div>
         <hr>
-        <div class="slotpick" id="pin-pool">
+        <h3 class="tiny muted" style="margin-bottom:6px">Your inventory</h3>
+        <div class="slotpick pin-pool" id="pin-pool" data-pin-zone="pool">
           {% for it in owned %}
           <div class="pick {{ 'on' if it.inv_id in pinned else '' }} {{ 'unusual' if it.tier == 'unusual' else '' }}"
                data-pin="{{ it.inv_id }}" data-name="{{ it.name }}" data-item="{{ it.item_id }}"
                data-effect="{{ it.effect }}" data-tier="{{ it.tier }}"
+               data-slot-label="{{ it.slot_label }}" data-serial="{{ it.serial }}"
                title="{{ it.name }}">
             <canvas width="128" height="128" class="item-thumb"
                     data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"></canvas>
@@ -53,7 +63,7 @@
                value="{{ pinned[i] if i < len(pinned) else 0 }}">
         {% endfor %}
       </div>
-      <div class="panel-foot"><span id="pin-status" class="muted">Click an item to pin or unpin it.</span></div>
+      <div class="panel-foot"><span id="pin-status" class="muted">Drag an item into a slot to pin it.</span></div>
     </div>
   </div>
 
@@ -86,7 +96,7 @@
           <button class="themetoggle" type="button" aria-pressed="false"
                   aria-label="Toggle dark mode">
             <span class="sky"><i></i><i></i><i></i><i></i></span>
-            <span class="knob"></span>
+            <span class="knob"><i class="limb"></i><i class="term"></i></span>
           </button>
         </div>
         <p class="tiny muted" style="margin-top:8px">Saved to your account, so your phone and

@@ -40,9 +40,13 @@ keyboard and a mouse), so its Load buttons are hidden on small screens.
 
 `run.sh` is a thin wrapper around `python3 main.py`; every flag works either
 way. It leaves a live status block in the terminal — traffic, accounts, who is
-online, what each world is carrying and whether the host processes are healthy
-— which re-flows for the window it is printed into, so a narrow or vertical
-terminal gets the same numbers stacked instead of a table that wraps.
+online, what each world is carrying and whether the host processes are healthy.
+The block is about a dozen lines, so it fits a portrait monitor or a
+phone-shaped SSH window whole, and it is **redrawn in place**: the cursor walks
+back up over the previous copy instead of reprinting it, so the numbers change
+where they stand and the start-up banner stays put above them. It still
+re-flows for the width it is given — the meters and the softer columns drop out
+before anything carrying a number does.
 
 Requirements: Python 3.9+ and a browser with WebGL. That is the whole list.
 
@@ -116,10 +120,29 @@ While the chat box is open every other binding is ignored so you can type
 freely. **Double-click a name** in chat or on the scoreboard to open that
 player's profile in a new tab.
 
+**One `Esc` opens the pause menu**, and one closes it again. The browser owns
+`Esc` while the pointer is locked — it eats the key and frees the mouse itself
+— so the game reads the unlock as the key press rather than waiting for a
+second one. Whether an unlock was `Esc` or a tab-away is settled a beat later
+from the window's focus: still focused means `Esc` and pauses, focus gone means
+the window went away and the round carries on. Resuming takes the mouse back
+even though the browser refuses a fresh lock for about a second after `Esc`,
+retrying until it lands and falling back to the "click to take the mouse back"
+hint if it never does.
+
 Loading a world takes the browser fullscreen and quitting hands it back exactly
 as it was found. Alt-Tab, the Windows key and a click on another monitor
 release the mouse without pausing the round — **only `Esc` pauses**. Quit
 returns you to whichever page you launched from.
+
+**One live game session per account.** Pressing Play in a second window pulls
+the first one out of whatever it was in *before* the new connection is allowed
+to join, so the same character can never be in two rounds at once. The web
+server signals every host over a signed loopback control channel when it hands
+out a join ticket, and the host the new socket lands on enforces the same rule
+again locally, so a race between two windows pointed at the same world ends the
+same way. The window that loses says so plainly rather than looking like a
+dropped connection.
 
 ---
 
@@ -247,6 +270,12 @@ A dark theme ships alongside the light one. It is a second hand-built palette
 rather than an inversion — the chrome keeps its bevels and gradient headers,
 lit from a night sky instead of a white one.
 
+The toggle is a sun that becomes a moon, and the moon shows **the phase
+actually in the sky tonight** — a crescent on a crescent night, a full disc on
+a full one. It is built the way the sky builds it: half the disc lit, half in
+shadow, and an ellipse across the middle whose width is how far the terminator
+has swung. Hovering it names the phase and how much of it is lit.
+
 The choice is remembered in three independent places: on the account (so a
 phone and a desktop signed in together agree), in a cookie (so the server can
 stamp the right theme onto the first byte of HTML — no white flash — and so a
@@ -263,7 +292,67 @@ currently in, when you are online, and who can leave profile comments. Every
 setting is enforced on the server, including on the direct `/inventory/<name>`
 URL.
 
+Pinning is a drag: pull a piece out of your inventory into one of the three
+slots, drop one on top of another to swap them, or drag a pinned item back down
+to unpin it. It is driven by pointer events, so the identical gesture works
+with a mouse, a trackpad and a finger, and a plain click still pins and unpins.
+
+Pinned items are the one deliberate exception to the inventory privacy setting.
+Pinning something is the owner saying "look at this", so the three pins stay on
+the profile even when the rest of the collection is set to friends-only or
+private — the strip, the counts and the `/inventory/<name>` page are still
+gated. An Unusual in a pinned slot runs its effect live rather than as a still,
+scaled to the piece it is sitting on, and so does the item preview you get by
+clicking any item tile.
+
 ---
+
+## The rest of the site
+
+* **Home.** The weekly spotlight banner is a greeting rather than furniture: it
+  is claimed once per sign-in and then stays gone until the next one, so
+  reloading the page (or coming back to it from a profile) does not re-serve
+  it. On a phone the side column runs profile → friend requests → who is
+  online → an inbox button → your friends, because reaching people is what the
+  phone layout is for.
+* **The news strip** carries new sign-ups alongside the Unusual pulls and the
+  notable finds, and scrolls slowly enough to read a headline on the way past.
+  Hovering parks it.
+* **People** (`/users`) is a "who has just arrived" board rather than a
+  directory: newest accounts first, capped at sixty, with the join date on
+  every card.
+* **The floating messenger** is two screens behind one bubble — the
+  conversation list, and a direct-message view that slides in over it. Writing
+  a note never costs you the page you were reading, and Back walks you straight
+  out of the conversation. The "To" box has the same type-ahead the compose
+  page does. A switch in `/settings` turns the whole bubble off; it is on by
+  default.
+* **Compose** (`/messages/compose`) remembers where you came from and sends you
+  back there — the profile, the home page, the inbox, wherever it was.
+* **Removing a friend** asks first, in the page's own dialog. Cancelling a
+  request you sent still goes straight through, because that one has no cost.
+* **The welcome screen** shows one character rather than a shelf of them, and
+  that character is alive: it poses, it changes its whole outfit every few
+  seconds (or on demand), and it can be dragged around. Every look is rolled
+  out of the live catalogue with the same 3D rig the profile and the game use,
+  so a hat added to the catalogue can turn up on the front page the same day.
+
+## The admin dashboard
+
+`/admin-dashboard` has two tabs. **Overview** is the live numbers: worlds,
+instances, host processes, player management, the credit ledger and the audit
+log, refreshed every three seconds.
+
+**Connections** is the same data drawn as a graph — every account as a node,
+every friendship, pending request and follow as an edge. It is a plain 2D
+canvas running a force-directed layout: nodes repel, edges pull like springs,
+and the view re-fits itself to the panel unless you have panned or zoomed. Node
+size is the friend count and node colour is the account's state
+(administrator, in a world, online, registered, unconnected); clicking one pins
+it and lists who it reaches. It rides the dashboard's own three-second
+heartbeat and merges each refresh into the layout already on screen rather than
+restarting the simulation, and the key, the names and the unconnected accounts
+can each be toggled off.
 
 ## Development tools
 

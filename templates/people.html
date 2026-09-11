@@ -1,13 +1,17 @@
 {% include "partials/head.html" %}
 <div class="panel">
   <div class="panel-head">
-    <span>People</span><span class="head-links">{{ fmt_num(total) }} registered builders</span>
+    <span>People</span>
+    <span class="head-links">newest {{ len(rows) }} of {{ fmt_num(total) }} registered builders</span>
   </div>
   <div class="panel-body">
     <form class="inline-form" method="get" action="/users" style="margin-bottom:10px">
       <input type="search" name="q" value="{{ term }}" placeholder="Find a player" style="flex:1 1 200px;min-width:0">
       <button class="btn">Search</button>
     </form>
+    <p class="tiny muted" style="margin:-4px 0 10px">
+      {% if term %}Matches for &ldquo;{{ term }}&rdquo;, newest accounts first.
+      {% else %}The {{ limit }} newest accounts, most recently joined first.{% endif %}</p>
     <div class="itemgrid">
       {% for r in rows %}
       <div class="item" style="text-align:center">
@@ -21,6 +25,7 @@
           <span class="islot"><span class="dot {{ 'on' if r.online else 'off' }}"></span>
             {{ 'Online' if r.online else ago(r.user.last_seen) }}</span>
           <div class="tiny muted">{{ r.friends }} friends</div>
+          <div class="tiny muted">joined {{ fmt_date(r.user.created_at) }}</div>
           {% if user and r.user.id != user.id %}
           <div style="margin-top:5px">
             <button class="btn small {{ 'danger' if r.status == 'pending_out' else 'go' }}"

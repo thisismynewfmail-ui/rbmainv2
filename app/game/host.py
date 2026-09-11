@@ -104,6 +104,21 @@ class GameHost:
             if len(keep) != len(self.instances):
                 self.instances = keep or self.instances[:1]
 
+    def drop_user(self, user_id: int, reason: str = "") -> int:
+        """Pull one account out of every instance this host is running."""
+        if user_id <= 0:
+            return 0
+        with self.lock:
+            instances = list(self.instances)
+        dropped = 0
+        for instance in instances:
+            try:
+                dropped += instance.drop_user(user_id, reason)
+            except Exception:
+                if config.DEBUG:
+                    traceback.print_exc()
+        return dropped
+
     # ---------------------------------------------------------------- ticks
     def tick_loop(self) -> None:
         next_tick = time.monotonic()
@@ -203,6 +218,12 @@ class GameHost:
             sock.close()
             return
         if headers.get("upgrade", "").lower() != "websocket":
+            # Not an upgrade: the only other thing this port answers is the
+            # signed control channel the web server uses to pull a player out
+            # of a world the instant they start another session elsewhere.
+            if method == "POST" and urlparse(target).path == "/control":
+                self.handle_control(sock, rfile, headers)
+                return
             try:
                 sock.sendall(b"HTTP/1.1 400 Bad Request\r\n"
                              b"Content-Length: 0\r\n\r\n")
@@ -230,6 +251,14 @@ class GameHost:
             prefer = int((query.get("instance") or ["0"])[0]) or None
         except ValueError:
             prefer = None
+        # One live session per account.  The web server already asks every
+        # host to drop this player before it hands out the ticket, but a
+        # second window pointed at *this* world would otherwise race that
+        # call, so the same rule is enforced again right here where the two
+        # connections meet.
+        uid = int(ticket.get("uid", 0))
+        if uid > 0:
+            self.drop_user(uid, "You opened this game in another window.")
         instance = self.pick_instance(prefer)
         player = instance.add_player(
             int(ticket.get("uid", 0)), str(ticket.get("name", "Player")),
@@ -260,6 +289,51 @@ class GameHost:
             self.connections -= 1
             instance.remove_player(player.pid)
             ws.close()
+
+    def handle_control(self, sock: socket.socket, rfile, headers) -> None:
+        """Signed localhost control channel (currently: drop a player).
+
+        Authenticated with the same HMAC the heartbeat uses, so nothing that
+        cannot already read the server secret can move players around.
+        """
+        status, payload = "403 Forbidden", {"ok": False}
+        try:
+            length = int(headers.get("content-length", "0") or 0)
+        except ValueError:
+            length = 0
+        body = b""
+        remaining = min(max(0, length), 64 * 1024)
+        while remaining > 0:
+            chunk = rfile.read(remaining)
+            if not chunk:
+                break
+            body += chunk
+            remaining -= len(chunk)
+        if security.check_service_signature(
+                body, headers.get("x-service-signature", "")):
+            try:
+                message = json.loads(body.decode("utf-8"))
+            except Exception:
+                message = {}
+            action = str(message.get("action", ""))
+            if action == "drop":
+                dropped = self.drop_user(int(message.get("user_id", 0) or 0),
+                                         str(message.get("reason", "")))
+                status, payload = "200 OK", {"ok": True, "dropped": dropped}
+            else:
+                status, payload = "400 Bad Request", {"ok": False}
+        try:
+            blob = json.dumps(payload).encode()
+            sock.sendall(("HTTP/1.1 %s\r\nContent-Type: application/json\r\n"
+                          "Content-Length: %d\r\nConnection: close\r\n\r\n"
+                          % (status, len(blob))).encode() + blob)
+        except Exception:
+            pass
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
 
     def serve(self) -> None:
         host = self

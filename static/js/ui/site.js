@@ -69,7 +69,9 @@
     options = options || {};
     return new Promise(function (resolve) {
       var scrim = document.createElement('div');
-      scrim.className = 'modal-scrim';
+      // "centred" is the phone difference: a sheet glued to the bottom edge is
+      // right for a yes/no, wrong for something you are meant to look at.
+      scrim.className = 'modal-scrim' + (options.centered ? ' centered' : '');
       var confirmLabel = options.confirm || 'Confirm';
       var cancelLabel = options.cancel === null ? null : (options.cancel || 'Cancel');
       scrim.innerHTML =
@@ -87,6 +89,7 @@
       function close(result) {
         scrim.remove();
         document.removeEventListener('keydown', onKey);
+        if (options.onClose) { try { options.onClose(); } catch (e) {} }
         resolve(result);
       }
       function onKey(event) {
@@ -131,17 +134,27 @@
         Site.escape(data.description) + '</p>' : '') +
       (data.href ? '<p style="margin-top:10px"><a class="btn small block" href="' +
         Site.escape(data.href) + '">Open the full inventory</a></p>' : '');
+    var peek = null;
     var dialog = Site.dialog({
       title: data.name || 'Item',
       tone: unusual ? 'purple' : 'green',
       bodyHtml: body,
       confirm: 'Close',
-      cancel: null
+      cancel: null,
+      centered: true,
+      // the effect has to stop with the dialog, or it keeps drawing into a
+      // canvas nobody can see for as long as the page is open
+      onClose: function () {
+        if (peek && window.Thumbs && Thumbs.stopLive) Thumbs.stopLive(peek);
+      }
     });
     setTimeout(function () {
-      var canvas = document.getElementById('item-peek');
-      if (canvas && window.Thumbs) {
-        Thumbs.renderItem(canvas, data.item_id, data.effect || '');
+      peek = document.getElementById('item-peek');
+      if (!peek || !window.Thumbs) return;
+      if (data.effect && Thumbs.animateItem) {
+        Thumbs.animateItem(peek, data.item_id, data.effect);
+      } else {
+        Thumbs.renderItem(peek, data.item_id, data.effect || '');
       }
     }, 30);
     return dialog;
@@ -215,13 +228,71 @@
     }
   };
 
+  /* ------------------------------------------------------- the moon knob
+     The dark-mode knob is a moon, so it may as well be *the* moon: the phase
+     it shows is the one actually in the sky tonight.  The construction is the
+     textbook one -- half the disc lit, half in shadow, and an ellipse across
+     the middle whose width is how far the terminator has swung -- which gives
+     a true crescent, quarter, gibbous or full rather than a fixed bite taken
+     out of a circle.  It is all CSS variables, so it costs one layout and no
+     canvas.
+
+     Reference new moon: 2000-01-06 18:14 UTC, the standard epoch, with the
+     mean synodic month.  That is accurate to a few hours across a century --
+     far better than a toggle button needs. */
+  var SYNODIC = 29.530588853;
+  var NEW_MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14, 0);
+  var PHASE_NAMES = [
+    'New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous',
+    'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'
+  ];
+
+  Site.moonPhase = function (when) {
+    var days = ((when || new Date()).getTime() - NEW_MOON_EPOCH) / 86400000;
+    var age = days % SYNODIC;
+    if (age < 0) age += SYNODIC;
+    var phase = age / SYNODIC;                       // 0 new .. 0.5 full .. 1
+    var lit = (1 - Math.cos(phase * Math.PI * 2)) / 2;
+    // eight named phases, each centred on its own eighth of the cycle
+    var index = Math.floor(phase * 8 + 0.5) % 8;
+    return {
+      phase: phase,
+      age: age,
+      lit: lit,
+      waxing: phase < 0.5,
+      name: PHASE_NAMES[index],
+      percent: Math.round(lit * 100)
+    };
+  };
+
+  function paintMoon(button, moon) {
+    var knob = button.querySelector('.knob');
+    if (!knob) return;
+    // the lit half sits on the side the sun is on: right while waxing
+    knob.style.setProperty('--limb-side', moon.waxing ? '0%' : '50%');
+    knob.style.setProperty('--term-w', (Math.abs(1 - 2 * moon.lit) * 100) + '%');
+    knob.style.setProperty('--term-fill',
+      moon.lit < 0.5 ? 'var(--moon-dark)' : 'var(--moon-lit)');
+  }
+
   function syncThemeButtons() {
     var dark = Site.isDark();
+    var moon = Site.moonPhase();
     document.querySelectorAll('.themetoggle').forEach(function (button) {
       button.setAttribute('aria-pressed', dark ? 'true' : 'false');
-      button.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+      paintMoon(button, moon);
+      button.title = dark
+        ? 'Switch to light mode \u2014 tonight: ' + moon.name +
+          ' (' + moon.percent + '% lit)'
+        : 'Switch to dark mode';
+      var label = button.getAttribute('aria-label') || 'Toggle dark mode';
+      if (label.indexOf('Toggle') === 0) {
+        button.setAttribute('aria-label',
+          dark ? 'Toggle dark mode \u2014 ' + moon.name : 'Toggle dark mode');
+      }
     });
   }
+
 
   function bindTheme() {
     syncThemeButtons();
@@ -237,6 +308,8 @@
       if (query.addEventListener) query.addEventListener('change', onChange);
       else if (query.addListener) query.addListener(onChange);
     }
+    // a tab left open overnight should not keep showing yesterday's moon
+    setInterval(syncThemeButtons, 30 * 60 * 1000);
   }
 
   // ------------------------------------------------------- mobile drawer
@@ -258,19 +331,248 @@
     });
   }
 
+  // ------------------------------------------------------- autocomplete
+  /* A shared type-ahead for "who do you mean" boxes.  It is attached by
+     markup (data-user-autocomplete) so the compose page and the floating
+     messenger get exactly the same behaviour, keyboard handling included, and
+     it drops the list into the field's own wrapper so a phone keyboard
+     pushing the page around cannot leave it stranded. */
+  var AC_MIN = 1;
+
+  Site.autocomplete = function (input, options) {
+    if (!input || input.__ac) return input && input.__ac;
+    options = options || {};
+    var wrap = input.closest('.ac-wrap') || input.parentNode;
+    if (wrap === input.parentNode && !wrap.classList.contains('ac-wrap')) {
+      wrap.classList.add('ac-wrap');
+    }
+    var list = document.createElement('div');
+    list.className = 'ac-list';
+    list.setAttribute('role', 'listbox');
+    list.hidden = true;
+    wrap.appendChild(list);
+
+    var rows = [];
+    var active = -1;
+    var timer = 0;
+    var lastQuery = null;
+
+    function hide() {
+      list.hidden = true;
+      active = -1;
+      input.setAttribute('aria-expanded', 'false');
+    }
+
+    function draw() {
+      if (!rows.length) { hide(); return; }
+      list.innerHTML = rows.map(function (row, index) {
+        return '<button type="button" class="ac-row' +
+          (index === active ? ' on' : '') + '" role="option" data-ac="' +
+          Site.escape(row.username) + '" aria-selected="' +
+          (index === active ? 'true' : 'false') + '">' +
+          '<canvas class="ac-face avatar-thumb" width="96" height="96" data-user="' +
+          Site.escape(row.username) + '"></canvas>' +
+          '<span class="ac-name">' + Site.escape(row.username) + '</span>' +
+          '<span class="ac-when">' + (row.online ? 'online' : '') + '</span>' +
+          '</button>';
+      }).join('');
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      if (window.Thumbs) Thumbs.rescan();
+    }
+
+    function choose(name) {
+      input.value = name;
+      hide();
+      if (options.onPick) options.onPick(name);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function search() {
+      var term = (input.value || '').trim();
+      if (term.length < AC_MIN) { rows = []; hide(); return; }
+      if (term === lastQuery) return;
+      lastQuery = term;
+      Site.get('/api/users/suggest?q=' + encodeURIComponent(term))
+        .then(function (res) {
+          if (!res.ok) { rows = []; hide(); return; }
+          if ((input.value || '').trim() !== term) return;   // raced ahead
+          var now = Math.floor(Date.now() / 1000);
+          rows = (res.users || []).map(function (row) {
+            return { username: row.username,
+                     online: (now - (row.last_seen || 0)) < 180 };
+          });
+          active = -1;
+          draw();
+        }).catch(function () { rows = []; hide(); });
+    }
+
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(search, 140);
+    });
+    input.addEventListener('focus', function () {
+      if (rows.length && (input.value || '').trim()) draw();
+    });
+    input.addEventListener('keydown', function (event) {
+      if (list.hidden || !rows.length) {
+        if (event.key === 'ArrowDown') { clearTimeout(timer); lastQuery = null; search(); }
+        return;
+      }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        active += event.key === 'ArrowDown' ? 1 : -1;
+        if (active < 0) active = rows.length - 1;
+        if (active >= rows.length) active = 0;
+        draw();
+        var on = list.querySelector('.ac-row.on');
+        if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+      } else if (event.key === 'Enter' && active >= 0) {
+        event.preventDefault();
+        choose(rows[active].username);
+      } else if (event.key === 'Escape') {
+        hide();
+      } else if (event.key === 'Tab' && active >= 0) {
+        choose(rows[active].username);
+      }
+    });
+    // pointerdown, not click: the field must not lose focus before we read it
+    list.addEventListener('pointerdown', function (event) {
+      var row = event.target.closest('[data-ac]');
+      if (!row) return;
+      event.preventDefault();
+      choose(row.dataset.ac);
+    });
+    input.addEventListener('blur', function () {
+      setTimeout(hide, 120);
+    });
+    input.__ac = { hide: hide, search: search };
+    return input.__ac;
+  };
+
+  function bindAutocomplete(root) {
+    (root || document).querySelectorAll('[data-user-autocomplete]')
+      .forEach(function (input) { Site.autocomplete(input); });
+  }
+
   // --------------------------------------------------- floating messenger
+  /* Two screens behind one bubble: the conversation list, and a direct
+     message view that slides in over it.  Writing a note from here never
+     costs the page you were reading, and Back walks you straight out of the
+     conversation rather than back through the inbox. */
   var DOCK_KEY = 'blockhaven.dock';
   var dockLoaded = false;
+  var dockScreen = 'list';
+  var dockWith = '';
 
   function dockState() {
     try { return localStorage.getItem(DOCK_KEY); } catch (e) { return null; }
   }
 
+  function el(id) { return document.getElementById(id); }
+
+  function showDockScreen(screen, options) {
+    options = options || {};
+    var screens = el('dock-screens');
+    var heading = el('dock-heading');
+    var back = el('dock-back');
+    var toRow = el('dock-to-row');
+    if (!screens) return;
+    dockScreen = screen;
+    screens.classList.toggle('at-dm', screen === 'dm');
+    if (back) back.classList.toggle('on', screen === 'dm');
+    if (heading) {
+      heading.textContent = screen === 'dm'
+        ? (dockWith || 'New message') : 'Messages';
+    }
+    if (toRow) toRow.classList.toggle('hidden', screen === 'dm' && !!dockWith);
+    if (screen === 'dm') {
+      var focus = dockWith ? el('dock-body-text') : el('dock-to');
+      if (focus && !options.quiet) setTimeout(function () { focus.focus(); }, 320);
+    }
+  }
+
+  function openDockDM(username) {
+    dockWith = username || '';
+    var thread = el('dock-thread');
+    var to = el('dock-to');
+    if (to) to.value = dockWith;
+    if (thread) {
+      thread.innerHTML = dockWith
+        ? '<div class="muted tiny" style="padding:12px">Loading the conversation...</div>'
+        : '<div class="dock-blank"><b>New message</b>' +
+          '<span>Type a name above, write below, press Send.</span></div>';
+    }
+    showDockScreen('dm');
+    if (dockWith) loadDockThread(dockWith);
+  }
+
+  function loadDockThread(username) {
+    var thread = el('dock-thread');
+    if (!thread) return;
+    Site.get('/api/messages/thread?with=' + encodeURIComponent(username))
+      .then(function (res) {
+        if (!res.ok) {
+          thread.innerHTML = '<div class="muted tiny" style="padding:12px">' +
+            Site.escape(res.error || 'Could not load that conversation.') + '</div>';
+          return;
+        }
+        if (!res.rows.length) {
+          thread.innerHTML = '<div class="dock-blank"><b>' +
+            Site.escape(username) + '</b><span>No messages yet. Say hello.</span></div>';
+        } else {
+          thread.innerHTML = res.rows.map(function (row) {
+            return '<div class="bubble ' + (row.mine ? 'me' : 'them') + '">' +
+              Site.escape(row.body) + '<span class="stamp">' +
+              Site.ago(row.created_at) + '</span></div>';
+          }).join('');
+        }
+        thread.scrollTop = thread.scrollHeight;
+        dockLoaded = false;
+        Site.refreshCounts();
+      }).catch(function () {
+        thread.innerHTML = '<div class="muted tiny" style="padding:12px">Offline.</div>';
+      });
+  }
+
+  function sendFromDock() {
+    var toInput = el('dock-to');
+    var bodyInput = el('dock-body-text');
+    var button = el('dock-send');
+    if (!bodyInput) return;
+    var to = dockWith || ((toInput && toInput.value) || '').trim();
+    var text = (bodyInput.value || '').trim();
+    if (!to) {
+      Site.toast('Who is it going to?', 'bad');
+      if (toInput) toInput.focus();
+      return;
+    }
+    if (!text) { bodyInput.focus(); return; }
+    if (button) button.disabled = true;
+    Site.post('/api/messages/send', { to: to, subject: '', body: text })
+      .then(function (res) {
+        if (button) button.disabled = false;
+        if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+        bodyInput.value = '';
+        dockWith = to;
+        showDockScreen('dm', { quiet: true });
+        loadDockThread(to);
+        dockLoaded = false;
+        Site.toast('Sent to ' + to + '.');
+      }).catch(function () {
+        if (button) button.disabled = false;
+        Site.toast('Could not send that.', 'bad');
+      });
+  }
+
   function bindDock() {
-    var dock = document.getElementById('msg-dock');
+    var dock = el('msg-dock');
     if (!dock) return;
     document.body.classList.add('has-dock');
-    var toggle = document.getElementById('dock-toggle');
+    var toggle = el('dock-toggle');
 
     function setOpen(open) {
       dock.classList.toggle('open', open);
@@ -281,6 +583,55 @@
     toggle.addEventListener('click', function () {
       setOpen(!dock.classList.contains('open'));
     });
+
+    var back = el('dock-back');
+    if (back) {
+      back.addEventListener('click', function () {
+        dockWith = '';
+        showDockScreen('list');
+        loadDock(true);
+      });
+    }
+    var fresh = el('dock-new');
+    if (fresh) fresh.addEventListener('click', function () { openDockDM(''); });
+
+    var send = el('dock-send');
+    if (send) send.addEventListener('click', sendFromDock);
+
+    var text = el('dock-body-text');
+    if (text) {
+      text.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          sendFromDock();
+        }
+      });
+    }
+    var to = el('dock-to');
+    if (to) {
+      Site.autocomplete(to, {
+        onPick: function (name) {
+          dockWith = name;
+          var heading = el('dock-heading');
+          if (heading) heading.textContent = name;
+          loadDockThread(name);
+          var body = el('dock-body-text');
+          if (body) body.focus();
+        }
+      });
+    }
+
+    // a row in the list opens the conversation in place instead of navigating
+    var body = el('dock-body');
+    if (body) {
+      body.addEventListener('click', function (event) {
+        var row = event.target.closest('[data-dock-who]');
+        if (!row) return;
+        event.preventDefault();
+        openDockDM(row.dataset.dockWho);
+      });
+    }
+
     // restore whatever the player left it on -- including across a round of
     // the game, which navigates away from the site entirely
     if (dockState() === 'open') setOpen(true);
@@ -289,18 +640,19 @@
   function loadDock(force) {
     if (dockLoaded && !force) return;
     dockLoaded = true;
-    var body = document.getElementById('dock-body');
+    var body = el('dock-body');
     if (!body) return;
     Site.get('/api/messages/recent').then(function (res) {
       if (!res.ok) { body.innerHTML = '<div class="muted tiny" style="padding:12px">Could not load messages.</div>'; return; }
       if (!res.rows.length) {
-        body.innerHTML = '<div class="muted tiny" style="padding:12px">' +
-          'No messages yet. Say hello to somebody.</div>';
+        body.innerHTML = '<div class="dock-blank"><b>No messages yet</b>' +
+          '<span>Say hello to somebody.</span></div>';
         return;
       }
       body.innerHTML = '<div class="msglist">' + res.rows.map(function (row) {
         return '<a class="msgrow' + (row.unread ? ' unread' : '') +
-          '" href="/messages/' + row.id + '">' +
+          '" href="/messages/' + row.id + '" data-dock-who="' +
+          Site.escape(row.who) + '">' +
           '<canvas class="who-thumb avatar-thumb" width="120" height="120" data-user="' +
           Site.escape(row.who) + '"></canvas>' +
           '<span class="msgmain"><span class="msgtop">' +
@@ -313,6 +665,30 @@
       if (window.Thumbs) Thumbs.rescan();
     }).catch(function () {
       body.innerHTML = '<div class="muted tiny" style="padding:12px">Offline.</div>';
+    });
+  }
+
+  // --------------------------------------------------- messenger setting
+  function bindMessengerSwitch() {
+    var button = document.getElementById('messenger-toggle');
+    if (!button) return;
+    button.addEventListener('click', function () {
+      var on = button.getAttribute('aria-checked') !== 'true';
+      button.setAttribute('aria-checked', on ? 'true' : 'false');
+      Site.post('/api/settings/prefs', { messenger: on }).then(function (res) {
+        if (!res.ok) {
+          button.setAttribute('aria-checked', on ? 'false' : 'true');
+          Site.toast(res.error || 'Could not save that.', 'bad');
+          return;
+        }
+        var dock = document.getElementById('msg-dock');
+        if (dock && !on) {
+          dock.remove();
+          document.body.classList.remove('has-dock');
+        }
+        Site.toast(on ? 'The message bubble is on. Reload to see it.'
+                      : 'The message bubble is off.');
+      });
     });
   }
 
@@ -422,16 +798,33 @@
     if (target) {
       var action = target.dataset.friend;
       var username = target.dataset.username;
-      target.disabled = true;
-      Site.post('/api/social/friend', { action: action, username: username })
-        .then(function (res) {
-          target.disabled = false;
-          if (!res.ok) { Site.toast(res.error, 'bad'); return; }
-          Site.toast(labelFor(res.state, username));
-          if (target.id === 'friend-btn') updateFriendButton(target, res.state);
-          else if (target.dataset.friendInline) updateInlineFriend(target, res.state);
-          else setTimeout(function () { location.reload(); }, 400);
-        });
+      var button = target;
+      function runFriend() {
+        button.disabled = true;
+        Site.post('/api/social/friend', { action: action, username: username })
+          .then(function (res) {
+            button.disabled = false;
+            if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+            Site.toast(labelFor(res.state, username));
+            if (button.id === 'friend-btn') updateFriendButton(button, res.state);
+            else if (button.dataset.friendInline) updateInlineFriend(button, res.state);
+            else setTimeout(function () { location.reload(); }, 400);
+          });
+      }
+      /* Unfriending is the one social action with no undo, and the button
+         sits right under Send message, so it asks first.  Cancelling a
+         request you sent uses the same "remove" action and is harmless, so
+         that one still goes straight through. */
+      if (action === 'remove' && button.dataset.state === 'friends') {
+        Site.confirm('Remove ' + username + ' as a friend?',
+                     'You will both drop off each other\u2019s friends lists. ' +
+                     'You can send a new request later.',
+                     { confirm: 'Remove friend', cancel: 'Keep them',
+                       danger: true, tone: 'red' })
+          .then(function (yes) { if (yes) runFriend(); });
+        return;
+      }
+      runFriend();
       return;
     }
     target = event.target.closest('[data-follow-toggle], #follow-btn');
@@ -458,7 +851,7 @@
   /* The profile button carries three states.  "Request sent" is deliberately
      red and stays clickable so it doubles as "cancel the request". */
   function updateFriendButton(button, state) {
-    button.dataset.state = state;
+    button.dataset.state = state;   // the confirm prompt reads this
     button.classList.remove('go', 'danger', 'primary');
     if (state === 'friends') {
       button.textContent = 'Remove friend';
@@ -635,6 +1028,8 @@
     bindNav();
     bindDock();
     bindPosts();
+    bindAutocomplete();
+    bindMessengerSwitch();
     if (window.BH && BH.user) {
       pollCounts();
       setInterval(pollCounts, 20000);

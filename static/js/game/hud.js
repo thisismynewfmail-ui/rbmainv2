@@ -145,7 +145,7 @@
     if (wrap) wrap.classList.add('on');
     el('chat-log').classList.add('expanded');
     if (input) { input.value = ''; input.focus(); }
-    if (document.pointerLockElement) document.exitPointerLock();
+    this.freeMouse();
   };
 
   HUD.prototype.closeChat = function () {
@@ -155,6 +155,19 @@
     var input = el('chat-input');
     if (input) input.blur();
     el('chat-log').classList.remove('expanded');
+    // typing is over, so the mouse comes straight back rather than leaving a
+    // free cursor floating over a live round
+    if (this.client && !this.client.paused && this.client.grabMouse) {
+      this.client.grabMouse();
+    }
+  };
+
+  /* Release the pointer through the client so it knows the unlock was the
+     HUD's doing.  Going straight to document.exitPointerLock() here would
+     look exactly like the player pressing Esc, and would pause the round. */
+  HUD.prototype.freeMouse = function () {
+    if (this.client && this.client.releaseMouse) this.client.releaseMouse();
+    else if (document.pointerLockElement) document.exitPointerLock();
   };
 
   // -------------------------------------------------------------- scoreboard
@@ -319,7 +332,7 @@
     var wantCard = this.voteOpen || this.endCardHold;
     this.show('endcard', !!wantCard);
     if (wantCard && this.client && !this.client.paused) {
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.freeMouse();
     } else if (!wantCard && this.client && !this.client.paused &&
                !this.chatOpen && this.client.grabMouse) {
       this.client.grabMouse();

@@ -34,8 +34,14 @@ def home(req: Request):
                       upcoming=events.upcoming(2),
                       showcase=inventory.unusual_showcase(6))
     uid = int(req.user["id"])
+    # The spotlight banner is a greeting, not furniture: it is claimed once
+    # per sign-in and then stays gone until the next one, so reloading the
+    # home page (or coming back to it from a profile) does not re-serve it.
+    show_spotlight = users.claim_spotlight(
+        req.session["token"] if req.session else "")
     return render(
         req, "home.html",
+        show_spotlight=show_spotlight,
         worlds=world_rows,
         timeline=posts.timeline(uid, 12),
         friends_list=friends.list_friends(uid, 12),
@@ -54,10 +60,15 @@ def home(req: Request):
     )
 
 
+# The People browser is a "who has just arrived" board rather than a
+# directory, so it is ordered by join date and capped at the newest 60.
+PEOPLE_LIMIT = 60
+
+
 @router.get("/users")
 def people(req: Request):
     term = req.query.get("q", "")
-    results = users.search(term, 48)
+    results = users.search(term, PEOPLE_LIMIT, order="joined")
     rows = []
     viewer = int(req.user["id"]) if req.user else 0
     for row in results:
@@ -69,7 +80,7 @@ def people(req: Request):
             "following": follows.is_following(viewer, int(row["id"])) if viewer else False,
         })
     return render(req, "people.html", rows=rows, term=term,
-                  total=users.count_users())
+                  limit=PEOPLE_LIMIT, total=users.count_users())
 
 
 @router.get("/search")
