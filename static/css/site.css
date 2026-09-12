@@ -89,8 +89,20 @@
   --unusual-ink: #5d1f9c;
   --tile-normal: linear-gradient(160deg, #fdf3cf, #f6dd8e);
   --tile-unusual: linear-gradient(160deg, #b98be0, #6f2bb5);
-  --preview-bg: linear-gradient(#eef6fd, #cfe0ee);
-  --preview-edge: #b7cadb;
+  /* The rim around an ordinary item tile.  An Unusual announces itself with a
+     purple edge and a glint, so a Normal needs an edge of its own or it reads
+     as an unfinished tile floating on the panel -- most visible in the light
+     theme, where the old hairline all but disappeared. */
+  --tile-edge: #9aa7b4;
+  /* Character previews keep their own sky in both themes.  The 3D scene
+     inside them is lit for a dark background, and an avatar that changed
+     colour every time somebody flipped the toggle read as a rendering fault
+     rather than as a theme.  It is a lifted slate rather than near-black, so
+     a dark-haired or dark-clothed character still has something to stand
+     against.  These two are deliberately not restated in the dark palettes
+     below. */
+  --preview-bg: linear-gradient(#41556b, #2b3a4a);
+  --preview-edge: #55708c;
   --hero: linear-gradient(#1c5a94, #0e3c68);
   --hero-edge: #0a3252;
   --ticker-bg: #fffbe6;
@@ -183,8 +195,7 @@
   --unusual-ink: #d9bcff;
   --tile-normal: linear-gradient(160deg, #38301a, #211c0e);
   --tile-unusual: linear-gradient(160deg, #4b2b7c, #26114a);
-  --preview-bg: linear-gradient(#18242f, #0d161f);
-  --preview-edge: #2e4257;
+  --tile-edge: #46586a;
   --hero: linear-gradient(#123049, #071624);
   --hero-edge: #0a2437;
   --ticker-bg: #15202b;
@@ -264,8 +275,7 @@
     --unusual-ink: #d9bcff;
     --tile-normal: linear-gradient(160deg, #38301a, #211c0e);
     --tile-unusual: linear-gradient(160deg, #4b2b7c, #26114a);
-    --preview-bg: linear-gradient(#18242f, #0d161f);
-    --preview-edge: #2e4257;
+    --tile-edge: #46586a;
     --hero: linear-gradient(#123049, #071624);
     --hero-edge: #0a2437;
     --ticker-bg: #15202b;
@@ -640,21 +650,30 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(63,191,74,.6);} 60% { box-shadow: 0 0 0 4px rgba(63,191,74,0);} }
 
 /* ----------------------------------------------------------- avatar tiles */
-.userlist { display: flex; flex-wrap: wrap; gap: 8px; }
+/* A grid rather than a wrapping flex row: the cards share out whatever width
+   the panel has, so a list of players reaches the right-hand edge instead of
+   stopping short of it with a ragged gap. */
+.userlist {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+}
 .usercard {
-  width: 88px; text-align: center; padding: 4px; border: 1px solid var(--line-soft);
+  min-width: 0; text-align: center; padding: 4px; border: 1px solid var(--line-soft);
   border-radius: 4px; background: var(--panel-alt); transition: transform .12s, box-shadow .12s;
 }
 .usercard:hover { transform: translateY(-2px); box-shadow: 0 3px 6px var(--shadow-lift); border-color: var(--line); }
 .usercard .thumb {
-  width: 100%; max-width: 78px; aspect-ratio: 1 / 1; height: auto;
+  width: 100%; max-width: none; aspect-ratio: 1 / 1; height: auto;
   margin: 0 auto 3px; border-radius: 3px;
   background: var(--preview-bg); border: 1px solid var(--line-soft);
   display: block;
 }
 .usercard .uname { display: block; font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.usercard.small { width: 74px; }
-.usercard.small .thumb { max-width: 64px; }
+/* The narrow profile column wants smaller tiles, but still a full row of
+   them -- the track minimum is what decides how many fit. */
+.userlist:has(.usercard.small) {
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+}
 
 /* --------------------------------------------------------------- item tiles */
 .itemgrid {
@@ -662,7 +681,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .itemgrid.compact { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; }
 .item {
-  border: 1px solid var(--line-soft); border-radius: 4px; background: var(--panel);
+  border: 2px solid var(--tile-edge); border-radius: 4px; background: var(--panel);
   overflow: hidden; position: relative; transition: transform .12s, box-shadow .12s;
   min-width: 0;
 }
@@ -783,20 +802,16 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .avatar-view canvas { display: block; width: 100%; height: 100%; cursor: grab; }
 .avatar-view canvas:active { cursor: grabbing; }
+/* The panel behind these is dark whatever the page is doing, so they are
+   light-on-dark in every theme rather than following the palette. */
 .avatar-view .hint {
-  position: absolute; bottom: 4px; right: 6px; font-size: 9px; color: var(--ink-label);
-  background: rgba(255,255,255,.72); padding: 1px 5px; border-radius: 2px;
+  position: absolute; bottom: 4px; right: 6px; font-size: 9px; color: #cfe0f0;
+  background: rgba(10,20,30,.72); padding: 1px 5px; border-radius: 2px;
 }
 .avatar-view .tag3d {
   position: absolute; top: 4px; right: 6px; font-size: 9px; font-weight: bold;
-  background: rgba(255,255,255,.8); border: 1px solid var(--preview-edge); border-radius: 2px;
-  padding: 1px 5px; color: var(--ink-label);
-}
-:root[data-theme="dark"] .avatar-view .hint,
-:root[data-theme="dark"] .avatar-view .tag3d { background: rgba(10,20,30,.72); color: #cfe0f0; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .avatar-view .hint,
-  :root:not([data-theme="light"]) .avatar-view .tag3d { background: rgba(10,20,30,.72); color: #cfe0f0; }
+  background: rgba(10,20,30,.72); border: 1px solid var(--preview-edge);
+  border-radius: 2px; padding: 1px 5px; color: #cfe0f0;
 }
 
 /* ------------------------------------------------------------------ swatches */
@@ -810,7 +825,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .slotpick { display: flex; gap: 6px; flex-wrap: wrap; }
 .slotpick .pick {
-  width: 74px; text-align: center; border: 1px solid var(--line-soft); border-radius: 3px;
+  width: 74px; text-align: center; border: 2px solid var(--tile-edge); border-radius: 3px;
   padding: 3px; cursor: pointer; background: var(--panel-alt); position: relative;
 }
 .slotpick .pick.on { border-color: var(--gold); background: var(--warn-bg); box-shadow: 0 0 0 1px var(--gold); }
@@ -844,7 +859,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .hotbar { display: flex; gap: 6px; }
 .hotslot {
-  flex: 1 1 0; min-width: 0; border: 2px solid var(--preview-edge); border-radius: 4px;
+  flex: 1 1 0; min-width: 0; border: 2px solid var(--line); border-radius: 4px;
   background: var(--panel-alt);
   text-align: center; padding: 4px; min-height: 84px; cursor: pointer; position: relative;
 }
@@ -1083,7 +1098,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .pinrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .pinrow .item .thumb-wrap { aspect-ratio: 1 / 1; }
 .pinslot {
-  border: 1px dashed var(--line); border-radius: 4px; background: var(--panel-alt);
+  border: 2px dashed var(--tile-edge); border-radius: 4px; background: var(--panel-alt);
   display: flex; align-items: center; justify-content: center; text-align: center;
   color: var(--ink-soft); font-size: 10px; padding: 10px 6px; aspect-ratio: 1 / 1;
 }
@@ -1107,7 +1122,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   /* top bar: brand, wallet, burger -- everything else moves into the drawer */
   .topbar .wrap {
-    height: auto; min-height: 48px; padding: 7px 10px; gap: 8px; flex-wrap: nowrap;
+    height: auto; min-height: 56px; padding: 11px 10px; gap: 8px; flex-wrap: nowrap;
   }
   .brand-mark { font-size: 18px; padding: 2px 6px 3px; }
   .brand-tag { display: none; }
@@ -1115,7 +1130,9 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .topbar .topnav { display: none; }
   .topbar .themetoggle { display: none; }
   .topbar .wallet { margin-left: auto; padding: 4px 7px; font-size: 11px; }
-  .navtoggle { display: block; }
+  /* Its own auto margin, so the burger sits against the right edge whether or
+     not there is a wallet beside it to push it there. */
+  .navtoggle { display: block; margin-left: auto; }
 
   /* the red strip becomes the drawer instead of a row that overflows */
   .tabbar { border-bottom-width: 0; }
@@ -1142,9 +1159,10 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .itemgrid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 7px; }
   .itemgrid.compact { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
   .worldgrid { grid-template-columns: minmax(0, 1fr); }
-  .userlist { justify-content: flex-start; }
-  .usercard { width: calc(33.333% - 6px); max-width: 110px; }
-  .usercard .thumb { max-width: none; }
+  .userlist { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+  .userlist:has(.usercard.small) {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  }
   dl.stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   dl.stats dd { font-size: 13px; }
   .kv { grid-template-columns: 92px minmax(0, 1fr); }
@@ -1154,8 +1172,13 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .slotpick .pick { width: calc(25% - 5px); }
   .slotpick .pick canvas { width: 100%; height: auto; aspect-ratio: 1/1; }
   .hotslot { min-height: 70px; }
-  .dock { right: 10px; bottom: 10px; }
+  /* Up off the very bottom edge, clear of a home indicator and of the
+     browser's own bottom chrome. */
+  .dock { right: 10px; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
   .dock-panel { width: calc(100vw - 20px); max-height: 66vh; }
+  .dock ~ #site-toasts, body.has-dock #site-toasts {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
   /* A sheet glued to the bottom edge is right for a yes/no.  Anything you are
      meant to look at -- an item preview above all -- sits in the middle of the
      screen with a gutter down each side instead. */
@@ -1165,7 +1188,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .modal-scrim.centered .panel {
     width: 100%; border-radius: 6px; max-height: calc(100vh - 28px);
   }
-  .footer { margin-bottom: 74px; }
+  .footer { margin-bottom: 96px; }
   .hero .inner { padding: 16px; }
   .hero h1 { font-size: 21px; }
   .eventbar .inner { padding: 12px; gap: 10px; }
@@ -1176,7 +1199,9 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 480px) {
   .steps { grid-template-columns: minmax(0, 1fr); }
   .itemgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .usercard { width: calc(50% - 4px); }
+  .userlist, .userlist:has(.usercard.small) {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
   .swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   dl.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pinrow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -1331,10 +1356,6 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .hero-chips .chip.unusual {
   background: rgba(139,63,214,.44); border-color: rgba(199,139,255,.6); color: #f0e2ff;
 }
-.hero-stage-bar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
-.hero-note {
-  text-align: center; font-size: 10px; color: #a8c8e8; margin: 0;
-}
 
 /* ==========================================================================
    PHONE ORDERING
@@ -1344,8 +1365,16 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
    direct child of the row and can be ordered on its own.
    ========================================================================== */
 @media (max-width: 860px) {
+  /* Two inherited values have to go for the stacked layout to behave.
+     `.row` aligns to flex-start, which along a column axis means every panel
+     shrinks to its own content -- that is what left Site statistics as a
+     half-width box.  And `.row` wraps, which in a column container means
+     wrapping into *columns*: the panels then get stretched to fill a wrap
+     line, which is what blew the friends panel up to four times its content.
+     Stacked, they want full width and one single column. */
   .profile-row, .landing-row {
-    display: flex; flex-direction: column; gap: 0;
+    display: flex; flex-direction: column; flex-wrap: nowrap;
+    align-items: stretch; gap: 0;
   }
   .profile-row > .col, .profile-row > .col-side, .profile-row > .col-narrow,
   .landing-row > .col, .landing-row > .col-side { display: contents; }
@@ -1369,7 +1398,10 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .landing-row .l-newest  { order: 5; }
 
   /* Signed-in home: people you can reach, then the inbox, then friends. */
-  .home-side { display: flex; flex-direction: column; gap: 0; }
+  .home-side {
+    display: flex; flex-direction: column; flex-wrap: nowrap;
+    align-items: stretch; gap: 0;
+  }
   .home-side .h-me       { order: 1; }
   .home-side .h-requests { order: 2; }
   .home-side .h-online   { order: 3; }
@@ -1469,7 +1501,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ac-row:hover, .ac-row.on { background: var(--info-bg); }
 .ac-face {
   width: 26px; height: 26px; flex: 0 0 26px; border-radius: 3px;
-  background: var(--tile-normal); border: 1px solid var(--line-soft);
+  background: var(--preview-bg); border: 1px solid var(--line-soft);
 }
 .ac-name {
   flex: 1 1 auto; min-width: 0; font-weight: bold; color: var(--ink-strong);

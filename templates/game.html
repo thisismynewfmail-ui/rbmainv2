@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ world.name }} | {{ SITE_NAME }}</title>
-<link rel="stylesheet" href="/static/css/game.css">
-<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{ asset('/static/css/game.css') }}">
+<link rel="icon" href="{{ asset('/static/img/favicon.svg') }}" type="image/svg+xml">
 <script>
 window.BH = {
   csrf: "{{ csrf }}",
   user: {"id": {{ user.id }}, "name": "{{ user.username }}", "admin": {{ 1 if user.is_admin else 0 }}},
   world: {{& to_json(world) }},
   avatar: {{& to_json(avatar) }},
+  controls: {{& to_json(controls) }},
   instance: "{{ instance }}"
 };
 </script>
@@ -100,9 +101,9 @@ window.BH = {
         <div class="mhead"><span>Paused</span><span id="pause-world">{{ world.name }}</span></div>
         <div class="mbody">
           <button class="primary" id="btn-resume">Resume</button>
-          <button id="btn-settings">Settings &amp; key bindings</button>
-          <button id="btn-thirdperson">Toggle camera (G)</button>
-          <button id="btn-help">Controls</button>
+          <button id="btn-help">Controls &amp; key bindings</button>
+          <button id="btn-settings">Display &amp; audio</button>
+          <button id="btn-thirdperson">Toggle camera</button>
           <button class="danger" id="btn-quit">Quit</button>
         </div>
       </div>
@@ -110,15 +111,9 @@ window.BH = {
 
     <div class="overlay" id="settings">
       <div class="menu">
-        <div class="mhead"><span>Settings</span><span>Saved in this browser</span></div>
+        <div class="mhead"><span>Display &amp; audio</span>
+          <span>This machine only</span></div>
         <div class="mbody">
-          <h3>Mouse &amp; camera</h3>
-          <div class="rowline"><label>Sensitivity</label>
-            <input type="range" id="set-sens" min="0.02" max="0.6" step="0.01"><span class="val" id="val-sens"></span></div>
-          <div class="rowline"><label>Field of view</label>
-            <input type="range" id="set-fov" min="60" max="110" step="1"><span class="val" id="val-fov"></span></div>
-          <div class="rowline"><label>Invert Y</label><input type="checkbox" id="set-invert"></div>
-          <div class="rowline"><label>Raw mouse input</label><input type="checkbox" id="set-raw"></div>
           <h3>Display</h3>
           <div class="rowline"><label>Render scale</label>
             <input type="range" id="set-scale" min="0.5" max="1" step="0.05"><span class="val" id="val-scale"></span></div>
@@ -129,18 +124,49 @@ window.BH = {
           <h3>Audio</h3>
           <div class="rowline"><label>Volume</label>
             <input type="range" id="set-vol" min="0" max="1" step="0.05"><span class="val" id="val-vol"></span></div>
-          <h3>Key bindings</h3>
-          <div id="keybinds"></div>
-          <button id="btn-defaults">Reset to defaults</button>
+          <p class="mnote">Render scale, view distance and volume describe this
+            machine, so they stay in this browser. Your aim settings and key
+            bindings are on your account &mdash; see Controls.</p>
+          <button id="btn-defaults">Reset display &amp; audio</button>
           <button class="primary" id="btn-settings-close">Back</button>
         </div>
       </div>
     </div>
 
+    <!-- Controls: aim and key bindings.  These belong to the player rather
+         than to the machine, so they are stored on the account and follow
+         them to any browser they sign in from. -->
     <div class="overlay" id="helpbox">
       <div class="menu">
-        <div class="mhead"><span>Controls</span></div>
-        <div class="mbody" id="help-body"></div>
+        <div class="mhead"><span>Controls</span>
+          <span id="controls-sync">Saved to {{ user.username }}</span></div>
+        <div class="mbody">
+          <h3>Aim</h3>
+          <div class="rowline"><label>Mouse sensitivity</label>
+            <input type="range" id="set-sens" min="0.02" max="0.6" step="0.01"><span class="val" id="val-sens"></span></div>
+          <div class="rowline"><label>Field of view</label>
+            <input type="range" id="set-fov" min="60" max="110" step="1"><span class="val" id="val-fov"></span></div>
+          <div class="rowline"><label>Invert Y</label><input type="checkbox" id="set-invert"></div>
+          <div class="rowline"><label>Raw mouse input</label><input type="checkbox" id="set-raw"></div>
+          <p class="mnote" id="raw-note">Raw input reads the mouse's own movement with
+            no browser acceleration on top, so the sensitivity above is the only thing
+            scaling your aim.</p>
+
+          <h3>Key bindings</h3>
+          <p class="mnote">Click a key, then press the one you want. A key can only
+            do one job, so taking it from something else leaves that unbound.
+            <b>Esc</b> cancels a rebind.</p>
+          <p class="mnote warn hidden" id="bind-note"></p>
+          <div id="keybinds"></div>
+          <div class="keyrow fixed"><span>Fire</span><b>Left mouse</b></div>
+          <div class="keyrow fixed"><span>Interact / scope</span><b>Right mouse</b></div>
+          <div class="keyrow fixed"><span>Pause</span><b>Esc</b></div>
+          <p class="mnote">Double click a name in chat or on the scoreboard to open
+            that player's profile in a new tab. Alt-Tab and the Windows key release
+            the mouse without pausing &mdash; only Esc pauses.</p>
+          <button id="btn-binds-default">Reset key bindings</button>
+          <button class="primary" id="btn-help-close">Back</button>
+        </div>
       </div>
     </div>
 
@@ -177,19 +203,19 @@ window.BH = {
   </div>
 </div>
 
-<script src="/static/js/engine/gl.js"></script>
-<script src="/static/js/engine/geometry.js"></script>
-<script src="/static/js/engine/textures.js"></script>
-<script src="/static/js/engine/renderer.js"></script>
-<script src="/static/js/engine/avatar.js"></script>
-<script src="/static/js/engine/particles.js"></script>
-<script src="/static/js/engine/audio.js"></script>
-<script src="/static/js/ui/thumbs.js"></script>
-<script src="/static/js/game/settings.js"></script>
-<script src="/static/js/game/net.js"></script>
-<script src="/static/js/game/physics.js"></script>
-<script src="/static/js/game/hud.js"></script>
-<script src="/static/js/game/world_extras.js"></script>
-<script src="/static/js/game/client.js"></script>
+<script src="{{ asset('/static/js/engine/gl.js') }}"></script>
+<script src="{{ asset('/static/js/engine/geometry.js') }}"></script>
+<script src="{{ asset('/static/js/engine/textures.js') }}"></script>
+<script src="{{ asset('/static/js/engine/renderer.js') }}"></script>
+<script src="{{ asset('/static/js/engine/avatar.js') }}"></script>
+<script src="{{ asset('/static/js/engine/particles.js') }}"></script>
+<script src="{{ asset('/static/js/engine/audio.js') }}"></script>
+<script src="{{ asset('/static/js/ui/thumbs.js') }}"></script>
+<script src="{{ asset('/static/js/game/settings.js') }}"></script>
+<script src="{{ asset('/static/js/game/net.js') }}"></script>
+<script src="{{ asset('/static/js/game/physics.js') }}"></script>
+<script src="{{ asset('/static/js/game/hud.js') }}"></script>
+<script src="{{ asset('/static/js/game/world_extras.js') }}"></script>
+<script src="{{ asset('/static/js/game/client.js') }}"></script>
 </body>
 </html>

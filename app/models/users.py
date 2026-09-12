@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -314,6 +315,74 @@ def set_prefs(user_id: int, values: Dict[str, Any]) -> Dict[str, Any]:
                 PREF_DEFAULTS[key], bool) else value
     db.execute("UPDATE users SET prefs=? WHERE id=?", (_json(merged), user_id))
     return merged
+
+
+# --------------------------------------------------------------- controls
+# Key bindings and aim settings follow the player between machines, so they
+# are stored on the account rather than in one browser's localStorage.  The
+# rest of the in-game settings (render scale, view distance, volume) stay
+# per-device, because they describe the machine rather than the player.
+#
+# This list mirrors DEFAULT_BINDS in static/js/game/settings.js: it is the
+# whitelist a posted set is checked against, so an action that is not a real
+# one never reaches the database.
+CONTROL_ACTIONS = (
+    "forward", "back", "left", "right", "jump", "sprint", "crouch",
+    "reload", "interact", "camera", "chat", "teamchat", "scoreboard", "map",
+    "slot1", "slot2", "slot3", "slot4", "slot5",
+)
+
+# KeyboardEvent.code is always alphanumeric -- KeyW, Digit1, ShiftLeft,
+# Space, Tab, ArrowUp, NumpadEnter -- so anything else is not a key.
+_KEYCODE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]{0,23}$")
+
+# Ranges are the ones the sliders offer; a hand-rolled POST is clamped to the
+# same window rather than trusted.
+CONTROL_NUMBERS = {
+    "sensitivity": (0.02, 0.6, 0.24),
+    "fov": (60.0, 110.0, 82.0),
+}
+CONTROL_FLAGS = {"invertY": False, "rawMouse": True}
+
+
+def controls_of(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """This account's stored bindings and aim settings.
+
+    Only what the player actually changed is stored, so the client keeps
+    ownership of the defaults: an empty ``binds`` here means "use yours".
+    """
+    raw = (user or {}).get("controls") or "{}"
+    try:
+        stored = json.loads(raw)
+    except (TypeError, ValueError):
+        stored = {}
+    if not isinstance(stored, dict):
+        stored = {}
+    out: Dict[str, Any] = {"binds": {}}
+    binds = stored.get("binds")
+    if isinstance(binds, dict):
+        for action, code in binds.items():
+            if action not in CONTROL_ACTIONS or not isinstance(code, str):
+                continue
+            # "" means the player deliberately left this action unbound, and
+            # that has to survive the trip or the default comes back.
+            if code == "" or _KEYCODE_RE.match(code):
+                out["binds"][action] = code
+    for key, (low, high, _default) in CONTROL_NUMBERS.items():
+        value = stored.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            out[key] = round(min(high, max(low, float(value))), 4)
+    for key in CONTROL_FLAGS:
+        if key in stored:
+            out[key] = bool(stored[key])
+    return out
+
+
+def set_controls(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Replace this account's controls with a validated copy of ``data``."""
+    clean = controls_of({"controls": _json(data if isinstance(data, dict) else {})})
+    db.execute("UPDATE users SET controls=? WHERE id=?", (_json(clean), user_id))
+    return clean
 
 
 def theme_of(user: Optional[Dict[str, Any]]) -> str:
