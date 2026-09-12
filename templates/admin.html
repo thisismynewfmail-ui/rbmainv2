@@ -20,6 +20,11 @@
       <div><dt>Credits out</dt><dd id="s-credits">{{ fmt_num(live.money.circulating) }}</dd></div>
       <div><dt>Unusuals</dt><dd id="s-unusuals">{{ fmt_num(live.item_stats.unusuals) }}</dd></div>
     </dl>
+    <!-- On a phone the Connections tab is a whole screen away, so the map can
+         also be folded in at the bottom of this one. -->
+    <button class="btn small only-mobile netfold" data-net="inline"
+            id="net-inline-btn" aria-pressed="false"
+            type="button">Show connection map</button>
   </div>
 </div>
 
@@ -168,8 +173,11 @@
           <button class="btn small" data-net="key" id="net-key-btn" aria-pressed="true">Key</button>
           <button class="btn small" data-net="labels" id="net-labels-btn" aria-pressed="true">Names</button>
           <button class="btn small" data-net="loners" id="net-loners-btn" aria-pressed="true">Loners</button>
+          <button class="btn small" data-net="autofit" id="net-auto-btn"
+                  aria-pressed="true"
+                  title="Keep every node in frame as the graph grows">Auto-fit</button>
           <button class="btn small" data-net="replay">Re-settle</button>
-          <button class="btn small" data-net="fit">Fit</button>
+          <button class="btn small" data-net="fit">Recentre</button>
         </div>
 
         <div class="net-key" id="net-key">

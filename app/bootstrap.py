@@ -75,9 +75,27 @@ def sync_catalog() -> None:
         " sort_order=excluded.sort_order", rows)
 
 
+def retire_effects() -> None:
+    """Move owned copies off Unusual effects that no longer ship.
+
+    ``catalog.RETIRED_EFFECTS`` names the replacement for each one.  Without
+    this an existing copy keeps a dead effect id: still purple, still Unusual,
+    but the particle system has no recipe for it, so it renders nothing.
+    """
+    for dead, replacement in catalog.RETIRED_EFFECTS.items():
+        if replacement not in catalog.UNUSUAL_EFFECTS:
+            continue
+        moved = db.execute("UPDATE inventory SET effect=? WHERE effect=?",
+                           (replacement, dead)).rowcount
+        if moved:
+            print("[seed] moved %d copies off the retired '%s' effect"
+                  % (moved, dead))
+
+
 def seed() -> None:
     db.init_db()
     sync_catalog()
+    retire_effects()
     worlds.ensure_rows()
     _seed_admin()
     _seed_admin_test()
@@ -143,7 +161,7 @@ def _seed_admin_test() -> None:
                         " tier='unusual'", (uid,)):
         inventory.grant(uid, "hat_propeller", source="seed",
                         allow_unusual=False, force_tier="unusual",
-                        force_effect="cloud_nine")
+                        force_effect="frostbite")
         inventory.grant(uid, "hat_spikes", source="seed", allow_unusual=False,
                         force_tier="unusual", force_effect="circuitry")
         for item_id in ("face_grin", "shirt_hoodie_blue", "pants_jeans",

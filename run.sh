@@ -13,7 +13,7 @@
 #   ./run.sh --status-interval 3 refresh the read-out faster (0 = off)
 #
 # Environment:
-#   BLOCKHAVEN_STATUS_INTERVAL   default refresh in seconds (default 10)
+#   BLOCKHAVEN_STATUS_INTERVAL   default refresh in seconds (default 4)
 #   NO_COLOR                     set to anything to drop the ANSI colours
 set -uo pipefail
 
@@ -31,7 +31,7 @@ if ! "$PYTHON" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) 
   exit 1
 fi
 
-INTERVAL="${BLOCKHAVEN_STATUS_INTERVAL:-10}"
+INTERVAL="${BLOCKHAVEN_STATUS_INTERVAL:-4}"
 
 # Only supply the default interval when the caller has not chosen one.
 HAS_INTERVAL=0

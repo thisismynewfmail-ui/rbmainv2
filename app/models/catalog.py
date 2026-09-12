@@ -59,13 +59,6 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
         "colors": ["#ffffff", "#ffe66d", "#ff8c1a", "#e02b00"],
         "shape": "flame", "radius": 0.5,
     },
-    "cloud_nine": {
-        "name": "Cloud Nine", "rate": 9, "life": [1.5, 2.4],
-        "size": [0.5, 0.95], "grow": 0.34, "gravity": 0.12,
-        "spread": 0.7, "rise": [0.25, 0.6], "blend": "normal", "spin": 0.5,
-        "colors": ["#ffffff", "#eef4ff", "#d7e6ff"],
-        "shape": "puff", "radius": 0.6,
-    },
     "starstruck": {
         "name": "Starstruck", "rate": 14, "life": [0.9, 1.5],
         "size": [0.20, 0.42], "grow": -0.1, "gravity": -0.4,
@@ -132,6 +125,13 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
 }
 
 EFFECT_IDS: List[str] = list(UNUSUAL_EFFECTS.keys())
+
+# Effects that used to ship and no longer do.  Copies already rolled with one
+# of these are re-rolled onto a live effect at boot, so nobody is left holding
+# a purple hat that renders nothing.  Map each retired id to its replacement.
+RETIRED_EFFECTS: Dict[str, str] = {
+    "cloud_nine": "frostbite",
+}
 
 # ------------------------------------------------------------------- colours
 BODY_PALETTE: List[Dict[str, str]] = [

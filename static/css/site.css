@@ -1264,23 +1264,15 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
   align-items: center; padding: 26px 24px 22px;
 }
+/* Sits under the lede as a plain reassurance line, not a status light. */
 .hero-kicker {
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center;
   font-size: 10px; font-weight: bold; letter-spacing: .8px; text-transform: uppercase;
   color: #cfe6ff; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.2);
-  border-radius: 999px; padding: 4px 11px;
-}
-.hero-kicker i {
-  width: 7px; height: 7px; border-radius: 50%; background: #4ce07a;
-  box-shadow: 0 0 0 0 rgba(76,224,122,.6); animation: heroPulse 2.4s ease-out infinite;
-}
-@keyframes heroPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(76,224,122,.55); }
-  70%  { box-shadow: 0 0 0 7px rgba(76,224,122,0); }
-  100% { box-shadow: 0 0 0 0 rgba(76,224,122,0); }
+  border-radius: 999px; padding: 4px 11px; margin-top: 11px;
 }
 .hero-copy h1 {
-  color: #fff; font-size: 38px; line-height: 1.04; margin: 10px 0 8px;
+  color: #fff; font-size: 38px; line-height: 1.04; margin: 0 0 8px;
   text-shadow: 0 3px 0 rgba(0,0,0,.32);
 }
 .hero-copy h1 em {
@@ -1331,11 +1323,6 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* the stage is dark in both themes, so its labels are light in both */
 .avatar-view.hero-avatar .hint, .avatar-view.hero-avatar .tag3d {
   background: rgba(6,18,30,.6); color: #cfe0f0; border-color: rgba(140,190,240,.3);
-}
-.avatar-view.hero-avatar.swapping canvas { animation: heroSwap .45s ease-out; }
-@keyframes heroSwap {
-  0%   { opacity: 0; transform: scale(.93) translateY(6px); }
-  100% { opacity: 1; transform: none; }
 }
 .hero-look { text-align: center; min-height: 34px; }
 .hero-look-name {
@@ -1416,13 +1403,16 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .hero-copy h1 { font-size: 27px; }
   .hero-lede { font-size: 12px; }
   .hero-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .avatar-view.hero-avatar { height: 270px; }
+  /* A phone stage is wide and short, and the vertical field of view is what
+     sizes the character -- so a squarer box is what makes it read big enough
+     to be the first thing on the page. */
+  .avatar-view.hero-avatar { height: 292px; }
   .hero-cta .btn { flex: 1 1 160px; text-align: center; }
 }
 
 @media (max-width: 480px) {
   .hero-copy h1 { font-size: 23px; }
-  .avatar-view.hero-avatar { height: 240px; }
+  .avatar-view.hero-avatar { height: 274px; }
 }
 
 /* ==========================================================================
@@ -1645,6 +1635,12 @@ body.pin-dragging { user-select: none; -webkit-user-select: none; }
 .net-near .chip:hover { border-color: var(--link); color: var(--link-hover); }
 .net-near .chip.more { cursor: default; opacity: .7; }
 .net-card-links { display: flex; gap: 5px; margin-top: 8px; }
+
+/* The phone-only fold-out button, and the map when it is folded in under the
+   overview rather than standing on its own tab. */
+.btn.netfold { width: 100%; margin-top: 10px; text-align: center; }
+[data-admin-panel].admin-inline { margin-top: 12px; }
+[data-admin-panel].admin-inline .netgraph { height: 58vh; min-height: 320px; }
 
 @media (max-width: 860px) {
   /* Narrow enough that the floating panels have to take turns down the

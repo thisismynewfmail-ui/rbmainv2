@@ -35,18 +35,27 @@ keyboard and a mouse), so its Load buttons are hidden on small screens.
 ./run.sh --no-games             # website only
 ./run.sh --reset                # wipe the database and re-seed
 ./run.sh --debug                # verbose tracebacks, no static caching
-./run.sh --status-interval 3    # refresh the terminal read-out faster (0 = off)
+./run.sh --status-interval 8    # slow the terminal read-out down (0 = off)
 ```
 
 `run.sh` is a thin wrapper around `python3 main.py`; every flag works either
-way. It leaves a live status block in the terminal — traffic, accounts, who is
-online, what each world is carrying and whether the host processes are healthy.
-The block is about a dozen lines, so it fits a portrait monitor or a
-phone-shaped SSH window whole, and it is **redrawn in place**: the cursor walks
-back up over the previous copy instead of reprinting it, so the numbers change
-where they stand and the start-up banner stays put above them. It still
-re-flows for the width it is given — the meters and the softer columns drop out
-before anything carrying a number does.
+way. It leaves a live status block in the terminal, refreshed **every four
+seconds**, carrying everything the admin dashboard does — traffic, accounts,
+presence, the catalogue, the friend graph, the economy down to the ledger
+transaction count and the number of market purchases, what each world is
+carrying and whether the host processes are healthy.
+
+It is drawn for a terminal rather than transcribed from the browser: numbers
+that move get a sparkline of the last two minutes, counters that only climb
+get a change arrow, anything with a ceiling gets a meter, and a braille wheel
+in the title turns once per refresh so a glance says whether the read-out is
+still live. It is **redrawn in place**: the cursor walks back up over the
+previous copy instead of reprinting it, so the numbers change where they stand
+and the start-up banner stays put above them. Sixteen-odd lines, so it fits a
+portrait monitor or a phone-shaped SSH window whole, and it re-flows for the
+width it is given — the sparklines, the meters and the softer words drop out
+before anything carrying a number does. A terminal that cannot render the
+block glyphs gets an ASCII understudy for each of them.
 
 Requirements: Python 3.9+ and a browser with WebGL. That is the whole list.
 
@@ -266,9 +275,9 @@ database on boot — adding a hat is one dict and a restart.
 
 * **Normal** — yellow. Every item ships this way.
 * **Unusual** — purple, with a permanent particle effect. Rolled at **0.5% on
-  hat purchases only**. Twelve effects ship: Burning Flames, Scorching Flames,
-  Cloud Nine, Starstruck, Void Mist, Frostbite, Circuitry, Bubbly, Ember Storm,
-  Sunbeam, Toxic Haze and Static Charge.
+  hat purchases only**. Eleven effects ship: Burning Flames, Scorching Flames,
+  Starstruck, Void Mist, Frostbite, Circuitry, Bubbly, Ember Storm, Sunbeam,
+  Toxic Haze and Static Charge.
 
 Effects render on the hat in every world and on every avatar preview across the
 site. Each owned copy of an item is its own database row, so an Unusual is a
@@ -386,14 +395,28 @@ log, refreshed every three seconds.
 
 **Connections** is the same data drawn as a graph — every account as a node,
 every friendship, pending request and follow as an edge. It is a plain 2D
-canvas running a force-directed layout: nodes repel, edges pull like springs,
-and the view re-fits itself to the panel unless you have panned or zoomed. Node
-size is the friend count and node colour is the account's state
-(administrator, in a world, online, registered, unconnected); clicking one pins
-it and lists who it reaches. It rides the dashboard's own three-second
-heartbeat and merges each refresh into the layout already on screen rather than
-restarting the simulation, and the key, the names and the unconnected accounts
-can each be toggled off.
+canvas running a force-directed layout: connected nodes repel and their edges
+pull like springs, while accounts with no connections at all are seated on a
+slowly turning ring just outside the cluster. That last part matters — left in
+the same simulation the unconnected accounts have nothing pulling them
+anywhere, so they drift into a wide halo that the auto-fit then has to hold,
+squeezing the part of the graph anybody reads into a corner.
+
+**Auto-fit** keeps every node in frame as accounts arrive and links form: it
+eases the view onto the graph's bounds, at the same pace whatever the frame
+rate, and fits around the floating toolbar, key, totals and node card rather
+than parking nodes underneath them. Panning or zooming switches it off (the
+button dims with it); **Recentre** is a one-off glide back that leaves the
+switch where you set it. Node size is the friend count and node colour is the
+account's state (administrator, in a world, online, registered, unconnected);
+clicking one pins it and lists who it reaches. It rides the dashboard's own
+three-second heartbeat and merges each refresh into the layout already on
+screen rather than restarting the simulation, and the key, the names and the
+unconnected accounts can each be toggled off.
+
+On a phone the Connections tab is a whole screen away from the numbers, so
+**Show connection map** on the Overview panel folds the same live graph in at
+the bottom of the dashboard instead.
 
 ## Development tools
 
