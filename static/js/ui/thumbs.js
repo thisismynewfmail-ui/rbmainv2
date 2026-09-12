@@ -75,9 +75,9 @@
      every time somebody flipped the theme toggle read as a rendering fault
      rather than as a theme.  Item icons are the exception -- they sit on their
      own tier-coloured tile and keep the bright sky. */
-  var AVATAR_SKY = { top: '#16222e', horizon: '#243545', sun: [0.4, 0.8, 0.35],
-                     clouds: 0.0, tint: '#4c6580' };
-  var AVATAR_AMBIENT = '#43586e';
+  var AVATAR_SKY = { top: '#33455a', horizon: '#4a6180', sun: [0.4, 0.8, 0.35],
+                     clouds: 0.0, tint: '#7b96b4' };
+  var AVATAR_AMBIENT = '#6d86a2';
 
   var THUMB_FOV = 40;
 

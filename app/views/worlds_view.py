@@ -63,6 +63,9 @@ def _game_view(req: Request, world_id: str):
                   avatar=avatars.descriptor(int(req.user["id"]),
                                             req.user["username"]),
                   status=game_registry.world_status(world_id),
+                  # bindings travel with the account, so they are on the page
+                  # before the first frame rather than a fetch behind it
+                  controls=users.controls_of(req.user),
                   instance=req.query.get("instance", ""))
 
 
@@ -120,6 +123,29 @@ def join_ticket(req: Request):
     db.audit(uid, "game.join", world_id)
     return api_ok(ticket=ticket, ws=ws_path, world=world,
                   status=game_registry.world_status(world_id))
+
+
+@router.get("/api/game/controls")
+@login_required
+def get_controls(req: Request):
+    """This account's key bindings and aim settings."""
+    return api_ok(controls=users.controls_of(req.user))
+
+
+@router.post("/api/game/controls")
+@login_required
+def save_controls(req: Request):
+    """Store the bindings the pause menu just changed.
+
+    Everything is validated on the way in -- unknown actions dropped, key
+    codes checked, numbers clamped to the same range the sliders offer -- so
+    a hand-rolled POST cannot put anything in the column that the game (or a
+    later template render) would not expect to find there.
+    """
+    data = req.data()
+    payload = data.get("controls") if isinstance(data.get("controls"), dict) else data
+    stored = users.set_controls(int(req.user["id"]), payload)
+    return api_ok(controls=stored)
 
 
 @router.get("/api/worlds/status")

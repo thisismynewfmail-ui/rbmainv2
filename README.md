@@ -114,7 +114,28 @@ each round, and the match ends at three round wins.
 | `G` | Toggle first / third person |
 | `Y` | Chat &nbsp;&nbsp; `U` Team chat |
 | `Tab` | Scoreboard |
-| `Esc` | Pause menu → settings, key bindings, quit |
+| `Esc` | Pause menu → controls, display, quit |
+
+Every one of those keys is rebindable, from **Controls** in the pause menu:
+click a key, press the one you want, and it takes effect immediately. A key
+can only do one job, so taking it from something else leaves that action
+unbound (and saying so, rather than showing a blank). `Esc` while a row is
+listening cancels the rebind, and **Reset key bindings** puts the whole set
+back without touching anything else.
+
+**Key bindings and aim settings live on the account**, not in the browser:
+sensitivity, field of view, invert-Y, raw input and every binding follow the
+player to any machine they sign in from. The pause menu's other screen —
+render scale, view distance, particles, names, volume — stays per-device,
+because a phone and a gaming desktop have no business sharing a render scale.
+The account copy is on the page before the first frame, `localStorage` shadows
+it so a dropped connection never loses a binding, and the Controls header says
+plainly whether the last change reached the account.
+
+Only what the player actually changed is stored, so a later change to a
+default still reaches everybody who has never touched that particular row.
+Everything posted back is validated server-side — unknown actions dropped, key
+codes checked, numbers clamped to the range the sliders offer.
 
 While the chat box is open every other binding is ignored so you can type
 freely. **Double-click a name** in chat or on the scoreboard to open that
@@ -338,11 +359,15 @@ clicking any item tile.
   out of the conversation. The "To" box has the same type-ahead the compose
   page does. A switch in `/settings` turns the whole bubble off; it is on by
   default.
-* **Character previews keep their own night sky** in both themes — the profile
+* **Character previews keep their own sky** in both themes — the profile
   preview, the welcome character and every avatar thumbnail in the friends,
   people and message lists. The rig is lit for a dark background, so an avatar
   that changed colour with the theme toggle read as a rendering fault rather
-  than as a theme.
+  than as a theme. It is a lifted slate rather than near-black, so a
+  dark-haired or dark-clothed character still has something to stand against.
+* **An ordinary item tile has a grey rim.** An Unusual announces itself with a
+  purple edge and a glint, so a Normal needs an edge of its own — most visible
+  in the light theme, where the old hairline all but disappeared.
 * **Compose** (`/messages/compose`) remembers where you came from and sends you
   back there — the profile, the home page, the inbox, wherever it was.
 * **Removing a friend** asks first, in the page's own dialog. Cancelling a

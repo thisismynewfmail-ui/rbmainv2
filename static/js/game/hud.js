@@ -424,10 +424,25 @@
     });
     el('btn-help').addEventListener('click', function () {
       show('pause', false); show('helpbox', true);
-      el('help-body').innerHTML = self.helpHTML();
+      self.bindNote('');
+      self.buildKeybinds();
+      self.syncSettings();
+    });
+    el('btn-help-close').addEventListener('click', function () {
+      self.cancelBind();
+      show('helpbox', false); show('pause', true);
     });
     el('helpbox').addEventListener('click', function (event) {
-      if (event.target === el('helpbox')) { show('helpbox', false); show('pause', true); }
+      if (event.target === el('helpbox')) {
+        self.cancelBind();
+        show('helpbox', false); show('pause', true);
+      }
+    });
+    el('btn-binds-default').addEventListener('click', function () {
+      self.cancelBind();
+      Settings.resetBinds();
+      self.bindNote('');
+      self.buildKeybinds();
     });
     el('btn-thirdperson').addEventListener('click', function () {
       client.toggleCamera();
@@ -437,11 +452,31 @@
       client.quit();
     });
     el('btn-defaults').addEventListener('click', function () {
-      Settings.reset();
+      // display and audio only: somebody straightening out their render scale
+      // should not lose the bindings they spent ten minutes on
+      ['renderScale', 'viewDistance', 'particles', 'showNames', 'volume']
+        .forEach(function (key) { Settings[key] = Settings.DEFAULTS[key]; });
+      Settings.save({ account: false });
       self.syncSettings();
-      self.buildKeybinds();
       client.applySettings();
     });
+
+    /* The account only ever hears about a change once it has settled, so the
+       badge in the header is the honest answer to "did that stick?". */
+    Settings.onSync = function (state) {
+      var node = el('controls-sync');
+      if (!node) return;
+      node.classList.remove('warn');
+      if (state === 'saving') { node.textContent = 'Saving...'; return; }
+      if (state === 'saved') {
+        node.textContent = 'Saved to ' + ((window.BH && BH.user && BH.user.name) || 'your account');
+        return;
+      }
+      node.classList.add('warn');
+      node.textContent = state === 'offline'
+        ? 'Offline -- kept on this machine'
+        : 'Could not reach your account';
+    };
 
     bindRange('set-sens', 'val-sens', 'sensitivity', function (v) { return v.toFixed(2); });
     bindRange('set-fov', 'val-fov', 'fov', function (v) { return Math.round(v) + '&deg;'; });
@@ -453,6 +488,11 @@
     bindCheck('set-particles', 'particles');
     bindCheck('set-names', 'showNames');
 
+    // Aim settings ride up to the account; the display and audio ones are
+    // this machine's business and stay out of the network entirely.
+    function saveFor(key) {
+      Settings.save({ account: Settings.ACCOUNT_KEYS.indexOf(key) >= 0 });
+    }
     function bindRange(inputId, labelId, key, format) {
       var input = el(inputId);
       if (!input) return;
@@ -460,7 +500,7 @@
         Settings[key] = parseFloat(input.value);
         var label = el(labelId);
         if (label) label.innerHTML = format(Settings[key]);
-        Settings.save();
+        saveFor(key);
         client.applySettings();
       });
     }
@@ -469,7 +509,7 @@
       if (!input) return;
       input.addEventListener('change', function () {
         Settings[key] = input.checked;
-        Settings.save();
+        saveFor(key);
         client.applySettings();
       });
     }
@@ -489,23 +529,6 @@
       if (!name) return;
       window.open('/profile/' + encodeURIComponent(name), '_blank');
     });
-  };
-
-  HUD.prototype.helpHTML = function () {
-    var binds = Settings.binds;
-    var rows = Object.keys(Settings.BIND_LABELS).map(function (action) {
-      return '<div class="keyrow"><span>' + Settings.BIND_LABELS[action] +
-        '</span><b>' + Settings.keyLabel(binds[action]) + '</b></div>';
-    }).join('');
-    return rows +
-      '<div class="keyrow"><span>Fire</span><b>Left mouse</b></div>' +
-      '<div class="keyrow"><span>Interact / scope</span><b>Right mouse</b></div>' +
-      '<div class="keyrow"><span>Pause</span><b>Esc</b></div>' +
-      '<p style="margin-top:10px;font-size:11px">Double click a name in chat or on the ' +
-      'scoreboard to open that player\'s profile in a new tab. Alt-Tab and the ' +
-      'Windows key release the mouse without pausing -- only Esc pauses.</p>' +
-      '<button class="primary" onclick="document.getElementById(\'helpbox\')' +
-      '.classList.remove(\'on\');document.getElementById(\'pause\').classList.add(\'on\')">Back</button>';
   };
 
   HUD.prototype.syncSettings = function () {
@@ -536,39 +559,74 @@
     var wrap = el('keybinds');
     if (!wrap) return;
     var self = this;
+    this.bindButtons = {};
     wrap.innerHTML = '';
     Object.keys(Settings.BIND_LABELS).forEach(function (action) {
       var row = document.createElement('div');
       row.className = 'keyrow';
-      row.innerHTML = '<span>' + Settings.BIND_LABELS[action] + '</span>';
+      row.innerHTML = '<span>' + self.escape(Settings.BIND_LABELS[action]) + '</span>';
       var button = document.createElement('button');
+      button.type = 'button';
       button.textContent = Settings.keyLabel(Settings.binds[action]);
+      button.classList.toggle('unbound', !Settings.binds[action]);
       button.addEventListener('click', function () {
+        // only one row can be listening, so starting a second one drops the
+        // first back to whatever it was showing
+        self.cancelBind();
         button.classList.add('binding');
-        button.textContent = 'press a key...';
+        button.textContent = 'press a key';
         self.awaitingBind = { action: action, button: button };
       });
+      self.bindButtons[action] = button;
       row.appendChild(button);
       wrap.appendChild(row);
     });
   };
 
-  HUD.prototype.captureBind = function (code) {
-    if (!this.awaitingBind) return false;
-    var action = this.awaitingBind.action;
-    var button = this.awaitingBind.button;
-    if (code !== 'Escape') {
-      Object.keys(Settings.binds).forEach(function (other) {
-        if (other !== action && Settings.binds[other] === code) Settings.binds[other] = '';
-      });
-      Settings.binds[action] = code;
-      Settings.save();
-    }
+  /* Repaint one row from whatever Settings now holds. */
+  HUD.prototype.paintBind = function (action) {
+    var button = this.bindButtons && this.bindButtons[action];
+    if (!button) return;
     button.classList.remove('binding');
     button.textContent = Settings.keyLabel(Settings.binds[action]);
+    button.classList.toggle('unbound', !Settings.binds[action]);
+  };
+
+  /* Stop listening without changing anything -- used when the player leaves
+     the screen, or clicks a different row, mid-rebind. */
+  HUD.prototype.cancelBind = function () {
+    var pending = this.awaitingBind;
+    if (!pending) return;
     this.awaitingBind = null;
-    this.buildKeybinds();
-    return true;
+    this.paintBind(pending.action);
+  };
+
+  /* Take the key that was just pressed for the row that is listening. */
+  HUD.prototype.captureBind = function (code) {
+    var pending = this.awaitingBind;
+    if (!pending) return;
+    this.awaitingBind = null;
+    if (code === 'Escape') {           // the universal "never mind"
+      this.paintBind(pending.action);
+      return;
+    }
+    var freed = Settings.bind(pending.action, code);
+    this.paintBind(pending.action);
+    freed.forEach(this.paintBind, this);
+    // Not a toast: toasts render under the pause overlay, so a note taking a
+    // key off something else would be delivered to a covered part of the
+    // screen.  It goes inline, where the player is already looking.
+    this.bindNote(freed.length
+      ? Settings.keyLabel(code) + ' was ' + Settings.BIND_LABELS[freed[0]] +
+        ', which is now unbound.'
+      : '');
+  };
+
+  HUD.prototype.bindNote = function (text) {
+    var node = el('bind-note');
+    if (!node) return;
+    node.textContent = text || '';
+    node.classList.toggle('hidden', !text);
   };
 
   HUD.prototype.setLoading = function (percent, message) {

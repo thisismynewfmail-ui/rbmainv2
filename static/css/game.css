@@ -197,6 +197,25 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
   padding: 3px 0; border-bottom: 1px dotted #cfdbe5; font-size: 11px; }
 .menu .keyrow button { width: 110px; margin: 0; padding: 3px; font-size: 11px; }
 .menu .keyrow button.binding { background: #ffe08a; }
+/* An unbound action is a real state, not a blank -- say so rather than
+   leaving an empty button somebody has to guess at. */
+.menu .keyrow button.unbound { color: #a04a3c; font-style: italic; }
+/* The mouse buttons and Esc are not rebindable, so they are listed as facts
+   rather than as controls you can click. */
+.menu .keyrow.fixed { opacity: .78; }
+.menu .keyrow.fixed b { font-size: 11px; }
+/* Explanatory lines between the groups of controls. */
+.menu .mnote {
+  margin: 4px 0 10px; font-size: 10.5px; line-height: 1.45; color: #55707f;
+}
+.menu .mnote.warn {
+  color: #8c3a2a; background: #fdf0e6; border: 1px solid #e4bda4;
+  border-radius: 3px; padding: 5px 8px;
+}
+.menu .mnote.hidden { display: none; }
+/* The header badge tells you whether the account actually took the change. */
+.menu .mhead #controls-sync { font-size: 10px; opacity: .85; }
+.menu .mhead #controls-sync.warn { color: #ffd95e; opacity: 1; }
 
 /* ---------------------------------------------------------------- notices */
 #toast-wrap { position: absolute; left: 50%; top: 25%; transform: translateX(-50%); text-align: center; }

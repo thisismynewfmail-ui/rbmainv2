@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS users (
     theme           TEXT NOT NULL DEFAULT 'auto',
     privacy         TEXT NOT NULL DEFAULT '{}',
     pinned          TEXT NOT NULL DEFAULT '[]',
-    prefs           TEXT NOT NULL DEFAULT '{}'
+    prefs           TEXT NOT NULL DEFAULT '{}',
+    controls        TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -275,6 +276,10 @@ MIGRATIONS = [
     ("users", "privacy", "TEXT NOT NULL DEFAULT '{}'"),
     ("users", "pinned", "TEXT NOT NULL DEFAULT '[]'"),
     ("users", "prefs", "TEXT NOT NULL DEFAULT '{}'"),
+    # Key bindings and aim settings belong to the player, not to whichever
+    # machine they last sat at, so they live on the account rather than in
+    # one browser's localStorage.
+    ("users", "controls", "TEXT NOT NULL DEFAULT '{}'"),
     ("avatars", "body_type", "TEXT NOT NULL DEFAULT 'male'"),
     # The weekly spotlight banner is a once-per-sign-in greeting, so the fact
     # that it has been shown belongs to the session rather than the account:
