@@ -560,6 +560,9 @@
     this.time = 0;
     this.poseState = 'idle';
     this.poseSpeed = 0;
+    this.swapT = -1;        // >= 0 while a model swap is playing
+    this.swapApply = null;
+    this.glide = 0;         // easing the camera back without moving the angle
     this.markHome();
     this.bindInput();
     this.loop = this.loop.bind(this);
@@ -578,6 +581,7 @@
       touch = e.pointerType === 'touch';
       decided = !touch;
       lastX = startX = e.clientX; lastY = startY = e.clientY;
+      self.glide = 0;                 // the viewer takes the camera back
       if (!touch) {
         self.spin = false;
         self.canvas.setPointerCapture(e.pointerId);
@@ -608,6 +612,7 @@
     });
     this.canvas.addEventListener('wheel', function (e) {
       e.preventDefault();
+      self.glide = 0;
       self.distance = Math.max(6, Math.min(26, self.distance + e.deltaY * 0.012));
     }, { passive: false });
   };
@@ -641,33 +646,54 @@
     this.last = now;
     this.time += dt;
     if (this.spin) this.angle += dt * 0.32;
+    this.stepGlide(dt);
+    var swap = this.stepSwap(dt);
     this.renderer.resize();
     var parts = Avatar.build(this.descriptor, {
-      position: [0, 0, 0], yaw: 0, time: this.time,
+      position: [0, swap.lift, 0], yaw: 0, time: this.time,
       pose: Avatar.pose(this.poseState, this.time, this.poseSpeed)
     });
+    if (swap.alpha < 0.999) {
+      for (var pi = 0; pi < parts.length; pi++) {
+        var pt = parts[pi];
+        pt.a = (pt.a === undefined ? 1 : pt.a) * swap.alpha;
+      }
+    }
+    var hat = (this.descriptor.items || {}).hat;
+    var unusual = (hat && hat.tier === 'unusual' && hat.effect_def) ? 1 : 0;
+    // An Unusual effect plumes upward out of the hat, so a look wearing one
+    // needs headroom a bare head does not.  A stage that asked for it buys
+    // that headroom by aiming a fraction higher and easing back a fraction
+    // further, smoothed so a roll that gains or loses an effect never jumps.
+    // Only the welcome stage rolls its own looks, so only it asks.
+    var wantRoom = this.roomForEffects ? unusual : 0;
+    this.effectRoom = (this.effectRoom || 0) +
+      (wantRoom - (this.effectRoom || 0)) * Math.min(1, dt * 3);
     // The projection fixes the vertical field of view, so a narrow panel is
     // the one that crops: pull the camera back until the character's width
     // fits again.  Wide panels are already fine and are left alone.
     var aspect = this.renderer.aspect || 1;
-    var distance = this.distance *
+    var distance = this.distance * (1 + 0.055 * this.effectRoom) *
       Math.max(1, 0.78 / Math.max(0.2, aspect));
     this.renderer.beginFrame(dt);
     parts.forEach(function (part) { this.renderer.push(part); }, this);
-    // simple ground shadow
-    this.renderer.pushRaw('cyl', 0, 0.02, 0, 0, 0, 0, 5.2, 0.04, 4.0,
+    // Simple ground shadow.  It draws in the opaque pass, so during a swap it
+    // closes up rather than fading -- same read, no see-through disc.
+    var shadow = 0.25 + 0.75 * swap.alpha;
+    this.renderer.pushRaw('cyl', 0, 0.02, 0, 0, 0, 0,
+                          5.2 * shadow, 0.04, 4.0 * shadow,
                           [0.35, 0.42, 0.5], 0.32, 0, 0, 0.8, null);
-    var centre = [0, this.focusY === undefined ? 2.9 : this.focusY, 0];
+    var centre = [0, (this.focusY === undefined ? 2.9 : this.focusY) +
+                     0.36 * this.effectRoom, 0];
     var eye = [
       centre[0] + Math.sin(this.angle) * distance,
       centre[1] + Math.sin(this.tilt) * distance * 0.85 + 0.6,
       centre[2] + Math.cos(this.angle) * distance
     ];
     this.renderer.setCameraMatrix(eye, centre, 42);
-    var hat = (this.descriptor.items || {}).hat;
-    if (hat && hat.tier === 'unusual' && hat.effect_def) {
+    if (unusual && swap.alpha > 0.02) {
       this.particles.setEmitter('hat', hat.effect_def,
-                                Avatar.hatAnchor([0, 0, 0], 0, hat));
+                                Avatar.hatAnchor([0, swap.lift, 0], 0, hat));
     } else {
       this.particles.clearEmitter('hat');
     }
@@ -677,21 +703,71 @@
   };
 
   /* Remember the current camera as "home".  Called once the caller has
-     finished positioning the preview, so resetView goes back to the framing
+     finished positioning the preview, so glideHome eases back to the framing
      the page asked for rather than the constructor's defaults. */
   LivePreview.prototype.markHome = function () {
     this.home = { angle: this.angle, tilt: this.tilt, distance: this.distance };
   };
 
-  /* Put the camera back where it started.  A shuffled character deserves the
-     same first impression as the one before it, so a viewer who zoomed in or
-     stopped the spin does not carry that over onto the next outfit. */
-  LivePreview.prototype.resetView = function () {
-    var home = this.home || { angle: -0.45, tilt: 0.2, distance: 12.5 };
-    this.angle = home.angle;
-    this.tilt = home.tilt;
-    this.distance = home.distance;
+  /* Ease the camera back to the framing the page asked for -- but leave the
+     heading alone.  The turn is the one thing that must not jump: whichever
+     way the character happens to be facing when the outfit changes is the way
+     the next one carries on from, so the rotation reads as one unbroken take.
+     A tilt or a zoom the viewer changed does come back, and it slides. */
+  LivePreview.prototype.glideHome = function () {
+    if (!this.home) return;
+    this.glide = 1;
     this.spin = true;
+  };
+
+  LivePreview.prototype.stepGlide = function (dt) {
+    if (!this.glide || !this.home) return;
+    var k = Math.min(1, dt * 4.5);
+    this.tilt += (this.home.tilt - this.tilt) * k;
+    this.distance += (this.home.distance - this.distance) * k;
+    if (Math.abs(this.home.tilt - this.tilt) < 0.002 &&
+        Math.abs(this.home.distance - this.distance) < 0.02) {
+      this.tilt = this.home.tilt;
+      this.distance = this.home.distance;
+      this.glide = 0;
+    }
+  };
+
+  /* Hand over a new look without touching anything but the character.  The
+     model dissolves, ``apply`` swaps what it is wearing at the low point, and
+     the new one settles up into place.  The canvas, the stage behind it and
+     the camera's turn are all left exactly as they were -- the old CSS fade
+     moved the painted sky along with the character, which is precisely what
+     made a swap read as the whole panel flinching. */
+  var SWAP_OUT = 0.26, SWAP_IN = 0.34;
+
+  LivePreview.prototype.swapModel = function (apply) {
+    if (typeof apply !== 'function') return;
+    if (this.failed) { apply(); return; }
+    if (this.swapApply) this.swapApply();      // a rapid re-roll never skips one
+    this.swapApply = apply;
+    this.swapT = 0;
+  };
+
+  LivePreview.prototype.stepSwap = function (dt) {
+    if (this.swapT < 0) return { alpha: 1, lift: 0 };
+    this.swapT += dt;
+    if (this.swapT < SWAP_OUT) {
+      var k = this.swapT / SWAP_OUT;
+      return { alpha: 1 - k * k, lift: -0.22 * k * k };
+    }
+    if (this.swapApply) {
+      this.swapApply();
+      this.swapApply = null;
+      // the outgoing hat's particles go with it rather than raining on the
+      // character that replaces it
+      this.particles.clearEmitter('hat');
+      this.particles.count = 0;
+    }
+    var j = Math.min(1, (this.swapT - SWAP_OUT) / SWAP_IN);
+    var e = 1 - Math.pow(1 - j, 3);
+    if (j >= 1) { this.swapT = -1; return { alpha: 1, lift: 0 }; }
+    return { alpha: e, lift: -0.5 * (1 - e) };
   };
 
   LivePreview.prototype.setPose = function (state) {
@@ -845,18 +921,27 @@
   Thumbs.paint = paint;
   Thumbs.rescan = observe;
 
-  /* Hand a hero stage a freshly rolled look, reframed as if it were the first
-     one: the camera goes home, so a viewer who zoomed in or stopped the spin
-     on the last outfit still gets a clean look at the next. */
+  /* Hand a hero stage a freshly rolled look.  The character itself dissolves
+     and settles back in -- nothing else on the stage is touched -- and the
+     caption changes on the same frame the model does, so the two never
+     disagree.  A tilt or zoom the viewer left behind slides home; the turn
+     carries straight on from wherever it had got to. */
   Thumbs.dressHero = function (el, options) {
     var preview = el && el.__preview;
     if (!preview || preview.failed) return null;
     var look = Thumbs.randomLook(options);
-    preview.setDescriptor(look.descriptor);
-    preview.setPose(look.pose);
-    preview.resetView();
-    el.__look = look;
-    el.dispatchEvent(new CustomEvent('look', { bubbles: true, detail: look }));
+    function apply() {
+      preview.setDescriptor(look.descriptor);
+      preview.setPose(look.pose);
+      el.__look = look;
+      el.dispatchEvent(new CustomEvent('look', { bubbles: true, detail: look }));
+    }
+    if (el.__look) {
+      preview.swapModel(apply);
+    } else {
+      apply();
+    }
+    preview.glideHome();
     return look;
   };
 
@@ -879,10 +964,13 @@
       preview.skyMode = 'stage';
       preview.applyTheme();
       preview.setPose(look.pose);
-      // a little further out and aimed a little higher, so a tall hat and
-      // its effect have somewhere to be instead of running off the top
-      preview.distance = 14.5;
-      preview.focusY = 3.3;
+      // Framed so the stage is filled rather than floated in: the character
+      // is pulled in close enough to read at a glance, and the look-at point
+      // sits above its waist so it stands on the lower half of the panel with
+      // the headroom a tall hat and its effect need overhead.
+      preview.distance = 12.9;
+      preview.focusY = 2.95;
+      preview.roomForEffects = true;
       preview.markHome();
       el.__preview = preview;
       el.__look = look;

@@ -53,7 +53,7 @@ def main(argv=None) -> int:
     parser.add_argument("--reset", action="store_true",
                         help="delete the database and start fresh")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--status-interval", type=float, default=10.0,
+    parser.add_argument("--status-interval", type=float, default=4.0,
                         help="seconds between terminal status blocks "
                              "(0 turns the live read-out off)")
     args = parser.parse_args(argv)
@@ -98,7 +98,7 @@ def main(argv=None) -> int:
 
     dashboard = console.Dashboard(application, args.port, address,
                                   supervisor=supervisor,
-                                  interval=max(2.0, args.status_interval or 10.0))
+                                  interval=max(2.0, args.status_interval or 4.0))
     print(dashboard.intro(world_registry.all_worlds(),
                           (config.ADMIN_USERNAME, config.ADMIN_PASSWORD),
                           not args.no_games), flush=True)

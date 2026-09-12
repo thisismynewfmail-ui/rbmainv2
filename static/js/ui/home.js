@@ -61,7 +61,7 @@
      of the live catalogue by thumbs.js; this end names the look and keeps the
      rolls coming on a slow timer, pausing while somebody is actually looking
      at (or spinning) the one on screen. */
-  var SHUFFLE_MS = 10000;
+  var SHUFFLE_MS = 15000;
 
   function bindHero() {
     var stage = document.querySelector('.avatar-view[data-avatar-hero]');
@@ -103,13 +103,10 @@
 
     function shuffle() {
       if (!window.Thumbs || !Thumbs.dressHero) return;
-      stage.classList.remove('swapping');
-      void stage.offsetWidth;          // restart the fade on a rapid re-roll
-      stage.classList.add('swapping');
-      // dressHero puts the camera back where it started as well, so a viewer
-      // who zoomed in or stopped the spin gets a clean look at the next one
+      // The transition lives inside the preview now: the character dissolves
+      // and settles back in on its own while the stage, its painted sky and
+      // the camera's turn all carry on untouched.
       Thumbs.dressHero(stage);
-      setTimeout(function () { stage.classList.remove('swapping'); }, 460);
     }
 
     stage.addEventListener('look', function (event) { describe(event.detail); });

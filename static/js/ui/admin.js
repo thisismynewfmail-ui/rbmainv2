@@ -62,7 +62,10 @@
     loners: true,
     energy: 1,
     raf: 0,
-    ready: false
+    ready: false,
+    tab: 'overview',      // which admin tab is showing
+    inline: false,        // phone: the map folded in under the overview
+    fitFor: 0             // seconds of catch-up fitting after Recentre
   };
 
   var NODE_COLORS = {
@@ -147,20 +150,33 @@
     return Net.nodes.filter(function (node) { return node.degree > 0; });
   }
 
+  /* Two populations, laid out on different principles.
+
+     The connected accounts are a proper force graph: they repel, their links
+     pull, and a weak gravity keeps the whole thing over the origin.
+
+     The unconnected ones are not.  Left in the same simulation they have
+     nothing pulling them anywhere, so repulsion alone flings them into a wide
+     halo -- and because the auto-fit has to hold that halo, the part of the
+     graph anybody actually reads ends up squeezed into a corner.  Seating
+     them on a ring just outside the cluster instead keeps them visible and
+     countable while the frame stays tight around the middle. */
   function stepNetwork(dt) {
     var nodes = visibleNodes();
     var count = nodes.length;
     if (!count) return;
-    var repel = 1500 + count * 9;
+    var pack = [], ring = [];
     var i, j, a, b, dx, dy, dist, force;
     for (i = 0; i < count; i++) {
       a = nodes[i];
       a.fx = 0; a.fy = 0;
+      (a.degree ? pack : ring).push(a);
     }
-    for (i = 0; i < count; i++) {
-      a = nodes[i];
-      for (j = i + 1; j < count; j++) {
-        b = nodes[j];
+    var repel = 1500 + pack.length * 9;
+    for (i = 0; i < pack.length; i++) {
+      a = pack[i];
+      for (j = i + 1; j < pack.length; j++) {
+        b = pack[j];
         dx = a.x - b.x;
         dy = a.y - b.y;
         dist = dx * dx + dy * dy;
@@ -172,6 +188,30 @@
         a.fy += dy * inv * force;
         b.fx -= dx * inv * force;
         b.fy -= dy * inv * force;
+      }
+    }
+    if (ring.length) {
+      // Concentric with the cluster rather than with the origin: gravity
+      // holds the connected nodes near the middle but does not pin their
+      // centre of mass there, and a halo drawn round the origin instead
+      // leaves the cluster sitting visibly off to one side of its own ring.
+      var cx = 0, cy = 0, reach = 0;
+      for (i = 0; i < pack.length; i++) { cx += pack[i].x; cy += pack[i].y; }
+      if (pack.length) { cx /= pack.length; cy /= pack.length; }
+      for (i = 0; i < pack.length; i++) {
+        reach = Math.max(reach,
+                         Math.hypot(pack[i].x - cx, pack[i].y - cy) + pack[i].r);
+      }
+      // just clear of the widest connected node, and never so tight that the
+      // ring itself becomes a crowd
+      var radius = Math.max(reach + 38, 92, ring.length * 6.2);
+      // a slow drift, so the halo reads as alive rather than as decoration
+      var spin = (Net.clock || 0) * 0.09;
+      for (i = 0; i < ring.length; i++) {
+        a = ring[i];
+        var theta = spin + (Math.PI * 2 * i) / ring.length;
+        a.fx += (cx + Math.cos(theta) * radius - a.x) * 6;
+        a.fy += (cy + Math.sin(theta) * radius - a.y) * 6;
       }
     }
     Net.edges.forEach(function (edge) {
@@ -190,15 +230,21 @@
     });
     for (i = 0; i < count; i++) {
       a = nodes[i];
-      a.fx -= a.x * 0.9;                      // gravity towards the centre
-      a.fy -= a.y * 0.9;
+      if (a.degree) {
+        a.fx -= a.x * 0.9;                    // gravity towards the centre
+        a.fy -= a.y * 0.9;
+      }
       if (Net.drag === a) { a.vx = 0; a.vy = 0; continue; }
       a.vx = (a.vx + a.fx * dt) * 0.86;
       a.vy = (a.vy + a.fy * dt) * 0.86;
       var speed = Math.hypot(a.vx, a.vy);
       if (speed > 420) { a.vx *= 420 / speed; a.vy *= 420 / speed; }
-      a.x += a.vx * dt * Net.energy;
-      a.y += a.vy * dt * Net.energy;
+      // The cluster is allowed to cool to a stop; the halo is not, or a node
+      // that has just lost its last friend crawls out to its seat over half a
+      // minute instead of sliding there.
+      var pace = a.degree ? Net.energy : Math.max(Net.energy, 0.7);
+      a.x += a.vx * dt * pace;
+      a.y += a.vy * dt * pace;
       a.fresh = false;
     }
     // the simulation cools off so a settled graph stops jittering, and any
@@ -206,7 +252,47 @@
     Net.energy = Math.max(0.12, Net.energy * 0.995);
   }
 
-  function fitNetwork(canvas) {
+  /* The toolbar, the key, the running totals and an open node card all float
+     over the canvas, so fitting to the raw canvas parks nodes underneath
+     them.  Work out what is actually clear instead: charge each overlay to
+     the edge it hugs -- a tall one sideways, a wide one up or down -- and fit
+     into what is left. */
+  function netInsets(canvas) {
+    var box = canvas.getBoundingClientRect();
+    var inset = { top: 22, right: 22, bottom: 22, left: 22 };
+    ['.net-toolbar', '#net-key', '.net-stats', '#net-card'].forEach(function (sel) {
+      var el = document.querySelector(sel);
+      if (!el || el.classList.contains('hidden')) return;
+      var r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var edge;
+      if (r.height >= r.width) {
+        edge = (r.left - box.left <= box.right - r.right) ? 'left' : 'right';
+      } else {
+        edge = (r.top - box.top <= box.bottom - r.bottom) ? 'top' : 'bottom';
+      }
+      var reach = { top: r.bottom - box.top, bottom: box.bottom - r.top,
+                    left: r.right - box.left, right: box.right - r.left }[edge];
+      inset[edge] = Math.max(inset[edge], reach + 12);
+    });
+    // never let the chrome eat the whole box on a small screen
+    var maxH = canvas.clientHeight * 0.62, maxW = canvas.clientWidth * 0.62;
+    if (inset.top + inset.bottom > maxH) {
+      var sh = maxH / (inset.top + inset.bottom);
+      inset.top *= sh; inset.bottom *= sh;
+    }
+    if (inset.left + inset.right > maxW) {
+      var sw = maxW / (inset.left + inset.right);
+      inset.left *= sw; inset.right *= sw;
+    }
+    return inset;
+  }
+
+  /* Ease the view onto the graph's bounds.  Framerate independent, so a
+     phone at 30fps refits at the same pace a desktop does, and deadzoned, so
+     a settled graph stops adjusting instead of breathing forever.  This is
+     what keeps every node in frame as accounts arrive and links form. */
+  function fitNetwork(canvas, dt) {
     var nodes = visibleNodes();
     if (!nodes.length) return;
     var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
@@ -216,15 +302,33 @@
       maxX = Math.max(maxX, node.x + node.r);
       maxY = Math.max(maxY, node.y + node.r);
     });
-    var pad = 26;
+    var inset = netInsets(canvas);
+    var availW = Math.max(60, canvas.clientWidth - inset.left - inset.right);
+    var availH = Math.max(60, canvas.clientHeight - inset.top - inset.bottom);
     var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
-    var k = Math.min((canvas.clientWidth - pad * 2) / w,
-                     (canvas.clientHeight - pad * 2) / h);
-    k = Math.max(0.12, Math.min(2.4, k));
-    // ease towards the target so a settling graph does not appear to breathe
-    Net.view.k += (k - Net.view.k) * 0.08;
-    Net.view.x += (-(minX + maxX) / 2 - Net.view.x) * 0.08;
-    Net.view.y += (-(minY + maxY) / 2 - Net.view.y) * 0.08;
+    var k = Math.max(0.12, Math.min(1.9, Math.min(availW / w, availH / h)));
+    // the graph centres on the clear area, not on the middle of the canvas
+    var cx = (inset.left - inset.right) / 2;
+    var cy = (inset.top - inset.bottom) / 2;
+    var tx = cx / k - (minX + maxX) / 2;
+    var ty = cy / k - (minY + maxY) / 2;
+    if (Math.abs(k - Net.view.k) < 0.0015 &&
+        Math.abs(tx - Net.view.x) < 0.4 && Math.abs(ty - Net.view.y) < 0.4) {
+      Net.view.k = k; Net.view.x = tx; Net.view.y = ty;
+      return;
+    }
+    var ease = Math.min(1, (dt === undefined ? 0.016 : dt) * 3.2);
+    Net.view.k += (k - Net.view.k) * ease;
+    Net.view.x += (tx - Net.view.x) * ease;
+    Net.view.y += (ty - Net.view.y) * ease;
+  }
+
+  /* One switch for the auto-fit, so the button and the state can never
+     disagree -- a pan or a zoom turns it off and the button goes with it. */
+  function setAutoFit(on) {
+    Net.view.auto = !!on;
+    var button = document.getElementById('net-auto-btn');
+    if (button) button.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
   function toScreen(canvas, node) {
@@ -405,7 +509,8 @@
       } else {
         pan = { x: event.clientX, y: event.clientY,
                 vx: Net.view.x, vy: Net.view.y };
-        Net.view.auto = false;
+        setAutoFit(false);
+        Net.fitFor = 0;
       }
     });
     canvas.addEventListener('pointermove', function (event) {
@@ -445,11 +550,21 @@
     canvas.addEventListener('pointerleave', function () { Net.hover = null; });
     canvas.addEventListener('wheel', function (event) {
       event.preventDefault();
-      Net.view.auto = false;
+      setAutoFit(false);
+      Net.fitFor = 0;
       var factor = Math.exp(-event.deltaY * 0.0015);
       Net.view.k = Math.max(0.1, Math.min(4, Net.view.k * factor));
     }, { passive: false });
 
+  }
+
+  /* The map's own buttons are bound once at load, not inside bindNetwork:
+     the phone fold-out sits on the overview tab, where the canvas has never
+     been touched, and a button that does nothing until you have already
+     opened the thing it opens is no button at all. */
+  function bindNetActions() {
+    if (Net.actionsBound) return;
+    Net.actionsBound = true;
     document.addEventListener('click', function (event) {
       var button = event.target.closest('[data-net]');
       if (button) {
@@ -472,9 +587,20 @@
             node.vx = 0; node.vy = 0;
           });
           Net.energy = 1;
-          Net.view.auto = true;
+          setAutoFit(true);
+        } else if (action === 'autofit') {
+          setAutoFit(!Net.view.auto);
+          if (Net.view.auto) Net.fitFor = 0;
         } else if (action === 'fit') {
-          Net.view.auto = true;
+          // a one-off glide back onto the graph that leaves the auto-fit
+          // switch exactly as the operator set it
+          Net.fitFor = 1.1;
+        } else if (action === 'inline') {
+          Net.inline = !Net.inline;
+          button.setAttribute('aria-pressed', Net.inline ? 'true' : 'false');
+          button.textContent = Net.inline ? 'Hide connection map'
+                                          : 'Show connection map';
+          showPanels();
         } else if (action === 'close') {
           Net.selected = null;
           paintNetCard(null);
@@ -492,13 +618,17 @@
   function netLoop(now) {
     Net.raf = requestAnimationFrame(netLoop);
     var panel = document.querySelector('[data-admin-panel="network"]');
-    if (!panel || panel.classList.contains('hidden') || document.hidden) return;
+    if (!panel || panel.classList.contains('hidden') || document.hidden) {
+      Net.last = 0;
+      return;
+    }
     var dt = Math.min(0.05, (now - (Net.last || now)) / 1000);
     Net.last = now;
     Net.clock = (Net.clock || 0) + dt;
     stepNetwork(dt);
     var canvas = netCanvas();
-    if (canvas && Net.view.auto) fitNetwork(canvas);
+    if (Net.fitFor > 0) Net.fitFor = Math.max(0, Net.fitFor - dt);
+    if (canvas && (Net.view.auto || Net.fitFor > 0)) fitNetwork(canvas, dt);
     drawNetwork();
   }
 
@@ -513,26 +643,56 @@
     if (button) button.setAttribute('aria-pressed', 'false');
   }
 
+  /* One place decides what is on screen, from the tab, the phone toggle and
+     the window width together.  The connection map already sits after the
+     overview in the document, so showing both on a phone drops the map in at
+     the bottom of the dashboard without moving a single node of markup. */
+  function showPanels() {
+    var phone = window.innerWidth <= 860;
+    var inline = phone && Net.inline && Net.tab === 'overview';
+    document.querySelectorAll('[data-admin-panel]').forEach(function (panel) {
+      var name = panel.dataset.adminPanel;
+      var on = name === Net.tab || (inline && name === 'network');
+      panel.classList.toggle('hidden', !on);
+      panel.classList.toggle('admin-inline', inline && name === 'network');
+    });
+    var button = document.getElementById('net-inline-btn');
+    if (button) {
+      button.setAttribute('aria-pressed', Net.inline ? 'true' : 'false');
+      button.textContent = Net.inline ? 'Hide connection map'
+                                      : 'Show connection map';
+    }
+    if (Net.tab === 'network' || inline) startNetwork();
+  }
+
+  function startNetwork() {
+    bindNetwork();
+    collapseKeyOnPhones();
+    Net.energy = Math.max(Net.energy, 0.8);
+    Net.fitFor = Math.max(Net.fitFor, 1.1);   // glide onto the graph on arrival
+    if (!Net.nodes.length) fetchNetwork(true);
+    if (!Net.raf) Net.raf = requestAnimationFrame(netLoop);
+  }
+
   function bindAdminTabs() {
     var tabs = document.getElementById('admin-tabs');
     if (!tabs) return;
     tabs.addEventListener('click', function (event) {
       var tab = event.target.closest('[data-admin-tab]');
       if (!tab) return;
-      var name = tab.dataset.adminTab;
+      Net.tab = tab.dataset.adminTab;
       tabs.querySelectorAll('[data-admin-tab]').forEach(function (other) {
         other.classList.toggle('on', other === tab);
       });
-      document.querySelectorAll('[data-admin-panel]').forEach(function (panel) {
-        panel.classList.toggle('hidden', panel.dataset.adminPanel !== name);
-      });
-      if (name === 'network') {
-        bindNetwork();
-        collapseKeyOnPhones();
-        Net.energy = Math.max(Net.energy, 0.8);
-        if (!Net.nodes.length) fetchNetwork(true);
-        if (!Net.raf) Net.raf = requestAnimationFrame(netLoop);
-      }
+      showPanels();
+    });
+    // a rotation or a resize can take the inline map out of scope entirely
+    window.addEventListener('resize', function () {
+      clearTimeout(Net.resizeTimer);
+      Net.resizeTimer = setTimeout(function () {
+        showPanels();
+        Net.fitFor = Math.max(Net.fitFor, 0.8);
+      }, 180);
     });
   }
 
@@ -605,6 +765,7 @@
   });
 
   document.addEventListener('DOMContentLoaded', function () {
+    bindNetActions();
     bindAdminTabs();
     // the map rides the dashboard's own heartbeat, so the graph, the counters
     // and the world table are always describing the same moment
