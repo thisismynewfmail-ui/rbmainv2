@@ -176,10 +176,23 @@ DEFAULT_COLORS: Dict[str, str] = {
 
 BODY_PARTS = ["head", "torso", "left_arm", "right_arm", "left_leg", "right_leg"]
 
-# Body types share one head, one head-top hat anchor and one hitbox, so every
-# cosmetic in the catalogue fits both without a per-type variant.
-BODY_TYPES = ["male", "female"]
-BODY_TYPE_LABELS = {"male": "Male", "female": "Female"}
+# Four builds ship, as two families of two: a standard build and a slimmer
+# "Thin" cut of each.  Every one of them shares the head-top hat anchor, the
+# eye height and the hitbox, so every cosmetic in the catalogue fits all four
+# without a per-type variant and switching build never costs an outfit.
+BODY_TYPES = ["male", "male_thin", "female", "female_thin"]
+BODY_TYPE_LABELS = {
+    "male": "Male", "male_thin": "Thin",
+    "female": "Female", "female_thin": "Thin",
+}
+# How the editor draws the picker: one column per family, the standard build
+# on top and its Thin cut tucked underneath it.
+BODY_TYPE_GROUPS = [
+    {"id": "male", "label": "Male", "base": "male", "thin": "male_thin",
+     "thin_label": "Thin"},
+    {"id": "female", "label": "Female", "base": "female", "thin": "female_thin",
+     "thin_label": "Thin"},
+]
 DEFAULT_BODY_TYPE = "male"
 
 SLOTS = ["face", "hat", "shirt", "pants", "back"]

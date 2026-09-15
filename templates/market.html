@@ -75,19 +75,6 @@
       </div>
     </div>
 
-    <div class="panel">
-      <div class="panel-head">Recent Unusual finds</div>
-      <div class="panel-body">
-        {% for row in showcase %}
-        <div style="padding:4px 0;border-bottom:1px dotted var(--line-dot)">
-          <a href="/profile/{{ row.username }}">{{ row.username }}</a><br>
-          <span class="pill purple">{{ row.name }}</span>
-          <div class="tiny muted">{{ row.effect_name }} &bull; {{ ago(row.acquired_at) }}</div>
-        </div>
-        {% endfor %}
-        {% if not showcase %}<p class="muted tiny">No Unusuals yet.</p>{% endif %}
-      </div>
-    </div>
   </div>
 </div>
 {% set page_script = "/static/js/ui/market.js" %}

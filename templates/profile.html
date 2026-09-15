@@ -5,7 +5,6 @@
       <div class="panel-head">{{ profile.username }}'s character</div>
       <div class="panel-body">
         <div class="avatar-view" style="height:300px" data-avatar="{{ to_json(avatar) }}">
-          <span class="tag3d">3D</span>
           <span class="hint">drag to rotate</span>
         </div>
         <div class="center" style="margin-top:6px">
@@ -209,14 +208,27 @@
       <div class="panel-head">Friends ({{ friend_count }})</div>
       <div class="panel-body">
         {% if show_friends %}
-        <div class="userlist">
+        <!-- The first eight are always on the page; anything past them is
+             carried in the markup but folded away, so Expand is instant and
+             a reader without JavaScript simply gets the whole list. -->
+        <div class="userlist" data-fold="friends">
           {% for f in friends_list %}
-          <a class="usercard small" href="/profile/{{ f.username }}">
+          <a class="usercard small {{ 'fold-extra' if loop.index0 >= friends_shown else '' }}"
+             href="/profile/{{ f.username }}">
             <canvas class="thumb avatar-thumb" width="128" height="128" data-user="{{ f.username }}"></canvas>
             <span class="uname">{{ f.username }}</span>
           </a>
           {% endfor %}
         </div>
+        {% if len(friends_list) > friends_shown %}
+        <div class="foldbar">
+          <button class="btn small foldbtn hidden" type="button" data-fold-toggle="friends"
+                  data-more-label="Expand ({{ len(friends_list) - friends_shown }} more)"
+                  data-less-label="Show fewer" aria-expanded="false">
+            <span class="fold-label">Expand</span><span class="chev" aria-hidden="true">&#9660;</span>
+          </button>
+        </div>
+        {% endif %}
         {% if not friends_list %}<p class="muted tiny">No friends yet.</p>{% endif %}
         {% else %}
         <p class="muted tiny">This friends list is private.</p>

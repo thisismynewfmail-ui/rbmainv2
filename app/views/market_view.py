@@ -25,8 +25,7 @@ def market_page(req: Request):
                   term=term, tabs=SLOT_TABS, owned=owned,
                   tiers=catalog.TIERS,
                   unusual_chance=0.5,
-                  effects=catalog.UNUSUAL_EFFECTS,
-                  showcase=inventory.unusual_showcase(8))
+                  effects=catalog.UNUSUAL_EFFECTS)
 
 
 @router.get("/inventory")

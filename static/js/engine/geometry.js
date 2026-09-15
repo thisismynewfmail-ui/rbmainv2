@@ -337,6 +337,9 @@
       rbox: Geometry.roundedBox(0.085, 2),                  // near-cubic parts
       rlimb: Geometry.roundedBox([0.133, 0.064, 0.133], 2),  // 1:2:1 arms, legs
       rhead: Geometry.roundedBox([0.196, 0.214, 0.202], 3),  // the head
+      // the female head is smaller in every axis, so the same bake would
+      // come out sharper on it; these land the same ~0.29 of world bevel
+      rheadf: Geometry.roundedBox([0.227, 0.234, 0.238], 3),
       cyl: Geometry.cylinder(18),
       sph: Geometry.sphere(12, 18),
       cone: Geometry.cone(16),

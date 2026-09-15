@@ -274,7 +274,8 @@
     var faceOn = slot === 'face';
     var body = Avatar.build(descriptor, { position: [0, 0, 0],
                                           yaw: faceOn ? 0 : 0.4,
-                                          pose: Avatar.pose('idle', 0, 0) });
+                                          pose: Avatar.pose('idle', 0, 0,
+                                                            descriptor) });
     if (faceOn) {
       // head only, picked by rig tag rather than a height guess so the crop
       // survives any change to the proportions
@@ -429,7 +430,8 @@
         var descriptor = results[1];
         if (!descriptor) return;
         var parts = Avatar.build(descriptor, {
-          position: [0, 0, 0], yaw: 0.35, pose: Avatar.pose('idle', 0, 0)
+          position: [0, 0, 0], yaw: 0.35,
+          pose: Avatar.pose('idle', 0, 0, descriptor)
         });
         var hat = (descriptor.items || {}).hat;
         var source = renderParts(parts, {
@@ -651,7 +653,8 @@
     this.renderer.resize();
     var parts = Avatar.build(this.descriptor, {
       position: [0, swap.lift, 0], yaw: 0, time: this.time,
-      pose: Avatar.pose(this.poseState, this.time, this.poseSpeed)
+      pose: Avatar.pose(this.poseState, this.time, this.poseSpeed,
+                        this.descriptor)
     });
     if (swap.alpha < 0.999) {
       for (var pi = 0; pi < parts.length; pi++) {
@@ -828,7 +831,9 @@
     var skin = paletteHex();
     var legs = paletteHex();
     var descriptor = {
-      body_type: Math.random() < 0.5 ? 'female' : 'male',
+      // every build in the rig gets a turn on the welcome stage, so a new
+      // one shows up out front the day it ships
+      body_type: pick(Avatar.BODY_TYPES),
       colors: {
         head: skin, torso: paletteHex(), left_arm: skin, right_arm: skin,
         left_leg: legs, right_leg: legs
@@ -981,7 +986,8 @@
     Thumbs.loadCatalog().then(function () {
       document.querySelectorAll('.avatar-view[data-avatar-demo]').forEach(function (el) {
         el.__preview = new LivePreview(el, {
-          body_type: el.dataset.avatarDemo === 'female' ? 'female' : 'male',
+          body_type: Avatar.RIG.bodies[el.dataset.avatarDemo]
+            ? el.dataset.avatarDemo : 'male',
           colors: { head: '#f5cd30', torso: '#c4281c', left_arm: '#f5cd30',
                     right_arm: '#f5cd30', left_leg: '#1b2a35', right_leg: '#1b2a35' },
           items: {

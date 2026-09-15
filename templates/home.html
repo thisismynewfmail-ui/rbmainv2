@@ -155,19 +155,6 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head purple">Latest Unusuals</div>
-      <div class="panel-body">
-        {% for row in showcase %}
-        <div class="spread" style="padding:3px 0">
-          <a href="/profile/{{ row.username }}" class="tiny">{{ row.username }}</a>
-          <span class="pill purple tiny">{{ row.name }}</span>
-        </div>
-        {% endfor %}
-        {% if not showcase %}<p class="muted tiny">Nobody has pulled one yet.</p>{% endif %}
-      </div>
-    </div>
-
-    <div class="panel">
       <div class="panel-head gold">Coming up</div>
       <div class="panel-body">
         <div class="spotgrid">

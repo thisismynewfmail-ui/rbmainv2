@@ -4,7 +4,7 @@ from __future__ import annotations
 from ..http import router as R
 from ..http.router import Request
 from ..game import registry as game_registry
-from ..models import avatars, events, inventory, users, worlds
+from ..models import avatars, events, users, worlds
 from ..social import feed, follows, friends, posts
 from .base import render, router
 
@@ -31,8 +31,7 @@ def home(req: Request):
                       recent_users=users.recent(10),
                       spotlight=spotlight,
                       spotlight_left=events.seconds_left(),
-                      upcoming=events.upcoming(2),
-                      showcase=inventory.unusual_showcase(6))
+                      upcoming=events.upcoming(2))
     uid = int(req.user["id"])
     # The spotlight banner is a greeting, not furniture: it is claimed once
     # per sign-in and then stays gone until the next one, so reloading the
@@ -52,7 +51,6 @@ def home(req: Request):
         online=users.online_users(12),
         favourites=worlds.favourites_of(uid),
         avatar=avatars.descriptor(uid, req.user["username"]),
-        showcase=inventory.unusual_showcase(6),
         stats=worlds.player_stats(uid),
         spotlight=spotlight,
         spotlight_left=events.seconds_left(),
