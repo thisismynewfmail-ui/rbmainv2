@@ -483,6 +483,10 @@
     if (!screens) return;
     dockScreen = screen;
     screens.classList.toggle('at-dm', screen === 'dm');
+    // the phone layout raises the whole window for a conversation and puts
+    // it back for the list -- see .dock.dm-open in the stylesheet
+    var dock = el('msg-dock');
+    if (dock) dock.classList.toggle('dm-open', screen === 'dm');
     if (back) back.classList.toggle('on', screen === 'dm');
     if (heading) {
       heading.textContent = screen === 'dm'
@@ -632,9 +636,55 @@
       });
     }
 
+    trackViewport(dock);
+
     // restore whatever the player left it on -- including across a round of
     // the game, which navigates away from the site entirely
     if (dockState() === 'open') setOpen(true);
+  }
+
+  /* Keep the messenger sized and seated against the part of the window that
+     is actually visible.
+
+     A phone keyboard does not resize the window: it covers the bottom of it,
+     and a position:fixed element stays happily underneath.  visualViewport is
+     the only thing that knows -- its height is what is left above the
+     keyboard and its offsetTop is how far the page has been scrolled up to
+     keep the focused field in view.  Both go into CSS custom properties, so
+     the stylesheet decides what to do with them and a desktop browser (where
+     the two viewports agree) gets exactly what it had before. */
+  function trackViewport(dock) {
+    var vv = window.visualViewport;
+    var lastLift = -1;
+    function apply() {
+      var height = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty('--vvh', Math.round(height) + 'px');
+      var lift = vv
+        ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+        : 0;
+      dock.style.setProperty('--dock-lift', lift + 'px');
+      dock.classList.toggle('keyboard-up', lift > 90);
+      // the box changed height, so whatever was at the bottom of the
+      // conversation is no longer there -- put it back
+      if (lift !== lastLift && dockScreen === 'dm') {
+        var thread = el('dock-thread');
+        if (thread) {
+          requestAnimationFrame(function () {
+            thread.scrollTop = thread.scrollHeight;
+          });
+        }
+      }
+      lastLift = lift;
+    }
+    apply();
+    if (vv) {
+      vv.addEventListener('resize', apply);
+      vv.addEventListener('scroll', apply);
+    }
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', function () {
+      setTimeout(apply, 250);
+    });
   }
 
   function loadDock(force) {
@@ -1023,11 +1073,44 @@
 
   Site.refreshCounts = pollCounts;
 
+  // ---------------------------------------------------------- folded lists
+  /* A list that shows its first few entries and keeps the rest behind one
+     button -- the friends grid on a profile is the first of them.  The
+     markup carries the whole list and CSS hides the tail, so the button is
+     instant and costs no request, and nothing is lost to a reader without
+     JavaScript (the fold only closes once this has run).
+
+     Newly revealed thumbnails have to be handed back to the painter: the
+     canvases were display:none when the page loaded, so the observer that
+     paints them on scroll never saw them. */
+  function bindFolds() {
+    document.querySelectorAll('[data-fold-toggle]').forEach(function (button) {
+      var list = document.querySelector('[data-fold="' + button.dataset.foldToggle + '"]');
+      if (!list) return;
+      list.classList.add('folded');
+      button.classList.remove('hidden');
+      button.setAttribute('aria-expanded', 'false');
+      var more = button.dataset.moreLabel || 'Show all';
+      var less = button.dataset.lessLabel || 'Show fewer';
+      var label = button.querySelector('.fold-label') || button;
+      label.textContent = more;
+      button.addEventListener('click', function () {
+        var open = !list.classList.contains('folded');
+        list.classList.toggle('folded', open);
+        button.classList.toggle('open', !open);
+        button.setAttribute('aria-expanded', open ? 'false' : 'true');
+        label.textContent = open ? more : less;
+        if (!open && window.Thumbs) Thumbs.rescan();
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindTheme();
     bindNav();
     bindDock();
     bindPosts();
+    bindFolds();
     bindAutocomplete();
     bindMessengerSwitch();
     if (window.BH && BH.user) {

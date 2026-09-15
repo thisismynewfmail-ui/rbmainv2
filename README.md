@@ -4,7 +4,7 @@ A complete block-world game platform written in **pure Python 3 (standard
 library only)** and **vanilla JavaScript**. It has two halves:
 
 * **The UI** — the website: accounts, profiles with a live 3D character, an
-  avatar editor with two body types, an item market with Unusual rolls, an
+  avatar editor with four body types, an item market with Unusual rolls, an
   inventory bound to your account, friends/followers/posts/comments/messages,
   a world browser and an administrator dashboard. It has a hand-built dark
   theme and a phone layout, because the site half is meant to work from a
@@ -298,12 +298,41 @@ by more than their own bevels, which is what stops the joins showing as
 grooves; the arms are rectangular in section rather than square posts; and the
 head is wider than it is tall, sat down on the shoulders.
 
-**Two body types** ship, `male` and `female`. They differ only from the neck
-down: the female build has narrower shoulders, a cinched waist, flared hips and
-slimmer limbs. Head, neck, the hat anchor at the top of the head and the
-hitbox are identical for both, which is what guarantees every hat, face, shirt,
-pair of trousers and back item fits either build with no per-type variant.
-Switching build in the avatar editor never costs you an outfit.
+**Four body types** ship, as two families of two: `male` with its slimmer cut
+`male_thin`, and `female` with its slimmer cut `female_thin`. The editor draws
+them as one column per family — the standard build, and the Thin one tucked
+under it.
+
+The male pair reads as a near-uniform block and a slighter version of the same.
+The female pair is an hourglass instead of a taper: narrow shoulders, a chest
+carried on two soft domes rather than a deeper box (so a shirt graphic still
+prints flat), a cinched waist, hips flared wider than the shoulders, a seat
+that rounds the profile out behind, and legs that are full at the thigh and
+slim at the calf. The waist sits higher than the male one, which leaves the
+legs 46% of the total height rather than 40%. `female_thin` is the same figure
+on a narrower frame, so the same flare reads harder rather than softer.
+
+The two female builds also carry **their own head** — 0.18 narrower and 0.18
+shallower than the shared one, with a slightly softer bevel baked for the
+smaller skull, because a head sized for the block build overhung the shoulders
+and jutted out in front of the chest on a slighter body.
+
+The hat anchor at the top of the head, the eye height and the hitbox are
+identical for all four, which is what guarantees every hat, face, shirt, pair
+of trousers and back item fits any build with no per-type variant. Switching
+build in the avatar editor never costs you an outfit.
+
+**The female builds walk differently.** On the male rigs the limbs swing from a
+trunk that stays put. On the female rigs the pelvis is an animated part in its
+own right: it slides across to sit over whichever leg is carrying the weight,
+lifts on the side the swinging leg hangs from, and turns with the stride while
+the shoulders turn against it. The feet track closer to the centre line than
+the hips are wide and roll very slightly inwards; the arms swing less and hang
+further from the body; and the whole thing carries a smaller vertical bounce.
+The idle is a held contrapposto that breathes rather than a body swaying
+between two feet. Every one of those is an offset applied at build time, so
+nothing about the geometry, the anchors or the hitbox moves and the same
+animation runs safely on a character wearing anything in the catalogue.
 
 ## Appearance and privacy
 
@@ -350,6 +379,17 @@ clicking any item tile.
 
 ## The rest of the site
 
+* **The friends panel on a profile** shows the first eight and folds the rest
+  away behind one Expand button, which is centred on its own line so it lands
+  under the thumb on a phone. The whole list is in the markup and the fold is
+  only applied once the script has run, so a reader without JavaScript gets
+  everything rather than a button that does nothing.
+* **The hotbar is a drag**, the same gesture and the same ghost as the pinned
+  items: pull an item out of the pool into one of the five seats, drop one seat
+  on another to swap them, or drag a seat back down into the pool to empty it.
+  Clicking still works exactly as it did. The Avatar Editor's cosmetic slots
+  stay a click, because a hat either is or is not on your head and there is
+  only one place it can go.
 * **Home.** The weekly spotlight banner is a greeting rather than furniture: it
   is claimed once per sign-in and then stays gone until the next one, so
   reloading the page (or coming back to it from a profile) does not re-serve
@@ -367,7 +407,14 @@ clicking any item tile.
   a note never costs you the page you were reading, and Back walks you straight
   out of the conversation. The "To" box has the same type-ahead the compose
   page does. A switch in `/settings` turns the whole bubble off; it is on by
-  default.
+  default. On a phone, opening a conversation raises the window — a list of
+  names reads fine in a short box and a conversation does not — and closing it
+  puts the box back. Both are capped by what is actually on screen rather than
+  by `vh`, because a phone keyboard does not resize the window: it covers the
+  bottom of it, and a `position: fixed` bubble stays happily underneath.
+  `visualViewport` is the only thing that knows, so its height and its offset
+  drive the panel's size and lift, and the conversation stays pinned to its
+  last message as the keyboard comes and goes.
 * **Character previews keep their own sky** in both themes — the profile
   preview, the welcome character and every avatar thumbnail in the friends,
   people and message lists. The rig is lit for a dark background, so an avatar

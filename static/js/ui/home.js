@@ -90,7 +90,8 @@
         return '<span class="chip">' + escapeHtml(chip.name) + '</span>';
       });
       chips.unshift('<span class="chip body">' +
-        (look.descriptor.body_type === 'female' ? 'Female' : 'Male') + '</span>');
+        escapeHtml((window.Avatar && Avatar.BODY_LABELS[look.descriptor.body_type])
+                   || 'Male') + '</span>');
       if (look.unusual) {
         chips.push('<span class="chip unusual">' +
                    escapeHtml(look.unusualName) + '</span>');

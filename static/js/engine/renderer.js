@@ -363,7 +363,7 @@
     this.staticBatches = {};
     this.transparent = {};
     var self = this;
-    ['box', 'rbox', 'rlimb', 'rhead', 'cyl', 'sph', 'cone', 'wedge',
+    ['box', 'rbox', 'rlimb', 'rhead', 'rheadf', 'cyl', 'sph', 'cone', 'wedge',
      'torus'].forEach(function (name) {
       self.dynamic[name] = new Batch(gl, self.meshes[name], self.program);
       self.dynamicGlass[name] = new Batch(gl, self.meshes[name], self.program);

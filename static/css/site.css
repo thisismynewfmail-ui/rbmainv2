@@ -675,6 +675,25 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
 }
 
+/* ------------------------------------------------------------ folded lists
+   A long list shows its first few and keeps the rest behind one button.  The
+   whole list is in the markup either way: the fold is only applied once the
+   script has run, so a reader without JavaScript gets everything rather than
+   a button that does nothing.  The button is centred on its own line, which
+   is what makes it land under the thumb on a phone rather than off in a
+   corner. */
+.folded .fold-extra { display: none; }
+.foldbar { display: flex; justify-content: center; margin-top: 9px; }
+.foldbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 132px; max-width: 100%;
+}
+.foldbtn .chev {
+  font-size: 8px; line-height: 1; transition: transform .2s ease;
+  position: relative; top: -1px;
+}
+.foldbtn.open .chev { transform: rotate(180deg); }
+
 /* --------------------------------------------------------------- item tiles */
 .itemgrid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 9px;
@@ -808,11 +827,6 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   position: absolute; bottom: 4px; right: 6px; font-size: 9px; color: #cfe0f0;
   background: rgba(10,20,30,.72); padding: 1px 5px; border-radius: 2px;
 }
-.avatar-view .tag3d {
-  position: absolute; top: 4px; right: 6px; font-size: 9px; font-weight: bold;
-  background: rgba(10,20,30,.72); border: 1px solid var(--preview-edge);
-  border-radius: 2px; padding: 1px 5px; color: #cfe0f0;
-}
 
 /* ------------------------------------------------------------------ swatches */
 .swatches { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
@@ -833,29 +847,60 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .slotpick .pick span { display: block; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slotpick .pick.unusual { border-color: var(--unusual); background: var(--tile-unusual); color: #fff; }
 
-/* body type picker */
+/* --------------------------------------------------------- body type picker
+   One column per family -- the standard build, and its slimmer "Thin" cut
+   underneath it.  The tall button lost most of its height when the Thin one
+   moved in below, so a column of two is no taller than the single button was
+   on its own and the panel does not grow. */
 .bodypick { display: flex; gap: 8px; }
+.bodycol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .bodyopt {
-  flex: 1 1 0; min-width: 0; cursor: pointer; font-family: inherit;
+  width: 100%; min-width: 0; cursor: pointer; font-family: inherit;
   background: var(--panel-alt); border: 1px solid var(--line-soft);
-  border-radius: 4px; padding: 8px 4px 6px; color: var(--ink);
+  border-radius: 4px; padding: 6px 4px 5px; color: var(--ink);
   transition: border-color .15s, box-shadow .15s, transform .12s;
 }
 .bodyopt:hover { transform: translateY(-1px); border-color: var(--line); }
 .bodyopt.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); background: var(--warn-bg); }
-.bodyopt .bodylabel { display: block; font-size: 10px; font-weight: bold; margin-top: 5px; }
-.bodyicon { display: block; width: 34px; height: 46px; margin: 0 auto; position: relative; }
+.bodyopt .bodylabel { display: block; font-size: 10px; font-weight: bold; margin-top: 4px; }
+/* the Thin cut is a compact strip: the same figure, drawn small, beside its
+   label rather than above it */
+.bodyopt.thin {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 4px 6px;
+}
+/* square, like the big one, so the same percentages draw the same figure
+   rather than a stretched one */
+.bodyopt.thin .bodyicon { width: 21px; height: 21px; margin: 0; flex: 0 0 auto; }
+.bodyopt.thin .bodylabel { margin-top: 0; }
+.bodyicon { display: block; width: 34px; height: 34px; margin: 0 auto; position: relative; }
 .bodyicon i { position: absolute; background: currentColor; border-radius: 3px; opacity: .85; }
 /* head */
-.bodyicon i:nth-child(1) { left: 50%; top: 0; width: 14px; height: 12px; margin-left: -7px; border-radius: 5px; }
+.bodyicon i:nth-child(1) { left: 50%; top: 0; width: 38%; height: 29%; margin-left: -19%;
+  border-radius: 40%; }
+/* hips: the female builds only, which is what carries the flare */
+.bodyicon i:nth-child(4) { display: none; }
 /* torso */
-.bodyicon.male i:nth-child(2) { left: 50%; top: 14px; width: 18px; height: 17px; margin-left: -9px; }
-.bodyicon.female i:nth-child(2) { left: 50%; top: 14px; width: 15px; height: 17px; margin-left: -7.5px;
-  border-radius: 5px 5px 7px 7px; }
+.bodyicon.male i:nth-child(2) { left: 50%; top: 32%; width: 53%; height: 35%; margin-left: -26.5%; }
+.bodyicon.male_thin i:nth-child(2) { left: 50%; top: 32%; width: 41%; height: 35%; margin-left: -20.5%;
+  border-radius: 12%; }
+.bodyicon.female i:nth-child(2), .bodyicon.female_thin i:nth-child(2) {
+  left: 50%; top: 31%; width: 35%; height: 29%; margin-left: -17.5%;
+  border-radius: 40% 40% 24% 24%;
+}
+.bodyicon.female_thin i:nth-child(2) { width: 29%; margin-left: -14.5%; }
 /* legs */
-.bodyicon.male i:nth-child(3) { left: 50%; top: 32px; width: 16px; height: 14px; margin-left: -8px; }
-.bodyicon.female i:nth-child(3) { left: 50%; top: 32px; width: 18px; height: 14px; margin-left: -9px;
-  border-radius: 8px 8px 3px 3px; }
+.bodyicon.male i:nth-child(3) { left: 50%; top: 66%; width: 47%; height: 34%; margin-left: -23.5%; }
+.bodyicon.male_thin i:nth-child(3) { left: 50%; top: 66%; width: 38%; height: 34%; margin-left: -19%; }
+.bodyicon.female i:nth-child(3), .bodyicon.female_thin i:nth-child(3) {
+  left: 50%; top: 68%; width: 32%; height: 32%; margin-left: -16%;
+}
+.bodyicon.female_thin i:nth-child(3) { width: 26%; margin-left: -13%; }
+.bodyicon.female i:nth-child(4), .bodyicon.female_thin i:nth-child(4) {
+  display: block; left: 50%; top: 57%; width: 50%; height: 16%; margin-left: -25%;
+  border-radius: 45% 45% 18% 18%;
+}
+.bodyicon.female_thin i:nth-child(4) { width: 44%; margin-left: -22%; }
 
 .hotbar { display: flex; gap: 6px; }
 .hotslot {
@@ -1053,12 +1098,16 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   position: fixed; right: 14px; bottom: 14px; z-index: 880;
   display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
 }
+/* A deeper blue than the chrome around it: the bubble floats over whatever
+   page is underneath, so it has to read as a control rather than as part of
+   the panel it happens to be sitting on. */
 .dock-toggle {
   display: flex; align-items: center; gap: 7px; cursor: pointer; font-family: inherit;
   font-size: 11px; font-weight: bold; color: #fff;
-  background: linear-gradient(#3d8fd0, #1d5f97); border: 1px solid #10405f;
+  background: linear-gradient(#1d5a94, #0d3a63);
+  border: 1px solid #07243d;
   border-radius: 22px; padding: 9px 14px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  box-shadow: 0 4px 14px rgba(0,0,0,.42);
   transition: transform .15s ease, box-shadow .15s ease;
 }
 .dock-toggle:hover { transform: translateY(-2px); box-shadow: 0 7px 18px rgba(0,0,0,.4); }
@@ -1073,6 +1122,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   display: none; flex-direction: column; overflow: hidden;
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
   box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  transition: max-height .3s cubic-bezier(.3, .8, .35, 1);
 }
 .dock.open .dock-panel { display: flex; animation: popin .18s ease-out; }
 .dock-panel .dock-head {
@@ -1169,13 +1219,41 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .panel-head { font-size: 11px; padding: 7px 10px; }
   .panel-body { padding: 9px; }
   .bubble { max-width: 88%; }
+  /* a thumb-sized target, centred, rather than a desktop-width pill */
+  .foldbar .foldbtn { width: 100%; max-width: 280px; padding: 9px 12px; font-size: 12px; }
   .slotpick .pick { width: calc(25% - 5px); }
   .slotpick .pick canvas { width: 100%; height: auto; aspect-ratio: 1/1; }
   .hotslot { min-height: 70px; }
   /* Up off the very bottom edge, clear of a home indicator and of the
-     browser's own bottom chrome. */
-  .dock { right: 10px; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
-  .dock-panel { width: calc(100vw - 20px); max-height: 66vh; }
+     browser's own bottom chrome -- and, while a keyboard is up, off the top
+     of the keyboard as well.  --dock-lift is how far the on-screen keyboard
+     has eaten into the window; site.js measures it from visualViewport,
+     which is the only thing on a phone that actually knows. */
+  .dock {
+    right: 10px; bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(calc(-1 * var(--dock-lift, 0px)));
+    transition: transform .2s ease;
+  }
+  /* Opening a conversation raises the window: a list of names reads fine in
+     a short box, a conversation does not.  Closing it puts the box back.
+     Both are capped by what is actually on screen (--vvh is the visual
+     viewport, so it shrinks with the keyboard), which is what stops the
+     panel growing up past the top of the window on a small phone. */
+  .dock-panel {
+    width: calc(100vw - 20px); min-height: 0;
+    max-height: min(58vh, calc(var(--vvh, 100vh) - 96px));
+    transition: min-height .3s cubic-bezier(.3, .8, .35, 1),
+                max-height .3s cubic-bezier(.3, .8, .35, 1);
+  }
+  /* min-height rather than max-height, because a panel that is only capped
+     stays the size of its own contents -- and a conversation with two lines
+     in it is shorter than the list of names it replaced, which is the exact
+     opposite of what opening one should do. */
+  .dock.dm-open .dock-panel {
+    min-height: min(78vh, calc(var(--vvh, 100vh) - 96px));
+    max-height: min(86vh, calc(var(--vvh, 100vh) - 96px));
+  }
+  .dock-thread { min-height: 80px; }
   .dock ~ #site-toasts, body.has-dock #site-toasts {
     bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
@@ -1321,7 +1399,7 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   box-shadow: inset 0 0 60px rgba(0,0,0,.35);
 }
 /* the stage is dark in both themes, so its labels are light in both */
-.avatar-view.hero-avatar .hint, .avatar-view.hero-avatar .tag3d {
+.avatar-view.hero-avatar .hint {
   background: rgba(6,18,30,.6); color: #cfe0f0; border-color: rgba(140,190,240,.3);
 }
 .hero-look { text-align: center; min-height: 34px; }
@@ -1377,12 +1455,26 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .profile-row .p-posts     { order: 8; }
   .profile-row .p-wall      { order: 9; }
 
+  /* Avatar editor: the character, then the build, then the things you put on
+     it -- the item picker and the hotbar -- and the colour swatches last.
+     Six colour groups is a long scroll to push past on a phone before
+     reaching the wardrobe, and the wardrobe is what people came for. */
+  .avatar-row {
+    display: flex; flex-direction: column; flex-wrap: nowrap;
+    align-items: stretch; gap: 0;
+  }
+  .avatar-row > .col, .avatar-row > .col-side { display: contents; }
+  .avatar-row .av-preview { order: 1; }
+  .avatar-row .av-build   { order: 2; }
+  .avatar-row .av-items   { order: 3; }
+  .avatar-row .av-hotbar  { order: 4; }
+  .avatar-row .av-colors  { order: 5; }
+
   /* Welcome page: the pitch, then the size of the place, then the detail. */
   .landing-row .l-stats   { order: 1; }
   .landing-row .l-worlds  { order: 2; }
   .landing-row .l-how     { order: 3; }
-  .landing-row .l-unusual { order: 4; }
-  .landing-row .l-newest  { order: 5; }
+  .landing-row .l-newest  { order: 4; }
 
   /* Signed-in home: people you can reach, then the inbox, then friends. */
   .home-side {
@@ -1555,18 +1647,47 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .pin-pool .pick:active { cursor: grabbing; }
 .pin-pool.over { outline: 2px dashed var(--line); outline-offset: 3px; border-radius: 4px; }
 .pin-pool .pick.dragging, .pin-targets .pinslot.dragging { opacity: .35; }
-body.pin-dragging { user-select: none; -webkit-user-select: none; }
-.pin-ghost {
+body.pin-dragging, body.item-dragging { user-select: none; -webkit-user-select: none; }
+/* The ghost that follows the pointer.  Shared, because the gesture is:
+   whatever you are dragging -- a pin or a hotbar item -- picks up the same
+   tile and drops it the same way. */
+.pin-ghost, .drag-ghost {
   position: fixed; top: 0; left: 0; z-index: 1200; pointer-events: none;
   width: 68px; padding: 4px; text-align: center; border-radius: 4px;
   background: var(--panel); border: 1px solid var(--gold);
   box-shadow: 0 8px 20px rgba(0,0,0,.4); opacity: .95;
 }
-.pin-ghost canvas { width: 56px; height: 56px; display: block; margin: 0 auto; }
-.pin-ghost span {
+.pin-ghost canvas, .drag-ghost canvas {
+  width: 56px; height: 56px; display: block; margin: 0 auto;
+}
+.pin-ghost span, .drag-ghost span {
   display: block; font-size: 9px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   THE HOTBAR -- drag and drop
+   The five seats are an arrangement, not a set of switches, so setting them
+   up is the same drag as the pinned items: pull an item out of the pool into
+   a seat, drop one seat on another to swap them, and drag a seat back down
+   into the pool to empty it.  Clicking still works exactly as it did.
+   ========================================================================== */
+/* The tiles themselves claim the gesture, so a drag never turns into a page
+   scroll halfway through -- but the gaps around them do not, so a thumb that
+   lands between two tiles still scrolls the page. */
+.hotbar .hotslot, #usable-pool .pick { touch-action: none; }
+.hotslot.filled { cursor: grab; }
+.hotslot.filled:active { cursor: grabbing; }
+.hotslot.picked { outline: 2px solid var(--focus); outline-offset: 1px; }
+.hotslot.over {
+  border-color: var(--gold); background: var(--warn-bg);
+  box-shadow: 0 0 0 2px var(--gold); transform: translateY(-2px);
+}
+.hotslot { transition: border-color .15s ease, background .15s ease, transform .12s ease; }
+#usable-pool .pick { cursor: grab; }
+#usable-pool .pick:active { cursor: grabbing; }
+#usable-pool.over { outline: 2px dashed var(--line); outline-offset: 3px; border-radius: 4px; }
+#usable-pool .pick.dragging, .hotslot.dragging { opacity: .35; }
 
 /* ==========================================================================
    ADMIN -- the connection map

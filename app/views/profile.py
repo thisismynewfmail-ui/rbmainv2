@@ -10,6 +10,13 @@ from .base import (api_error, api_ok, flash_redirect, login_required, render,
                    router)
 
 
+# The friends panel on a profile shows the first eight and folds the rest
+# away behind an Expand button; the fold is client side, so the page carries
+# however many are fetched here.
+PROFILE_FRIENDS = 48
+PROFILE_FRIENDS_SHOWN = 8
+
+
 def _profile_or_404(username: str):
     return users.get_by_username(username)
 
@@ -54,7 +61,12 @@ def profile(req: Request, username: str = ""):
         friend_status=friends.status_for(viewer, pid) if viewer else "none",
         following=follows.is_following(viewer, pid) if viewer else False,
         follow_counts=follows.counts(pid),
-        friends_list=friends.list_friends(pid, 12) if visible("friends_list") else [],
+        # The panel shows PROFILE_FRIENDS_SHOWN and folds the rest away behind
+        # an Expand button, so the list is worth fetching deeper than the
+        # eight that are on screen.
+        friends_list=(friends.list_friends(pid, PROFILE_FRIENDS)
+                      if visible("friends_list") else []),
+        friends_shown=PROFILE_FRIENDS_SHOWN,
         show_friends=visible("friends_list"),
         friend_count=friends.count_friends(pid),
         mutuals=len(friends.mutual_friends(viewer, pid)) if viewer else 0,

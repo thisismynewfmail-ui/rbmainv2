@@ -54,7 +54,6 @@
 
     <div class="hero-stage">
       <div class="avatar-view hero-avatar" data-avatar-hero="1">
-        <span class="tag3d">3D</span>
         <span class="hint">drag to spin</span>
       </div>
       <div class="hero-look">
@@ -83,8 +82,8 @@
           <div class="step"><span class="n">1</span><h3>Make an account</h3>
             <p class="muted">You start with 2,000 credits and the standard kit.</p></div>
           <div class="step"><span class="n">2</span><h3>Build your avatar</h3>
-            <p class="muted">Two body types, six colourable parts, hats, faces, shirts,
-              pants and a back slot &mdash; every cosmetic fits both builds.</p></div>
+            <p class="muted">Four body types, six colourable parts, hats, faces, shirts,
+              pants and a back slot &mdash; every cosmetic fits every build.</p></div>
           <div class="step"><span class="n">3</span><h3>Set your hotbar</h3>
             <p class="muted">Five usable slots. Pistol, shotgun and stick to begin with.</p></div>
           <div class="step"><span class="n">4</span><h3>Load a world</h3>
@@ -106,21 +105,6 @@
           <div><dt>Friendships</dt><dd>{{ fmt_num(site_stats.friendships) }}</dd></div>
           <div><dt>Unusuals</dt><dd>{{ fmt_num(site_stats.unusuals) }}</dd></div>
         </dl>
-      </div>
-    </div>
-
-    <div class="panel l-unusual">
-      <div class="panel-head purple">Unusual sightings</div>
-      <div class="panel-body">
-        {% if showcase %}
-        <div class="tablewrap"><table class="grid">
-          {% for row in showcase %}
-          <tr><td><a href="/profile/{{ row.username }}">{{ row.username }}</a></td>
-              <td><span class="pill purple">{{ row.name }}</span></td>
-              <td class="tiny muted">{{ row.effect_name }}</td></tr>
-          {% endfor %}
-        </table></div>
-        {% else %}<p class="muted">Nobody has pulled one yet. 0.5% is 0.5%.</p>{% endif %}
       </div>
     </div>
 

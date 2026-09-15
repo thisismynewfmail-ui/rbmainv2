@@ -57,7 +57,7 @@ SPOTLIGHTS: List[Dict[str, Any]] = [
         "id": "loadout_lab",
         "kicker": "This week",
         "title": "Loadout Lab",
-        "blurb": "Five hotbar slots, one body type, six colourable parts. Rebuild "
+        "blurb": "Five hotbar slots, four builds, six colourable parts. Rebuild "
                  "yourself before the next round.",
         "cta": "Open the avatar editor",
         "href": "/avatar",

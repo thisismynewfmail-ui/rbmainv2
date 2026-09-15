@@ -3,13 +3,12 @@
 <div class="notice info">Welcome to {{ SITE_NAME }}! This is your avatar editor &mdash; pick your colours,
 put on a hat, then set up the five hotbar slots you take into a world.</div>
 {% endif %}
-<div class="row">
+<div class="row avatar-row">
   <div class="col-side">
-    <div class="panel">
+    <div class="panel av-preview">
       <div class="panel-head">Avatar preview</div>
       <div class="panel-body">
         <div class="avatar-view" style="height:340px" id="avatar-preview" data-avatar="{{ to_json(avatar) }}">
-          <span class="tag3d">3D</span>
           <span class="hint">drag to rotate &bull; scroll to zoom</span>
         </div>
         <div class="spread" style="margin-top:8px">
@@ -32,24 +31,35 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel av-build">
       <div class="panel-head">Body type</div>
       <div class="panel-body">
+        <!-- One column per family: the standard build on top, and its
+             slimmer "Thin" cut tucked underneath it.  The tall button is
+             shorter than it used to be so the pair together take no more
+             room than the single button did. -->
         <div class="bodypick">
-          {% for bt in body_types %}
-          <button class="bodyopt {{ 'on' if raw.body_type == bt else '' }}"
-                  data-body="{{ bt }}">
-            <span class="bodyicon {{ bt }}" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span class="bodylabel">{{ body_type_labels[bt] }}</span>
-          </button>
+          {% for g in body_type_groups %}
+          <div class="bodycol">
+            <button class="bodyopt {{ 'on' if raw.body_type == g.base else '' }}"
+                    data-body="{{ g.base }}">
+              <span class="bodyicon {{ g.base }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <span class="bodylabel">{{ g.label }}</span>
+            </button>
+            <button class="bodyopt thin {{ 'on' if raw.body_type == g.thin else '' }}"
+                    data-body="{{ g.thin }}" title="{{ g.label }} &mdash; slimmer build">
+              <span class="bodyicon {{ g.thin }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <span class="bodylabel">{{ g.thin_label }}</span>
+            </button>
+          </div>
           {% endfor %}
         </div>
-        <p class="tiny muted" style="margin-top:6px">Both builds share the same head and
-          the same hitbox, so every hat, face and outfit you own fits either one.</p>
+        <p class="tiny muted" style="margin-top:6px">All four builds share the same head
+          anchor and the same hitbox, so every hat, face and outfit you own fits any of them.</p>
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel av-colors">
       <div class="panel-head gold">Body colours</div>
       <div class="panel-body" id="body-colors">
         {% for part in body_parts %}
@@ -74,7 +84,7 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
   </div>
 
   <div class="col">
-    <div class="panel">
+    <div class="panel av-items">
       <div class="panel-head">
         <span>Avatar Editor</span>
         <span class="head-links"><a href="/market">Explore the market to find more clothes</a></span>
@@ -109,7 +119,7 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel av-hotbar">
       <div class="panel-head green">Hotbar &mdash; your five usable slots</div>
       <div class="panel-body">
         <p class="muted">These are the items you carry into a world. Press <b>1</b>&ndash;<b>5</b> in game to switch.</p>
@@ -132,8 +142,9 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
           </div>
           {% endfor %}
         </div>
-        <p class="tiny muted" style="margin-top:6px">Click a hotbar slot, then click an item to put it there.
-           Click a slot and press <b>Clear</b> to empty it.</p>
+        <p class="tiny muted" style="margin-top:6px">Drag an item into a slot &mdash; or drop one
+           slot on another to swap them, and drag a slot back down here to empty it.
+           Clicking works too: pick a slot, then pick an item.</p>
         <button class="btn small" id="clear-slot">Clear selected slot</button>
         <span id="hotbar-status" class="muted"></span>
       </div>

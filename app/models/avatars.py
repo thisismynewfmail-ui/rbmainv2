@@ -80,11 +80,11 @@ def _save(user_id: int, colors: Dict[str, str], equipped: Dict[str, int],
 
 
 def set_body_type(user_id: int, body_type: str) -> str:
-    """Switch between the male and female rigs.
+    """Switch between the four rigs (male/female, standard or Thin).
 
-    Nothing else changes: both rigs share the same head, the same head-top
-    anchor and the same hitbox, so every hat, face and outfit already owned
-    carries straight over.
+    Nothing else changes: every rig shares the same head-top hat anchor, the
+    same eye height and the same hitbox, so every hat, face and outfit
+    already owned carries straight over.
     """
     body_type = str(body_type or "").lower()
     if body_type not in catalog.BODY_TYPES:
