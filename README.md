@@ -291,36 +291,62 @@ plus `face`, `hat`, `shirt`, `pants` and `back` cosmetic slots and five
 market thumbnails and the game itself, so anything added to the catalogue shows
 up everywhere at once.
 
-The rig is built from rounded boxes rather than hard cubes — a short neck, a
-tapered torso, softened limbs and feet — so a bare default character has a
-silhouette instead of reading as a stack of blocks. The torso segments overlap
-by more than their own bevels, which is what stops the joins showing as
-grooves; the arms are rectangular in section rather than square posts; and the
-head is wider than it is tall, sat down on the shoulders.
+There are two ways of making a part. The male builds are rounded boxes rather
+than hard cubes — a short neck, a tapered torso, softened limbs and feet — so a
+bare default character has a silhouette instead of reading as a stack of
+blocks. The torso segments overlap by more than their own bevels, which is what
+stops the joins showing as grooves; the arms are rectangular in section rather
+than square posts; and the head is wider than it is tall, sat down on the
+shoulders. The female builds are lofted surfaces instead; see below.
 
 **Four body types** ship, as two families of two: `male` with its slimmer cut
 `male_thin`, and `female` with its slimmer cut `female_thin`. The editor draws
 them as one column per family — the standard build, and the Thin one tucked
 under it.
 
-The male pair reads as a near-uniform block and a slighter version of the same.
-The female pair is an hourglass instead of a taper: narrow shoulders, a chest
-carried on two soft domes rather than a deeper box (so a shirt graphic still
-prints flat), a cinched waist, hips flared wider than the shoulders, a seat
-that rounds the profile out behind, and legs that are full at the thigh and
-slim at the calf. The waist sits higher than the male one, which leaves the
-legs 46% of the total height rather than 40%. `female_thin` is the same figure
-on a narrower frame, so the same flare reads harder rather than softer.
+The male pair is a stack of rounded boxes, which is the right shape for them.
+**The female pair is not.** A curve made by pushing a sphere into a box is a
+sphere in a box — the join shows, the shading breaks along it, and the piece
+reads as stuck on, because it is. So the female builds are made the other way
+round: one profile is authored down the whole figure, and `Geometry.loft`
+sweeps a single unbroken skin through it.
 
-The two female builds also carry **their own head** — 0.18 narrower and 0.18
-shallower than the shared one, with a slightly softer bevel baked for the
-smaller skull, because a head sized for the block build overhung the shoulders
-and jutted out in front of the chest on a slighter body.
+A profile is a stack of cross sections, each a superellipse ring with its own
+half width, its own front and back depth and its own corner sharpness. The
+bust is the front depth rising and falling through the chest rings with a
+gaussian cleft pressed into the centre line; the seat is the back depth rising
+through the hip rings; the waist is the width coming in between them. Nothing
+is attached, so nothing can come unstuck. The rings are interpolated with a
+monotone cubic rather than a Catmull-Rom, because a spline that overshoots
+puts a bulge on a body where none was authored.
+
+The surface is cut in two only where the clothes cut it — at the hip line, so
+the top and the trousers can be different colours. Both pieces are sliced out
+of the same curve and their normals are measured across the join rather than
+at it, so the seam is a colour change on one continuous body rather than a
+joint. `female_thin` is the same figure on a narrower frame: the shoulders,
+ribcage and bust come in, the hip and the seat barely move, so the flare reads
+harder rather than softer.
+
+Everything the clothes need follows the same rule. A printed graphic is a
+patch of the chest's own surface lifted 9mm off it, so it curves with the
+body. A hem and a trouser stripe are bands and lengthways patches of the same
+surface. A short sleeve or a pair of shorts is a garment standing off the
+limb, because that is what a short sleeve is — not the arm painted a different
+colour half way down.
+
+The two female builds also carry **their own head**, lofted the same way: a
+rounded cranium, temples that come in above the cheekbone, a soft cheek and a
+jaw that tapers to a small round chin. The male head has no taper below the
+cheekbone at all, which is most of what separates the two. The face plate
+between the cheekbones is held flat (a superellipse exponent above 3) so its
+surface normals still face front, which is what every face decal in the
+catalogue needs to land on.
 
 The hat anchor at the top of the head, the eye height and the hitbox are
-identical for all four, which is what guarantees every hat, face, shirt, pair
-of trousers and back item fits any build with no per-type variant. Switching
-build in the avatar editor never costs you an outfit.
+identical for all four builds, which is what guarantees every hat, face,
+shirt, pair of trousers and back item fits any of them with no per-type
+variant. Switching build in the avatar editor never costs you an outfit.
 
 **The female builds walk differently.** On the male rigs the limbs swing from a
 trunk that stays put. On the female rigs the pelvis is an animated part in its
