@@ -34,28 +34,25 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
     <div class="panel av-build">
       <div class="panel-head">Body type</div>
       <div class="panel-body">
-        <!-- One column per family: the standard build on top, and its
-             slimmer "Thin" cut tucked underneath it.  The tall button is
-             shorter than it used to be so the pair together take no more
-             room than the single button did. -->
-        <div class="bodypick">
-          {% for g in body_type_groups %}
-          <div class="bodycol">
-            <button class="bodyopt {{ 'on' if raw.body_type == g.base else '' }}"
-                    data-body="{{ g.base }}">
-              <span class="bodyicon {{ g.base }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-              <span class="bodylabel">{{ g.label }}</span>
-            </button>
-            <button class="bodyopt thin {{ 'on' if raw.body_type == g.thin else '' }}"
-                    data-body="{{ g.thin }}" title="{{ g.label }} &mdash; slimmer build">
-              <span class="bodyicon {{ g.thin }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-              <span class="bodylabel">{{ g.thin_label }}</span>
-            </button>
-          </div>
+        <!-- Two builds, so two buttons: equal halves of one row, each a
+             figure of that build over its own label.  They are sized from
+             the row rather than from a fixed width, so the pair fills the
+             panel on a desktop sidebar and on a phone alike. -->
+        <div class="bodypick" role="group" aria-label="Body type">
+          {% for option in body_type_options %}
+          <button class="bodyopt {{ 'on' if raw.body_type == option.id else '' }}"
+                  type="button" data-body="{{ option.id }}"
+                  aria-pressed="{{ 'true' if raw.body_type == option.id else 'false' }}"
+                  title="{{ option.label }} &mdash; {{ option.hint.lower() }}">
+            <span class="bodyicon {{ option.id }}" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="bodylabel">{{ option.label }}</span>
+            <span class="bodyhint">{{ option.hint }}</span>
+          </button>
           {% endfor %}
         </div>
-        <p class="tiny muted" style="margin-top:6px">All four builds share the same head
-          anchor and the same hitbox, so every hat, face and outfit you own fits any of them.</p>
+        <p class="tiny muted" style="margin-top:6px">Both builds share the same head
+          anchor and the same hitbox, so every hat, face and outfit you own fits either
+          of them.</p>
       </div>
     </div>
 

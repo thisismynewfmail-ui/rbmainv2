@@ -89,9 +89,12 @@
       var chips = look.chips.slice(0, 4).map(function (chip) {
         return '<span class="chip">' + escapeHtml(chip.name) + '</span>';
       });
+      // named by the build the rig actually drew, so the chip cannot disagree
+      // with the character standing on the stage
+      var build = window.Avatar
+        ? Avatar.BODY_LABELS[Avatar.bodyType(look.descriptor)] : '';
       chips.unshift('<span class="chip body">' +
-        escapeHtml((window.Avatar && Avatar.BODY_LABELS[look.descriptor.body_type])
-                   || 'Male') + '</span>');
+        escapeHtml(build || 'Male') + '</span>');
       if (look.unusual) {
         chips.push('<span class="chip unusual">' +
                    escapeHtml(look.unusualName) + '</span>');

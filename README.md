@@ -4,7 +4,7 @@ A complete block-world game platform written in **pure Python 3 (standard
 library only)** and **vanilla JavaScript**. It has two halves:
 
 * **The UI** — the website: accounts, profiles with a live 3D character, an
-  avatar editor with four body types, an item market with Unusual rolls, an
+  avatar editor with two body types, an item market with Unusual rolls, an
   inventory bound to your account, friends/followers/posts/comments/messages,
   a world browser and an administrator dashboard. It has a hand-built dark
   theme and a phone layout, because the site half is meant to work from a
@@ -291,74 +291,53 @@ plus `face`, `hat`, `shirt`, `pants` and `back` cosmetic slots and five
 market thumbnails and the game itself, so anything added to the catalogue shows
 up everywhere at once.
 
-There are two ways of making a part. The male builds are rounded boxes rather
-than hard cubes — a short neck, a tapered torso, softened limbs and feet — so a
-bare default character has a silhouette instead of reading as a stack of
-blocks. The torso segments overlap by more than their own bevels, which is what
-stops the joins showing as grooves; the arms are rectangular in section rather
-than square posts; and the head is wider than it is tall, sat down on the
-shoulders. The female builds are lofted surfaces instead; see below.
+Both builds are made the same way: rounded boxes rather than hard cubes — a
+short neck, a tapered torso, softened limbs and feet — so a bare default
+character has a silhouette instead of reading as a stack of blocks. The torso
+segments overlap by more than their own bevels, which is what stops the joins
+showing as grooves; the arms are rectangular in section rather than square
+posts; and the head is wider than it is tall, sat down on the shoulders.
 
-**Four body types** ship, as two families of two: `male` with its slimmer cut
-`male_thin`, and `female` with its slimmer cut `female_thin`. The editor draws
-them as one column per family — the standard build, and the Thin one tucked
-under it.
-
-The male pair is a stack of rounded boxes, which is the right shape for them.
-**The female pair is not.** A curve made by pushing a sphere into a box is a
-sphere in a box — the join shows, the shading breaks along it, and the piece
-reads as stuck on, because it is. So the female builds are made the other way
-round: one profile is authored down the whole figure, and `Geometry.loft`
-sweeps a single unbroken skin through it.
-
-A profile is a stack of cross sections, each a superellipse ring with its own
-half width, its own front and back depth and its own corner sharpness. The
-bust is the front depth rising and falling through the chest rings with a
-gaussian cleft pressed into the centre line; the seat is the back depth rising
-through the hip rings; the waist is the width coming in between them. Nothing
-is attached, so nothing can come unstuck. The rings are interpolated with a
-monotone cubic rather than a Catmull-Rom, because a spline that overshoots
-puts a bulge on a body where none was authored.
-
-The surface is cut in two only where the clothes cut it — at the hip line, so
-the top and the trousers can be different colours. Both pieces are sliced out
-of the same curve and their normals are measured across the join rather than
-at it, so the seam is a colour change on one continuous body rather than a
-joint. `female_thin` is the same figure on a narrower frame: the shoulders,
-ribcage and bust come in, the hip and the seat barely move, so the flare reads
-harder rather than softer.
-
-Everything the clothes need follows the same rule. A printed graphic is a
-patch of the chest's own surface lifted 9mm off it, so it curves with the
-body. A hem and a trouser stripe are bands and lengthways patches of the same
-surface. A short sleeve or a pair of shorts is a garment standing off the
-limb, because that is what a short sleeve is — not the arm painted a different
-colour half way down.
-
-The two female builds also carry **their own head**, lofted the same way: a
-rounded cranium, temples that come in above the cheekbone, a soft cheek and a
-jaw that tapers to a small round chin. The male head has no taper below the
-cheekbone at all, which is most of what separates the two. The face plate
-between the cheekbones is held flat (a superellipse exponent above 3) so its
-surface normals still face front, which is what every face decal in the
-catalogue needs to land on.
+**Two body types** ship: `male`, the broader one, and `female`, the slighter
+one — narrow shoulders, a real waist, hips back out to shoulder width and
+slimmer, slightly longer limbs. The editor draws them as two buttons side by
+side, each a figure at that build's proportions above its name.
 
 The hat anchor at the top of the head, the eye height and the hitbox are
-identical for all four builds, which is what guarantees every hat, face,
-shirt, pair of trousers and back item fits any of them with no per-type
-variant. Switching build in the avatar editor never costs you an outfit.
+identical on both, which is what guarantees every hat, face, shirt, pair of
+trousers and back item fits either with no per-type variant. Switching build in
+the avatar editor never costs you an outfit. Cosmetics that colour the body —
+shirt torsos and sleeves, trouser legs, cuffs and stripes — are driven from the
+build's own measurements, so they follow whichever silhouette is in use.
 
-**The female builds walk differently.** On the male rigs the limbs swing from a
-trunk that stays put. On the female rigs the pelvis is an animated part in its
+**The female build walks differently.** On the male rig the limbs swing from a
+trunk that stays put. On the female rig the pelvis is an animated part in its
 own right: it slides across to sit over whichever leg is carrying the weight,
 lifts on the side the swinging leg hangs from, and turns with the stride while
-the shoulders turn against it. The feet track closer to the centre line than
-the hips are wide and roll very slightly inwards; the arms swing less and hang
-further from the body; and the whole thing carries a smaller vertical bounce.
-The idle is a held contrapposto that breathes rather than a body swaying
-between two feet. Every one of those is an offset applied at build time, so
+the shoulders turn against it. The feet track a little closer to the centre
+line than the hips are wide and roll very slightly inwards; the arms swing less
+and hang a touch further from the body; and the whole thing carries a smaller
+vertical bounce. The idle is a held contrapposto that breathes rather than a
+body swaying between two feet.
+
+Every one of those is a small number on purpose. The gait was first authored
+for a figure with a much wider hip than the build now uses, and at that size it
+read as a catwalk rather than as walking; the pelvis channels are half what
+they were, and the stance barely narrows at all, because these legs already
+stand close together. Every field is an offset applied at build time, so
 nothing about the geometry, the anchors or the hitbox moves and the same
 animation runs safely on a character wearing anything in the catalogue.
+
+`Avatar.pose` is a pure function of the animation state, so a character
+changing state would otherwise snap from one pose to the next on a single
+frame. Callers that can keep one object per character — the game client, for
+every player it draws, and the live previews — run it through
+`Avatar.smoothPose` instead. It is a cross-fade rather than a filter on the
+output: while a change is in flight both states are evaluated at the live clock
+and mixed over about a sixth of a second, so a steady walk or run comes through
+exactly as authored — no lag, no damping — and only the crossing is smoothed.
+Changing build resets it (`Avatar.resetPose`), because crossing between two
+gaits on two different bodies is not a transition, it is a cut.
 
 ## Appearance and privacy
 
