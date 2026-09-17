@@ -92,10 +92,28 @@ def retire_effects() -> None:
                   % (moved, dead))
 
 
+def retire_body_types() -> None:
+    """Move accounts off builds that no longer ship.
+
+    ``catalog.RETIRED_BODY_TYPES`` names the replacement for each one.  The
+    readers normalise on the way out anyway, so this is about the stored row
+    agreeing with what the editor shows rather than about rendering.
+    """
+    for dead, replacement in catalog.RETIRED_BODY_TYPES.items():
+        if replacement not in catalog.BODY_TYPES:
+            continue
+        moved = db.execute("UPDATE avatars SET body_type=? WHERE body_type=?",
+                           (replacement, dead)).rowcount
+        if moved:
+            print("[seed] moved %d character%s off the retired '%s' build"
+                  % (moved, "" if moved == 1 else "s", dead))
+
+
 def seed() -> None:
     db.init_db()
     sync_catalog()
     retire_effects()
+    retire_body_types()
     worlds.ensure_rows()
     _seed_admin()
     _seed_admin_test()

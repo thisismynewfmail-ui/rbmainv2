@@ -344,15 +344,24 @@
     });
 
     // ----------------------------------------------------------- body type
+    function markBody(chosen) {
+      document.querySelectorAll('[data-body]').forEach(function (other) {
+        var on = other === chosen;
+        other.classList.toggle('on', on);
+        other.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+
     document.querySelectorAll('[data-body]').forEach(function (button) {
       button.addEventListener('click', function () {
         if (button.classList.contains('on')) return;
         Site.post('/api/avatar/body', { body_type: button.dataset.body })
           .then(function (res) {
             if (!res.ok) { Site.toast(res.error, 'bad'); return; }
-            document.querySelectorAll('[data-body]').forEach(function (other) {
-              other.classList.toggle('on', other === button);
-            });
+            // the server has the last word on which build was applied, so a
+            // retired one posted by a stale page still lights the right button
+            markBody(document.querySelector('[data-body="' + res.body_type + '"]')
+                     || button);
             // mannequin previews in the slot pickers follow the chosen build
             if (window.Thumbs) {
               Thumbs.mannequinBody = res.body_type;

@@ -176,24 +176,40 @@ DEFAULT_COLORS: Dict[str, str] = {
 
 BODY_PARTS = ["head", "torso", "left_arm", "right_arm", "left_leg", "right_leg"]
 
-# Four builds ship, as two families of two: a standard build and a slimmer
-# "Thin" cut of each.  Every one of them shares the head-top hat anchor, the
-# eye height and the hitbox, so every cosmetic in the catalogue fits all four
-# without a per-type variant and switching build never costs an outfit.
-BODY_TYPES = ["male", "male_thin", "female", "female_thin"]
-BODY_TYPE_LABELS = {
-    "male": "Male", "male_thin": "Thin",
-    "female": "Female", "female_thin": "Thin",
-}
-# How the editor draws the picker: one column per family, the standard build
-# on top and its Thin cut tucked underneath it.
-BODY_TYPE_GROUPS = [
-    {"id": "male", "label": "Male", "base": "male", "thin": "male_thin",
-     "thin_label": "Thin"},
-    {"id": "female", "label": "Female", "base": "female", "thin": "female_thin",
-     "thin_label": "Thin"},
+# Two builds ship: "male" (the broader block build) and "female" (the
+# slighter one, which is the build that used to be listed as "Male Thin").
+# Both share the head-top hat anchor, the eye height and the hitbox, so every
+# cosmetic in the catalogue fits both without a per-type variant and switching
+# build never costs an outfit.
+BODY_TYPES = ["male", "female"]
+BODY_TYPE_LABELS = {"male": "Male", "female": "Female"}
+# How the editor draws the picker: two buttons, side by side.
+BODY_TYPE_OPTIONS = [
+    {"id": "male", "label": "Male", "hint": "Broader build"},
+    {"id": "female", "label": "Female", "hint": "Slighter build"},
 ]
 DEFAULT_BODY_TYPE = "male"
+
+# Builds that no longer ship, and what an account holding one becomes.  The
+# retired female cut lands on the female build that replaced it, and the
+# retired slim male cut lands on "male" -- that build is what the female
+# option is drawn from now, so moving those players onto it would have
+# changed the character they picked rather than the shape of it.
+# ``bootstrap.retire_body_types`` rewrites stored rows on boot and
+# ``normalize_body_type`` covers anything read before it runs.
+RETIRED_BODY_TYPES = {
+    "male_thin": "male",
+    "female_thin": "female",
+}
+
+
+def normalize_body_type(value: Any) -> str:
+    """Map anything stored or posted onto a build that still ships."""
+    key = str(value or "").strip().lower()
+    if key in BODY_TYPES:
+        return key
+    return RETIRED_BODY_TYPES.get(key, DEFAULT_BODY_TYPE)
+
 
 SLOTS = ["face", "hat", "shirt", "pants", "back"]
 HOTBAR_SIZE = 5

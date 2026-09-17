@@ -31,7 +31,7 @@ def avatar_editor(req: Request):
         tiers=catalog.TIERS,
         body_types=catalog.BODY_TYPES,
         body_type_labels=catalog.BODY_TYPE_LABELS,
-        body_type_groups=catalog.BODY_TYPE_GROUPS,
+        body_type_options=catalog.BODY_TYPE_OPTIONS,
     )
 
 

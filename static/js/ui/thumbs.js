@@ -620,6 +620,13 @@
   };
 
   LivePreview.prototype.setDescriptor = function (descriptor) {
+    // A different build walks differently, so easing out of the old one's
+    // pose would be easing between two gaits.  Changing build starts the new
+    // character in its own pose; everything else (a colour, a hat) keeps the
+    // pose it is holding.
+    if (Avatar.bodyType(descriptor) !== Avatar.bodyType(this.descriptor)) {
+      Avatar.resetPose(this);
+    }
     this.descriptor = descriptor;
   };
 
@@ -653,8 +660,11 @@
     this.renderer.resize();
     var parts = Avatar.build(this.descriptor, {
       position: [0, swap.lift, 0], yaw: 0, time: this.time,
-      pose: Avatar.pose(this.poseState, this.time, this.poseSpeed,
-                        this.descriptor)
+      // the preview keeps its own pose between frames, so switching the
+      // posed state (or rolling a look with a different gait) eases across
+      // instead of cutting
+      pose: Avatar.smoothPose(this, this.poseState, this.time, this.poseSpeed,
+                              this.descriptor, dt)
     });
     if (swap.alpha < 0.999) {
       for (var pi = 0; pi < parts.length; pi++) {

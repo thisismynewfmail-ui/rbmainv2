@@ -57,9 +57,8 @@ def raw_avatar(user_id: int) -> Dict[str, Any]:
         value = equipped.get(slot)
         if isinstance(value, (int, float)) and int(value) > 0:
             clean_equipped[slot] = int(value)
-    body_type = row["body_type"] if "body_type" in row.keys() else ""
-    if body_type not in catalog.BODY_TYPES:
-        body_type = catalog.DEFAULT_BODY_TYPE
+    body_type = catalog.normalize_body_type(
+        row["body_type"] if "body_type" in row.keys() else "")
     return {"user_id": user_id, "colors": merged, "equipped": clean_equipped,
             "hotbar": hotbar, "body_type": body_type,
             "updated_at": row["updated_at"]}
@@ -69,8 +68,7 @@ def _save(user_id: int, colors: Dict[str, str], equipped: Dict[str, int],
           hotbar: List[int], body_type: Optional[str] = None) -> None:
     if body_type is None:
         body_type = raw_avatar(user_id)["body_type"]
-    if body_type not in catalog.BODY_TYPES:
-        body_type = catalog.DEFAULT_BODY_TYPE
+    body_type = catalog.normalize_body_type(body_type)
     db.execute("UPDATE avatars SET colors=?, equipped=?, hotbar=?, body_type=?,"
                " updated_at=? WHERE user_id=?",
                (json.dumps(colors, separators=(",", ":")),
@@ -80,15 +78,19 @@ def _save(user_id: int, colors: Dict[str, str], equipped: Dict[str, int],
 
 
 def set_body_type(user_id: int, body_type: str) -> str:
-    """Switch between the four rigs (male/female, standard or Thin).
+    """Switch between the two rigs (male or female).
 
-    Nothing else changes: every rig shares the same head-top hat anchor, the
+    Nothing else changes: both rigs share the same head-top hat anchor, the
     same eye height and the same hitbox, so every hat, face and outfit
     already owned carries straight over.
     """
-    body_type = str(body_type or "").lower()
+    body_type = str(body_type or "").strip().lower()
     if body_type not in catalog.BODY_TYPES:
-        raise AvatarError("Unknown body type.")
+        # A retired build posted by an old page is honoured rather than
+        # rejected; anything else is simply not a build.
+        if body_type not in catalog.RETIRED_BODY_TYPES:
+            raise AvatarError("Unknown body type.")
+        body_type = catalog.normalize_body_type(body_type)
     avatar = raw_avatar(user_id)
     _save(user_id, avatar["colors"], avatar["equipped"], avatar["hotbar"],
           body_type)

@@ -1085,7 +1085,10 @@
       var parts = Avatar.build(player.avatar, {
         position: player.pos, yaw: player.yaw, pitch: player.pitch,
         time: time, holding: holding,
-        pose: Avatar.pose(player.anim, time + player.id, 0, player.avatar)
+        // the player record carries the pose from frame to frame, so a
+        // change of animation state eases in rather than snapping
+        pose: Avatar.smoothPose(player, player.anim, time + player.id, 0,
+                                player.avatar, dt)
       });
       parts.forEach(function (part) { renderer.push(part); });
       self.drawShadow(player.pos);
@@ -1119,7 +1122,8 @@
         var parts = Avatar.build(this.avatar, {
           position: this.local.pos, yaw: this.local.yaw, pitch: this.local.pitch,
           time: time, holding: holdingSelf,
-          pose: Avatar.pose(this.local.anim, time, 0, this.avatar)
+          pose: Avatar.smoothPose(this.local, this.local.anim, time, 0,
+                                  this.avatar, dt)
         });
         parts.forEach(function (part) { renderer.push(part); });
       } else {
