@@ -7,11 +7,14 @@
    silhouette instead of reading as a stack of blocks.
 
    Two builds ship: "male", the broader one, and "female", the slighter one.
-   Both are the same construction with different measurements, and both keep
-   RIG.headTop, the eye height and the hitbox exactly where they are, which is
-   what guarantees every hat, face and outfit fits either with no per-type
-   variant.  Cosmetics that colour the body (shirts, trousers) are driven from
-   the same metrics, so they follow whichever silhouette is in use.
+   Both are the same construction with different measurements -- including
+   the head, where the female one is narrower, a little taller than it is
+   wide, and pinched through the jaw.  Both keep RIG.headTop, the eye height
+   and the hitbox exactly where they are, and both keep the same flat face
+   plate, which is what guarantees every hat, face and outfit fits either
+   with no per-type variant.  Cosmetics that colour the body (shirts,
+   trousers) are driven from the same metrics, so they follow whichever
+   silhouette is in use.
 
    What separates them past the silhouette is the walk: the female build
    carries its own gait, in which the pelvis is an animated part rather than
@@ -42,6 +45,42 @@
     mesh: 'rhead',
     neck: { size: [0.70, 0.30, 0.66], y: 4.03 }
   };
+
+  /* The female head.  The same head, in the same language -- one rounded box
+     with the same bevel in world units, the same flat face plate, the same
+     top ring at HEAD_TOP -- drawn to its own proportions:
+
+       narrower      1.34 across rather than 1.46, and no wider than it is
+                     deep, so it reads as a head rather than as a wide one
+       less wide     than it is tall: 1.06:1 where the male head is 1.14:1,
+                     which is most of what takes the blockiness out of it
+       a jaw         the bake pinches to 85% of its width below 55% of its
+                     height, so the face narrows to a small round chin
+                     instead of ending in the same square it started as
+
+     The jaw is part of the head rather than a piece under it: pinching the
+     bake keeps one surface, one colour and one decal, so there is no seam to
+     show across the chin and nothing that can come unstuck.  The pinch is
+     confined to the lower half, which is what keeps the crown -- the part a
+     hat actually sits on -- at full width.  Nothing in the catalogue is
+     tighter than 1.50 across, so every hat still clears this head and sits
+     on it the way it sits on the male one.
+
+     The bevel radii are the head's size divided into a 0.275 world bevel, so
+     the corners are as soft as the male head's rather than sharper on the
+     smaller box.  They also leave the flat face plate spanning the middle
+     59% of the front, which comfortably contains every face in the
+     catalogue (the widest eyes reach 55%), so a face decal lands on flat,
+     front-facing surface exactly as it does on the male head. */
+  var FEMALE_HEAD = {
+    size: [1.34, 1.27, 1.34],
+    centre: [0, 4.765, 0],         // 4.765 + 1.27/2 = HEAD_TOP
+    mesh: 'fhead',
+    neck: { size: [0.60, 0.32, 0.58], y: 4.02 }
+  };
+
+  Geometry.register('fhead', Geometry.roundedBox([0.205, 0.2165, 0.205], 3,
+                                                 { bottom: 0.85, from: 0.55 }));
 
   /* The builds differ by silhouette, not by parts: the same segments, the
      same anchors, different measurements.
@@ -84,7 +123,7 @@
       id: 'female',
       label: 'Female',
       gait: 'fem',
-      head: HEAD,
+      head: FEMALE_HEAD,
       // Three segments of two widths.  The top two share a width so there is
       // no step across the front, but the upper one is deeper -- which reads
       // as a chest in profile and leaves the front flat for a shirt graphic.
@@ -357,10 +396,14 @@
      so what is on screen is frozen and crossed out of instead.
 
      ``memory`` is the caller's own object, handed back every frame; anything
-     falsy means "no memory", and the pose comes back as ``Avatar.pose``
-     would give it.  A caller with no clock (``dt`` of 0) gets the same. */
+     falsy means "no memory", and the pose comes back as ``Avatar.pose`` would
+     give it.  A caller with no clock (``dt`` of 0) gets the same.  Everything
+     this needs to remember lives in one field of its own on that object, so
+     it cannot collide with whatever the caller keeps there -- a look, for
+     one, already carries a ``pose`` of its own meaning something else. */
   var POSE_KEYS = Object.keys(blankPose());
   var BLEND_SECONDS = 0.16;
+  var MEMORY = '_avatarPose';
 
   function copyPose(into, from) {
     into = into || blankPose();
@@ -373,49 +416,50 @@
      a preview rolling a new look on the other build, say -- because crossing
      between two gaits on two bodies is not a transition, it is a cut. */
   Avatar.resetPose = function (memory) {
-    if (!memory) return;
-    memory.pose = null;
-    memory.poseState = null;
-    memory.poseBlend = 1;
+    if (memory) memory[MEMORY] = null;
   };
 
   Avatar.smoothPose = function (memory, state, time, speed, who, dt) {
     state = state || 'idle';
     var target = Avatar.pose(state, time, speed, who);
     if (!memory) return target;
-    if (memory.poseState !== state) {
-      if (!memory.pose) {
-        memory.poseBlend = 1;              // nothing to cross from yet
-      } else if (memory.poseBlend < 1) {
-        memory.poseHeld = copyPose(memory.poseHeld, memory.pose);
-        memory.poseFrom = '';              // frozen: cross out of the picture
-        memory.poseBlend = 0;
+    var held = memory[MEMORY];
+    if (!held) {
+      // first frame for this character: take up the pose asked for
+      held = memory[MEMORY] = { state: state, blend: 1, pose: copyPose(null, target),
+                                from: '', frozen: null };
+      return held.pose;
+    }
+    if (held.state !== state) {
+      if (held.blend < 1) {
+        // a second change inside a cross: there is no single state running to
+        // cross out of, so freeze what is on screen and cross out of that
+        held.frozen = copyPose(held.frozen, held.pose);
+        held.from = '';
       } else {
-        memory.poseFrom = memory.poseState;  // the old state keeps running
-        memory.poseBlend = 0;
+        held.from = held.state;          // the old state carries on running
       }
-      memory.poseState = state;
+      held.blend = 0;
+      held.state = state;
     }
-    if (memory.poseBlend < 1) {
-      memory.poseBlend = Math.min(1, memory.poseBlend +
-        (dt > 0 ? dt : BLEND_SECONDS) / BLEND_SECONDS);
+    if (held.blend < 1) {
+      held.blend = Math.min(1, held.blend + (dt > 0 ? dt : BLEND_SECONDS) / BLEND_SECONDS);
     }
-    if (!(memory.poseBlend < 1)) {
-      memory.pose = copyPose(memory.pose, target);
-      return memory.pose;
+    if (!(held.blend < 1)) {
+      held.pose = copyPose(held.pose, target);
+      return held.pose;
     }
-    var from = memory.poseFrom
-      ? Avatar.pose(memory.poseFrom, time, speed, who) : memory.poseHeld;
+    var from = held.from ? Avatar.pose(held.from, time, speed, who) : held.frozen;
     // smoothstep, so the cross leaves one state and arrives in the other
     // without a corner at either end
-    var b = memory.poseBlend;
+    var b = held.blend;
     var t = b * b * (3 - 2 * b);
-    memory.pose = memory.pose || blankPose();
+    held.pose = held.pose || blankPose();
     for (var i = 0; i < POSE_KEYS.length; i++) {
       var key = POSE_KEYS[i];
-      memory.pose[key] = from[key] + (target[key] - from[key]) * t;
+      held.pose[key] = from[key] + (target[key] - from[key]) * t;
     }
-    return memory.pose;
+    return held.pose;
   };
 
   /* Build every renderable part for one character.
