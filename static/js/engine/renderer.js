@@ -95,9 +95,13 @@
     '    float g = hash(floor(vWorld.xz * 0.7));',
     '    base *= 0.93 + g * 0.14;',
     '  }',
-    '  // decal on the part\'s own +Z face (object space, so it stays on the',
-    '  // front of a face or a shirt no matter which way the avatar turns)',
-    '  if (vDecal.z > 0.0 && vFaceNormal.z > 0.6) {',
+    '  // A decal normally lands on the part\'s own +Z face (object space, so',
+    '  // it stays on the front of a face or a shirt no matter which way the',
+    '  // avatar turns).  vDecal.w of 2 prints it over the whole surface',
+    '  // instead, through the mesh\'s own UVs -- which is how a pattern gets',
+    '  // all the way round a cone, a can or a cap rather than being a sticker',
+    '  // on one side of it.',
+    '  if (vDecal.z > 0.0 && (vDecal.w > 1.5 || vFaceNormal.z > 0.6)) {',
     '    vec2 duv = vec2(vUV.x, 1.0 - vUV.y) * vDecal.z + vDecal.xy;',
     '    vec4 tex = texture2D(uAtlas, duv);',
     '    base = mix(base, tex.rgb, tex.a);',
@@ -269,7 +273,8 @@
   };
 
   Batch.prototype.add = function (px, py, pz, rx, ry, rz, sx, sy, sz,
-                                  color, alpha, studs, material, emissive, decal) {
+                                  color, alpha, studs, material, emissive, decal,
+                                  wrapped) {
     if (this.count >= this.capacity) this.grow();
     var off = this.count * STRIDE;
     M.compose(this.data, off, px, py, pz, rx, ry, rz, sx, sy, sz);
@@ -285,7 +290,8 @@
       this.data[off + 24] = decal.u;
       this.data[off + 25] = decal.v;
       this.data[off + 26] = decal.s;
-      this.data[off + 27] = 1;
+      // 1 prints on the front face, 2 prints over the whole surface
+      this.data[off + 27] = wrapped ? 2 : 1;
     } else {
       this.data[off + 24] = 0; this.data[off + 25] = 0;
       this.data[off + 26] = 0; this.data[off + 27] = 0;
@@ -500,7 +506,7 @@
                      r ? r[0] : 0, r ? r[1] : 0, r ? r[2] : 0,
                      s[0], s[1], s[2],
                      M.hexToRgb(part.c), part.a === undefined ? 1 : part.a,
-                     part.st, material, 0, decal);
+                     part.st, material, 0, decal, part.dw);
   };
 
   Renderer.prototype.buildStatic = function (parts) {
@@ -563,10 +569,11 @@
   };
 
   Renderer.prototype.pushRaw = function (kind, px, py, pz, rx, ry, rz, sx, sy, sz,
-                                         color, alpha, studs, material, emissive, decal) {
+                                         color, alpha, studs, material, emissive,
+                                         decal, wrapped) {
     var batch = this.dynamic[kind] || this.dynamic.box;
     return batch.add(px, py, pz, rx, ry, rz, sx, sy, sz, color, alpha, studs,
-                     material, emissive, decal);
+                     material, emissive, decal, wrapped);
   };
 
   Renderer.prototype.queueTag = function (key, text, colour, sub, position, scale) {

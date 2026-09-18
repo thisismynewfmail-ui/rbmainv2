@@ -48,7 +48,6 @@
   --tabbar-hover: #a3251c;
   --tab-on-bg: #e9eef3;
   --brand-red: #c4281c;
-  --brand-shadow: #b3211a;
 
   /* panel heads */
   --head-blue: linear-gradient(#6fa9d8, #3d7fb4 55%, #2f6f9f);
@@ -158,7 +157,6 @@
   --tabbar-hover: #99271d;
   --tab-on-bg: #17212c;
   --brand-red: #b8241a;
-  --brand-shadow: #7c1710;
 
   --head-blue: linear-gradient(#33739f, #1f4f74 55%, #183f5e);
   --head-blue-edge: #12314a;
@@ -242,7 +240,6 @@
     --tabbar-hover: #99271d;
     --tab-on-bg: #17212c;
     --brand-red: #b8241a;
-    --brand-shadow: #7c1710;
     --head-blue: linear-gradient(#33739f, #1f4f74 55%, #183f5e);
     --head-blue-edge: #12314a;
     --head-red: linear-gradient(#9c4437, #75231a 55%, #5d1811);
@@ -346,18 +343,25 @@ canvas { max-width: 100%; }
   border-bottom: 2px solid var(--topbar-edge);
   box-shadow: 0 2px 0 rgba(255,255,255,.22) inset;
 }
-.topbar .wrap { display: flex; align-items: center; gap: 12px; height: 52px; }
-.brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex: 0 0 auto; }
-.brand:hover { text-decoration: none; }
-.brand-mark {
-  font-family: "Trebuchet MS", Verdana, sans-serif;
-  font-size: 24px; font-weight: bold; letter-spacing: -1px;
-  color: #fff; text-shadow: 2px 2px 0 var(--brand-shadow), 3px 3px 0 rgba(0,0,0,.35);
-  background: var(--brand-red); padding: 2px 8px 3px;
-  border: 2px solid #fff; border-radius: 5px;
-  transform: rotate(-1.2deg);
-  white-space: nowrap;
+/* The bar is sized by padding around its tallest child rather than by a fixed
+   height, so the logo sets how tall it is and keeps its own air above and
+   below at every width. */
+.topbar .wrap {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 52px; padding-top: 12px; padding-bottom: 12px;
 }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex: 0 0 auto; }
+.brand:hover { text-decoration: none; }
+/* Height drives it and the width follows the artwork, so the lockup cannot be
+   squashed by a narrow bar; the drop shadow is the one the logo already has,
+   continued, so it sits on the blue rather than floating over it. */
+.brand-logo {
+  display: block; height: 44px; width: auto; flex: 0 0 auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .38));
+  transition: transform .15s ease;
+}
+.brand:hover .brand-logo { transform: translateY(-1px) scale(1.015); }
+.brand:active .brand-logo { transform: translateY(0) scale(.995); }
 .brand-tag { color: var(--topbar-tag); font-size: 10px; font-style: italic; }
 
 .topnav { display: flex; gap: 2px; }
@@ -829,6 +833,15 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ------------------------------------------------------------------ swatches */
+/* Body colours sits under the hotbar, the full width of the editor, so the
+   six parts flow across it instead of stacking into a very long panel.  Each
+   group keeps its own swatch grid, which is what keeps a swatch a chip rather
+   than a slab stretched across a seventh of the column. */
+#body-colors {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+  gap: 10px 14px; align-items: start;
+}
+#body-colors .field { margin-bottom: 0; }
 .swatches { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .swatch {
   height: 22px; border-radius: 3px; border: 1px solid rgba(0,0,0,.28); cursor: pointer;
@@ -1156,9 +1169,9 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   /* top bar: brand, wallet, burger -- everything else moves into the drawer */
   .topbar .wrap {
-    height: auto; min-height: 56px; padding: 11px 10px; gap: 8px; flex-wrap: nowrap;
+    min-height: 56px; padding: 10px 10px; gap: 8px; flex-wrap: nowrap;
   }
-  .brand-mark { font-size: 18px; padding: 2px 6px 3px; }
+  .brand-logo { height: 34px; }
   .brand-tag { display: none; }
   .topbar .searchbox { display: none; }
   .topbar .topnav { display: none; }
@@ -1455,7 +1468,8 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   /* Avatar editor: the character, then the build, then the things you put on
      it -- the item picker and the hotbar -- and the colour swatches last.
      Six colour groups is a long scroll to push past on a phone before
-     reaching the wardrobe, and the wardrobe is what people came for. */
+     reaching the wardrobe, and the wardrobe is what people came for.  The
+     panels are in that order in the markup now, so these only pin it. */
   .avatar-row {
     display: flex; flex-direction: column; flex-wrap: nowrap;
     align-items: stretch; gap: 0;

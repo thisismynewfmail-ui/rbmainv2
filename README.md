@@ -216,6 +216,7 @@ static/
   js/ui/                   site behaviour, 3D thumbnails, per-page scripts
   css/                     site.css (Web 1.0 chrome, light + dark palettes and
                            the phone layout) and game.css (HUD)
+  img/                     the topbar logo and the favicon
 templates/                 server-rendered pages
 tools/                     dev server helper, bot client, test suites
 ```
@@ -230,6 +231,17 @@ for as long as its `max-age` says and never asks again, so a phone that already
 had the previous `site.js` kept running it against freshly rendered HTML — new
 markup, old handlers, and buttons that quietly did nothing on one device while
 working on another.
+
+The topbar logo (`static/img/logo.png`) is the brand artwork lifted off the
+black background it was delivered on. Because that artwork was composited on
+black, every edge pixel of it is `alpha * colour`: colour-keying the black
+would have left the darkened ring the anti-aliasing baked in, and dropping
+dark pixels would have eaten the navy outline the wordmark is drawn with. So
+the backdrop was found by flooding in from the borders — which cannot reach
+the dark navy inside the logo — and the whole edge band was un-matted against
+the artwork it belongs to, taking alpha from how much of that colour survived
+and colour from the artwork itself. It is delivered at 720px wide for a ~190px
+slot, and the bar is sized by padding around it rather than by a fixed height.
 
 ### Processes and ports
 
@@ -285,11 +297,35 @@ specific copy with a serial number — not a flag on an item type.
 
 ## Avatars
 
-Six independently colourable body parts (head, torso, both arms, both legs),
-plus `face`, `hat`, `shirt`, `pants` and `back` cosmetic slots and five
-**usable** hotbar slots. One rig drives the profile preview, the editor, the
-market thumbnails and the game itself, so anything added to the catalogue shows
-up everywhere at once.
+Seven independently colourable body parts (head, torso, hips, both arms, both
+legs), plus `face`, `hair`, `hat`, `shirt`, `pants`, `belt` and `back` cosmetic
+slots and five **usable** hotbar slots. One rig drives the profile preview, the
+editor, the market thumbnails and the game itself, so anything added to the
+catalogue shows up everywhere at once.
+
+The **hips** are their own colour rather than borrowing the left leg's, which
+is what they did before. Trousers still cover them exactly as they did, so the
+colour is what shows when the trousers do not; an avatar saved before the hips
+were colourable keeps the character it had, because a stored palette with no
+hips entry falls back to its left leg on the way out.
+
+**Hair** is the one cosmetic that has to fit the skull rather than sit on top
+of it, and the two builds have different heads. So a style is authored in *head
+units* — 1.0 is the head's own width, height and depth, the origin is the
+middle of the head, +Z is the face — and the renderer scales it to whichever
+head is wearing it. One style fits both builds with no per-type variant, and a
+style added later needs no variant either. Nine ship, from a short crop to a
+bob, and anyone can wear any of them.
+
+A **belt** is a band round the waist with an optional buckle, so it is
+described by colours and a width rather than by parts: the renderer sizes it
+from whichever build is wearing it, the same way a shirt or a pair of trousers
+is sized, which is what makes one belt fit both builds. It is drawn outside the
+hips and rides the pelvis, so it sits over the trousers rather than instead of
+them and turns and drops with the hips through the stride. `pouch` hangs two
+pouches off the front of the band, `metal` and `glow` give the buckle its
+material. Its market and inventory tiles draw the whole character but fit the
+camera to the waist, which is what `frame` does in the thumbnail renderer.
 
 Both builds are made the same way: rounded boxes rather than hard cubes — a
 short neck, a tapered torso, softened limbs and feet — so a bare default
@@ -359,6 +395,30 @@ and mixed over about a sixth of a second, so a steady walk or run comes through
 exactly as authored — no lag, no damping — and only the crossing is smoothed.
 Changing build resets it (`Avatar.resetPose`), because crossing between two
 gaits on two different bodies is not a transition, it is a cut.
+
+### Textures
+
+Every texture in the project is drawn at runtime on a 2D canvas into one
+1280×1280 atlas, so the platform ships without a single image asset. A decal
+normally lands on a part's own +Z face in object space, which is what keeps a
+face on the front of a head and a graphic on the front of a shirt however the
+character turns.
+
+A part can instead ask for the decal to be **wrapped**, and then it is printed
+over the whole surface through the mesh's own UVs. That is what carries a
+pattern all the way round a cone, a cap or a can rather than leaving it a
+sticker on one side: the birthday cone's stars, the beanie's knit, the candy
+stripes, the fur, the camo on a pair of trousers. Wrapped patterns are painted
+on transparency rather than on a background, so the shader mixes them over the
+part's own colour and one `knit` serves a blue beanie and a red one — an item
+stays described by its colours. They also tile horizontally, because U runs
+0..1 once around a mesh and anything crossing that edge has to be drawn again
+on the other side or there is a seam down the back of the hat.
+
+Garments name their cloth with `weave`, which is printed over the whole
+garment — the sleeves and the legs too, not just the chest. A part carries one
+decal, so on a shirt the segment a graphic is printed on keeps the graphic and
+the rest of the shirt carries the weave.
 
 ## Appearance and privacy
 

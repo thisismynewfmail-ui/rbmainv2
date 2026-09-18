@@ -49,6 +49,13 @@ def raw_avatar(user_id: int) -> Dict[str, Any]:
         value = colors.get(part)
         if isinstance(value, str) and security.valid_color(value):
             merged[part] = value
+    if "hips" not in colors:
+        # The hips were drawn in the left leg's colour before they became a
+        # part of their own, so an avatar saved before that keeps exactly the
+        # character it had.  It sticks the next time anything is saved.
+        legacy = colors.get("left_leg")
+        if isinstance(legacy, str) and security.valid_color(legacy):
+            merged["hips"] = legacy
     hotbar = [int(x) if isinstance(x, (int, float)) and int(x) > 0 else 0
               for x in hotbar][:catalog.HOTBAR_SIZE]
     hotbar += [0] * (catalog.HOTBAR_SIZE - len(hotbar))

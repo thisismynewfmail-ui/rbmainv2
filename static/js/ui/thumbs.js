@@ -154,7 +154,11 @@
     renderer.buildStatic([]);
     renderer.beginFrame(0.016);
     parts.forEach(function (part) { renderer.push(part); });
-    frameCamera(renderer, parts, options.padding, options.angle, options.tilt);
+    // ``frame`` lets a tile draw the whole character but fit the camera to
+    // one piece of it, which is what a belt needs: shown where it is worn,
+    // close enough to see.
+    frameCamera(renderer, options.frame && options.frame.length ? options.frame : parts,
+                options.padding, options.angle, options.tilt);
     if (options.effect && Thumbs.particles && Thumbs.effects) {
       var def = Thumbs.scaleEffect(Thumbs.effectDef(options.effect),
                                    options.effectScale);
@@ -241,7 +245,7 @@
     if (slot === 'hat' || slot === 'back') {
       var parts = (data.parts || []).map(function (piece) {
         return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
-                 c: piece.c, r: piece.r, m: piece.m, a: piece.a,
+                 c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
                  decSlot: piece.decal ? Textures.decal(piece.decal) : null };
       });
       if (!parts.length) parts.push({ t: 'box', p: [0, 0, 0], s: [1, 1, 1], c: '#c8cbcd' });
@@ -254,7 +258,8 @@
     if (slot === 'usable') {
       var weaponParts = (data.parts || []).map(function (piece) {
         return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
-                 c: piece.c, r: piece.r, m: piece.m };
+                 c: piece.c, r: piece.r, m: piece.m, dw: piece.dw,
+                 decSlot: piece.decal ? Textures.decal(piece.decal) : null };
       });
       return { parts: weaponParts, angle: -1.15, tilt: 0.42, padding: 1.08 };
     }
@@ -285,6 +290,17 @@
     if (slot === 'pants') {
       return { parts: body, angle: -0.4, tilt: -0.1, padding: 1.06 };
     }
+    if (slot === 'hair') {
+      // worn on the head, so the tile is of the head
+      return { parts: body, frame: body.filter(function (p) {
+                 return p.k === 'head' || p.k === 'hair'; }),
+               angle: -0.28, tilt: 0.12, padding: 1.22 };
+    }
+    if (slot === 'belt') {
+      // the whole mannequin, framed on the waist it is worn round
+      return { parts: body, frame: body.filter(function (p) { return p.k === 'hips'; }),
+               angle: -0.34, tilt: 0.06, padding: 1.72 };
+    }
     return { parts: body, angle: -0.45, tilt: 0.18, padding: 1.06 };
   };
 
@@ -298,6 +314,7 @@
       var spec = Thumbs.itemParts(item, effect);
       var source = renderParts(spec.parts, {
         angle: spec.angle, tilt: spec.tilt, padding: spec.padding,
+        frame: spec.frame,
         effect: effect, effectScale: spec.effectScale, anchor: spec.anchor
       });
       if (!source) return;
@@ -357,7 +374,8 @@
       renderer.buildStatic([]);
       renderer.beginFrame(dt);
       for (var n = 0; n < job.parts.length; n++) renderer.push(job.parts[n]);
-      frameCamera(renderer, job.parts, job.padding, job.angle, job.tilt);
+      frameCamera(renderer, job.frame && job.frame.length ? job.frame : job.parts,
+                  job.padding, job.angle, job.tilt);
       job.particles.setEmitter('fx', job.def, job.anchor);
       job.particles.update(dt);
       renderer.render();
@@ -408,6 +426,7 @@
         tilt: spec.tilt,
         padding: spec.padding,
         anchor: spec.anchor || [0, 0.35, 0],
+        frame: spec.frame,
         def: Thumbs.scaleEffect(def, options.scale || spec.effectScale),
         particles: system,
         last: 0
