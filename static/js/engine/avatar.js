@@ -111,6 +111,9 @@
       waistLine: 2.00,
       hips: { size: [1.96, 0.38, 1.06], y: 2.06 },
       pelvisY: 2.06,
+      // where a waistband sits: the top of the hips, inside the overlap with
+      // the trunk above, so a belt reads as being worn rather than balanced
+      beltLine: 2.17,
       // narrow across, deeper front to back: a rectangle in section, not a
       // post.  x moves in with the half-width so the inner face still
       // meets the torso at the same place and the shoulder joint is sound.
@@ -138,6 +141,7 @@
       waistLine: 2.16,
       hips: { size: [1.70, 0.54, 0.98], y: 2.12 },
       pelvisY: 2.12,
+      beltLine: 2.28,
       arm: { size: [0.64, 2.12, 0.78], x: 1.07, pivotY: 3.99 },
       leg: { size: [0.76, 2.12, 0.86], x: 0.40, pivotY: 2.12 },
       foot: { size: [0.82, 0.24, 1.04], z: 0.10 },
@@ -475,11 +479,13 @@
     var pose = opts.pose || Avatar.pose('idle', 0, 0, descriptor);
     var shirt = itemData(descriptor, 'shirt');
     var pants = itemData(descriptor, 'pants');
+    var belt = itemData(descriptor, 'belt');
     var hat = itemData(descriptor, 'hat');
     var face = itemData(descriptor, 'face');
     var back = itemData(descriptor, 'back');
     var shirtData = (shirt && shirt.data) || {};
     var pantsData = (pants && pants.data) || {};
+    var beltData = (belt && belt.data) || {};
     var bob = pose.bob || 0;
     var lean = pose.lean || 0;
     // the pelvis and the trunk each carry their own small transform, which
@@ -539,8 +545,13 @@
     // ----------------------------------------------------------- colouring
     var torsoColour = shirtData.torso || colourOf(descriptor, 'torso', '#0d69ac');
     var torsoDecal = shirtData.decal ? Textures.decal(shirtData.decal) : null;
-    // the hips read as part of the lower body, so they take the trousers
-    var hipColour = pantsData.legs || colourOf(descriptor, 'left_leg', '#a4bd47');
+    /* The hips are trousered when trousers are on, and their own colour when
+       they are not.  Before the hips were colourable they borrowed the left
+       leg's, so that is what a descriptor without one still gets -- which
+       covers anything cached, rolled or built by hand rather than loaded from
+       an account. */
+    var hipColour = pantsData.legs ||
+      colourOf(descriptor, 'hips', colourOf(descriptor, 'left_leg', '#a4bd47'));
     var headColour = colourOf(descriptor, 'head', '#f5cd30');
     var faceSlot = (face && face.data)
       ? Textures.faceSlot(face.item_id, face.data) : null;
@@ -557,6 +568,38 @@
        the limbs hung off it -- so there is one body routine, driven by
        whichever set of measurements the descriptor asked for. */
     buildBlocks();
+
+    /* The belt: a band round the waist and, if it has one, a buckle at the
+       front.  It is sized from the build's own hips rather than from numbers
+       of its own, so one belt fits both builds, and it stands proud of them,
+       so it is worn OVER whatever the trousers are doing rather than being
+       painted into them.  It rides the pelvis, so it turns and drops with the
+       hips through the stride instead of hanging in the air where they were. */
+    function belted() {
+      if (!beltData.band) return;
+      var hips = body.hips.size;
+      var band = beltData.width === undefined ? 0.20 : beltData.width;
+      var y = body.beltLine === undefined ? body.hips.y : body.beltLine;
+      placePelvis(0, y, 0, [hips[0] * 1.045, band, hips[2] * 1.05],
+                  beltData.band, { k: 'hips' });
+      if (beltData.buckle) {
+        placePelvis(0, y, hips[2] * 0.53,
+                    [band * 1.7, band * 1.25, hips[2] * 0.14], beltData.buckle,
+                    { k: 'hips',
+                      m: beltData.glow ? 'neon' : (beltData.metal ? 'metal' : '') });
+      }
+      if (beltData.pouch) {
+        /* Two pouches on the front of the band, flanking the buckle.  They
+           have to stand off the front face rather than sit beside the hips:
+           a pouch at the side is inside the hip block on one build and
+           through the arm on the other. */
+        for (var side = -1; side <= 1; side += 2) {
+          placePelvis(side * hips[0] * 0.26, y - band * 0.85, hips[2] * 0.50,
+                      [band * 1.6, band * 1.9, hips[2] * 0.20],
+                      beltData.band, { k: 'hips' });
+        }
+      }
+    }
 
     /* Where a leg hangs from once the pelvis has moved.
 
@@ -582,6 +625,7 @@
       });
       // the hips read as part of the lower body, so they take the trousers
       placePelvis(0, body.hips.y, 0, body.hips.size.slice(), hipColour, { k: 'hips' });
+      belted();
 
       var lowest = body.torso[body.torso.length - 1];
       if (shirtData.stripe) {

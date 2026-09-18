@@ -7,8 +7,8 @@ from ..models import avatars, catalog, economy, inventory, market
 from .base import api_error, api_ok, login_required, render, router
 
 SLOT_TABS = [("all", "Everything"), ("hat", "Hats"), ("face", "Faces"),
-             ("shirt", "Shirts"), ("pants", "Pants"), ("back", "Back"),
-             ("usable", "Usables")]
+             ("shirt", "Shirts"), ("pants", "Pants"), ("belt", "Belts"),
+             ("back", "Back"), ("usable", "Usables")]
 
 
 @router.get("/market")

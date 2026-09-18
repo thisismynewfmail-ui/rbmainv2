@@ -168,13 +168,18 @@ BODY_PALETTE: List[Dict[str, str]] = [
 DEFAULT_COLORS: Dict[str, str] = {
     "head": "#f5cd30",
     "torso": "#0d69ac",
+    # The hips used to be drawn in the left leg's colour rather than carrying
+    # one of their own, so the default matches the legs: a character nobody
+    # has recoloured looks exactly as it did.
+    "hips": "#a4bd47",
     "left_arm": "#f5cd30",
     "right_arm": "#f5cd30",
     "left_leg": "#a4bd47",
     "right_leg": "#a4bd47",
 }
 
-BODY_PARTS = ["head", "torso", "left_arm", "right_arm", "left_leg", "right_leg"]
+BODY_PARTS = ["head", "torso", "hips", "left_arm", "right_arm",
+              "left_leg", "right_leg"]
 
 # Two builds ship: "male" (the broader block build) and "female" (the
 # slighter one, which is the build that used to be listed as "Male Thin").
@@ -211,12 +216,12 @@ def normalize_body_type(value: Any) -> str:
     return RETIRED_BODY_TYPES.get(key, DEFAULT_BODY_TYPE)
 
 
-SLOTS = ["face", "hat", "shirt", "pants", "back"]
+SLOTS = ["face", "hat", "shirt", "pants", "belt", "back"]
 HOTBAR_SIZE = 5
 
 SLOT_LABELS = {
     "face": "Face", "hat": "Hat", "shirt": "Shirt", "pants": "Pants",
-    "back": "Back", "usable": "Usable",
+    "belt": "Belt", "back": "Back", "usable": "Usable",
 }
 
 
@@ -734,7 +739,40 @@ USABLES: List[Dict[str, Any]] = [
     ], "Grants a small bonus to Burger Tycoon income while held.", 10, "uncommon"),
 ]
 
-ALL_ITEMS: List[Dict[str, Any]] = HATS + FACES + SHIRTS + PANTS + BACK_ITEMS + USABLES
+
+# ------------------------------------------------------------------- belts
+# A belt is a band round the waist with an optional buckle, so it is described
+# by colours and a width rather than by parts: the renderer sizes it from
+# whichever build is wearing it, the same way a shirt or a pair of trousers is
+# sized, which is what makes one belt fit both builds.  It is drawn outside
+# the hips, so it sits over the trousers rather than instead of them.
+def _belt(item_id, name, price, data, desc, order=0, rarity="common"):
+    return {"id": item_id, "name": name, "slot": "belt", "price": price,
+            "rarity": rarity, "description": desc, "sort_order": order,
+            "data": data}
+
+
+BELTS: List[Dict[str, Any]] = [
+    _belt("belt_rope", "Rope Belt", 90, {"band": "#c2a06a", "width": 0.15},
+          "Knotted once and never undone.", 1),
+    _belt("belt_leather", "Leather Belt", 150,
+          {"band": "#5a3a22", "buckle": "#c9a227", "metal": True},
+          "Honest leather, honest brass.", 2),
+    _belt("belt_sash", "Red Sash", 180, {"band": "#c4281c", "width": 0.30},
+          "No buckle. Just swagger.", 3),
+    _belt("belt_utility", "Utility Belt", 320,
+          {"band": "#3a3a3a", "buckle": "#9aa0a6", "metal": True, "pouch": True},
+          "Two pouches, both full of nothing useful.", 4, "uncommon"),
+    _belt("belt_neon", "Neon Belt", 650,
+          {"band": "#12161c", "buckle": "#19f0d8", "width": 0.17, "glow": True},
+          "The buckle keeps glowing after the lights go out.", 5, "rare"),
+    _belt("belt_champion", "Champion's Belt", 1400,
+          {"band": "#1b2a35", "buckle": "#f5c518", "width": 0.34, "metal": True},
+          "Won it fair. Wears it everywhere.", 6, "rare"),
+]
+
+ALL_ITEMS: List[Dict[str, Any]] = (HATS + FACES + SHIRTS + PANTS + BELTS
+                                   + BACK_ITEMS + USABLES)
 
 
 def _normalise_parts(items: List[Dict[str, Any]]) -> None:

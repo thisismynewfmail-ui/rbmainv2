@@ -297,11 +297,27 @@ specific copy with a serial number — not a flag on an item type.
 
 ## Avatars
 
-Six independently colourable body parts (head, torso, both arms, both legs),
-plus `face`, `hat`, `shirt`, `pants` and `back` cosmetic slots and five
-**usable** hotbar slots. One rig drives the profile preview, the editor, the
-market thumbnails and the game itself, so anything added to the catalogue shows
-up everywhere at once.
+Seven independently colourable body parts (head, torso, hips, both arms, both
+legs), plus `face`, `hat`, `shirt`, `pants`, `belt` and `back` cosmetic slots
+and five **usable** hotbar slots. One rig drives the profile preview, the
+editor, the market thumbnails and the game itself, so anything added to the
+catalogue shows up everywhere at once.
+
+The **hips** are their own colour rather than borrowing the left leg's, which
+is what they did before. Trousers still cover them exactly as they did, so the
+colour is what shows when the trousers do not; an avatar saved before the hips
+were colourable keeps the character it had, because a stored palette with no
+hips entry falls back to its left leg on the way out.
+
+A **belt** is a band round the waist with an optional buckle, so it is
+described by colours and a width rather than by parts: the renderer sizes it
+from whichever build is wearing it, the same way a shirt or a pair of trousers
+is sized, which is what makes one belt fit both builds. It is drawn outside the
+hips and rides the pelvis, so it sits over the trousers rather than instead of
+them and turns and drops with the hips through the stride. `pouch` hangs two
+pouches off the front of the band, `metal` and `glow` give the buckle its
+material. Its market and inventory tiles draw the whole character but fit the
+camera to the waist, which is what `frame` does in the thumbnail renderer.
 
 Both builds are made the same way: rounded boxes rather than hard cubes — a
 short neck, a tapered torso, softened limbs and feet — so a bare default
