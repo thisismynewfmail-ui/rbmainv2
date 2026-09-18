@@ -216,6 +216,7 @@ static/
   js/ui/                   site behaviour, 3D thumbnails, per-page scripts
   css/                     site.css (Web 1.0 chrome, light + dark palettes and
                            the phone layout) and game.css (HUD)
+  img/                     the topbar logo and the favicon
 templates/                 server-rendered pages
 tools/                     dev server helper, bot client, test suites
 ```
@@ -230,6 +231,17 @@ for as long as its `max-age` says and never asks again, so a phone that already
 had the previous `site.js` kept running it against freshly rendered HTML — new
 markup, old handlers, and buttons that quietly did nothing on one device while
 working on another.
+
+The topbar logo (`static/img/logo.png`) is the brand artwork lifted off the
+black background it was delivered on. Because that artwork was composited on
+black, every edge pixel of it is `alpha * colour`: colour-keying the black
+would have left the darkened ring the anti-aliasing baked in, and dropping
+dark pixels would have eaten the navy outline the wordmark is drawn with. So
+the backdrop was found by flooding in from the borders — which cannot reach
+the dark navy inside the logo — and the whole edge band was un-matted against
+the artwork it belongs to, taking alpha from how much of that colour survived
+and colour from the artwork itself. It is delivered at 720px wide for a ~190px
+slot, and the bar is sized by padding around it rather than by a fixed height.
 
 ### Processes and ports
 

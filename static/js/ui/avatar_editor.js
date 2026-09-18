@@ -270,11 +270,6 @@
         setColour(part, colour, group);
       });
     });
-    document.querySelectorAll('[data-custom]').forEach(function (input) {
-      input.addEventListener('change', function () {
-        setColour(input.dataset.custom, input.value, null);
-      });
-    });
 
     function setColour(part, colour, group) {
       var payload = { colors: {} };
@@ -286,8 +281,6 @@
         if (status) status.textContent = 'Saved.';
         var hex = document.getElementById('hex-' + part);
         if (hex) hex.textContent = colour;
-        var picker = document.querySelector('[data-custom="' + part + '"]');
-        if (picker) picker.value = colour;
         if (group) {
           group.querySelectorAll('.swatch').forEach(function (s) {
             s.classList.toggle('on', s.dataset.color === colour);

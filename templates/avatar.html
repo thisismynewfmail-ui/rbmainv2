@@ -55,29 +55,6 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
           of them.</p>
       </div>
     </div>
-
-    <div class="panel av-colors">
-      <div class="panel-head gold">Body colours</div>
-      <div class="panel-body" id="body-colors">
-        {% for part in body_parts %}
-        <div class="field">
-          <div class="spread">
-            <label for="c-{{ part }}" style="margin:0">{{ part.replace('_', ' ').title() }}</label>
-            <span class="pill" id="hex-{{ part }}">{{ raw.colors[part] }}</span>
-          </div>
-          <div class="swatches" data-part="{{ part }}">
-            {% for c in palette %}
-            <span class="swatch {{ 'on' if raw.colors[part] == c.hex else '' }}"
-                  style="background:{{ c.hex }}" title="{{ c.name }}" data-color="{{ c.hex }}"></span>
-            {% endfor %}
-          </div>
-          <input type="color" id="c-{{ part }}" value="{{ raw.colors[part] }}" data-custom="{{ part }}"
-                 style="width:100%;height:22px;margin-top:4px;padding:0;border:1px solid var(--field-edge);border-radius:3px">
-        </div>
-        {% endfor %}
-      </div>
-      <div class="panel-foot"><span id="color-status" class="muted">Changes save automatically.</span></div>
-    </div>
   </div>
 
   <div class="col">
@@ -117,7 +94,7 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
     </div>
 
     <div class="panel av-hotbar">
-      <div class="panel-head green">Hotbar &mdash; your five usable slots</div>
+      <div class="panel-head green">Your Hotbar</div>
       <div class="panel-body">
         <p class="muted">These are the items you carry into a world. Press <b>1</b>&ndash;<b>5</b> in game to switch.</p>
         <div class="hotbar" id="hotbar">
@@ -145,6 +122,30 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
         <button class="btn small" id="clear-slot">Clear selected slot</button>
         <span id="hotbar-status" class="muted"></span>
       </div>
+    </div>
+
+    <div class="panel av-colors">
+      <div class="panel-head gold">Body colours</div>
+      <!-- The six parts sit side by side here rather than stacked: this panel
+           is as wide as the editor now, and a swatch stretched across a
+           seventh of that is a slab rather than a chip. -->
+      <div class="panel-body" id="body-colors">
+        {% for part in body_parts %}
+        <div class="field">
+          <div class="spread">
+            <label style="margin:0">{{ part.replace('_', ' ').title() }}</label>
+            <span class="pill" id="hex-{{ part }}">{{ raw.colors[part] }}</span>
+          </div>
+          <div class="swatches" data-part="{{ part }}">
+            {% for c in palette %}
+            <span class="swatch {{ 'on' if raw.colors[part] == c.hex else '' }}"
+                  style="background:{{ c.hex }}" title="{{ c.name }}" data-color="{{ c.hex }}"></span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="panel-foot"><span id="color-status" class="muted">Changes save automatically.</span></div>
     </div>
   </div>
 </div>
