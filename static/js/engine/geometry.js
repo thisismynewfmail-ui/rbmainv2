@@ -233,8 +233,22 @@
      Each of the six faces is sampled on a grid and pushed onto the Minkowski
      sum of an inner box and an ellipsoid of those radii, so the middle of
      every face stays perfectly flat (and keeps an exact face normal, which is
-     what the decal test needs) while the edges curve. */
-  Geometry.roundedBox = function (radius, bevelSteps) {
+     what the decal test needs) while the edges curve.
+
+     ``taper`` (optional) pinches the box in X and Z as it descends, which is
+     how a head gets a jaw without a second part stuck under the first one:
+     ``{bottom: 0.85, from: 0.55}`` holds the full width from 55% of the
+     height upwards and eases in to 85% of it at the base.  The ease is a
+     smoothstep, so the taper leaves the crown and arrives at the chin with no
+     crease at either end.
+
+     Two things it deliberately does not touch.  UVs stay on the undeformed
+     grid, so a decal still lands square on the front and simply narrows with
+     the surface it is printed on -- which is what a mouth on a tapered jaw
+     should do.  And the normals are re-derived from the pinch (the inverse
+     transpose of its Jacobian) rather than estimated from the moved
+     triangles, so the shading across the jaw is exact rather than faceted. */
+  Geometry.roundedBox = function (radius, bevelSteps, taper) {
     var r = (typeof radius === 'number' || radius === undefined)
       ? [radius === undefined ? 0.12 : radius,
          radius === undefined ? 0.12 : radius,
@@ -246,6 +260,23 @@
     bevelSteps = Math.max(1, bevelSteps || 2);
     var h = 0.5;
     var a = [h - r[0], h - r[1], h - r[2]];
+
+    /* The pinch, as a factor and its slope, at a height ``y`` in the unit
+       cube.  Both are zero-slope at the ends, which is what keeps the crown
+       and the underside of the jaw free of creases. */
+    var lowWidth = taper ? Math.max(0.05, Math.min(1, taper.bottom || 1)) : 1;
+    var taperTop = taper ? Math.max(0.05, Math.min(1, taper.from || 0.5)) : 1;
+    function pinchAt(y) {
+      if (!taper) return 1;
+      var t = Math.min(1, Math.max(0, (y + h) / taperTop));
+      return lowWidth + (1 - lowWidth) * t * t * (3 - 2 * t);
+    }
+    function pinchSlope(y) {
+      if (!taper) return 0;
+      var t = (y + h) / taperTop;
+      if (t <= 0 || t >= 1) return 0;
+      return (1 - lowWidth) * 6 * t * (1 - t) / taperTop;
+    }
 
     /* Sample positions along one axis.  A uniform grid would spend every
        vertex on the flat middle (which needs two) and leave the bevel as a
@@ -293,10 +324,20 @@
           var tz = (ideal[2] - centre[2]) / r[2];
           var len = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
           tx /= len; ty /= len; tz /= len;
-          p.push(centre[0] + tx * r[0], centre[1] + ty * r[1],
-                 centre[2] + tz * r[2]);
+          var px = centre[0] + tx * r[0];
+          var py = centre[1] + ty * r[1];
+          var pz = centre[2] + tz * r[2];
           // the ellipsoid's surface normal is the radius-weighted gradient
           var nx = tx / r[0], ny = ty / r[1], nz = tz / r[2];
+          if (taper) {
+            // X = x*w(y), Z = z*w(y): the normal picks up a Y term from the
+            // slope, measured on the undeformed x and z, before they move
+            var w = pinchAt(py), slope = pinchSlope(py);
+            ny -= (px * nx + pz * nz) * slope / w;
+            nx /= w; nz /= w;
+            px *= w; pz *= w;
+          }
+          p.push(px, py, pz);
           var nlen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
           n.push(nx / nlen, ny / nlen, nz / nlen);
           // UVs run 0..1 across the whole face, and stay linear in position,

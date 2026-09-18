@@ -303,9 +303,30 @@ one — narrow shoulders, a real waist, hips back out to shoulder width and
 slimmer, slightly longer limbs. The editor draws them as two buttons side by
 side, each a figure at that build's proportions above its name.
 
+**The female build has its own head**, in the same language as the male one —
+a single rounded box, the same bevel in world units, the same flat face plate
+— drawn to its own proportions: 1.34 across rather than 1.46, no wider than it
+is deep, and slightly taller than it is wide (1.06:1 against 1.14:1), which is
+most of what takes the blockiness out of it. Below 55% of its height the bake
+pinches to 85% of its width, so the face narrows to a small round chin instead
+of ending in the same square it started as.
+
+That jaw is part of the head rather than a piece stuck under it: `roundedBox`
+takes an optional taper and pinches the bake itself, so there is one surface,
+one colour and one decal, with no seam across the chin. The pinch is confined
+to the lower half, which leaves the crown — the part a hat actually sits on —
+at full width. UVs stay on the undeformed grid, so a face decal still lands
+square on the front and simply narrows with the surface it is printed on,
+which is what a mouth on a tapered jaw should do; the normals are re-derived
+from the pinch rather than estimated from the moved triangles, so the shading
+across the jaw is exact.
+
 The hat anchor at the top of the head, the eye height and the hitbox are
 identical on both, which is what guarantees every hat, face, shirt, pair of
-trousers and back item fits either with no per-type variant. Switching build in
+trousers and back item fits either with no per-type variant. Nothing in the
+catalogue is tighter than 1.50 across, so every hat clears the narrower skull
+too, and the face plate stays wide enough that the widest eyes in the
+catalogue still sit on dead-flat, front-facing surface. Switching build in
 the avatar editor never costs you an outfit. Cosmetics that colour the body —
 shirt torsos and sleeves, trouser legs, cuffs and stripes — are driven from the
 build's own measurements, so they follow whichever silhouette is in use.
