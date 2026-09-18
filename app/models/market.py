@@ -34,8 +34,8 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
     elif sort == "name":
         items.sort(key=lambda i: i["name"].lower())
     else:
-        order = {"hat": 0, "face": 1, "shirt": 2, "pants": 3, "belt": 4,
-                 "back": 5, "usable": 6}
+        order = {"hat": 0, "hair": 1, "face": 2, "shirt": 3, "pants": 4,
+                 "belt": 5, "back": 6, "usable": 7}
         items.sort(key=lambda i: (order.get(i["slot"], 9),
                                   i.get("sort_order", 0), i["name"]))
     return [_card(it) for it in items]

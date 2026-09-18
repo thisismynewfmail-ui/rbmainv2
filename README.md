@@ -298,8 +298,8 @@ specific copy with a serial number — not a flag on an item type.
 ## Avatars
 
 Seven independently colourable body parts (head, torso, hips, both arms, both
-legs), plus `face`, `hat`, `shirt`, `pants`, `belt` and `back` cosmetic slots
-and five **usable** hotbar slots. One rig drives the profile preview, the
+legs), plus `face`, `hair`, `hat`, `shirt`, `pants`, `belt` and `back` cosmetic
+slots and five **usable** hotbar slots. One rig drives the profile preview, the
 editor, the market thumbnails and the game itself, so anything added to the
 catalogue shows up everywhere at once.
 
@@ -308,6 +308,14 @@ is what they did before. Trousers still cover them exactly as they did, so the
 colour is what shows when the trousers do not; an avatar saved before the hips
 were colourable keeps the character it had, because a stored palette with no
 hips entry falls back to its left leg on the way out.
+
+**Hair** is the one cosmetic that has to fit the skull rather than sit on top
+of it, and the two builds have different heads. So a style is authored in *head
+units* — 1.0 is the head's own width, height and depth, the origin is the
+middle of the head, +Z is the face — and the renderer scales it to whichever
+head is wearing it. One style fits both builds with no per-type variant, and a
+style added later needs no variant either. Nine ship, from a short crop to a
+bob, and anyone can wear any of them.
 
 A **belt** is a band round the waist with an optional buckle, so it is
 described by colours and a width rather than by parts: the renderer sizes it
@@ -387,6 +395,30 @@ and mixed over about a sixth of a second, so a steady walk or run comes through
 exactly as authored — no lag, no damping — and only the crossing is smoothed.
 Changing build resets it (`Avatar.resetPose`), because crossing between two
 gaits on two different bodies is not a transition, it is a cut.
+
+### Textures
+
+Every texture in the project is drawn at runtime on a 2D canvas into one
+1280×1280 atlas, so the platform ships without a single image asset. A decal
+normally lands on a part's own +Z face in object space, which is what keeps a
+face on the front of a head and a graphic on the front of a shirt however the
+character turns.
+
+A part can instead ask for the decal to be **wrapped**, and then it is printed
+over the whole surface through the mesh's own UVs. That is what carries a
+pattern all the way round a cone, a cap or a can rather than leaving it a
+sticker on one side: the birthday cone's stars, the beanie's knit, the candy
+stripes, the fur, the camo on a pair of trousers. Wrapped patterns are painted
+on transparency rather than on a background, so the shader mixes them over the
+part's own colour and one `knit` serves a blue beanie and a red one — an item
+stays described by its colours. They also tile horizontally, because U runs
+0..1 once around a mesh and anything crossing that edge has to be drawn again
+on the other side or there is a seam down the back of the hat.
+
+Garments name their cloth with `weave`, which is printed over the whole
+garment — the sleeves and the legs too, not just the chest. A part carries one
+decal, so on a shirt the segment a graphic is printed on keeps the graphic and
+the rest of the shirt carries the weave.
 
 ## Appearance and privacy
 

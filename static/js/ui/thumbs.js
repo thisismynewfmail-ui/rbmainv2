@@ -245,7 +245,7 @@
     if (slot === 'hat' || slot === 'back') {
       var parts = (data.parts || []).map(function (piece) {
         return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
-                 c: piece.c, r: piece.r, m: piece.m, a: piece.a,
+                 c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
                  decSlot: piece.decal ? Textures.decal(piece.decal) : null };
       });
       if (!parts.length) parts.push({ t: 'box', p: [0, 0, 0], s: [1, 1, 1], c: '#c8cbcd' });
@@ -258,7 +258,8 @@
     if (slot === 'usable') {
       var weaponParts = (data.parts || []).map(function (piece) {
         return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
-                 c: piece.c, r: piece.r, m: piece.m };
+                 c: piece.c, r: piece.r, m: piece.m, dw: piece.dw,
+                 decSlot: piece.decal ? Textures.decal(piece.decal) : null };
       });
       return { parts: weaponParts, angle: -1.15, tilt: 0.42, padding: 1.08 };
     }
@@ -288,6 +289,12 @@
     }
     if (slot === 'pants') {
       return { parts: body, angle: -0.4, tilt: -0.1, padding: 1.06 };
+    }
+    if (slot === 'hair') {
+      // worn on the head, so the tile is of the head
+      return { parts: body, frame: body.filter(function (p) {
+                 return p.k === 'head' || p.k === 'hair'; }),
+               angle: -0.28, tilt: 0.12, padding: 1.22 };
     }
     if (slot === 'belt') {
       // the whole mannequin, framed on the waist it is worn round

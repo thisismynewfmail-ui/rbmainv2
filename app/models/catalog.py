@@ -216,12 +216,12 @@ def normalize_body_type(value: Any) -> str:
     return RETIRED_BODY_TYPES.get(key, DEFAULT_BODY_TYPE)
 
 
-SLOTS = ["face", "hat", "shirt", "pants", "belt", "back"]
+SLOTS = ["face", "hair", "hat", "shirt", "pants", "belt", "back"]
 HOTBAR_SIZE = 5
 
 SLOT_LABELS = {
-    "face": "Face", "hat": "Hat", "shirt": "Shirt", "pants": "Pants",
-    "belt": "Belt", "back": "Back", "usable": "Usable",
+    "face": "Face", "hair": "Hair", "hat": "Hat", "shirt": "Shirt",
+    "pants": "Pants", "belt": "Belt", "back": "Back", "usable": "Usable",
 }
 
 
@@ -234,9 +234,10 @@ def _hat(item_id, name, price, parts, desc, rarity="common", order=0):
 # --------------------------------------------------------------------- hats
 HATS: List[Dict[str, Any]] = [
     _hat("hat_red_cap", "Classic Red Cap", 250, [
-        {"t": "sph", "p": [0, 0.28, 0], "s": [1.62, 1.05, 1.62], "c": "#5a2d22"},
-        {"t": "box", "p": [0, 0.07, 0.92], "s": [1.44, 0.16, 0.86], "c": "#c4281c"},
-        {"t": "sph", "p": [0, 0.72, 0], "s": [0.3, 0.3, 0.3], "c": "#c4281c"},
+        {"t": "sph", "p": [0, 0.28, 0], "s": [1.62, 1.05, 1.62], "c": "#c4281c",
+         "decal": "panels", "wrap": True},
+        {"t": "box", "p": [0, 0.07, 0.92], "s": [1.44, 0.16, 0.86], "c": "#8c1c15"},
+        {"t": "sph", "p": [0, 0.72, 0], "s": [0.3, 0.3, 0.3], "c": "#8c1c15"},
         {"t": "box", "p": [0, 0.32, 0.74], "s": [0.5, 0.42, 0.08], "c": "#f2f3f3",
          "decal": "letter_R"},
     ], "The cap every builder owns. Faded, beloved, iconic.", "common", 1),
@@ -254,8 +255,10 @@ HATS: List[Dict[str, Any]] = [
     ], "Safety first. Officially issued by the Build Corps.", "common", 3),
 
     _hat("hat_beanie", "Winter Beanie", 180, [
-        {"t": "sph", "p": [0, 0.22, 0], "s": [1.58, 1.0, 1.58], "c": "#2f5fa8"},
-        {"t": "cyl", "p": [0, 0.06, 0], "s": [1.66, 0.3, 1.66], "c": "#e8e8e8"},
+        {"t": "sph", "p": [0, 0.22, 0], "s": [1.58, 1.0, 1.58], "c": "#2f5fa8",
+         "decal": "knit", "wrap": True},
+        {"t": "cyl", "p": [0, 0.06, 0], "s": [1.66, 0.3, 1.66], "c": "#e8e8e8",
+         "decal": "knit", "wrap": True},
         {"t": "sph", "p": [0, 0.78, 0], "s": [0.44, 0.44, 0.44], "c": "#e8e8e8"},
     ], "Knitted by somebody's grandmother. Extremely warm.", "common", 4),
 
@@ -270,13 +273,16 @@ HATS: List[Dict[str, Any]] = [
     ], "Heavy is the head. Worth every credit.", "rare", 5),
 
     _hat("hat_cowboy", "Ten Gallon Hat", 600, [
-        {"t": "cyl", "p": [0, 0.1, 0], "s": [2.3, 0.14, 1.9], "c": "#8a5a2b"},
-        {"t": "cyl", "p": [0, 0.55, 0], "s": [1.3, 0.9, 1.3], "c": "#9c6733"},
+        {"t": "cyl", "p": [0, 0.1, 0], "s": [2.3, 0.14, 1.9], "c": "#8a5a2b",
+         "decal": "felt", "wrap": True},
+        {"t": "cyl", "p": [0, 0.55, 0], "s": [1.3, 0.9, 1.3], "c": "#9c6733",
+         "decal": "felt", "wrap": True},
         {"t": "cyl", "p": [0, 0.28, 0], "s": [1.36, 0.18, 1.36], "c": "#4a2f18"},
     ], "Yeehaw, partner. Smells faintly of hay.", "uncommon", 6),
 
     _hat("hat_pot", "Cooking Pot", 120, [
-        {"t": "cyl", "p": [0, 0.5, 0], "s": [1.7, 1.0, 1.7], "c": "#8f9296", "mat": "metal"},
+        {"t": "cyl", "p": [0, 0.5, 0], "s": [1.7, 1.0, 1.7], "c": "#8f9296", "mat": "metal",
+         "decal": "rivets", "wrap": True},
         {"t": "cyl", "p": [0, 1.02, 0], "s": [1.8, 0.12, 1.8], "c": "#6f7276", "mat": "metal"},
         {"t": "box", "p": [1.0, 0.55, 0], "s": [0.5, 0.14, 0.16], "c": "#6f7276", "mat": "metal"},
     ], "Doubles as a helmet. Mostly.", "common", 7),
@@ -290,7 +296,8 @@ HATS: List[Dict[str, Any]] = [
     ], "Recovered from the lava caves. Still slightly warm.", "rare", 8),
 
     _hat("hat_propeller", "Propeller Beanie", 450, [
-        {"t": "sph", "p": [0, 0.2, 0], "s": [1.5, 0.9, 1.5], "c": "#c4281c"},
+        {"t": "sph", "p": [0, 0.2, 0], "s": [1.5, 0.9, 1.5], "c": "#c4281c",
+         "decal": "panels", "wrap": True},
         {"t": "cyl", "p": [0, 0.68, 0], "s": [0.16, 0.5, 0.16], "c": "#f2f3f3"},
         {"t": "box", "p": [0, 0.92, 0], "s": [2.0, 0.08, 0.24], "c": "#0d69ac",
          "spin": 8.0},
@@ -305,8 +312,10 @@ HATS: List[Dict[str, Any]] = [
     ], "Cyberpunk on a budget.", "uncommon", 10),
 
     _hat("hat_bucket", "Bucket Hat", 200, [
-        {"t": "cyl", "p": [0, 0.42, 0], "s": [1.5, 0.84, 1.5], "c": "#5e7c4a"},
-        {"t": "cone", "p": [0, 0.1, 0], "s": [2.2, 0.36, 2.2], "c": "#6d8c55"},
+        {"t": "cyl", "p": [0, 0.42, 0], "s": [1.5, 0.84, 1.5], "c": "#5e7c4a",
+         "decal": "canvas", "wrap": True},
+        {"t": "cone", "p": [0, 0.1, 0], "s": [2.2, 0.36, 2.2], "c": "#6d8c55",
+         "decal": "canvas", "wrap": True},
     ], "Fisherman chic. Never goes out of style.", "common", 11),
 
     _hat("hat_headphones", "Retro Headphones", 500, [
@@ -338,14 +347,17 @@ HATS: List[Dict[str, Any]] = [
     ], "Awarded to those who never once used the report button.", "legendary", 14),
 
     _hat("hat_bandana", "Faded Bandana", 150, [
-        {"t": "box", "p": [0, -0.05, 0], "s": [1.56, 0.4, 1.56], "c": "#b83a3a"},
+        {"t": "box", "p": [0, -0.05, 0], "s": [1.56, 0.4, 1.56], "c": "#b83a3a",
+         "decal": "canvas", "wrap": True},
         {"t": "box", "p": [0, -0.1, -0.85], "s": [0.5, 0.3, 0.5], "c": "#a32f2f",
          "r": [0.5, 0, 0]},
     ], "Worn by the veterans of the old server.", "common", 15),
 
     _hat("hat_pirate", "Pirate Tricorn", 800, [
-        {"t": "cyl", "p": [0, 0.16, 0], "s": [2.2, 0.2, 1.9], "c": "#2b2118"},
-        {"t": "cyl", "p": [0, 0.52, 0], "s": [1.4, 0.7, 1.4], "c": "#3a2c20"},
+        {"t": "cyl", "p": [0, 0.16, 0], "s": [2.2, 0.2, 1.9], "c": "#2b2118",
+         "decal": "felt", "wrap": True},
+        {"t": "cyl", "p": [0, 0.52, 0], "s": [1.4, 0.7, 1.4], "c": "#3a2c20",
+         "decal": "felt", "wrap": True},
         {"t": "box", "p": [0, 0.34, 0.85], "s": [1.1, 0.5, 0.12], "c": "#f2f3f3",
          "decal": "skull"},
         {"t": "box", "p": [0.6, 0.45, -0.5], "s": [0.12, 0.6, 0.5], "c": "#c94f4f",
@@ -367,6 +379,48 @@ HATS: List[Dict[str, Any]] = [
         {"t": "torus", "p": [0.62, 0.4, 0], "s": [0.44, 0.1, 0.44], "c": "#f2f3f3",
          "r": [0, 1.5708, 0]},
     ], "Perfectly balanced. Do not run.", "uncommon", 18),
+
+    _hat("hat_party", "Birthday Cone", 260, [
+        {"t": "cone", "p": [0, 0.78, 0], "s": [1.46, 1.62, 1.46], "c": "#c4281c",
+         "decal": "party", "wrap": True},
+        {"t": "cyl", "p": [0, 0.04, 0], "s": [1.5, 0.1, 1.5], "c": "#f2f3f3"},
+        {"t": "sph", "p": [0, 1.62, 0], "s": [0.38, 0.38, 0.38], "c": "#f5c518"},
+    ], "One candle short of a cake. Worn anyway.", "common", 21),
+
+    _hat("hat_fur_cap", "Fur Cap", 420, [
+        {"t": "sph", "p": [0, 0.30, 0], "s": [1.66, 1.10, 1.66], "c": "#2a2a2a",
+         "decal": "fur", "wrap": True},
+        {"t": "cyl", "p": [0, 0.08, 0], "s": [1.74, 0.34, 1.74], "c": "#3a3a3a",
+         "decal": "fur", "wrap": True},
+    ], "Warm, heavy, and slightly shedding.", "uncommon", 22),
+
+    _hat("hat_snow_cap", "Snowfall Cap", 380, [
+        {"t": "sph", "p": [0, 0.24, 0], "s": [1.58, 1.02, 1.58], "c": "#2f6fd6",
+         "decal": "snowflakes", "wrap": True},
+        {"t": "cyl", "p": [0, 0.06, 0], "s": [1.66, 0.3, 1.66], "c": "#f2f3f3",
+         "decal": "knit", "wrap": True},
+        {"t": "sph", "p": [0, 0.80, 0], "s": [0.46, 0.46, 0.46], "c": "#f2f3f3"},
+    ], "It is snowing on it. It is always snowing on it.", "uncommon", 23),
+
+    _hat("hat_candy_cap", "Candy Cane Cap", 340, [
+        {"t": "sph", "p": [0, 0.26, 0], "s": [1.56, 1.0, 1.56], "c": "#c4281c",
+         "decal": "candy", "wrap": True},
+        {"t": "cyl", "p": [0, 0.06, 0], "s": [1.64, 0.28, 1.64], "c": "#c4281c",
+         "decal": "candy", "wrap": True},
+        {"t": "sph", "p": [0, 0.78, 0], "s": [0.42, 0.42, 0.42], "c": "#2fa84f"},
+    ], "Peppermint. You can smell it from across the lobby.", "uncommon", 24),
+
+    # The carving is a decal, and a decal wants a flat face to land on -- on a
+    # sphere the front is a narrow slice of the UVs and the face comes out
+    # squeezed.  So the lantern is a rounded box, like the head it sits above.
+    _hat("hat_lantern", "Lantern Head", 1100, [
+        {"t": "rbox", "p": [0, 0.68, 0], "s": [1.66, 1.50, 1.60], "c": "#e2621b",
+         "decal": "lantern"},
+        {"t": "rbox", "p": [0, 0.68, 0], "s": [1.70, 1.34, 1.52], "c": "#cf560f"},
+        {"t": "cyl", "p": [0, 1.48, 0], "s": [0.26, 0.34, 0.26], "c": "#3f6b2a"},
+        {"t": "sph", "p": [0, 0.64, 0.30], "s": [1.1, 1.0, 0.9], "c": "#ffca4a",
+         "mat": "neon", "alpha": 0.5},
+    ], "Carved last autumn. Still lit, somehow.", "rare", 25),
 
     _hat("hat_astro", "Astro Dome", 1300, [
         {"t": "sph", "p": [0, 0.15, 0], "s": [1.9, 1.9, 1.9], "c": "#bfe9ff",
@@ -507,14 +561,14 @@ SHIRTS: List[Dict[str, Any]] = [
            "Standard issue starter shirt.", 1),
     _shirt("shirt_hoodie_blue", "Blue Hoodie", 260,
            {"torso": "#2f5fa8", "arms": "#2f5fa8", "hood": True,
-            "stripe": "#e8e8e8"},
+            "stripe": "#e8e8e8", "weave": "canvas"},
            "Comfortable. Slightly too warm for the desert map.", 2),
     _shirt("shirt_tux", "Tuxedo Jacket", 640,
            {"torso": "#1b2a35", "arms": "#1b2a35", "decal": "tux"},
            "Black tie only.", 3, "uncommon"),
     _shirt("shirt_hivis", "Hi-Vis Vest", 220,
            {"torso": "#e9f21a", "arms": "#d7c59a", "sleeves": 0.0,
-            "stripe": "#c8cbcd"},
+            "stripe": "#c8cbcd", "weave": "hivis"},
            "Cannot be missed, even at render distance.", 4),
     _shirt("shirt_stripes", "Referee Stripes", 300,
            {"torso": "#f2f3f3", "arms": "#f2f3f3", "stripes": 6,
@@ -547,7 +601,8 @@ def _pants(item_id, name, price, data, desc, order=0, rarity="common"):
 PANTS: List[Dict[str, Any]] = [
     _pants("pants_none", "No Pants", 0, {"legs": None},
            "Bold. Legally questionable.", 0),
-    _pants("pants_jeans", "Blue Jeans", 140, {"legs": "#3d5a80", "cuff": "#2c4160"},
+    _pants("pants_jeans", "Blue Jeans", 140,
+           {"legs": "#3d5a80", "cuff": "#2c4160", "weave": "denim"},
            "They go with everything.", 1),
     _pants("pants_cargo", "Cargo Trousers", 220, {"legs": "#6b6a4a", "pocket": True},
            "Fourteen pockets. All empty.", 2),
@@ -556,7 +611,8 @@ PANTS: List[Dict[str, Any]] = [
            "Built for the beach map.", 3),
     _pants("pants_tux", "Tuxedo Trousers", 560, {"legs": "#1b2a35", "stripe": "#f2f3f3"},
            "Matches the jacket, obviously.", 4, "uncommon"),
-    _pants("pants_camo", "Camo Trousers", 380, {"legs": "#4a5a34", "camo": True},
+    _pants("pants_camo", "Camo Trousers", 380,
+           {"legs": "#4a5a34", "weave": "camo"},
            "You literally cannot see these.", 5, "uncommon"),
     _pants("pants_neon", "Neon Runners", 700, {"legs": "#12161c", "stripe": "#19f0d8",
                                                "glow": True},
@@ -740,6 +796,125 @@ USABLES: List[Dict[str, Any]] = [
 ]
 
 
+
+# -------------------------------------------------------------------- hair
+# Hair is the one cosmetic that has to fit the skull rather than sit on top of
+# it, and the two builds have different heads.  So a style is authored in HEAD
+# UNITS: 1.0 is the head's own width, height and depth, the origin is the
+# middle of the head, +Z is the face and +Y is up.  The renderer scales it to
+# whichever head is wearing it, so one style fits both builds with no per-type
+# variant -- the same bargain every other cosmetic in here makes.
+#
+# Keep anything that is not a fringe above y 0.22: that is where the eyes are
+# printed, and hair over them reads as a bug rather than as a style.
+BROWN, BLACK, BLONDE, AUBURN, SILVER = ("#4a2f1b", "#1a1a1a", "#d9a441",
+                                        "#8b3a1a", "#c9ccd1")
+
+
+def _hair(item_id, name, price, parts, desc, rarity="common", order=0):
+    return {"id": item_id, "name": name, "slot": "hair", "price": price,
+            "rarity": rarity, "description": desc, "sort_order": order,
+            "data": {"parts": parts}}
+
+
+def _crown_cap(colour, height=0.30, y=0.40):
+    """The part every style shares: hair lying over the top of the head."""
+    return {"t": "rbox", "p": [0, y, -0.02], "s": [1.04, height, 1.06], "c": colour}
+
+
+HAIRS: List[Dict[str, Any]] = [
+    _hair("hair_crop", "Short Crop", 120, [
+        _crown_cap(BROWN),
+        {"t": "rbox", "p": [0, 0.30, 0.46], "s": [0.92, 0.18, 0.18], "c": BROWN},
+        {"t": "rbox", "p": [0, 0.10, -0.50], "s": [0.98, 0.52, 0.14], "c": BROWN},
+        {"t": "rbox", "p": [0.50, 0.18, -0.10], "s": [0.10, 0.40, 0.78], "c": BROWN},
+        {"t": "rbox", "p": [-0.50, 0.18, -0.10], "s": [0.10, 0.40, 0.78], "c": BROWN},
+    ], "Cut short, parted by hand, done in a minute.", "common", 1),
+
+    _hair("hair_spikes", "Spiked Hair", 260, [
+        _crown_cap(BLACK, 0.32, 0.38),
+        {"t": "rbox", "p": [0, 0.28, 0.46], "s": [0.90, 0.22, 0.18], "c": BLACK},
+        {"t": "rbox", "p": [0, 0.10, -0.50], "s": [0.94, 0.48, 0.14], "c": BLACK},
+        # the spikes are rooted in the cap rather than balanced on it, so they
+        # read as hair standing up rather than as a crown of triangles
+        {"t": "cone", "p": [0, 0.62, 0.02], "s": [0.30, 0.42, 0.30], "c": BLACK},
+        {"t": "cone", "p": [0.30, 0.58, -0.10], "s": [0.26, 0.34, 0.26], "c": BLACK,
+         "r": [0.15, 0, -0.34]},
+        {"t": "cone", "p": [-0.30, 0.58, -0.10], "s": [0.26, 0.34, 0.26], "c": BLACK,
+         "r": [0.15, 0, 0.34]},
+        {"t": "cone", "p": [0.17, 0.58, 0.30], "s": [0.25, 0.34, 0.25], "c": BLACK,
+         "r": [-0.34, 0, -0.16]},
+        {"t": "cone", "p": [-0.17, 0.58, 0.30], "s": [0.25, 0.34, 0.25], "c": BLACK,
+         "r": [-0.34, 0, 0.16]},
+        {"t": "cone", "p": [0.03, 0.56, -0.34], "s": [0.24, 0.30, 0.24], "c": BLACK,
+         "r": [0.4, 0, 0]},
+    ], "Half a tub of wax and a firm opinion.", "uncommon", 2),
+
+    _hair("hair_swept", "Side Sweep", 200, [
+        _crown_cap(BLONDE, 0.30, 0.39),
+        # the sweep is a fringe combed across, so it lies along the brow
+        # rather than standing off the front of the head
+        {"t": "rbox", "p": [0.06, 0.32, 0.44], "s": [0.98, 0.20, 0.22], "c": BLONDE,
+         "r": [0, 0, -0.16]},
+        {"t": "rbox", "p": [0.26, 0.44, 0.16], "s": [0.54, 0.18, 0.52], "c": BLONDE,
+         "r": [0, 0, -0.24]},
+        {"t": "rbox", "p": [0, 0.10, -0.50], "s": [0.96, 0.50, 0.14], "c": BLONDE},
+        {"t": "rbox", "p": [-0.48, 0.20, -0.06], "s": [0.12, 0.38, 0.74], "c": BLONDE},
+        {"t": "rbox", "p": [0.48, 0.24, -0.06], "s": [0.12, 0.34, 0.74], "c": BLONDE},
+    ], "Swept over, held there by sheer confidence.", "common", 3),
+
+    _hair("hair_flattop", "Flat Top", 150, [
+        {"t": "rbox", "p": [0, 0.44, -0.02], "s": [1.02, 0.28, 1.02], "c": BLACK},
+        {"t": "rbox", "p": [0, 0.12, -0.50], "s": [0.92, 0.46, 0.12], "c": BLACK},
+        {"t": "rbox", "p": [0.49, 0.20, -0.08], "s": [0.08, 0.36, 0.72], "c": BLACK},
+        {"t": "rbox", "p": [-0.49, 0.20, -0.08], "s": [0.08, 0.36, 0.72], "c": BLACK},
+    ], "Level enough to rest a drink on.", "common", 4),
+
+    _hair("hair_long", "Long Hair", 320, [
+        _crown_cap(BROWN, 0.32, 0.38),
+        {"t": "rbox", "p": [0, 0.28, 0.44], "s": [0.94, 0.30, 0.24], "c": BROWN},
+        {"t": "rbox", "p": [0, -0.35, -0.52], "s": [1.00, 1.60, 0.20], "c": BROWN},
+        {"t": "rbox", "p": [0.50, -0.15, 0.02], "s": [0.16, 1.10, 0.80], "c": BROWN},
+        {"t": "rbox", "p": [-0.50, -0.15, 0.02], "s": [0.16, 1.10, 0.80], "c": BROWN},
+    ], "Down past the shoulders and perfectly behaved.", "uncommon", 5),
+
+    _hair("hair_ponytail", "Ponytail", 280, [
+        _crown_cap(BLONDE, 0.30, 0.39),
+        {"t": "rbox", "p": [0, 0.30, 0.45], "s": [0.90, 0.24, 0.20], "c": BLONDE},
+        {"t": "rbox", "p": [0, 0.14, -0.50], "s": [0.90, 0.44, 0.16], "c": BLONDE},
+        {"t": "sph", "p": [0, 0.18, -0.58], "s": [0.34, 0.30, 0.26], "c": "#c4281c"},
+        {"t": "rbox", "p": [0, -0.22, -0.66], "s": [0.36, 1.05, 0.30], "c": BLONDE,
+         "r": [0.22, 0, 0]},
+    ], "Up, out of the way, ready for the round.", "uncommon", 6),
+
+    _hair("hair_bunches", "Bunches", 300, [
+        _crown_cap(AUBURN, 0.30, 0.39),
+        {"t": "rbox", "p": [0, 0.30, 0.45], "s": [0.88, 0.24, 0.20], "c": AUBURN},
+        {"t": "rbox", "p": [0, 0.12, -0.50], "s": [0.88, 0.42, 0.14], "c": AUBURN},
+        {"t": "sph", "p": [0.56, 0.02, -0.16], "s": [0.42, 0.62, 0.42], "c": AUBURN},
+        {"t": "sph", "p": [-0.56, 0.02, -0.16], "s": [0.42, 0.62, 0.42], "c": AUBURN},
+        {"t": "cyl", "p": [0.54, 0.26, -0.14], "s": [0.20, 0.10, 0.20], "c": "#e8557f"},
+        {"t": "cyl", "p": [-0.54, 0.26, -0.14], "s": [0.20, 0.10, 0.20], "c": "#e8557f"},
+    ], "Two of them, tied with whatever was to hand.", "uncommon", 7),
+
+    _hair("hair_bob", "Bob Cut", 340, [
+        _crown_cap(BLACK, 0.30, 0.39),
+        {"t": "rbox", "p": [0, 0.30, 0.45], "s": [0.94, 0.26, 0.22], "c": BLACK},
+        {"t": "rbox", "p": [0, -0.02, -0.52], "s": [1.00, 0.86, 0.18], "c": BLACK},
+        {"t": "rbox", "p": [0.51, -0.02, -0.02], "s": [0.14, 0.84, 0.86], "c": BLACK},
+        {"t": "rbox", "p": [-0.51, -0.02, -0.02], "s": [0.14, 0.84, 0.86], "c": BLACK},
+    ], "Sharp line, no fuss, always in fashion.", "uncommon", 8),
+
+    _hair("hair_silver", "Silver Streak", 520, [
+        _crown_cap(SILVER, 0.30, 0.39),
+        {"t": "rbox", "p": [0.18, 0.30, 0.44], "s": [0.58, 0.26, 0.22], "c": SILVER},
+        {"t": "rbox", "p": [-0.26, 0.30, 0.44], "s": [0.34, 0.26, 0.22], "c": "#f2f3f3"},
+        {"t": "rbox", "p": [0, -0.18, -0.52], "s": [0.98, 1.24, 0.20], "c": SILVER},
+        {"t": "rbox", "p": [0.50, -0.08, 0.00], "s": [0.15, 0.96, 0.82], "c": SILVER},
+        {"t": "rbox", "p": [-0.50, -0.08, 0.00], "s": [0.15, 0.96, 0.82], "c": SILVER},
+    ], "Earned every one of them.", "rare", 9),
+]
+
 # ------------------------------------------------------------------- belts
 # A belt is a band round the waist with an optional buckle, so it is described
 # by colours and a width rather than by parts: the renderer sizes it from
@@ -756,23 +931,26 @@ BELTS: List[Dict[str, Any]] = [
     _belt("belt_rope", "Rope Belt", 90, {"band": "#c2a06a", "width": 0.15},
           "Knotted once and never undone.", 1),
     _belt("belt_leather", "Leather Belt", 150,
-          {"band": "#5a3a22", "buckle": "#c9a227", "metal": True},
+          {"band": "#5a3a22", "buckle": "#c9a227", "metal": True,
+           "weave": "leather"},
           "Honest leather, honest brass.", 2),
     _belt("belt_sash", "Red Sash", 180, {"band": "#c4281c", "width": 0.30},
           "No buckle. Just swagger.", 3),
     _belt("belt_utility", "Utility Belt", 320,
-          {"band": "#3a3a3a", "buckle": "#9aa0a6", "metal": True, "pouch": True},
+          {"band": "#3a3a3a", "buckle": "#9aa0a6", "metal": True, "pouch": True,
+           "weave": "leather"},
           "Two pouches, both full of nothing useful.", 4, "uncommon"),
     _belt("belt_neon", "Neon Belt", 650,
           {"band": "#12161c", "buckle": "#19f0d8", "width": 0.17, "glow": True},
           "The buckle keeps glowing after the lights go out.", 5, "rare"),
     _belt("belt_champion", "Champion's Belt", 1400,
-          {"band": "#1b2a35", "buckle": "#f5c518", "width": 0.34, "metal": True},
+          {"band": "#1b2a35", "buckle": "#f5c518", "width": 0.34, "metal": True,
+           "weave": "leather"},
           "Won it fair. Wears it everywhere.", 6, "rare"),
 ]
 
-ALL_ITEMS: List[Dict[str, Any]] = (HATS + FACES + SHIRTS + PANTS + BELTS
-                                   + BACK_ITEMS + USABLES)
+ALL_ITEMS: List[Dict[str, Any]] = (HATS + FACES + HAIRS + SHIRTS + PANTS
+                                   + BELTS + BACK_ITEMS + USABLES)
 
 
 def _normalise_parts(items: List[Dict[str, Any]]) -> None:
@@ -783,7 +961,7 @@ def _normalise_parts(items: List[Dict[str, Any]]) -> None:
     metal crown is actually metal everywhere -- site thumbnails, the avatar
     preview and the game -- instead of silently falling back to plastic.
     """
-    renames = (("mat", "m"), ("alpha", "a"), ("studs", "st"))
+    renames = (("mat", "m"), ("alpha", "a"), ("studs", "st"), ("wrap", "dw"))
     for item in items:
         for piece in (item.get("data") or {}).get("parts", []):
             for source, target in renames:
