@@ -19,6 +19,35 @@ from .base import router
 _visit_guard: Dict[str, float] = {}
 
 
+@router.get("/.well-known/acme-challenge/<token>")
+def acme_challenge(req: Request, token: str = ""):
+    """Answer Let's Encrypt's HTTP-01 challenge.
+
+    certbot's webroot plugin writes the response into
+    ``data/acme/.well-known/acme-challenge/<token>`` and the CA then asks for
+    it over PLAIN HTTP on port 80 -- it will not follow a redirect to HTTPS
+    for this, and at first issue there is no certificate to redirect to
+    anyway.  So the plain listener serves this path itself instead of
+    redirecting it, and this route is what it serves.
+
+    Nothing here is secret: the token is a random name the CA just handed out
+    and the body is a value only that CA can check.  The path is still pinned
+    to the webroot, because a token is attacker-supplied text.
+    """
+    name = str(token or "")
+    # A challenge token is url-safe base64; anything else is somebody
+    # fishing, and refusing the lot is cheaper than reasoning about it.
+    if not name or len(name) > 128 or not all(
+            c.isalnum() or c in "-_" for c in name):
+        return R.error(404, "No such challenge.")
+    path = config.ACME_WEBROOT / ".well-known" / "acme-challenge" / name
+    try:
+        body = path.read_bytes()
+    except OSError:
+        return R.error(404, "No such challenge.")
+    return R.Response(body, 200, "text/plain").no_cache()
+
+
 @router.post("/internal/heartbeat")
 def heartbeat(req: Request):
     if req.remote_addr not in ("127.0.0.1", "::1", "localhost"):

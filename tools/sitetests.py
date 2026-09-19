@@ -6,19 +6,25 @@ market (including the server-side price and ownership checks), avatar slots,
 the social features, messaging, and the administrator dashboard's access
 control -- against a running server.
 
-    python3 tools/sitetests.py [--port 8972]
+    python3 tools/sitetests.py [--port 80]
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import re
+import ssl
 import string
 import sys
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPSConnection
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
+
+# The port the site answers plain HTTP on; main.py binds 80 by default and
+# BLOCKHAVEN_PORT moves both together.
+DEFAULT_PORT = int(os.environ.get("BLOCKHAVEN_PORT", "80"))
 
 PASSED: List[str] = []
 FAILED: List[str] = []
@@ -35,15 +41,27 @@ def check(name: str, condition: bool, detail: Any = "") -> bool:
 
 
 class Client:
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, tls: bool = False):
         self.host, self.port = host, port
+        self.tls = tls
         self.cookie = ""
         self.csrf = ""
+
+    def _connect(self):
+        if not self.tls:
+            return HTTPConnection(self.host, self.port, timeout=15)
+        # A developer's certificate is self-signed, so the trust check is off
+        # here; the point of running the suite this way is to prove the
+        # server speaks TLS at all, not to audit somebody's chain.
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return HTTPSConnection(self.host, self.port, timeout=15, context=ctx)
 
     def request(self, method: str, path: str, body: Optional[str] = None,
                 json_body: bool = False,
                 headers: Optional[Dict[str, str]] = None) -> Tuple[int, bytes, Dict[str, str]]:
-        conn = HTTPConnection(self.host, self.port, timeout=15)
+        conn = self._connect()
         head = dict(headers or {})
         if self.cookie:
             head["Cookie"] = self.cookie
@@ -98,9 +116,9 @@ def random_name() -> str:
     return "test_" + "".join(random.choice(string.ascii_lowercase) for _ in range(8))
 
 
-def run(host: str, port: int) -> int:
+def run(host: str, port: int, tls: bool = False) -> int:
     print("== registration and the starter kit ==")
-    client = Client(host, port)
+    client = Client(host, port, tls)
     name = random_name()
     status, _, _ = client.request("POST", "/register", urlencode(
         {"username": name, "password": "hunter22", "confirm": "hunter22"}))
@@ -124,7 +142,7 @@ def run(host: str, port: int) -> int:
     check("register: five hotbar slots exist", len(hotbar) == 5, hotbar)
 
     print("\n== duplicate accounts and validation ==")
-    fresh = Client(host, port)
+    fresh = Client(host, port, tls)
     status, data, _ = fresh.request("POST", "/register", urlencode(
         {"username": name, "password": "hunter22", "confirm": "hunter22"}))
     check("register: duplicate usernames are refused",
@@ -208,7 +226,7 @@ def run(host: str, port: int) -> int:
     nobody = client.api("/api/messages/send", {"to": "not_a_real_user",
                                                "subject": "x", "body": "y"})
     check("messages: unknown recipients are refused", not nobody.get("ok"), nobody)
-    other = Client(host, port)
+    other = Client(host, port, tls)
     other.login("builderman_x", "blockhaven")
     counts = other.get_api("/api/social/counts")
     status, inbox_html = other.get("/messages")
@@ -222,7 +240,7 @@ def run(host: str, port: int) -> int:
         status, _body = client.get("/messages/%s" % message_id)
         check("messages: the sender can read their own message", status == 200,
               status)
-        snooper = Client(host, port)
+        snooper = Client(host, port, tls)
         snooper.login("PixelPatty", "blockhaven")
         status, _ = snooper.get("/messages/%s" % message_id)
         check("messages: an unrelated player cannot read someone else's mail",
@@ -241,7 +259,7 @@ def run(host: str, port: int) -> int:
     check("admin: the balance really did not change", balance_now == 2000 - 90,
           balance_now)
 
-    admin = Client(host, port)
+    admin = Client(host, port, tls)
     admin.login("admin_system", "passman69")
     status, html = admin.get("/admin-dashboard")
     check("admin: administrators can open the dashboard", status == 200, status)
@@ -261,7 +279,7 @@ def run(host: str, port: int) -> int:
     check("admin: only hats can be Unusual", not bad_unusual.get("ok"), bad_unusual)
 
     print("\n== csrf ==")
-    raw = Client(host, port)
+    raw = Client(host, port, tls)
     raw.login(name, "hunter22")
     raw.csrf = "not-the-right-token"
     forged = raw.api("/api/market/buy", {"item_id": "hat_pot"})
@@ -293,9 +311,16 @@ def run(host: str, port: int) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8972)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--https", action="store_true",
+                        help="drive the suite over TLS (port 443 unless "
+                             "--port says otherwise)")
     args = parser.parse_args()
-    return run(args.host, args.port)
+    port = args.port
+    if args.https and port == DEFAULT_PORT:
+        port = int(os.environ.get("BLOCKHAVEN_HTTPS_PORT", "443"))
+    print("== %s://%s:%d ==" % ("https" if args.https else "http", args.host, port))
+    return run(args.host, port, args.https)
 
 
 if __name__ == "__main__":

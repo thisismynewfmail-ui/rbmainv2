@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import json
 import math
+import ssl
 import sys
+import urllib.error
+import urllib.request
 import time
 from typing import Any, Dict, List
 
@@ -21,7 +24,26 @@ sys.path.insert(0, BASE)
 
 from tools.simclient import Bot  # noqa: E402
 
-HOST, PORT = "127.0.0.1", 8972
+# The plain-HTTP port the site answers on -- the same one main.py binds,
+# so the tests follow the server rather than a number baked in here.
+HOST = os.environ.get("BLOCKHAVEN_HOST_TEST", "127.0.0.1")
+PORT = int(os.environ.get("BLOCKHAVEN_PORT", "80"))
+# Set BLOCKHAVEN_TLS=1 to drive the same suite over HTTPS and wss://, which is
+# how the encrypted path gets exercised rather than assumed.
+TLS = os.environ.get("BLOCKHAVEN_TLS", "") not in ("", "0", "no")
+SCHEME = "https" if TLS else "http"
+if TLS and PORT == 80:
+    PORT = int(os.environ.get("BLOCKHAVEN_HTTPS_PORT", "443"))
+
+
+def _open(url, *args, **kw):
+    """urlopen, without the trust check when the certificate is self-signed."""
+    if TLS:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        kw["context"] = ctx
+    return urllib.request.urlopen(url, *args, **kw)
 PASSED: List[str] = []
 FAILED: List[str] = []
 
@@ -110,8 +132,8 @@ def sim_accounts(count: int) -> List[tuple]:
         try:
             # already registered by an earlier run?  The form just says the
             # name is taken, which is exactly what we want to hear.
-            urllib.request.urlopen(
-                "http://%s:%d/register" % (HOST, PORT), body, timeout=10).read()
+            _open(
+                "%s://%s:%d/register" % (SCHEME, HOST, PORT), body, timeout=10).read()
         except urllib.error.URLError:
             pass
         out.append((name, SIM_PASSWORD))
@@ -123,7 +145,7 @@ def spawn_bots(world: str, count: int, accounts=None) -> List[Bot]:
     bots = []
     for i in range(count):
         user, password = accounts[i % len(accounts)]
-        bot = Bot(HOST, PORT, user, password, world)
+        bot = Bot(HOST, PORT, user, password, world, tls=TLS)
         bot.start()
         bots.append(bot)
     return bots
@@ -461,14 +483,14 @@ def test_instances() -> None:
         # have to be seventeen accounts rather than seventeen sockets.
         accounts = sim_accounts(17)
         for user, password in accounts:
-            bot = Bot(HOST, PORT, user, password, "capture_the_flag")
+            bot = Bot(HOST, PORT, user, password, "capture_the_flag", tls=TLS)
             bot.start()
             bots.append(bot)
         pump(bots, 3.5)
         instances = sorted(set(b.me.get("id", 0) and b.state.get("instance")
                                for b in bots if b.state))
-        with urllib.request.urlopen(
-                "http://%s:%d/api/worlds/status" % (HOST, PORT), timeout=8) as fh:
+        with _open(
+                "%s://%s:%d/api/worlds/status" % (SCHEME, HOST, PORT), timeout=8) as fh:
             status = json.loads(fh.read().decode())
         ctf = status["worlds"]["capture_the_flag"]
         check("instances: a second instance opened once the first filled",
@@ -490,8 +512,8 @@ def test_visits() -> None:
     import urllib.request
 
     def visits() -> int:
-        with urllib.request.urlopen(
-                "http://%s:%d/api/worlds/status" % (HOST, PORT), timeout=8) as fh:
+        with _open(
+                "%s://%s:%d/api/worlds/status" % (SCHEME, HOST, PORT), timeout=8) as fh:
             return json.loads(fh.read().decode())["worlds"]["burger_tycoon"]["visits"]
 
     before = visits()

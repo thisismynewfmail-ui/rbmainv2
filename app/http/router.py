@@ -7,6 +7,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote
 
+from .. import config
 from .templating import render as render_template
 
 STATUS_TEXT = {
@@ -111,12 +112,23 @@ class Response:
             parts.append("Max-Age=%d" % max_age)
         if http_only:
             parts.append("HttpOnly")
+        # Once TLS is up the plain port only redirects, so nothing this
+        # server sets has any business travelling in clear -- above all the
+        # session token.  Marking it here rather than per call site means a
+        # cookie added later cannot forget to.
+        if config.TLS_ACTIVE:
+            parts.append("Secure")
         self.cookies.append("; ".join(parts))
         return self
 
     def delete_cookie(self, name: str, path: str = "/") -> "Response":
-        self.cookies.append("%s=; Path=%s; Max-Age=0; HttpOnly; SameSite=Lax"
-                            % (name, path))
+        parts = ["%s=" % name, "Path=%s" % path, "Max-Age=0", "HttpOnly",
+                 "SameSite=Lax"]
+        if config.TLS_ACTIVE:
+            # A Secure cookie is only replaced by a Secure one, so signing
+            # out has to match the flags it was set with.
+            parts.append("Secure")
+        self.cookies.append("; ".join(parts))
         return self
 
     def no_cache(self) -> "Response":

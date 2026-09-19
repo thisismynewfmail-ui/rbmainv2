@@ -17,11 +17,12 @@ import json
 import os
 import random
 import socket
+import ssl
 import struct
 import sys
 import threading
 import time
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPSConnection
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
@@ -30,11 +31,28 @@ if BASE not in sys.path:
     sys.path.insert(0, BASE)
 
 
+def tls_wrap(sock: socket.socket, host: str) -> socket.socket:
+    """Put TLS on a socket the way a browser would, minus the trust check.
+
+    The bots talk to a server that is usually holding a self-signed
+    certificate on a developer's machine, so verification is off here.  That
+    is fine for a test client and would not be for anything else: it proves
+    the server speaks TLS and that wss:// works through it, which is exactly
+    what these tests are for.
+    """
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx.wrap_socket(sock, server_hostname=host)
+
+
 class WSClient:
     """Minimal RFC 6455 client (masked frames, text only)."""
 
-    def __init__(self, host: str, port: int, path: str):
+    def __init__(self, host: str, port: int, path: str, tls: bool = False):
         self.sock = socket.create_connection((host, port), timeout=10)
+        if tls:
+            self.sock = tls_wrap(self.sock, host)
         key = base64.b64encode(os.urandom(16)).decode()
         request = (
             "GET %s HTTP/1.1\r\nHost: %s:%d\r\nUpgrade: websocket\r\n"
@@ -112,9 +130,11 @@ class WSClient:
 
 class Bot:
     def __init__(self, host: str, port: int, username: str, password: str,
-                 world: str, name: Optional[str] = None, verbose: bool = False):
+                 world: str, name: Optional[str] = None, verbose: bool = False,
+                 tls: bool = False):
         self.host = host
         self.port = port
+        self.tls = tls
         self.username = username
         self.password = password
         self.world = world
@@ -138,7 +158,13 @@ class Bot:
     # ------------------------------------------------------------ website
     def http(self, method: str, path: str, body: Optional[str] = None,
              json_body: bool = False) -> Any:
-        conn = HTTPConnection(self.host, self.port, timeout=10)
+        if self.tls:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = HTTPSConnection(self.host, self.port, timeout=10, context=ctx)
+        else:
+            conn = HTTPConnection(self.host, self.port, timeout=10)
         headers = {}
         if self.cookie:
             headers["Cookie"] = self.cookie
@@ -174,7 +200,7 @@ class Bot:
         payload = json.loads(body.decode())
         if not payload.get("ok"):
             raise RuntimeError("join failed: %s" % payload.get("error"))
-        self.ws = WSClient(self.host, self.port, payload["ws"])
+        self.ws = WSClient(self.host, self.port, payload["ws"], tls=self.tls)
 
     # -------------------------------------------------------------- loop
     def listen(self) -> None:
@@ -266,7 +292,8 @@ class Bot:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8972)
+    parser.add_argument("--port", type=int, default=
+                        int(os.environ.get("BLOCKHAVEN_PORT", "80")))
     parser.add_argument("--world", default="capture_the_flag")
     parser.add_argument("--user", default="admin_system")
     parser.add_argument("--password", default="passman69")
