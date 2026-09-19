@@ -25,7 +25,7 @@ def _profile_or_404(username: str):
 def profile(req: Request, username: str = ""):
     profile_user = _profile_or_404(username)
     if profile_user is None:
-        return R.error(404, "There is nobody called '%s' here." % username)
+        return R.not_found("There is nobody called '%s' here." % username)
     pid = int(profile_user["id"])
     viewer = int(req.user["id"]) if req.user else 0
     viewer_admin = bool(req.user and req.user["is_admin"])

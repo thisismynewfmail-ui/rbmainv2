@@ -108,7 +108,7 @@ def read_message(req: Request, message_id: str = "0"):
     uid = int(req.user["id"])
     message = messages.get(int(message_id), uid)
     if message is None:
-        return R.error(404, "That message is not in your mailbox.")
+        return R.not_found("That message is not in your mailbox.")
     messages.mark_read(int(message_id), uid)
     return render(req, "message.html", message=message,
                   thread=messages.thread_for(message, uid),

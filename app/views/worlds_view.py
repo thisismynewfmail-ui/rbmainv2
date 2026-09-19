@@ -38,7 +38,7 @@ def world_browser(req: Request):
 def world_detail(req: Request, world_id: str = ""):
     world = worlds.get(world_id)
     if world is None:
-        return R.error(404, "That world does not exist.")
+        return R.not_found("That world does not exist.")
     viewer = int(req.user["id"]) if req.user else 0
     status = game_registry.world_status(world_id)
     return render(req, "world_detail.html", world=world, status=status,
@@ -56,7 +56,7 @@ def world_detail(req: Request, world_id: str = ""):
 def _game_view(req: Request, world_id: str):
     world = worlds.get(world_id)
     if world is None:
-        return R.error(404, "That world does not exist.")
+        return R.not_found("That world does not exist.")
     if req.user is None:
         return R.redirect("/login?next=/%s" % world_id)
     return render(req, "game.html", world=world,

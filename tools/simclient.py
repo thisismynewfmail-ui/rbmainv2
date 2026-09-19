@@ -154,6 +154,13 @@ class Bot:
         self.running = False
         self.tycoon: Dict[str, Any] = {}
         self.coins = 0
+        # What every player in the world is holding, as the wire reports it:
+        # a hotbar index, or -1 for empty hands.  Fed by both the per-change
+        # broadcast and the snapshot, so a test can check either path.
+        self.held: Dict[int, int] = {}
+        # The last "you" the server sent, merged, so a test can read the
+        # fields it only sends when they change.
+        self.you: Dict[str, Any] = {}
 
     # ------------------------------------------------------------ website
     def http(self, method: str, path: str, body: Optional[str] = None,
@@ -238,6 +245,21 @@ class Bot:
                 self.tycoon["plots"] = message.get("plots", [])
             elif kind == "coins":
                 self.coins = message.get("c", self.coins)
+            elif kind == "slot":
+                self.held[message.get("id")] = message.get("i")
+            elif kind == "you":
+                self.you.update(message)
+                if message.get("slot") is not None:
+                    pid = (self.me or {}).get("id")
+                    if pid is not None:
+                        self.held[pid] = (-1 if message.get("stowed")
+                                          else message["slot"])
+            elif kind == "snap":
+                for row in message.get("ps", []):
+                    try:
+                        self.held[row[0]] = row[8]
+                    except (IndexError, TypeError):
+                        pass
 
     def start(self) -> None:
         self.login()
@@ -268,6 +290,20 @@ class Bot:
         import math
         self.yaw = math.atan2(dx, dz)
         return distance
+
+    def send(self, payload: Dict[str, Any]) -> None:
+        """Put one message on the wire, for anything without a helper."""
+        if self.ws:
+            self.ws.send(payload)
+
+    def select_slot(self, index: int) -> None:
+        """Draw hotbar ``index``, or -1 to put the held item away.
+
+        This is what the number keys send: the client turns a second press
+        on the slot already in hand into -1, and the server decides whether
+        to honour it.
+        """
+        self.send({"t": "slot", "i": index})
 
     def chat(self, text: str, team: bool = False) -> None:
         if self.ws:

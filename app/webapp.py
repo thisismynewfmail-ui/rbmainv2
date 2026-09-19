@@ -78,7 +78,11 @@ def dispatch(req: Request) -> Response:
     if route is None:
         if isinstance(params, set):
             return R.error(405, "That address does not accept %s." % req.method)
-        return R.error(404, "There is nothing at %s." % req.path)
+        if req.wants_json:
+            return R.json_response(
+                {"ok": False, "error": "There is nothing at %s." % req.path},
+                404)
+        return R.not_found()
     req.params = params
     response = route.handler(req, **params)
     if isinstance(response, Response):

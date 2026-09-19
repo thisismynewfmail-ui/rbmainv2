@@ -319,6 +319,7 @@ def _install(args, destination: Path, staging: Path) -> int:
         return fail("could not read the files: %s" % exc)
 
     owner = _owner()
+    replacing = (destination / CERT_NAME).exists()
     try:
         destination.mkdir(parents=True, exist_ok=True)
         os.chmod(destination, 0o755)
@@ -345,6 +346,13 @@ def _install(args, destination: Path, staging: Path) -> int:
 
     print("  installed    %s" % (destination / CERT_NAME))
     print("               %s  (mode 600)" % (destination / KEY_NAME))
+    if replacing:
+        # Renewing is the same command as installing, so say which one this
+        # was -- and where the one it replaced went, since that is the only
+        # copy left if the new certificate turns out to be wrong.
+        print("  replaced     the certificate that was already there")
+        print("               (kept as %s.1 and %s.1)" % (CERT_NAME, KEY_NAME))
+        print("               Restart the server to pick this one up.")
     print("")
     _note_leftover_source(args, destination)
     name = ""

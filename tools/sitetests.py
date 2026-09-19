@@ -242,9 +242,17 @@ def run(host: str, port: int, tls: bool = False) -> int:
               status)
         snooper = Client(host, port, tls)
         snooper.login("PixelPatty", "blockhaven")
-        status, _ = snooper.get("/messages/%s" % message_id)
+        status, snooped = snooper.get("/messages/%s" % message_id)
+        # A message that is not yours is not there as far as you are
+        # concerned, and "not there" sends you to the home page.  What is
+        # checked is the part that matters -- none of the message comes
+        # back -- rather than the status code that carries it, so this
+        # holds whichever way a dead end is answered.
         check("messages: an unrelated player cannot read someone else's mail",
-              status == 404, status)
+              status in (302, 303, 404)
+              and "testing the mail" not in snooped
+              and "hello" not in snooped.lower(),
+              "%s / %d bytes" % (status, len(snooped)))
 
     print("\n== admin access control ==")
     status, _, headers = client.request("GET", "/admin-dashboard")
