@@ -94,6 +94,12 @@ _CHAIN_NAMES = (
 # public.key.pem ships in most bundles and is not a private key; reading it as
 # one produces a baffling error a long way from the cause.
 _NOT_A_KEY = ("public", "pubkey", "csr", "request")
+# Archives and binary keystores live in certs/ quite legitimately -- the
+# downloaded bundle is usually left there -- but none of them is a PEM file
+# and none should be read looking for one.
+_NOT_PEM_SUFFIXES = (".zip", ".gz", ".tgz", ".bz2", ".xz", ".tar", ".7z",
+                     ".rar", ".p12", ".pfx", ".jks", ".der", ".png", ".jpg",
+                     ".pdf")
 
 
 class TLSError(Exception):
@@ -106,12 +112,24 @@ def _readable(*paths: str) -> bool:
 
 
 def _read_text(path: Path) -> str:
+    """The file as text, or "" when it is too big or is not text at all.
+
+    A PEM file is ASCII by definition, so a NUL byte means this is something
+    else -- and the something else that matters is the bundle's own zip left
+    sitting in certs/ after it was installed.  A zip written without
+    compression carries its PEM files verbatim, so reading one as text yields
+    real-looking certificate blocks; refusing binary here is what stops an
+    archive being mistaken for the certificate inside it.
+    """
     try:
         if path.stat().st_size > MAX_PEM_BYTES:
             return ""
-        return path.read_text("utf-8", "replace")
+        raw = path.read_bytes()
     except OSError:
         return ""
+    if b"\0" in raw:
+        return ""
+    return raw.decode("utf-8", "replace")
 
 
 def split_pem_certs(text: str) -> List[str]:
@@ -540,6 +558,8 @@ def _bundle_files(root: Path) -> List[Path]:
             # to be served, and a renewal should not change which certificate
             # wins just by existing.
             if entry.suffix[1:].isdigit() and "." in entry.stem:
+                continue
+            if entry.suffix.lower() in _NOT_PEM_SUFFIXES:
                 continue
             found.append(entry)
             if len(found) >= MAX_BUNDLE_FILES:

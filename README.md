@@ -306,6 +306,13 @@ python3 tools/install_cert.py ~/Downloads/example.com-ssl-bundle.zip
 sudo ./run.sh
 ```
 
+Copying the zip up to the server and installing it from where it landed works
+the same way — `python3 tools/install_cert.py certs/mybundle.zip`. The archive
+is read rather than moved, and leaving it in `certs/` afterwards does not
+confuse the search: archives are skipped, so the certificate that gets served
+is the installed one. It does still hold a copy of your private key, so delete
+it once HTTPS is up.
+
 The installer takes the zip, the folder it was unpacked into, or the files
 themselves (`--cert`/`--key`). It works out which file is the certificate and
 which is the private key by reading them rather than by their names — so

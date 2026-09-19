@@ -17,11 +17,33 @@ python3 tools/install_cert.py ~/Downloads/example.com-ssl-bundle.zip
 sudo ./run.sh
 ```
 
-The installer takes a zip, a folder, or the files themselves:
+Dropping the zip in here first and installing it in place works too, and is
+usually the easiest thing over SSH — copy it up, then point the installer at
+where it landed:
+
+```
+python3 tools/install_cert.py certs/mybundle.zip
+```
+
+The zip is read, not moved or deleted, so it stays where you put it. It holds
+a copy of your private key, so delete it once the site is serving HTTPS;
+until then `.gitignore` keeps it out of the repository along with everything
+else here. Leaving it in place does not confuse the server: archives are
+skipped when the folder is searched, so the certificate that gets served is
+the installed one.
+
+The installer also takes a folder, or the files themselves:
 
 ```
 python3 tools/install_cert.py ./example.com-ssl-bundle/
 python3 tools/install_cert.py --cert domain.cert.pem --key private.key.pem
+```
+
+With no arguments at all it re-checks what is already installed, and points
+at any zip in here that has not been installed yet:
+
+```
+python3 tools/install_cert.py
 ```
 
 It normalises whatever it is given to two files — `fullchain.pem` and
