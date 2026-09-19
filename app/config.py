@@ -54,6 +54,12 @@ HSTS_SECONDS = 0
 ACME_WEBROOT = DATA_DIR / "acme"
 ACME_PREFIX = "/.well-known/acme-challenge/"
 
+# Where a certificate downloaded from a registrar or host is kept.  It is
+# searched on every start, so ``./run.sh`` serves HTTPS with no flags at all
+# once a bundle has been put there -- see ``tools/install_cert.py``.  The
+# directory is in .gitignore: a private key does not belong in a repository.
+CERT_DIR = Path(os.environ.get("BLOCKHAVEN_CERT_DIR", "") or (BASE_DIR / "certs"))
+
 # Internal loopback range used by the game host subprocesses.  Nothing outside
 # the machine ever talks to these -- the public facing HTTP server reverse
 # proxies websocket upgrades into them.

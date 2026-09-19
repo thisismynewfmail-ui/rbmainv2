@@ -104,12 +104,22 @@ def main(argv=None) -> int:
     parser.add_argument("--host", default=config.HTTP_HOST)
     parser.add_argument("--domain", default=config.DOMAIN,
                         help="the name this is served as, e.g. example.com. "
-                             "A certificate is looked for under "
+                             "Optional: when a certificate is found it "
+                             "names the site itself. A certbot certificate "
+                             "is looked for under "
                              "/etc/letsencrypt/live/<domain>/.")
     parser.add_argument("--cert", default=config.TLS_CERT,
                         help="certificate chain (PEM)")
     parser.add_argument("--key", default=config.TLS_KEY,
                         help="private key (PEM)")
+    parser.add_argument("--cert-dir", default="",
+                        help="where a certificate downloaded from a "
+                             "registrar or host lives (default: certs/ in "
+                             "this directory, which is searched anyway)")
+    parser.add_argument("--tls-check", action="store_true",
+                        help="say which certificate would be used and what "
+                             "is wrong with the others, then exit without "
+                             "binding anything")
     parser.add_argument("--self-signed", action="store_true",
                         help="make and use a self-signed certificate: for "
                              "local work only, every browser will warn")
@@ -141,6 +151,16 @@ def main(argv=None) -> int:
     config.HTTPS_PORT = args.https_port
     config.DOMAIN = args.domain
 
+    if args.cert_dir:
+        os.environ["BLOCKHAVEN_CERT_DIR"] = args.cert_dir
+
+    if args.tls_check:
+        from app.http import tls as tls_support
+        usable, text = tls_support.report(args.domain, args.cert, args.key,
+                                          args.cert_dir)
+        print(text)
+        return 0 if usable else 1
+
     if args.reset and config.DB_PATH.exists():
         for suffix in ("", "-wal", "-shm"):
             path = str(config.DB_PATH) + suffix
@@ -161,11 +181,21 @@ def main(argv=None) -> int:
     if not args.no_https:
         try:
             tls_info = tls_support.locate(args.domain, args.cert, args.key,
-                                          allow_self_signed=args.self_signed)
+                                          allow_self_signed=args.self_signed,
+                                          cert_dir=args.cert_dir)
         except tls_support.TLSError as exc:
             print("[main] %s" % exc)
             return 1
         if tls_info:
+            # A certificate names the site it belongs to, so --domain is a
+            # convenience rather than a requirement: without it the redirect
+            # target would be this machine's IP address, which no certificate
+            # covers -- exactly the "Not secure" this is here to avoid.
+            if not args.domain and tls_info.get("domain"):
+                args.domain = tls_info["domain"]
+                config.DOMAIN = args.domain
+                print("[main] serving as %s (read from the certificate)"
+                      % args.domain)
             try:
                 tls_context = http_server.tls_context(tls_info["cert"],
                                                       tls_info["key"])
@@ -177,11 +207,22 @@ def main(argv=None) -> int:
             config.TLS_KEY = tls_info["key"]
             config.TLS_ACTIVE = True
             config.HSTS_SECONDS = int(args.hsts or 0)
+            for warning in (tls_info.get("warnings") or "").split("; "):
+                if warning:
+                    print("[main] certificate note: %s" % warning)
         else:
+            def _indent(text: str) -> str:
+                return "\n".join("       " + line
+                                 for line in text.splitlines())
+
             print("[main] no certificate yet, so this is plain HTTP for now.")
-            print(tls_support.certbot_hint(args.domain))
-            print("       (or --self-signed for local work, or --no-https "
-                  "to stop asking)")
+            print("       Already have one from your registrar or host?")
+            print(_indent(tls_support.bundle_hint()))
+            print("       Or have Let's Encrypt issue one here:")
+            print(_indent(tls_support.certbot_hint(args.domain)))
+            print("       (--tls-check says what was looked at and why it "
+                  "was passed over; --self-signed is for local work, and "
+                  "--no-https stops the asking)")
 
     config.ACME_WEBROOT.mkdir(parents=True, exist_ok=True)
     (config.ACME_WEBROOT / ".well-known" / "acme-challenge").mkdir(
@@ -258,12 +299,17 @@ def main(argv=None) -> int:
         info = tls_info or {}
         dashboard.note("HTTPS on port %d -- certificate %s"
                        % (args.https_port, info.get("source", "?")))
+        if info.get("covers"):
+            dashboard.note("certificate covers %s" % info["covers"])
         details = tls_support.describe(info.get("cert", ""))
-        if details.get("names"):
-            dashboard.note("certificate covers %s" % details["names"])
         if details.get("days_left"):
             dashboard.note("certificate expires %s (%s days)"
                            % (details.get("expires", "?"), details["days_left"]))
+        if info.get("chain_note"):
+            dashboard.note("chain: %s" % info["chain_note"])
+        for warning in (info.get("warnings") or "").split("; "):
+            if warning:
+                dashboard.note(warning)
         if info.get("source") == "self-signed":
             dashboard.note("self-signed: browsers will warn. Fine for a LAN, "
                            "not for the public site.")

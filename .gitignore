@@ -1,3 +1,16 @@
 __pycache__/
 *.py[cod]
 data/
+
+# Certificates and private keys. certs/ is where a downloaded bundle is
+# installed (see certs/README.md); nothing in it belongs in the repository,
+# because a private key that has ever been committed has to be reissued.
+certs/*
+!certs/README.md
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+*-ssl-bundle.zip

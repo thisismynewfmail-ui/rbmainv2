@@ -363,14 +363,34 @@ def _is_loopback(address: str) -> bool:
         or address.startswith("127.")
 
 
+def _redirect_port(fallback: str) -> str:
+    """The ``:port`` the TLS listener is on, or "" when it is the implicit 443.
+
+    Taken from the redirect target the server was built with, because that is
+    the one place the HTTPS port is already known.  It matters whenever the
+    ports are not the public ones: sending a browser from :8972 to a bare
+    https://host means :443, where nothing is listening.
+    """
+    rest = fallback.partition("://")[2] or fallback
+    rest = rest.partition("/")[0]
+    if rest.startswith("["):                     # bracketed IPv6 literal
+        _addr, _, rest = rest.partition("]")
+    _host, sep, port = rest.rpartition(":")
+    if sep and port.isdigit() and port != "443":
+        return ":" + port
+    return ""
+
+
 def _redirect_host(host_header: str, fallback: str) -> str:
     """Where a plain request should be sent.
 
     The Host header decides, so a site reached by several names keeps the one
     the visitor typed -- but it is attacker-controlled, so it is accepted only
-    if it looks like a hostname, and the port is dropped (a redirect from :80
-    goes to :443, which is implicit).  Anything else falls back to the domain
-    the server was started with.
+    if it looks like a hostname.  Its port is dropped and the TLS listener's
+    own port is put back: the port a visitor reached :80 (or :8972) on says
+    nothing about where HTTPS answers, and carrying it across would send them
+    to a closed one.  Anything that does not look like a hostname falls back
+    to the domain the server was started with.
     """
     host = (host_header or "").strip().split(",")[0].strip()
     if host.startswith("["):                     # bracketed IPv6 literal
@@ -379,7 +399,7 @@ def _redirect_host(host_header: str, fallback: str) -> str:
     else:
         host = host.split(":")[0]
     if host and all(c.isalnum() or c in "-._" for c in host) and ".." not in host:
-        return "https://" + host
+        return "https://" + host + _redirect_port(fallback)
     return fallback
 
 
