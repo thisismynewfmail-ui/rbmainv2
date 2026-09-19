@@ -250,7 +250,7 @@
                          collector[2], 0, time * 0.6, 0, 5, height, 5,
                          [1, 0.83, 0.2], 0.92, 0, 1, 0.2, null);
         if (client.settings.showNames) {
-          renderer.queueTag('collect' + plot.index, Math.floor(bank) + ' coins',
+          renderer.queueTag('collect' + plot.index, Math.floor(bank) + ' Noogets',
                             '#ffe08a', 'walk over to collect',
                             [collector[0], collector[1] + 6, collector[2]], 1.2);
         }
@@ -269,7 +269,7 @@
         if (client.settings.showNames) {
           renderer.queueTag('btn' + plot.index + button.id, button.name,
                             affordable ? '#9ade8f' : '#ff9a90',
-                            button.cost.toLocaleString() + ' coins' +
+                            button.cost.toLocaleString() + ' Noogets' +
                             (button.income ? '  (+' + button.income + '/s)' : ''),
                             [p[0], p[1] + 6.2, p[2]], 1.25);
         }
@@ -277,9 +277,9 @@
         if (bd < nearestDist) {
           nearest = { kind: 'buy', id: button.id, dist: bd,
                       label: (affordable ? 'Buy <b>' + button.name + '</b> for ' +
-                        button.cost.toLocaleString() + ' coins'
+                        button.cost.toLocaleString() + ' Noogets'
                         : 'Need ' + (button.cost - Math.floor(client.coins)).toLocaleString() +
-                          ' more coins for <b>' + button.name + '</b>'),
+                          ' more Noogets for <b>' + button.name + '</b>'),
                       enabled: affordable };
           nearestDist = bd;
         }
@@ -302,7 +302,7 @@
         var md = dist(eye, p);
         if (md < nearestDist && ready) {
           nearest = { kind: 'use', id: machine.id, dist: md, enabled: true,
-                      label: '<b>' + machine.label + '</b> (+' + machine.payout + ' coins)' };
+                      label: '<b>' + machine.label + '</b> (+' + machine.payout + ' Noogets)' };
           nearestDist = md;
         }
       });

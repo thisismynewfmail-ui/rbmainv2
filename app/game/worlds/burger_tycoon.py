@@ -471,7 +471,7 @@ class BurgerTycoon(GameInstance):
                          "bad": True})
             return
         if player.coins < upgrade["cost"]:
-            player.send({"t": "notice", "m": "Not enough coins (%d needed)."
+            player.send({"t": "notice", "m": "Not enough Noogets (%d needed)."
                          % upgrade["cost"], "bad": True})
             return
         player.coins -= upgrade["cost"]

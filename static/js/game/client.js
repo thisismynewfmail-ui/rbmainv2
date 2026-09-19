@@ -614,7 +614,7 @@
     });
     net.on('coins', function (msg) {
       if (msg.gained) {
-        self.hud.toast('+' + msg.gained.toLocaleString() + ' coins', 'good');
+        self.hud.toast('+' + msg.gained.toLocaleString() + ' Noogets', 'good');
         self.particles.burst('coin', [self.local.pos[0], self.local.pos[1] + 3,
                                       self.local.pos[2]]);
         self.audio.play('coin');

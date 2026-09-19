@@ -337,7 +337,7 @@ HATS: List[Dict[str, Any]] = [
         {"t": "sph", "p": [0, 0.72, 0], "s": [0.3, 0.3, 0.3], "c": "#8c1c15"},
         {"t": "box", "p": [0, 0.32, 0.74], "s": [0.5, 0.42, 0.08], "c": "#f2f3f3",
          "decal": "letter_R"},
-    ], "The cap every builder owns. Faded, beloved, iconic.", "common", 1),
+    ], "The cap every nooger owns. Faded, beloved, iconic.", "common", 1),
 
     _hat("hat_top_hat", "Silk Top Hat", 750, [
         {"t": "cyl", "p": [0, 0.06, 0], "s": [2.0, 0.12, 2.0], "c": "#151515"},

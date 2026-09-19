@@ -29,18 +29,9 @@ def friends_page(req: Request):
 def inbox(req: Request):
     uid = int(req.user["id"])
     box = req.query.get("box", "inbox")
-    rows = messages.sent(uid) if box == "sent" else messages.inbox(uid)
-    view = []
-    for row in rows:
-        view.append({
-            "id": int(row["id"]),
-            "who": row["recipient_name"] if box == "sent" else row["sender_name"],
-            "subject": row["subject"],
-            "preview": messages.preview(row["body"]),
-            "created_at": int(row["created_at"]),
-            "unread": box == "inbox" and not row["read_at"],
-        })
-    return render(req, "messages.html", box=box, rows=view,
+    # One row per correspondent rather than per message: see messages.threads.
+    return render(req, "messages.html", box=box,
+                  rows=messages.threads(uid, box),
                   unread=messages.unread_count(uid))
 
 
@@ -109,7 +100,13 @@ def read_message(req: Request, message_id: str = "0"):
     message = messages.get(int(message_id), uid)
     if message is None:
         return R.not_found("That message is not in your mailbox.")
-    messages.mark_read(int(message_id), uid)
+    other_id = (int(message["sender_id"])
+                if int(message["recipient_id"]) == uid
+                else int(message["recipient_id"]))
+    # The page shows the whole conversation, and the mailbox now shows one
+    # row for it, so reading it clears all of it -- marking only the message
+    # that happened to be clicked would leave the row still bold.
+    messages.mark_thread_read(uid, other_id)
     return render(req, "message.html", message=message,
                   thread=messages.thread_for(message, uid),
                   other=(message["sender_name"]

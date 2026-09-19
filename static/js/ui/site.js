@@ -706,7 +706,10 @@
           '<canvas class="who-thumb avatar-thumb" width="120" height="120" data-user="' +
           Site.escape(row.who) + '"></canvas>' +
           '<span class="msgmain"><span class="msgtop">' +
-          '<span class="msgwho">' + Site.escape(row.who) + '</span>' +
+          '<span class="msgwho">' + Site.escape(row.who) +
+          (row.total > 1 ? ' <span class="pill tiny">' + row.total + '</span>' : '') +
+          (row.unread ? ' <span class="badge alert">' + row.unread + '</span>' : '') +
+          '</span>' +
           '<span class="msgwhen">' + Site.ago(row.created_at) + '</span></span>' +
           '<span class="msgsubject">' + Site.escape(row.subject) + '</span>' +
           '<span class="msgpreview">' + Site.escape(row.preview) + '</span>' +

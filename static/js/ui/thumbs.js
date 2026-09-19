@@ -819,6 +819,13 @@
   // No sitting: there is no chair on the stage, so a seated pose reads as a
   // character floating in mid-air.
   var HERO_POSES = ['idle', 'walk', 'run', 'jump'];
+  /* The first looks a visitor sees are the advert for the place, so they do
+     not get to roll a bare head standing still: the opening two always wear
+     an Unusual and are always moving.  After that the stage goes back to
+     rolling honestly, which is the point of a shuffle. */
+  var HERO_OPENING_LOOKS = 2;
+  var HERO_MOVING_POSES = ['walk', 'run'];
+  var heroLooksShown = 0;
   var HERO_POSE_LABELS = {
     idle: 'Standing by', walk: 'On the move', run: 'Sprinting',
     jump: 'Mid-jump'
@@ -879,7 +886,8 @@
       return item;
     }
     var face = wear('face', 1);
-    var hat = wear('hat', 0.92);
+    // An Unusual has to sit on something, so a forced one forces the hat too
+    var hat = wear('hat', options.forceUnusual ? 1 : 0.92);
     wear('shirt', 0.8);
     wear('pants', 0.72);
     wear('back', 0.34);
@@ -887,7 +895,9 @@
     // the hat aisle and the thing worth showing a visitor
     var effectIds = Object.keys(Thumbs.effects || {});
     var unusual = '';
-    if (hat && effectIds.length && Math.random() < (options.unusualChance || 0.28)) {
+    if (hat && effectIds.length &&
+        (options.forceUnusual ||
+         Math.random() < (options.unusualChance || 0.28))) {
       unusual = pick(effectIds);
       descriptor.items.hat.tier = 'unusual';
       descriptor.items.hat.effect = unusual;
@@ -963,7 +973,20 @@
   Thumbs.dressHero = function (el, options) {
     var preview = el && el.__preview;
     if (!preview || preview.failed) return null;
-    var look = Thumbs.randomLook(options);
+    var opts = {};
+    for (var key in (options || {})) {
+      if (Object.prototype.hasOwnProperty.call(options, key)) {
+        opts[key] = options[key];
+      }
+    }
+    // Counted here rather than in randomLook, because it is the stage that
+    // has an opening -- a thumbnail rolling a look is not part of it.
+    if (heroLooksShown < HERO_OPENING_LOOKS) {
+      if (opts.forceUnusual === undefined) opts.forceUnusual = true;
+      if (!opts.pose) opts.pose = pick(HERO_MOVING_POSES);
+    }
+    heroLooksShown++;
+    var look = Thumbs.randomLook(opts);
     function apply() {
       preview.setDescriptor(look.descriptor);
       preview.setPose(look.pose);

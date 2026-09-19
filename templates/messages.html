@@ -18,7 +18,7 @@
         <canvas class="who-thumb avatar-thumb" width="120" height="120" data-user="{{ m.who }}"></canvas>
         <span class="msgmain">
           <span class="msgtop">
-            <span class="msgwho">{{ m.who }}</span>
+            <span class="msgwho">{{ m.who }}{% if m.total > 1 %} <span class="pill tiny">{{ m.total }}</span>{% endif %}{% if m.unread %} <span class="badge alert">{{ m.unread }}</span>{% endif %}</span>
             <span class="msgwhen">{{ ago(m.created_at) }}</span>
           </span>
           <span class="msgsubject">{{ m.subject }}</span>
@@ -32,6 +32,6 @@
       <a href="/messages/compose">Write to somebody</a>.</p>
     {% endif %}
   </div>
-  <div class="panel-foot">Tap anywhere on a message to open it.</div>
+  <div class="panel-foot">One row per person &mdash; tap anywhere on it to open the whole conversation.</div>
 </div>
 {% include "partials/foot.html" %}

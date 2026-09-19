@@ -57,6 +57,69 @@ def sent(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
         (user_id, limit)))
 
 
+def threads(user_id: int, box: str = "inbox",
+            limit: int = 50) -> List[Dict[str, Any]]:
+    """One row per correspondent: their latest message, and how many there are.
+
+    The mailbox used to be a list of MESSAGES, so somebody who wrote four
+    times took four rows and pushed everyone else down the page -- and the
+    unread badge counted messages while the rows counted something else.  A
+    mailbox is a list of PEOPLE with a conversation behind each one, which is
+    what makes one row openable, countable, and markable read in one go.
+
+    The latest row per partner is picked in SQL rather than by reading the
+    whole mailbox and grouping in Python, so ``limit`` still means "this many
+    conversations" on an account with thousands of messages.
+    """
+    if box == "sent":
+        latest = db.query(
+            "SELECT m.*, u.username AS who_name, m.recipient_id AS other_id"
+            " FROM messages m JOIN users u ON u.id=m.recipient_id"
+            " WHERE m.sender_id=? AND m.del_sender=0"
+            "   AND m.id=(SELECT MAX(x.id) FROM messages x"
+            "             WHERE x.sender_id=m.sender_id"
+            "               AND x.recipient_id=m.recipient_id"
+            "               AND x.del_sender=0)"
+            " ORDER BY m.id DESC LIMIT ?", (user_id, limit))
+        tallies = db.query(
+            "SELECT recipient_id AS other_id, COUNT(*) AS total, 0 AS unread"
+            " FROM messages WHERE sender_id=? AND del_sender=0"
+            " GROUP BY recipient_id", (user_id,))
+    else:
+        latest = db.query(
+            "SELECT m.*, u.username AS who_name, m.sender_id AS other_id"
+            " FROM messages m JOIN users u ON u.id=m.sender_id"
+            " WHERE m.recipient_id=? AND m.del_recipient=0"
+            "   AND m.id=(SELECT MAX(x.id) FROM messages x"
+            "             WHERE x.recipient_id=m.recipient_id"
+            "               AND x.sender_id=m.sender_id"
+            "               AND x.del_recipient=0)"
+            " ORDER BY m.id DESC LIMIT ?", (user_id, limit))
+        tallies = db.query(
+            "SELECT sender_id AS other_id, COUNT(*) AS total,"
+            "       SUM(CASE WHEN read_at=0 THEN 1 ELSE 0 END) AS unread"
+            " FROM messages WHERE recipient_id=? AND del_recipient=0"
+            " GROUP BY sender_id", (user_id,))
+    tally = {int(r["other_id"]): r for r in db.rows_to_dicts(tallies)}
+    out: List[Dict[str, Any]] = []
+    for row in db.rows_to_dicts(latest):
+        other = int(row["other_id"])
+        stat = tally.get(other) or {}
+        out.append({
+            # The newest message in the conversation: opening it shows the
+            # whole thread, so this is the conversation's address.
+            "id": int(row["id"]),
+            "who": row["who_name"],
+            "other_id": other,
+            "subject": row["subject"],
+            "preview": preview(row["body"]),
+            "created_at": int(row["created_at"]),
+            "total": int(stat.get("total") or 1),
+            "unread": int(stat.get("unread") or 0),
+        })
+    return out
+
+
 def get(message_id: int, user_id: int) -> Optional[Dict[str, Any]]:
     row = db.query_one(
         "SELECT m.*, s.username AS sender_name, r.username AS recipient_name"
@@ -110,16 +173,12 @@ def preview(body: str, length: int = 90) -> str:
 
 
 def recent(user_id: int, limit: int = 8) -> List[Dict[str, Any]]:
-    """Latest conversations for the docked messenger: newest first, inbox only."""
-    rows = inbox(user_id, limit)
-    return [{
-        "id": int(row["id"]),
-        "who": row["sender_name"],
-        "subject": row["subject"],
-        "preview": preview(row["body"]),
-        "created_at": int(row["created_at"]),
-        "unread": not row["read_at"],
-    } for row in rows]
+    """Latest conversations for the docked messenger: newest first, inbox only.
+
+    One row per person, the same as the mailbox page -- the dock is small
+    enough that four rows from one talkative friend filled the whole of it.
+    """
+    return threads(user_id, "inbox", limit)
 
 
 def conversation(user_id: int, other_id: int,
