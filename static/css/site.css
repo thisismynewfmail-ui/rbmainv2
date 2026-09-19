@@ -540,6 +540,10 @@ canvas { max-width: 100%; }
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   margin-bottom: 12px; box-shadow: 0 1px 2px var(--shadow);
 }
+/* The home inbox button stands in the sidebar stack alongside the panels
+   rather than inside one, so it carries the same 12px beneath it; without
+   this it butts straight up against the friends grid below it. */
+.h-messages { margin-bottom: 12px; }
 .panel-head {
   background: var(--head-blue);
   color: var(--head-ink); font-weight: bold; font-size: 12px; padding: 5px 10px;
@@ -1487,17 +1491,40 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .landing-row .l-how     { order: 3; }
   .landing-row .l-newest  { order: 4; }
 
-  /* Signed-in home: people you can reach, then the inbox, then friends. */
-  .home-side {
-    display: flex; flex-direction: column; flex-wrap: nowrap;
+  /* Signed-in home.  The three columns stop being columns so that every
+     panel on the page can be ordered against every other one -- the same
+     display:contents trick as .landing-row and .avatar-row above.  Ordering
+     only within the sidebar would leave "Coming up" stranded at the very
+     bottom behind the timeline and the activity feed, which is a long way
+     to scroll for the one panel that is about what happens next.
+
+     So the phone gets: who you are, what is coming up, your inbox, your
+     friends, the worlds, then the feeds -- and "Online now", which is a
+     glance rather than a destination, goes to the end where "Coming up"
+     used to sit. */
+  /* align-items on .row is flex-start, which in a column means the cross
+     axis is horizontal -- so without stretch every panel shrinks to the
+     width of its own text.  The gap goes too: each panel already carries
+     its own 12px below it, and .row's would double every gap. */
+  .home-row {
+    flex-direction: column; flex-wrap: nowrap;
     align-items: stretch; gap: 0;
   }
-  .home-side .h-me       { order: 1; }
-  .home-side .h-requests { order: 2; }
-  .home-side .h-online   { order: 3; }
-  .home-side .h-messages { order: 4; }
-  .home-side .h-friends  { order: 5; }
-  .home-side .h-messages.only-mobile {
+  .home-row > .col-side,
+  .home-row > .col,
+  .home-row > .col-narrow { display: contents; }
+  .home-row .h-me       { order: 1; }
+  .home-row .h-requests { order: 2; }
+  .home-row .h-soon     { order: 3; }
+  .home-row .h-messages { order: 4; }
+  .home-row .h-friends  { order: 5; }
+  .home-row .h-jump     { order: 6; }
+  .home-row .h-say      { order: 7; }
+  .home-row .h-timeline { order: 8; }
+  .home-row .h-activity { order: 9; }
+  .home-row .h-online   { order: 10; }
+  /* Every panel carries its own 12px, so the stack needs no gap of its own. */
+  .home-row .h-messages {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     margin-bottom: 12px;
   }

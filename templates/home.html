@@ -60,6 +60,14 @@
     </div>
     {% endif %}
 
+    <!-- The inbox is one of the two things people come here for, so it gets
+         its own button rather than living in the navbar alone.  On a desktop
+         it sits above the friends grid; on a phone the ordering in site.css
+         moves it below Online now, where the thumb already is. -->
+    <a class="btn big block primary h-messages" href="/messages">
+      &#9993; Messages{% if nav_unread %} <span class="badge alert">{{ nav_unread }}</span>{% endif %}
+    </a>
+
     <div class="panel h-friends">
       <div class="panel-head green">Friends ({{ nav_friends }})</div>
       <div class="panel-body">
@@ -93,16 +101,10 @@
       </div>
     </div>
 
-    <!-- Phone layout only: the inbox is one of the two things people come
-         here for on a phone, so it gets its own button between Online now
-         and the friends grid rather than living in the drawer. -->
-    <a class="btn big block primary h-messages only-mobile" href="/messages">
-      &#9993; Messages{% if nav_unread %} <span class="badge alert">{{ nav_unread }}</span>{% endif %}
-    </a>
   </div>
 
   <div class="col">
-    <div class="panel">
+    <div class="panel h-jump">
       <div class="panel-head">Jump back in</div>
       <div class="panel-body">
         <div class="worldgrid">
@@ -114,7 +116,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel h-say">
       <div class="panel-head green">Say something</div>
       <div class="panel-body">
         <form id="post-form" onsubmit="return false">
@@ -127,7 +129,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel h-timeline">
       <div class="panel-head">Your timeline</div>
       <div class="panel-body" id="timeline">
         {% if timeline %}
@@ -140,7 +142,7 @@
   </div>
 
   <div class="col-narrow">
-    <div class="panel">
+    <div class="panel h-activity">
       <div class="panel-head">Site activity</div>
       <div class="panel-body">
         {% for e in activity %}
@@ -154,7 +156,7 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel h-soon">
       <div class="panel-head gold">Coming up</div>
       <div class="panel-body">
         <div class="spotgrid">
