@@ -52,8 +52,8 @@
     // see bindInput.
     this.releasedAt = 0;        // when we let the lock go on purpose
     this.escapedAt = 0;         // when a lock loss was read as an Esc press
-    this.blurredAt = -1e9;      // when the window last lost focus
     this.unlockTimer = 0;
+    this.refocusTimer = 0;      // the second look, after a blur that was not one
     this.wantLock = false;      // we are trying to get the mouse back
     this.lockTries = 0;
     this.lockTimer = 0;
@@ -138,23 +138,49 @@
       /* Whether this was Esc or a tab-away is decided a beat later rather
          than right now: the blur and the pointerlockchange arrive in either
          order depending on the browser, so reading the focus flag on this
-         very tick gets it wrong about half the time.  120ms later the answer
-         is settled -- still focused means Esc, focus gone means the window
-         went away and the round carries on. */
+         very tick gets it wrong about half the time.  Once it has settled,
+         still focused means Esc and focus gone means the window went away
+         and the round carries on.
+
+         What this used to ALSO require was that no blur had landed in the
+         previous 600ms -- and that is the bug that made the first Esc do
+         nothing.  Leaving fullscreen and a pointer lock together is itself
+         a blur in Chrome, so the one gesture this is trying to recognise
+         was the one guaranteed to fail the test.  The player got the "click
+         to take the mouse back" hint instead of a pause menu, and pressing
+         Esc again -- which now reaches the page, because the lock has gone
+         -- was what finally opened it.
+
+         Whether the window has focus NOW is the honest question, and the
+         delay is there to make it answerable.  How long ago some blur
+         happened is not: a blur the browser fired on its way out of
+         fullscreen says nothing about where the player is. */
       clearTimeout(self.unlockTimer);
       self.unlockTimer = setTimeout(function () {
         if (self.paused || self.hud.chatOpen) return;
         if (document.pointerLockElement === canvas) return;
-        var focused = (document.hasFocus ? document.hasFocus() : true) &&
-                      document.visibilityState !== 'hidden' &&
-                      performance.now() - self.blurredAt > 600;
-        if (focused) {
+        if (self.hasWindowFocus()) {
           self.escapedAt = performance.now();
           self.setPaused(true);
-        } else {
-          self.hud.showFocusHint(true);
+          return;
         }
-      }, 120);
+        /* Focus really is elsewhere, so this reads as a tab-away.  Look
+           once more a moment later anyway: a fullscreen exit can leave the
+           window briefly unfocused before handing focus straight back, and
+           the cost of being wrong here is a player staring at a game that
+           will not pause.  Nobody alt-tabs away and back inside half a
+           second, so a window this short cannot mistake one for the other. */
+        self.hud.showFocusHint(true);
+        clearTimeout(self.refocusTimer);
+        self.refocusTimer = setTimeout(function () {
+          if (self.paused || self.hud.chatOpen) return;
+          if (document.pointerLockElement === canvas) return;
+          if (!self.hasWindowFocus()) return;
+          self.hud.showFocusHint(false);
+          self.escapedAt = performance.now();
+          self.setPaused(true);
+        }, 400);
+      }, 180);
     });
 
     /* The browser refuses a fresh lock for about a second after the user
@@ -260,16 +286,14 @@
       if (action) self.keys[action] = false;
     });
 
-    // Tabbing away releases the keys so the character does not run on, but the
-    // match keeps going and the game stays unpaused.  The stamp is what the
-    // pointerlockchange handler above uses to tell a tab-away from an Esc.
+    // Tabbing away releases the keys so the character does not run on, but
+    // the match keeps going and the game stays unpaused.  Nothing is stamped
+    // here any more: a blur is a moment, and what the pause decision needs is
+    // whether the window has focus once things have settled, which
+    // hasWindowFocus asks directly.
     window.addEventListener('blur', function () {
-      self.blurredAt = performance.now();
       self.keys = {};
       self.firing = false;
-    });
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'hidden') self.blurredAt = performance.now();
     });
     window.addEventListener('focus', function () {
       if (!self.paused && !self.hud.chatOpen) self.hud.showFocusHint(!self.mouseGrabbed);
@@ -304,6 +328,13 @@
      without any lock transition to hang the change on, and left the player
      hunting for an invisible pointer.  So the class is derived from the
      state it actually depends on, and every transition just calls this. */
+  /* Is the player still looking at this window?  Asked after a settling
+     delay, this is what separates Esc from an alt-tab. */
+  Client.prototype.hasWindowFocus = function () {
+    if (document.visibilityState === 'hidden') return false;
+    return document.hasFocus ? document.hasFocus() : true;
+  };
+
   Client.prototype.syncCursor = function () {
     if (!this.canvas) return;
     var captured = document.pointerLockElement === this.canvas;
