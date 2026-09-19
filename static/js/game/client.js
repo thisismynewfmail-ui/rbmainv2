@@ -161,6 +161,15 @@
        pressed Esc, so a Resume that asks once lands on that cooldown and
        leaves the player staring at a free cursor.  Keep asking, backing off,
        and fall back to the "click to take the mouse back" hint. */
+    /* Esc in the Game View leaves fullscreen as well as the pointer lock,
+       and nothing here was listening for that.  The cursor state depends on
+       whether the mouse is ours, so it is re-asserted whenever the browser
+       changes the window out from under us -- including the case where it
+       drops fullscreen without dropping the lock. */
+    ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (name) {
+      document.addEventListener(name, function () { self.syncCursor(); });
+    });
+
     document.addEventListener('pointerlockerror', function () {
       // The lock was refused, so the mouse is the player's -- show it.
       self.syncCursor();
@@ -299,7 +308,44 @@
     if (!this.canvas) return;
     var captured = document.pointerLockElement === this.canvas;
     var wanted = captured && !this.paused && !(this.hud && this.hud.chatOpen);
+    var wasFree = this.canvas.classList.contains('freelook');
     this.canvas.classList.toggle('freelook', !wanted);
+    // Handing the mouse back is the moment the arrow has to reappear, and
+    // the moment a browser is least likely to draw it. Ask twice.
+    if (!wanted && !wasFree) this.refreshCursor();
+  };
+
+  /* Make the browser look at the cursor again.
+
+     Chrome hides the pointer for the duration of a pointer lock, and Esc in
+     the Game View drops the lock and fullscreen together.  Coming out of
+     that it can leave the arrow undrawn until the mouse next moves: the page
+     is already saying `cursor: default` and being believed, so there is
+     nothing for it to re-resolve and no reason for it to repaint.
+
+     Giving it a genuinely different value for one frame is that reason.  It
+     has to differ from the value being settled on -- re-setting the same one
+     computes identically and changes nothing -- so this goes through
+     `pointer`, which is what the menu's own buttons use and is invisible at
+     one frame, and then hands control back to the stylesheet.
+
+     Applied to the canvas and to the menu, because either can be the thing
+     under the pointer depending on whether the pause menu is up. */
+  Client.prototype.refreshCursor = function () {
+    var targets = [this.canvas];
+    ['pause', 'settings', 'helpbox'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) targets.push(el);
+    });
+    targets.forEach(function (el) { if (el) el.style.cursor = 'pointer'; });
+    var settle = function () {
+      targets.forEach(function (el) { if (el) el.style.cursor = ''; });
+    };
+    if (window.requestAnimationFrame) {
+      requestAnimationFrame(function () { requestAnimationFrame(settle); });
+    } else {
+      setTimeout(settle, 32);
+    }
   };
 
   Client.prototype.grabMouse = function (retrying) {
@@ -354,6 +400,12 @@
     } else {
       this.releaseMouse();
       this.hud.showFocusHint(false);
+      /* Again, now that the menu is actually on screen.  Esc arrives as a
+         lock release first and the menu only opens a beat later, once a
+         tab-away has been ruled out -- so the refresh that went with the
+         release landed while the overlay was still display:none, on an
+         element that was about to stop being the one under the pointer. */
+      this.refreshCursor();
       if (this.scoped) { this.scoped = false; this.hud.setScope(false); }
       // so Enter/Space work straight away and the cursor has an obvious home
       var resume = document.getElementById('btn-resume');
