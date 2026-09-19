@@ -396,6 +396,7 @@
       // the menu is gone, so the hint should be too until we know the lock
       // request has actually failed
       this.hud.showFocusHint(false);
+      this.returnToFullscreen();
       if (!this.hud.chatOpen) this.grabMouse();
     } else {
       this.releaseMouse();
@@ -406,11 +407,52 @@
          release landed while the overlay was still display:none, on an
          element that was about to stop being the one under the pointer. */
       this.refreshCursor();
+      this.leaveFullscreenForMenu();
       if (this.scoped) { this.scoped = false; this.hud.setScope(false); }
       // so Enter/Space work straight away and the cursor has an obvious home
       var resume = document.getElementById('btn-resume');
       if (resume) setTimeout(function () { try { resume.focus(); } catch (e) {} }, 20);
     }
+  };
+
+  /* Drop out of fullscreen for the pause menu, and go back on resume.
+
+     Releasing the pointer lock while STAYING in fullscreen is the state the
+     first Esc lands in, and it is the state where the arrow does not come
+     back: the lock stops hiding it, nothing in the page is asking for it to
+     be hidden, and the browser still does not paint one until the mouse is
+     moved to wake it.  Leaving fullscreen rebuilds the window and the cursor
+     comes back with it.
+
+     This is also why only the FIRST Esc showed it.  Fullscreen is requested
+     on the click that grabs the mouse and never again -- Resume only grabs
+     -- so once that first pause had dropped it, every later pause was
+     already windowed and behaved.  Now the two are kept in step in both
+     directions instead.
+
+     Only fullscreen this took itself is given back, so a player who put the
+     whole browser in fullscreen before pressing Play keeps it. */
+  Client.prototype.leaveFullscreenForMenu = function () {
+    this.fullscreenForMenu = false;
+    if (this.wasFullscreen) return;          // theirs, not ours to close
+    if (!document.fullscreenElement) return;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen ||
+               document.msExitFullscreen;
+    if (!exit) return;
+    this.fullscreenForMenu = true;
+    try {
+      var result = exit.call(document);
+      if (result && typeof result.catch === 'function') result.catch(function () {});
+    } catch (e) { this.fullscreenForMenu = false; }
+  };
+
+  Client.prototype.returnToFullscreen = function () {
+    if (!this.fullscreenForMenu) return;
+    this.fullscreenForMenu = false;
+    // Resume is a click or a keypress, so there is a gesture behind this and
+    // the request is allowed; if the browser refuses anyway the game simply
+    // carries on windowed, which is a good deal better than no cursor.
+    this.enterFullscreen();
   };
 
   Client.prototype.toggleCamera = function () {
