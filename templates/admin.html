@@ -17,7 +17,7 @@
       <div><dt>Online</dt><dd id="s-online">{{ live.online_users }}</dd></div>
       <div><dt>In game</dt><dd id="s-ingame">{{ live.in_game }}</dd></div>
       <div><dt>Visits</dt><dd id="s-visits">{{ fmt_num(live.site.visits) }}</dd></div>
-      <div><dt>Credits out</dt><dd id="s-credits">{{ fmt_num(live.money.circulating) }}</dd></div>
+      <div><dt>Noogets out</dt><dd id="s-credits">{{ fmt_num(live.money.circulating) }}</dd></div>
       <div><dt>Unusuals</dt><dd id="s-unusuals">{{ fmt_num(live.item_stats.unusuals) }}</dd></div>
     </dl>
     <!-- On a phone the Connections tab is a whole screen away, so the map can
@@ -74,7 +74,7 @@
           <button class="btn">Search</button>
         </form>
         <div class="tablewrap"><table class="grid">
-          <tr><th>Player</th><th>Credits</th><th>Joined</th><th>Last seen</th><th>Status</th><th>Actions</th></tr>
+          <tr><th>Player</th><th>Noogets</th><th>Joined</th><th>Last seen</th><th>Status</th><th>Actions</th></tr>
           {% for u in user_rows %}
           <tr data-user-row="{{ u.username }}">
             <td><a href="/profile/{{ u.username }}">{{ u.username }}</a>
@@ -95,7 +95,7 @@
 
   <div class="col-side">
     <div class="panel">
-      <div class="panel-head purple">Adjust credits</div>
+      <div class="panel-head purple">Adjust Noogets</div>
       <div class="panel-body">
         <p class="tiny muted">Runs through the same ledgered <code>economy.adjust()</code> path the game and
           market use, so every change is recorded and auditable.</p>
@@ -129,7 +129,7 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head">Recent credit movements</div>
+      <div class="panel-head">Recent Nooget movements</div>
       <div class="panel-body flush">
         <div class="tablewrap"><table class="grid">
           {% for row in ledger %}

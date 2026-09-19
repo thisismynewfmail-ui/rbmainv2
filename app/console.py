@@ -551,11 +551,11 @@ class Dashboard:
         rows.append(self._pair("social", social, width))
 
         # The economy gets a meter as well as its numbers: how much of every
-        # credit ever handed out is still in players' pockets.
+        # Nooget ever handed out is still in players' pockets.
         meter_w = 10 if wide else (6 if width >= 60 else 0)
         money = self._join(
             "%s %s" % (yellow(_num(data["circulating"])),
-                       "out" if narrow else "credits out"),
+                       "out" if narrow else "Noogets out"),
             bar(data["circulating"], data["granted"], meter_w)
             if meter_w and data["granted"] else "",
             "%s granted" % _num(data["granted"]),

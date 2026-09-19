@@ -129,7 +129,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
         return 1
     client.refresh_csrf()
     inventory = client.get_api("/api/inventory")
-    check("register: the account starts with 2,000 credits",
+    check("register: the account starts with 2,000 Noogets",
           inventory.get("balance") == 2000, inventory.get("balance"))
     owned = {item["item_id"] for item in inventory.get("items", [])}
     check("register: the starter kit is granted",
@@ -163,7 +163,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
           result.get("tier") in ("normal", "unusual"), result.get("tier"))
     expensive = client.api("/api/market/buy", {"item_id": "hat_halo"})
     check("market: you cannot buy what you cannot afford",
-          not expensive.get("ok") and "credits" in expensive.get("error", ""),
+          not expensive.get("ok") and "Noogets" in expensive.get("error", ""),
           expensive)
     unknown = client.api("/api/market/buy", {"item_id": "hat_does_not_exist"})
     check("market: unknown items are rejected", not unknown.get("ok"), unknown)
@@ -219,6 +219,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("social: profile comments work", wall.get("ok"), wall)
 
     print("\n== messaging ==")
+    client_name = name
     sent = client.api("/api/messages/send", {"to": "builderman_x",
                                              "subject": "hello",
                                              "body": "testing the mail"})
@@ -232,6 +233,29 @@ def run(host: str, port: int, tls: bool = False) -> int:
     status, inbox_html = other.get("/messages")
     check("messages: it arrives in the recipient's inbox",
           "testing the mail" in inbox_html or "hello" in inbox_html, status)
+
+    # Three more from the same sender.  The mailbox is a list of people, so
+    # all four have to collapse into one row rather than taking four -- and
+    # the row has to carry the latest of them, not the first.
+    for n in range(3):
+        client.api("/api/messages/send", {"to": "builderman_x",
+                                          "subject": "follow up %d" % (n + 1),
+                                          "body": "still testing %d" % (n + 1)})
+    threads = other.get_api("/api/messages/recent").get("rows", [])
+    mine = [t for t in threads if t.get("who") == client_name]
+    check("messages: four from one sender make one conversation row",
+          len(mine) == 1, [t.get("who") for t in threads])
+    if mine:
+        check("messages: the row counts the whole conversation",
+              mine[0].get("total", 0) >= 4, mine[0])
+        check("messages: the row shows the latest message",
+              "follow up 3" in str(mine[0].get("subject", "")), mine[0])
+        check("messages: the row counts what is unread",
+              mine[0].get("unread", 0) >= 4, mine[0])
+        status, threaded_html = other.get("/messages")
+        check("messages: the mailbox page shows that one row too",
+              threaded_html.count('class="msgrow') ==
+              len(threads), threaded_html.count('class="msgrow'))
     check("messages: the unread counter moves",
           other.get_api("/api/social/counts").get("unread", 0) >= 1, counts)
     match = re.search(r'/messages/(\d+)', inbox_html)
@@ -261,7 +285,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
           "%s %s" % (status, headers.get("location")))
     denied = client.api("/api/admin/credits", {"username": name, "amount": 999999,
                                                "mode": "add"})
-    check("admin: normal players cannot grant themselves credits",
+    check("admin: normal players cannot grant themselves Noogets",
           not denied.get("ok"), denied)
     balance_now = client.get_api("/api/inventory").get("balance")
     check("admin: the balance really did not change", balance_now == 2000 - 90,
@@ -273,7 +297,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("admin: administrators can open the dashboard", status == 200, status)
     granted = admin.api("/api/admin/credits", {"username": name, "amount": 500,
                                                "mode": "add", "reason": "test"})
-    check("admin: administrators can adjust credits",
+    check("admin: administrators can adjust Noogets",
           granted.get("ok") and granted.get("balance") == 2000 - 90 + 500, granted)
     unusual = admin.api("/api/admin/grant", {"username": name,
                                              "item_id": "hat_crown",

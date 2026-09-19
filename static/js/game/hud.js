@@ -265,7 +265,7 @@
         mode2.style.fontSize = '15px';
       }
       if (timer) {
-        timer.textContent = mine ? Math.round(mine.income) + ' coins/sec' : '';
+        timer.textContent = mine ? Math.round(mine.income) + ' Noogets/sec' : '';
       }
       if (sub) {
         sub.textContent = plots.filter(function (p) { return p.owner; }).length +

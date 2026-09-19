@@ -81,7 +81,7 @@ Requirements: Python 3.9+ and a browser with WebGL. That is the whole list.
 | `admin_test` | see `app/config.py` | Ordinary player used to demonstrate the Unusual system (Unusual Propeller Beanie + Unusual Mohawk Spikes). |
 | `builderman_x`, `RetroKid2007`, `BlockSmith`, `NoobSlayer99`, `PixelPatty`, `CartPusher`, `FlagRunner`, `GrillMaster` | see `app/bootstrap.py` | Demo players so the social features have something to show. |
 
-Everyone else who registers starts with **2,000 credits**, a Basic Pistol, a
+Everyone else who registers starts with **2,000 Noogets**, a Basic Pistol, a
 Basic Shotgun and a Basic Stick.
 
 ---
@@ -105,7 +105,7 @@ drive-thru, walk-in freezer, second floor, rooftop garden and finally the
 Golden Arches. Idle machines drip coins into your plot's bank; the fry station
 and freezer are hands-on (stand there and press **E**). Walk over the green
 collector pad to bank the coins. Plot coins are a scratch currency that never
-touches your site credits. When the last member of a crew leaves, the plot
+touches your site Noogets. When the last member of a crew leaves, the plot
 resets to bare ground and the next player to arrive starts fresh.
 
 ### Capture The Flag
@@ -388,7 +388,7 @@ and the supervisor restarts any host that dies.
 
 ### Server authority
 
-* **Credits, items and inventory.** Clients send intents ("buy `hat_crown`"),
+* **Noogets, items and inventory.** Clients send intents ("buy `hat_crown`"),
   never values. Prices come from the server-side catalogue, the Unusual roll
   happens on the server, and the charge plus the grant happen in one SQLite
   transaction with an append-only ledger.
@@ -650,7 +650,7 @@ clicking any item tile.
 ## The admin dashboard
 
 `/admin-dashboard` has two tabs. **Overview** is the live numbers: worlds,
-instances, host processes, player management, the credit ledger and the audit
+instances, host processes, player management, the Nooget ledger and the audit
 log, refreshed every three seconds.
 
 **Connections** is the same data drawn as a graph — every account as a node,

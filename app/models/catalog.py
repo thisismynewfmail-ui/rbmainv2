@@ -138,14 +138,14 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
         # A bone is a thin diagonal shape, so it needs more size than a skull
         # to read as anything at all -- below about 0.4 a drift of them turns
         # into one white smudge.
-        "name": "Floating Bones", "rate": 6, "life": [2.0, 3.0],
+        "name": "Floating Bones", "rate": 3.2, "life": [2.0, 3.0],
         "size": [0.44, 0.62], "grow": 0.0, "gravity": 0.0,
         "spread": 0.18, "rise": [0.05, 0.22], "blend": "normal", "spin": 1.1,
         "colors": ["#fffaf0", "#efe4cf", "#cdbfa5", "#9a8c74"],
         "shape": "bone", "radius": 0.82, "orbit": 0.55,
     },
     "flying_skulls": {
-        "name": "Flying Skulls", "rate": 6, "life": [1.6, 2.4],
+        "name": "Flying Skulls", "rate": 3.0, "life": [1.6, 2.4],
         "size": [0.40, 0.56], "grow": 0.0, "gravity": 0.0,
         "spread": 0.2, "rise": [0.08, 0.3], "blend": "normal", "spin": 0.7,
         "colors": ["#ffffff", "#ece7dc", "#b9b2a6", "#6f675c"],
@@ -153,7 +153,7 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
         "upright": True, "wobble": 0.7,
     },
     "jack_o_lanterns": {
-        "name": "Jack-o'-Lanterns", "rate": 5, "life": [1.9, 2.8],
+        "name": "Jack-o'-Lanterns", "rate": 2.6, "life": [1.9, 2.8],
         "size": [0.42, 0.60], "grow": 0.0, "gravity": 0.0,
         "spread": 0.16, "rise": [0.04, 0.2], "blend": "normal", "spin": 0.35,
         "colors": ["#ffe3b0", "#ff9a2e", "#e8631a", "#7f2e06"],
@@ -163,14 +163,14 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
     "skeletal_mishap": {
         # The one that does not orbit: a skeleton coming apart over your head
         # and falling off it, which wants scatter, tumble and gravity.
-        "name": "Skeletal Mishap", "rate": 13, "life": [1.1, 1.9],
+        "name": "Skeletal Mishap", "rate": 7.0, "life": [1.1, 1.9],
         "size": [0.30, 0.52], "grow": -0.03, "gravity": -2.6,
         "spread": 0.85, "rise": [1.0, 1.8], "blend": "normal", "spin": 5.5,
         "colors": ["#ffffff", "#e6ded0", "#a89e8c", "#5d564a"],
         "shapes": ["skull", "bone", "ribcage", "bone"], "radius": 0.3,
     },
     "bat_swarm": {
-        "name": "Bat Swarm", "rate": 9, "life": [1.4, 2.2],
+        "name": "Bat Swarm", "rate": 5.0, "life": [1.4, 2.2],
         "size": [0.40, 0.58], "grow": 0.0, "gravity": 0.0,
         "spread": 0.3, "rise": [0.05, 0.45], "blend": "normal", "spin": 0.9,
         "colors": ["#c9bfe4", "#7d6fa6", "#443a66", "#1d1830"],
@@ -178,14 +178,14 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
         "upright": True, "wobble": 0.9,
     },
     "haunted_wisps": {
-        "name": "Haunted Wisps", "rate": 5, "life": [1.7, 2.6],
+        "name": "Haunted Wisps", "rate": 3.0, "life": [1.7, 2.6],
         "size": [0.46, 0.68], "grow": -0.04, "gravity": 0.35,
         "spread": 0.42, "rise": [0.45, 0.9], "blend": "add", "spin": 0.35,
         "colors": ["#f2fffb", "#8fecc8", "#2ea98a", "#0b3a31"],
         "shape": "wisp", "radius": 0.66, "upright": True, "wobble": 0.5,
     },
     "cursed_runes": {
-        "name": "Cursed Runes", "rate": 8, "life": [1.5, 2.3],
+        "name": "Cursed Runes", "rate": 4.0, "life": [1.5, 2.3],
         "size": [0.30, 0.46], "grow": 0.0, "gravity": 0.0,
         "spread": 0.2, "rise": [0.05, 0.3], "blend": "add", "spin": 0.3,
         "colors": ["#f6e6ff", "#c78bff", "#7b2fd0", "#340d60"],
@@ -196,7 +196,7 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
         # They have to actually descend: sitting still they piled up on the
         # crown in a heap.  A little lift, then a steady fall, strings them
         # out over the shoulders the way something dropping on a thread does.
-        "name": "Spider Descent", "rate": 7, "life": [2.2, 3.1],
+        "name": "Spider Descent", "rate": 3.5, "life": [2.2, 3.1],
         "size": [0.38, 0.54], "grow": 0.0, "gravity": -1.35,
         "spread": 0.26, "rise": [0.55, 1.0], "blend": "normal", "spin": 0.35,
         "colors": ["#efe9dc", "#a49b88", "#5c5545", "#221f19"],
@@ -205,14 +205,14 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
     "raven_feathers": {
         # Thrown wider and fewer at a time: overlapping feathers read as one
         # ragged lump rather than as feathers.
-        "name": "Raven Feathers", "rate": 5, "life": [2.4, 3.4],
+        "name": "Raven Feathers", "rate": 3.0, "life": [2.4, 3.4],
         "size": [0.40, 0.56], "grow": 0.0, "gravity": -0.45,
         "spread": 0.8, "rise": [0.3, 0.75], "blend": "normal", "spin": 1.5,
         "colors": ["#d3ddf6", "#6b7cae", "#333c63", "#141830"],
         "shape": "feather", "radius": 0.98,
     },
     "candlelight_vigil": {
-        "name": "Candlelight Vigil", "rate": 5, "life": [2.0, 3.0],
+        "name": "Candlelight Vigil", "rate": 2.6, "life": [2.0, 3.0],
         "size": [0.48, 0.66], "grow": 0.0, "gravity": 0.0,
         "spread": 0.12, "rise": [0.03, 0.16], "blend": "normal", "spin": 0.2,
         "colors": ["#fff6d8", "#ffd77a", "#e0982a", "#7d4f10"],
@@ -337,7 +337,7 @@ HATS: List[Dict[str, Any]] = [
         {"t": "sph", "p": [0, 0.72, 0], "s": [0.3, 0.3, 0.3], "c": "#8c1c15"},
         {"t": "box", "p": [0, 0.32, 0.74], "s": [0.5, 0.42, 0.08], "c": "#f2f3f3",
          "decal": "letter_R"},
-    ], "The cap every builder owns. Faded, beloved, iconic.", "common", 1),
+    ], "The cap every nooger owns. Faded, beloved, iconic.", "common", 1),
 
     _hat("hat_top_hat", "Silk Top Hat", 750, [
         {"t": "cyl", "p": [0, 0.06, 0], "s": [2.0, 0.12, 2.0], "c": "#151515"},
@@ -367,7 +367,7 @@ HATS: List[Dict[str, Any]] = [
         {"t": "box", "p": [0.62, 0.68, 0], "s": [0.2, 0.46, 0.26], "c": "#f5c518", "mat": "metal"},
         {"t": "box", "p": [-0.62, 0.68, 0], "s": [0.2, 0.46, 0.26], "c": "#f5c518", "mat": "metal"},
         {"t": "sph", "p": [0, 0.42, 0.72], "s": [0.3, 0.3, 0.3], "c": "#c4281c"},
-    ], "Heavy is the head. Worth every credit.", "rare", 5),
+    ], "Heavy is the head. Worth every Nooget.", "rare", 5),
 
     _hat("hat_cowboy", "Ten Gallon Hat", 600, [
         {"t": "cyl", "p": [0, 0.1, 0], "s": [2.3, 0.14, 1.9], "c": "#8a5a2b",

@@ -53,7 +53,7 @@ def site_ticker() -> str:
     from ..social import feed
     bits = []
     stats = feed.stats_snapshot()
-    bits.append("%d builders registered" % stats["users"])
+    bits.append("%d noogers registered" % stats["users"])
     playing = game_registry.total_players()
     bits.append("%d player%s in game right now" % (playing, "" if playing == 1 else "s"))
     bits.append("%d place visits logged" % stats["visits"])
@@ -65,7 +65,7 @@ def site_ticker() -> str:
             bits.append("WELCOME %s -- joined %s"
                         % (row["username"], ago(row["created_at"])))
         else:
-            bits.append("%s is one of the newest builders here" % row["username"])
+            bits.append("%s is one of the newest noogers here" % row["username"])
     for row in inventory.unusual_showcase(3):
         bits.append("%s pulled an UNUSUAL %s (%s)"
                     % (row["username"], row["name"], row["effect_name"]))
@@ -79,7 +79,7 @@ def site_ticker() -> str:
                         % (world["name"], status["players"], status["instances"],
                            "" if status["instances"] == 1 else "s"))
     bits.append("Hats are the only slot that can roll Unusual -- 0.5% a purchase")
-    bits.append("New here? Grab 2,000 credits and go buy a hat.")
+    bits.append("New here? Grab 2,000 Noogets and go buy a hat.")
     text = "  \u2022  ".join(bits)
     TICKER_CACHE["at"] = time.time()
     TICKER_CACHE["text"] = text

@@ -706,7 +706,10 @@
           '<canvas class="who-thumb avatar-thumb" width="120" height="120" data-user="' +
           Site.escape(row.who) + '"></canvas>' +
           '<span class="msgmain"><span class="msgtop">' +
-          '<span class="msgwho">' + Site.escape(row.who) + '</span>' +
+          '<span class="msgwho">' + Site.escape(row.who) +
+          (row.total > 1 ? ' <span class="pill tiny">' + row.total + '</span>' : '') +
+          (row.unread ? ' <span class="badge alert">' + row.unread + '</span>' : '') +
+          '</span>' +
           '<span class="msgwhen">' + Site.ago(row.created_at) + '</span></span>' +
           '<span class="msgsubject">' + Site.escape(row.subject) + '</span>' +
           '<span class="msgpreview">' + Site.escape(row.preview) + '</span>' +
@@ -1016,7 +1019,7 @@
   // ------------------------------------------------------- live nav counters
   /* Polled rather than pushed, because the same account may well be signed in
      on a phone and a desktop at once: whichever tab reads first, both end up
-     showing the server's numbers, the server's credit balance and the
+     showing the server's numbers, the server's Nooget balance and the
      server's theme choice. */
   var lastCounts = { unread: -1, requests: -1 };
 

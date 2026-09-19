@@ -21,7 +21,7 @@
       '<div class="muted tiny" style="margin-top:2px;text-transform:uppercase">' +
       Site.escape(button.dataset.slot || '') + '</div>' +
       '<p style="margin:8px 0 0">Buy for ' + coin() + '<b>' + price.toLocaleString() +
-      '</b> credits?</p>' +
+      '</b> Noogets?</p>' +
       (button.dataset.unusual === '1'
         ? '<p class="tiny" style="color:var(--unusual-ink);margin:6px 0 0">' +
           'Hats roll for Unusual at 0.5% on purchase.</p>' : '') +
@@ -48,7 +48,7 @@
         ? 'Effect: <b>' + Site.escape(result.effect_name) + '</b> &mdash; serial #' +
           Site.escape(String(result.serial))
         : 'Serial #' + Site.escape(String(result.serial)) + ' &bull; ' +
-          (result.price || 0).toLocaleString() + ' credits') + '</p>' +
+          (result.price || 0).toLocaleString() + ' Noogets') + '</p>' +
       '<p class="tiny muted">New balance: ' + coin() +
       (result.balance || 0).toLocaleString() + '</p></div>';
     Site.dialog({

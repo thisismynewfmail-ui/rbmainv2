@@ -6,7 +6,7 @@ by ``dir`` (+1 for the south row, -1 for the north row), which is a 180 degree
 rotation, so one set of geometry serves all eight plots.
 
 Coins here are *plot coins* -- a per-world scratch currency.  They are never
-converted to site credits and never touch the accounts database.
+converted to site Noogets and never touch the accounts database.
 """
 from __future__ import annotations
 
@@ -471,7 +471,7 @@ class BurgerTycoon(GameInstance):
                          "bad": True})
             return
         if player.coins < upgrade["cost"]:
-            player.send({"t": "notice", "m": "Not enough coins (%d needed)."
+            player.send({"t": "notice", "m": "Not enough Noogets (%d needed)."
                          % upgrade["cost"], "bad": True})
             return
         player.coins -= upgrade["cost"]
