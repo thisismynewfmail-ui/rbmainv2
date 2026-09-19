@@ -1,9 +1,20 @@
-"""A threaded HTTP/1.1 server with websocket reverse-proxy support.
+"""A threaded HTTP/1.1 server with TLS and websocket reverse-proxy support.
 
 Written directly on top of ``socketserver`` (rather than ``http.server``) so we
 keep full control of the socket when a connection is upgraded to a websocket:
 game traffic is piped, byte for byte, into the matching game-host process while
 the ordinary website keeps being served from the very same port.
+
+TLS is terminated here too, which is what lets the websocket proxy work over
+``wss://``: the upgrade arrives already decrypted on the same listener the
+pages come from, so the game needs no second port and no second certificate.
+The handshake happens in the connection's own thread rather than in the accept
+loop, so a slow or hostile client cannot hold up everybody else's connections.
+
+Two listeners run when TLS is on.  The 443 one serves the site.  The 80 one
+answers three things and redirects everything else: the ACME challenge (which
+has to be plain HTTP by definition), loopback calls to /internal (which is how
+the game hosts report in), and HEAD/GET probes that want a redirect.
 """
 from __future__ import annotations
 
@@ -13,6 +24,7 @@ import os
 import select
 import socket
 import socketserver
+import ssl
 import sys
 import threading
 import time
@@ -25,6 +37,8 @@ from .router import Request, Response, STATUS_TEXT, error
 MAX_HEADER_BYTES = 32 * 1024
 MAX_BODY_BYTES = 2 * 1024 * 1024
 KEEPALIVE_TIMEOUT = 45
+# A handshake is a couple of round trips; anything slower is not a browser.
+TLS_HANDSHAKE_TIMEOUT = 12
 SERVER_NAME = "BlockhavenHTTP/1.0"
 
 GZIP_TYPES = ("text/", "application/javascript", "application/json",
@@ -61,6 +75,22 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
     wbufsize = 0
     timeout = KEEPALIVE_TIMEOUT
     app: Application = None  # type: ignore[assignment]
+
+    def setup(self) -> None:
+        """Terminate TLS before anything reads the socket.
+
+        This runs in the connection's own thread, not the accept loop, so a
+        client that opens a socket and then says nothing costs one thread
+        instead of blocking every other connection behind it.  A handshake
+        that fails raises, which socketserver turns into handle_error and a
+        closed socket -- the right answer for a probe or for a browser that
+        tried https:// against the plain port.
+        """
+        ctx = getattr(self.server, "ssl_context", None)
+        if ctx is not None:
+            self.request.settimeout(TLS_HANDSHAKE_TIMEOUT)
+            self.request = ctx.wrap_socket(self.request, server_side=True)
+        super().setup()
 
     # ------------------------------------------------------------------ core
     def handle(self) -> None:
@@ -121,6 +151,19 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
         path, _, raw_query = target.partition("?")
         path = _normalise_path(path)
 
+        # ------------------------------------------------- http -> https
+        # Everything on the plain port is a redirect except the two things
+        # that cannot be: the ACME challenge, which is plain HTTP by
+        # definition, and the game hosts' own reports, which come from this
+        # machine and never leave it.
+        redirect_to = getattr(self.server, "redirect_to", "")
+        if redirect_to and not path.startswith(config.ACME_PREFIX) \
+                and not (path.startswith("/internal/")
+                         and _is_loopback(self.client_address[0])):
+            host = _redirect_host(headers.get("host", ""), redirect_to)
+            self.send_redirect(host + target)
+            return False
+
         # ------------------------------------------------ websocket upgrade
         if (headers.get("upgrade", "").lower() == "websocket"
                 and self.app.ws_resolver is not None):
@@ -171,6 +214,24 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
         self.send_response(req, resp, keep_alive)
         return keep_alive
 
+    def send_redirect(self, location: str) -> None:
+        """301 to the same path on https, and say so in a body a curl -I or a
+        browser with scripting off can still read."""
+        body = (b"<!doctype html><meta charset=utf-8>"
+                b"<title>Moved</title><p>This site is served over HTTPS: "
+                b"<a href=\"" + location.encode("utf-8", "replace") + b"\">"
+                + location.encode("utf-8", "replace") + b"</a>")
+        head = ("HTTP/1.1 301 Moved Permanently\r\n"
+                "Location: %s\r\n"
+                "Content-Type: text/html; charset=utf-8\r\n"
+                "Content-Length: %d\r\n"
+                "Connection: close\r\n"
+                "Server: %s\r\n\r\n" % (location, len(body), SERVER_NAME))
+        try:
+            self.wfile.write(head.encode("latin-1") + body)
+        except OSError:
+            pass
+
     # ---------------------------------------------------------------- output
     def send_response(self, req: Request, resp: Response, keep_alive: bool) -> None:
         body = resp.body
@@ -185,6 +246,13 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
         headers["Server"] = SERVER_NAME
         headers["Connection"] = "keep-alive" if keep_alive else "close"
         headers.setdefault("X-Content-Type-Options", "nosniff")
+        # Opt in only, and only on the encrypted listener: a browser that has
+        # seen this refuses plain HTTP for the whole max-age, so sending it
+        # from the redirector -- or before a certificate is known good --
+        # locks visitors out of a site that has gone back to HTTP.
+        if config.HSTS_SECONDS and getattr(self.server, "ssl_context", None):
+            headers.setdefault("Strict-Transport-Security",
+                               "max-age=%d" % config.HSTS_SECONDS)
         out = ["HTTP/1.1 %d %s" % (resp.status,
                                    STATUS_TEXT.get(resp.status, "OK"))]
         for k, v in headers.items():
@@ -288,6 +356,33 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
                 pass
 
 
+def _is_loopback(address: str) -> bool:
+    """Is this peer on this machine?  The game hosts are, and nothing else
+    that talks to /internal should be."""
+    return address in ("127.0.0.1", "::1", "::ffff:127.0.0.1") \
+        or address.startswith("127.")
+
+
+def _redirect_host(host_header: str, fallback: str) -> str:
+    """Where a plain request should be sent.
+
+    The Host header decides, so a site reached by several names keeps the one
+    the visitor typed -- but it is attacker-controlled, so it is accepted only
+    if it looks like a hostname, and the port is dropped (a redirect from :80
+    goes to :443, which is implicit).  Anything else falls back to the domain
+    the server was started with.
+    """
+    host = (host_header or "").strip().split(",")[0].strip()
+    if host.startswith("["):                     # bracketed IPv6 literal
+        name, _, _rest = host.partition("]")
+        host = name + "]"
+    else:
+        host = host.split(":")[0]
+    if host and all(c.isalnum() or c in "-._" for c in host) and ".." not in host:
+        return "https://" + host
+    return fallback
+
+
 def _normalise_path(path: str) -> str:
     from urllib.parse import unquote
     path = unquote(path)
@@ -305,23 +400,71 @@ class ThreadedHTTPServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     request_queue_size = 128
 
-    def __init__(self, addr, handler_cls, app: Application):
+    def __init__(self, addr, handler_cls, app: Optional[Application] = None,
+                 ssl_context: Optional[ssl.SSLContext] = None,
+                 redirect_to: str = ""):
         self.app = app
-        handler_cls.app = app
+        self.handler_cls = handler_cls
+        # Handed to the handler, which does the handshake in its own thread.
+        self.ssl_context = ssl_context
+        # Non-empty on the plain listener when TLS is up: "https://host" with
+        # the port already folded in, ready for a Location header.
+        self.redirect_to = redirect_to
+        if app is not None:
+            handler_cls.app = app
         super().__init__(addr, handler_cls)
+
+    def attach(self, app: Application) -> None:
+        """Hand the server its application once there is one.
+
+        The listeners are bound before the application is built, because
+        binding 80 and 443 needs a privilege the rest of the process has no
+        reason to keep -- so the socket exists first and the site that
+        answers on it arrives a moment later.
+        """
+        self.app = app
+        self.handler_cls.app = app
+
+    def server_bind(self):
+        # Without this a client that hangs up mid-handshake can leave the
+        # port in TIME_WAIT and a restart fails to bind for a minute -- on a
+        # machine where the whole site is one process, that is the site down.
+        if hasattr(socket, "SO_REUSEADDR"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
 
     def handle_error(self, request, client_address):  # noqa: D401
         exc = sys.exc_info()[1]
         if isinstance(exc, (ConnectionResetError, BrokenPipeError,
                             socket.timeout, TimeoutError)):
             return
+        # A failed handshake is routine on a public port: a scanner, a
+        # browser sent to https:// on the plain port, a probe. Not an error.
+        if isinstance(exc, ssl.SSLError):
+            return
         if config.DEBUG:
             traceback.print_exc()
 
 
-def serve(app: Application, host: str, port: int) -> ThreadedHTTPServer:
-    server = ThreadedHTTPServer((host, port), ConnectionHandler, app)
-    return server
+def tls_context(cert_file: str, key_file: str) -> ssl.SSLContext:
+    """A modern server context: TLS 1.2+, the platform's cipher choice, and
+    HTTP/1.1 advertised over ALPN so a browser does not try HTTP/2 against a
+    server that only speaks 1.1."""
+    ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
+    try:
+        ctx.set_alpn_protocols(["http/1.1"])
+    except NotImplementedError:      # pragma: no cover - very old OpenSSL
+        pass
+    return ctx
+
+
+def serve(app: Optional[Application], host: str, port: int,
+          ssl_context: Optional[ssl.SSLContext] = None,
+          redirect_to: str = "") -> ThreadedHTTPServer:
+    return ThreadedHTTPServer((host, port), ConnectionHandler, app,
+                              ssl_context=ssl_context, redirect_to=redirect_to)
 
 
 # ---------------------------------------------------------------- static files

@@ -206,10 +206,16 @@ class Dashboard:
     """Collects the numbers and renders the periodic status block."""
 
     def __init__(self, application: Any, port: int, address: str,
-                 supervisor: Any = None, interval: float = 10.0):
+                 supervisor: Any = None, interval: float = 10.0,
+                 scheme: str = "http", domain: str = ""):
         self.app = application
         self.port = port
         self.address = address
+        # How to reach this server, as a visitor would type it: the scheme it
+        # is actually serving and, when it has a name, the name rather than
+        # the address behind it.
+        self.scheme = scheme
+        self.domain = domain
         self.supervisor = supervisor
         self.interval = max(2.0, float(interval))
         self.started = time.time()
@@ -228,6 +234,14 @@ class Dashboard:
         self._lock = threading.RLock()
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
+
+    def url(self, path: str = "/", host: str = "") -> str:
+        """A URL a visitor could paste, with the port left off when it is the
+        default for the scheme -- nobody types :443."""
+        name = host or self.domain or self.address
+        default = 443 if self.scheme == "https" else 80
+        port = "" if self.port == default else ":%d" % self.port
+        return "%s://%s%s%s" % (self.scheme, name, port, path)
 
     # ------------------------------------------------------------- lifecycle
     def start(self) -> None:
@@ -451,7 +465,7 @@ class Dashboard:
                     rows.append(self._pair(label if index == 0 else "",
                                            dim(row), width))
         rows.append(rule(width))
-        footer = "http://%s:%d/" % (self.address, self.port)
+        footer = self.url()
         if width >= 58:
             footer += "  (+/admin-dashboard)"
         footer += "   Ctrl+C to stop"
@@ -610,14 +624,14 @@ class Dashboard:
         lines = [BANNER if width >= 64 else bold("  BLOCKHAVEN")]
         lines.append("  %s  --  %s" % (bold(config.SITE_NAME), config.SITE_TAGLINE))
         lines.append(rule(width))
-        lines.append("  Website     " + cyan("http://%s:%d/" % (self.address, self.port)))
-        lines.append("  Local       " + cyan("http://127.0.0.1:%d/" % self.port))
-        lines.append("  Admin       http://%s:%d/admin-dashboard  (%s / %s)"
-                     % (self.address, self.port, admin[0], admin[1]))
+        lines.append("  Website     " + cyan(self.url()))
+        lines.append("  Local       " + cyan(self.url("/", "127.0.0.1")))
+        lines.append("  Admin       %s  (%s / %s)"
+                     % (self.url("/admin-dashboard"), admin[0], admin[1]))
         if games:
             for world in world_rows:
-                lines.append("  World       http://%s:%-5d /%-16s %s"
-                             % (self.address, self.port, world["id"], world["name"]))
+                lines.append("  World       %-38s %s"
+                             % (self.url("/" + world["id"]), world["name"]))
         else:
             lines.append("  " + yellow("Game hosts disabled (--no-games)"))
         lines.append(rule(width))

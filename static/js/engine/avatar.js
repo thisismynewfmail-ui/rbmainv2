@@ -30,6 +30,21 @@
   var HEIGHT = 5.4;          // feet to the top of the head, all body types
   var HEAD_TOP = 5.4;
 
+  /* How far anything lying ON the body stands off it: a hem, a chest band, a
+     cuff, a trouser stripe.  A band that merely touches the surface it is
+     printed on shares a depth value with it across its whole face, and the
+     two flicker against each other as the camera moves.  The bands used to
+     clear the trunk by 0.015, which is inside the depth buffer's resolution
+     at the distance a character is drawn at, so a striped shirt crawled.
+     0.05 holds its own depth at any range the game or a thumbnail uses, and
+     still reads as cloth rather than as a shelf.
+
+     It works because both pieces are baked from the same rounded box: the
+     bevel is the same FRACTION of each one's size, so growing a band by a
+     constant leaves it parallel to the body all the way round, corners
+     included, rather than diving back into it at the edges. */
+  var LIES_ON = 0.05;
+
   /* The male head.  The width is pinned at 1.46 because the tightest brims in
      the catalogue are 1.56-1.62 across and the skull has to stay inside them;
      the friendlier proportion therefore comes out of the other two axes.  It
@@ -579,6 +594,24 @@
        whichever set of measurements the descriptor asked for. */
     buildBlocks();
 
+    /* The trunk's width and depth at a given height.
+
+       A band round the body has to be measured against the piece it actually
+       lies on.  The male trunk is two segments of different sizes and the
+       female one is three, so a band sized from a single "chest" number
+       stands proud of one segment and sinks inside another -- on the female
+       build the chest metric is shallower than the segment above it, so the
+       upper stripes disappeared into the body altogether. */
+    function trunkAt(y) {
+      var w = 0, d = 0;
+      body.torso.forEach(function (seg) {
+        if (y < seg.y - seg.size[1] / 2 || y > seg.y + seg.size[1] / 2) return;
+        if (seg.size[0] > w) w = seg.size[0];
+        if (seg.size[2] > d) d = seg.size[2];
+      });
+      return w ? [w, d] : [body.chest.size[0], body.chest.size[2]];
+    }
+
     /* The belt: a band round the waist and, if it has one, a buckle at the
        front.  It is sized from the build's own hips rather than from numbers
        of its own, so one belt fits both builds, and it stands proud of them,
@@ -645,16 +678,20 @@
 
       var lowest = body.torso[body.torso.length - 1];
       if (shirtData.stripe) {
-        placeTrunk(0, lowest.y - lowest.size[1] / 2 + 0.18, 0,
-                   [lowest.size[0] + 0.04, 0.34, lowest.size[2] + 0.04],
+        var hemY = lowest.y - lowest.size[1] / 2 + 0.18;
+        var hem = trunkAt(hemY);
+        placeTrunk(0, hemY, 0,
+                   [hem[0] + LIES_ON * 2, 0.34, hem[1] + LIES_ON * 2],
                    shirtData.stripe, { k: 'torso' });
       }
       if (shirtData.stripes) {
         var span = body.chest.size[1] - 0.3;
         for (var si = 0; si < shirtData.stripes; si++) {
           var t = shirtData.stripes > 1 ? si / (shirtData.stripes - 1) : 0.5;
-          placeTrunk(0, body.chest.y - span / 2 + span * t, 0,
-                     [body.chest.size[0] + 0.03, 0.15, body.chest.size[2] + 0.03],
+          var bandY = body.chest.y - span / 2 + span * t;
+          var band = trunkAt(bandY);
+          placeTrunk(0, bandY, 0,
+                     [band[0] + LIES_ON * 2, 0.15, band[1] + LIES_ON * 2],
                      shirtData.stripe || '#1b2a35', { k: 'torso' });
         }
       }
@@ -751,16 +788,24 @@
         } else {
           place(at(legLen / 2), body.leg.size.slice(), skin, extra);
         }
-          if (pantsData.cuff) {
-          place(at(legLen - 0.2), [body.leg.size[0] + 0.05, 0.3,
-                                   body.leg.size[2] + 0.05],
+        if (pantsData.cuff) {
+          place(at(legLen - 0.2), [body.leg.size[0] + LIES_ON * 2, 0.3,
+                                   body.leg.size[2] + LIES_ON * 2],
                 pantsData.cuff, { rx: swing, ry: hipTwist, rz: roll, k: 'leg' });
         }
         if (pantsData.stripe) {
-          place(at(legLen / 2, 0, side * (body.leg.size[0] / 2 + 0.01)),
+          /* A flat plate rather than a rounded one.  The leg's bevel is a
+             fraction of ITS size and the stripe's of its own, and a stripe
+             0.07 across has almost none -- so a rounded stripe curves back
+             into the leg along both its edges and the two surfaces meet
+             there.  A plain box has no curvature to dive back in with, and
+             its whole face holds the standoff.  It is narrow enough to sit
+             inside the flat part of the leg's side either way. */
+          place(at(legLen / 2, 0,
+                   side * (body.leg.size[0] / 2 + LIES_ON - 0.035)),
                 [0.07, legLen * 0.92, body.leg.size[2] * 0.5],
                 pantsData.stripe,
-                { t: 'rlimb', rx: swing, ry: hipTwist, rz: roll,
+                { t: 'box', rx: swing, ry: hipTwist, rz: roll,
                   m: pantsData.glow ? 'neon' : '', k: 'leg' });
         }
         // a shallow foot block: cheap, and it stops the legs reading as bare posts

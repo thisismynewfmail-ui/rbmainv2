@@ -24,8 +24,35 @@ SITE_NAME = "BLOCKHAVEN"
 SITE_TAGLINE = "Build it. Play it. Live it."
 
 # ---------------------------------------------------------------- networking
-HTTP_PORT = int(os.environ.get("BLOCKHAVEN_PORT", "8972"))
+# The public ports.  80 and 443 are what a browser tries when someone types a
+# domain, so those are the defaults; both are privileged, which is why run.sh
+# knows how to ask for root.
+HTTP_PORT = int(os.environ.get("BLOCKHAVEN_PORT", "80"))
+HTTPS_PORT = int(os.environ.get("BLOCKHAVEN_HTTPS_PORT", "443"))
 HTTP_HOST = os.environ.get("BLOCKHAVEN_HOST", "0.0.0.0")
+
+# The domain this is served as.  It is what the HTTP listener redirects to
+# when a request arrives with no Host header worth trusting, and what the
+# certificate is looked up under.
+DOMAIN = os.environ.get("BLOCKHAVEN_DOMAIN", "")
+
+# TLS.  Empty means plain HTTP; ``main.py --cert/--key`` or a certificate
+# found under /etc/letsencrypt/live/<domain>/ fills them in.
+TLS_CERT = os.environ.get("BLOCKHAVEN_TLS_CERT", "")
+TLS_KEY = os.environ.get("BLOCKHAVEN_TLS_KEY", "")
+# Set once TLS is actually listening, so cookies can be marked Secure and the
+# plain listener knows to redirect rather than serve.
+TLS_ACTIVE = False
+# Opt in only: a browser that has seen this header refuses plain HTTP for the
+# whole max-age, which is unpleasant to undo if the certificate lapses.
+HSTS_SECONDS = 0
+
+# Where certbot's webroot plugin drops its HTTP-01 challenge files.  The
+# challenge has to be answerable over PLAIN HTTP on port 80 even when
+# everything else there is a redirect, which is why it is served from the
+# server rather than from behind the redirect.
+ACME_WEBROOT = DATA_DIR / "acme"
+ACME_PREFIX = "/.well-known/acme-challenge/"
 
 # Internal loopback range used by the game host subprocesses.  Nothing outside
 # the machine ever talks to these -- the public facing HTTP server reverse

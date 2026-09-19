@@ -21,22 +21,31 @@ sound, mesh and map is generated at runtime.
 ./run.sh
 ```
 
-Then open **http://<your-ip>:8972/** on any machine on your network. The site
-works on a phone; the Game View needs a desktop browser (pointer lock, a
-keyboard and a mouse), so its Load buttons are hidden on small screens.
+Then open **http://<your-ip>/** on any machine on your network — it serves on
+port 80, so there is no port to type. Add `--domain example.com` once you have
+a certificate and it serves HTTPS on 443 with port 80 redirecting to it; see
+[Processes and ports](#processes-and-ports). The site works on a phone; the
+Game View needs a desktop browser (pointer lock, a keyboard and a mouse), so
+its Load buttons are hidden on small screens.
 
 ---
 
 ## Quick start
 
 ```bash
-./run.sh                        # website + all three game hosts on port 8972
-./run.sh --port 9000            # somewhere else
+./run.sh                        # website + all three game hosts on port 80
+./run.sh --domain example.com   # HTTPS on 443, port 80 redirects to it
+./run.sh --self-signed          # HTTPS with a throwaway certificate
+./run.sh --no-https             # plain HTTP only
+./run.sh --port 8972 --no-https # unprivileged: no sudo needed
 ./run.sh --no-games             # website only
 ./run.sh --reset                # wipe the database and re-seed
 ./run.sh --debug                # verbose tracebacks, no static caching
 ./run.sh --status-interval 8    # slow the terminal read-out down (0 = off)
 ```
+
+80 and 443 are privileged, so `run.sh` re-runs itself under sudo when it needs
+to and then drops back to your account once the sockets are bound.
 
 `run.sh` is a thin wrapper around `python3 main.py`; every flag works either
 way. It leaves a live status block in the terminal, refreshed **every four
@@ -245,12 +254,57 @@ slot, and the bar is sized by padding around it rather than by a fixed height.
 
 ### Processes and ports
 
-Everything the network sees is on **one port (8972)**. Internally:
+Everything the network sees is on **the two ports a browser tries by
+itself** — 80 and 443. Internally:
 
 ```
-browser ──HTTP──▶ web server (main process, port 8972)
-        └─WS────▶ web server ──raw TCP──▶ game host process (127.0.0.1:899x)
+browser ──HTTPS─▶ web server :443 (TLS terminated here)
+        └─WSS───▶ web server ──raw TCP──▶ game host process (127.0.0.1:899x)
+browser ──HTTP──▶ web server :80  ──301──▶ https://…
+game host ─HTTP─▶ web server :80 /internal/… (loopback only)
+Let's Encrypt ──▶ web server :80 /.well-known/acme-challenge/… (plain, by design)
 ```
+
+TLS is terminated in the web server itself, in the connection's own thread
+rather than in the accept loop, so a client that opens a socket and then says
+nothing costs one thread instead of holding up every other connection. That
+the site and the game share a listener is what makes `wss://` work with no
+second port and no second certificate: the upgrade arrives already decrypted
+on the same socket the pages came from.
+
+The plain listener has three jobs once TLS is up. It redirects everything to
+HTTPS, keeping the path and query. It answers `/.well-known/acme-challenge/`
+itself, because HTTP-01 validation will not follow a redirect and there is no
+certificate to redirect to the first time anyway. And it accepts `/internal/`
+from the loopback, which is how the game hosts report in — they talk plain
+HTTP to 127.0.0.1 and never leave the machine.
+
+Cookies pick up `Secure` automatically as soon as TLS is listening, so the
+session token cannot travel in clear. `Strict-Transport-Security` is opt-in
+(`--hsts`): a browser that has seen it refuses plain HTTP for the whole
+max-age, which is unpleasant if a certificate later lapses.
+
+**Getting a certificate.** The registrar does not matter (Porkbun or anyone
+else) — only that the domain's A record points at the machine and that port 80
+reaches it. Start the site, ask certbot for the certificate while it runs, and
+restart:
+
+```
+./run.sh --domain example.com                       # :80 answers, no cert yet
+sudo certbot certonly --webroot -w data/acme -d example.com
+./run.sh --domain example.com                       # now HTTPS on :443
+```
+
+The server serves the challenge from `data/acme` itself, so certbot needs no
+web server of its own and renewals need nothing from you as long as port 80
+stays open. `--self-signed` makes a throwaway certificate for local work, and
+`--no-https` keeps the old plain-HTTP behaviour.
+
+**Privileges.** 80 and 443 need root to *bind*, not to serve. `run.sh`
+re-runs itself under sudo when it has to, and then `--user` hands the server
+back to the account that called sudo as soon as the sockets are open, so a bug
+in a request handler is not a bug with root behind it. `--stay-root` turns that
+off, and `--port 8972 --no-https` needs no privileges at all.
 
 The web server validates your session, mints a short-lived HMAC-signed join
 ticket containing your avatar, and then reverse-proxies the websocket byte for
@@ -554,13 +608,21 @@ the bottom of the dashboard instead.
 ## Development tools
 
 ```bash
-tools/devserver.sh start --port 8972    # start/stop/restart/log helper
+tools/devserver.sh start --port 8972 --no-https   # start/stop/restart/log
 tools/sitetests.py                      # HTTP-level tests for the website
+tools/sitetests.py --https              # ...the same suite over TLS
 tools/checkmaps.py                      # static map validation
 tools/simclient.py --world capture_the_flag --bots 4 --seconds 20
 tools/gametests.py                      # full gameplay test suite
+BLOCKHAVEN_TLS=1 tools/gametests.py     # ...over HTTPS and wss://
 tools/gametests.py ctf combat tycoon    # or a subset
 ```
+
+The test tools follow `BLOCKHAVEN_PORT`, so they and the server agree by
+default. Both suites can be pointed at the encrypted listener, which is how
+the TLS path gets exercised rather than assumed: `--https` for the site tests,
+`BLOCKHAVEN_TLS=1` for the gameplay ones, which then drive real `wss://`
+sockets through the same listener the pages come from.
 
 `BLOCKHAVEN_TYCOON_COINS=200000 python3 main.py` starts every Burger Tycoon
 crew with a large float, which is handy when you want to look at a finished
