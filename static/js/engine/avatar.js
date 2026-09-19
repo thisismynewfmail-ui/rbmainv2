@@ -939,6 +939,9 @@
      positioned relative to the camera basis. */
   Avatar.viewModel = function (descriptor, holding, camera, sway, opts) {
     opts = opts || {};
+    // A held item is authored at world scale, on a character six studs tall;
+    // in the hand a foot from the eye it wants to be a good deal smaller.
+    var VIEW_MODEL_SCALE = 0.45;
     var parts = [];
     var body = Avatar.body(descriptor);
     var eye = camera.eye;
@@ -962,6 +965,28 @@
       ];
     }
 
+    /* Placing a part takes two things that have to agree: where its centre
+       goes, and which way its box is turned.  The centre is laid out along
+       the camera basis below (toWorld); the turn is an euler triple the
+       renderer composes as Ry * Rx * Rz.  Those two are NOT the same frame,
+       and the difference is what used to tear the weapon apart:
+
+         * The renderer's pitch runs the other way.  Its Z column carries
+           -sin(rx) where the camera's forward carries +sin(pitch), so at
+           pitch 0 they agree -- which is why this looked fine while you
+           were level -- and at any other angle the boxes pitched against
+           their own offsets and each piece appeared to spin where it was.
+
+         * ``right`` is [-cos(yaw), 0, sin(yaw)], so (right, up, forward) is
+           left-handed: right x up = -forward.  No rotation matrix can equal
+           a reflection, so the mesh's X axis is always the camera's LEFT and
+           the flip has to be taken out of the offsets instead.
+
+       Hence PITCH_SIGN on the euler and MESH_X on every offset that belongs
+       to the model rather than to where the model is held. */
+    var PITCH_SIGN = -1;
+    var MESH_X = -1;
+
     var bobX = (sway && sway.x) || 0;
     var bobY = (sway && sway.y) || 0;
     var recoil = (sway && sway.recoil) || 0;
@@ -981,20 +1006,27 @@
       p: toWorld(armLocal),
       s: [armThickness, armThickness, 1.5],
       c: armColour,
-      r: [pitch + 0.14, yaw, 0]
+      // 0.14 holds the forearm just below the line of sight; the sign in
+      // front of pitch is what makes it follow the look rather than fight it
+      r: [PITCH_SIGN * pitch + 0.14, yaw, 0]
     });
 
     if (holding && holding.data && holding.data.parts) {
+      // ``base`` is where the hand is held in view, so it stays in the
+      // camera's own frame.  Each piece's offset is part of the model, so it
+      // is laid out in the frame the model's boxes are actually turned into
+      // -- which is the same one but mirrored in X.
       holding.data.parts.forEach(function (piece) {
-        var local = [base[0] + piece.p[0] * 0.45,
-                     base[1] + piece.p[1] * 0.45,
-                     base[2] + piece.p[2] * 0.45];
+        var local = [base[0] + MESH_X * piece.p[0] * VIEW_MODEL_SCALE,
+                     base[1] + piece.p[1] * VIEW_MODEL_SCALE,
+                     base[2] + piece.p[2] * VIEW_MODEL_SCALE];
         parts.push({
           t: piece.t || 'box',
           p: toWorld(local),
-          s: [piece.s[0] * 0.45, piece.s[1] * 0.45, piece.s[2] * 0.45],
+          s: [piece.s[0] * VIEW_MODEL_SCALE, piece.s[1] * VIEW_MODEL_SCALE,
+              piece.s[2] * VIEW_MODEL_SCALE],
           c: piece.c,
-          r: [pitch + (piece.r ? piece.r[0] : 0),
+          r: [PITCH_SIGN * pitch + (piece.r ? piece.r[0] : 0),
               yaw + (piece.r ? piece.r[1] : 0),
               (piece.r ? piece.r[2] : 0)],
           m: piece.m

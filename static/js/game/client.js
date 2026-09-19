@@ -123,7 +123,7 @@
        apart. */
     document.addEventListener('pointerlockchange', function () {
       var locked = document.pointerLockElement === canvas;
-      canvas.classList.toggle('freelook', !locked);
+      self.syncCursor();
       self.mouseGrabbed = locked;
       if (locked) {
         self.wantLock = false;
@@ -162,6 +162,8 @@
        leaves the player staring at a free cursor.  Keep asking, backing off,
        and fall back to the "click to take the mouse back" hint. */
     document.addEventListener('pointerlockerror', function () {
+      // The lock was refused, so the mouse is the player's -- show it.
+      self.syncCursor();
       if (!self.wantLock || self.paused || self.hud.chatOpen) return;
       if (self.lockTries >= 7) {
         self.wantLock = false;
@@ -283,6 +285,23 @@
     this.hud.closeChat();          // which takes the mouse back for us
   };
 
+  /* Whether the arrow is on screen.
+
+     #view hides the cursor so it is out of the way while you are playing,
+     and .freelook puts it back.  That class used to be set in one place --
+     the pointerlockchange handler -- which is only half the story: opening
+     the menu with Esc before the mouse was ever captured, or a Resume whose
+     lock request is refused, both change whether the cursor is wanted
+     without any lock transition to hang the change on, and left the player
+     hunting for an invisible pointer.  So the class is derived from the
+     state it actually depends on, and every transition just calls this. */
+  Client.prototype.syncCursor = function () {
+    if (!this.canvas) return;
+    var captured = document.pointerLockElement === this.canvas;
+    var wanted = captured && !this.paused && !(this.hud && this.hud.chatOpen);
+    this.canvas.classList.toggle('freelook', !wanted);
+  };
+
   Client.prototype.grabMouse = function (retrying) {
     if (document.pointerLockElement === this.canvas) return;
     if (this.paused || this.hud.chatOpen) return;
@@ -303,6 +322,7 @@
         try { canvas.requestPointerLock(); } catch (e) {}
       });
     }
+    this.syncCursor();
   };
 
   Client.prototype.releaseMouse = function () {
@@ -314,6 +334,7 @@
       this.releasedAt = performance.now();
       document.exitPointerLock();
     }
+    this.syncCursor();
   };
 
   Client.prototype.setPaused = function (value) {
@@ -321,6 +342,8 @@
     if (this.paused === value) return;
     this.paused = value;
     this.hud.show('pause', value);
+    // Before anything else: a menu you cannot point at is not a menu.
+    this.syncCursor();
     if (!value) {
       this.hud.show('settings', false);
       this.hud.show('helpbox', false);

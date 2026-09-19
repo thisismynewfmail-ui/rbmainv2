@@ -37,105 +37,367 @@
     'varying float vShape;',
     'uniform sampler2D uTex;',
     'void main() {',
-    '  float col = mod(vShape, 4.0);',
-    '  float row = floor(vShape / 4.0);',
-    '  vec2 uv = vec2((col + vUV.x) * 0.25, (row + vUV.y) * 0.5);',
+    '  float col = mod(vShape, ATLAS_COLS);',
+    '  float row = floor(vShape / ATLAS_COLS);',
+    '  vec2 uv = vec2((col + vUV.x) / ATLAS_COLS, (row + vUV.y) / ATLAS_ROWS);',
     '  vec4 tex = texture2D(uTex, uv);',
     '  gl_FragColor = vec4(vColor.rgb * tex.rgb, tex.a * vColor.a);',
     '}'
   ].join('\n');
 
-  var SHAPES = { puff: 0, flame: 1, star: 2, flake: 3, spark: 4, bubble: 5,
-                 ray: 6, ring: 7 };
+  /* ------------------------------------------------------------- the atlas
+     Every particle is a billboarded quad showing one cell of this sheet.  The
+     cell is a greyscale mask: the shader multiplies its RGB into the
+     particle's colour and its alpha into the particle's alpha, so a cell
+     carries the SHAPE in alpha and the SHADING in brightness.  White reads as
+     the pure tint, mid grey as a darker version of it, and a hole punched in
+     the alpha reads as a hole.  That is enough to draw a skull with sunken
+     sockets or a lantern with a face brighter than its rind, out of one
+     colour ramp.
+
+     Cells are authored in ordinary screen coordinates -- y = 0 is the top of
+     the particle -- because ``cell()`` flips the context to cancel out the
+     texture's own flip (UNPACK_FLIP_Y is off, so canvas row 0 samples at the
+     BOTTOM of the quad).  Before that flip the flame teardrop and the star
+     both came out pointing at the floor.
+
+     Keep art a few pixels clear of the cell edge: the sheet is sampled with
+     linear filtering, so anything touching the border bleeds into whatever
+     is drawn next to it. */
+  var ATLAS_COLS = 4;
+  var CELL = 128;
+
+  // ---------------------------------------------------------- draw helpers
+  function bar(c, x0, y0, x1, y1, w) {
+    c.lineCap = 'round';
+    c.lineWidth = w;
+    c.beginPath();
+    c.moveTo(x0, y0);
+    c.lineTo(x1, y1);
+    c.stroke();
+  }
+
+  function dot(c, x, y, r) {
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  function poly(c, points) {
+    c.beginPath();
+    for (var i = 0; i < points.length; i++) {
+      if (i === 0) c.moveTo(points[i][0], points[i][1]);
+      else c.lineTo(points[i][0], points[i][1]);
+    }
+    c.closePath();
+    c.fill();
+  }
+
+  /* Cut a hole rather than paint a dark patch: a socket that is see-through
+     stays a socket whatever colour the particle happens to be tinted. */
+  function punch(c, fn) {
+    c.save();
+    c.globalCompositeOperation = 'destination-out';
+    c.fillStyle = '#000';
+    c.strokeStyle = '#000';
+    fn();
+    c.restore();
+  }
+
+  /* The shapes, in atlas order.  Adding one here is all it takes -- the sheet
+     grows a row when it needs to and the shader is told how many. */
+  var SHAPE_CELLS = [
+    ['puff', function (c) {
+      var g = c.createRadialGradient(64, 64, 2, 64, 64, 62);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.45, 'rgba(255,255,255,0.55)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.fillRect(0, 0, CELL, CELL);
+    }],
+    ['flame', function (c) {
+      var fg = c.createRadialGradient(64, 78, 4, 64, 70, 56);
+      fg.addColorStop(0, 'rgba(255,255,255,1)');
+      fg.addColorStop(0.5, 'rgba(255,255,255,0.7)');
+      fg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = fg;
+      c.beginPath();
+      c.moveTo(64, 8);
+      c.bezierCurveTo(104, 58, 100, 112, 64, 118);
+      c.bezierCurveTo(28, 112, 24, 58, 64, 8);
+      c.fill();
+    }],
+    ['star', function (c) {
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var ang = -Math.PI / 2 + i * Math.PI / 5;
+        var rad = (i % 2 === 0) ? 58 : 22;
+        var x = 64 + Math.cos(ang) * rad, y = 64 + Math.sin(ang) * rad;
+        if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      c.closePath(); c.fill();
+    }],
+    ['flake', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 8; c.lineCap = 'round';
+      for (var i = 0; i < 6; i++) {
+        var a = (i / 6) * Math.PI * 2;
+        c.beginPath();
+        c.moveTo(64, 64);
+        c.lineTo(64 + Math.cos(a) * 52, 64 + Math.sin(a) * 52);
+        c.stroke();
+        c.beginPath();
+        c.moveTo(64 + Math.cos(a) * 30, 64 + Math.sin(a) * 30);
+        c.lineTo(64 + Math.cos(a) * 42 + Math.cos(a + 1.2) * 16,
+                 64 + Math.sin(a) * 42 + Math.sin(a + 1.2) * 16);
+        c.stroke();
+      }
+    }],
+    ['spark', function (c) {
+      var sg = c.createLinearGradient(64, 10, 64, 118);
+      sg.addColorStop(0, 'rgba(255,255,255,0)');
+      sg.addColorStop(0.5, 'rgba(255,255,255,1)');
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = sg; c.fillRect(52, 8, 24, 112);
+    }],
+    ['bubble', function (c) {
+      c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineWidth = 7;
+      c.beginPath(); c.arc(64, 64, 50, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,0.55)';
+      dot(c, 46, 44, 12);
+    }],
+    ['ray', function (c) {
+      var rg = c.createLinearGradient(0, 64, 128, 64);
+      rg.addColorStop(0, 'rgba(255,255,255,0)');
+      rg.addColorStop(0.5, 'rgba(255,255,255,1)');
+      rg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = rg; c.fillRect(0, 50, 128, 28);
+    }],
+    ['ring', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 14;
+      c.beginPath(); c.arc(64, 64, 46, 0, Math.PI * 2); c.stroke();
+    }],
+
+    /* ---------------------------------------------------------- the crypt */
+    ['bone', function (c) {
+      // A femur: one shaft, four knuckles.  Drawn on the diagonal so a drift
+      // of them does not read as a row of matchsticks.
+      c.save();
+      c.translate(64, 64); c.rotate(-0.55); c.translate(-64, -64);
+      c.strokeStyle = '#efefef';
+      bar(c, 64, 34, 64, 94, 21);
+      c.fillStyle = '#ffffff';
+      dot(c, 53, 30, 15); dot(c, 75, 30, 15);
+      dot(c, 53, 98, 15); dot(c, 75, 98, 15);
+      // a soft core line gives the shaft some roundness
+      c.strokeStyle = 'rgba(190,190,190,0.85)';
+      bar(c, 70, 40, 70, 88, 5);
+      c.restore();
+    }],
+    ['skull', function (c) {
+      c.fillStyle = '#f2f2f2';
+      c.beginPath(); c.arc(64, 56, 40, Math.PI, 0); c.fill();
+      c.fillRect(24, 56, 80, 22);
+      // cheekbones taper into the jaw
+      poly(c, [[26, 74], [102, 74], [92, 96], [36, 96]]);
+      c.fillStyle = '#ffffff';
+      poly(c, [[44, 92], [84, 92], [80, 110], [48, 110]]);
+      punch(c, function () {
+        c.beginPath(); c.ellipse(49, 58, 13, 15, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(79, 58, 13, 15, 0, 0, Math.PI * 2); c.fill();
+        poly(c, [[64, 66], [75, 86], [53, 86]]);          // nasal cavity
+        for (var i = 0; i < 3; i++) bar(c, 54 + i * 10, 92, 54 + i * 10, 110, 4);
+      });
+    }],
+    ['pumpkin', function (c) {
+      // Stem first so the rind overlaps its foot rather than the other way.
+      c.strokeStyle = '#8f8f8f';
+      bar(c, 64, 40, 59, 18, 13);
+      // The rind is mid grey on purpose: the face is painted pure white over
+      // it, so whatever orange the particle is tinted, the face comes out as
+      // the full tint and the rind as a darker version of the same -- which
+      // is a lit lantern rather than an orange blob with a hole in it.
+      c.fillStyle = '#9d9d9d';
+      c.beginPath(); c.ellipse(64, 74, 45, 39, 0, 0, Math.PI * 2); c.fill();
+      c.save();                       // ribs stay inside the rind
+      c.beginPath(); c.ellipse(64, 74, 45, 39, 0, 0, Math.PI * 2); c.clip();
+      c.strokeStyle = 'rgba(60,60,60,0.55)'; c.lineWidth = 4; c.lineCap = 'round';
+      [-30, -12, 12, 30].forEach(function (dx) {
+        c.beginPath();
+        c.moveTo(64 + dx * 0.4, 32);
+        c.quadraticCurveTo(64 + dx * 1.45, 74, 64 + dx * 0.4, 116);
+        c.stroke();
+      });
+      c.restore();
+      c.fillStyle = '#ffffff';
+      poly(c, [[37, 70], [59, 70], [48, 50]]);             // triangle eyes
+      poly(c, [[91, 70], [69, 70], [80, 50]]);
+      poly(c, [[64, 80], [72, 72], [56, 72]]);             // nose
+      poly(c, [[36, 88], [92, 88], [84, 104], [74, 94],    // jagged grin
+               [64, 102], [54, 94], [44, 104]]);
+    }],
+    ['ribcage', function (c) {
+      c.strokeStyle = '#f0f0f0'; c.lineCap = 'round';
+      bar(c, 64, 22, 64, 106, 13);                         // spine
+      c.lineWidth = 9;
+      for (var i = 0; i < 4; i++) {
+        var y = 34 + i * 20;
+        var w = 40 - i * 4;
+        c.beginPath();
+        c.moveTo(60, y);
+        c.quadraticCurveTo(60 - w, y + 4, 62 - w * 0.5, y + 20);
+        c.stroke();
+        c.beginPath();
+        c.moveTo(68, y);
+        c.quadraticCurveTo(68 + w, y + 4, 66 + w * 0.5, y + 20);
+        c.stroke();
+      }
+    }],
+    ['bat', function (c) {
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.ellipse(64, 66, 10, 17, 0, 0, Math.PI * 2); c.fill();
+      poly(c, [[57, 52], [61, 38], [65, 52]]);             // ears
+      poly(c, [[63, 52], [67, 38], [71, 52]]);
+      c.fillStyle = '#ededed';
+      [-1, 1].forEach(function (s) {                       // scalloped wings
+        c.beginPath();
+        c.moveTo(64 + s * 8, 56);
+        c.quadraticCurveTo(64 + s * 44, 40, 64 + s * 60, 58);
+        c.quadraticCurveTo(64 + s * 48, 58, 64 + s * 44, 74);
+        c.quadraticCurveTo(64 + s * 34, 60, 64 + s * 26, 78);
+        c.quadraticCurveTo(64 + s * 18, 64, 64 + s * 8, 80);
+        c.closePath(); c.fill();
+      });
+    }],
+    ['wisp', function (c) {
+      // a bright head trailing off into nothing
+      var g = c.createRadialGradient(64, 44, 3, 64, 48, 34);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.55, 'rgba(255,255,255,0.65)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g;
+      c.beginPath(); c.arc(64, 46, 34, 0, Math.PI * 2); c.fill();
+      var t = c.createLinearGradient(64, 60, 64, 120);
+      t.addColorStop(0, 'rgba(255,255,255,0.7)');
+      t.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = t;
+      c.beginPath();
+      c.moveTo(48, 62);
+      c.quadraticCurveTo(70, 92, 58, 120);
+      c.quadraticCurveTo(76, 92, 80, 62);
+      c.closePath(); c.fill();
+    }],
+    ['rune', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 7; c.lineJoin = 'round';
+      c.beginPath();                                       // hex border
+      for (var i = 0; i < 6; i++) {
+        var a = -Math.PI / 2 + i * Math.PI / 3;
+        var x = 64 + Math.cos(a) * 50, y = 64 + Math.sin(a) * 50;
+        if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      c.closePath(); c.stroke();
+      c.lineWidth = 9; c.lineCap = 'round';                // the glyph
+      c.strokeStyle = '#ffffff';
+      bar(c, 50, 42, 50, 86, 9);
+      bar(c, 50, 64, 78, 44, 9);
+      bar(c, 50, 74, 78, 88, 9);
+    }],
+    ['spider', function (c) {
+      c.strokeStyle = '#efefef'; c.lineCap = 'round'; c.lineWidth = 6;
+      [-1, 1].forEach(function (s) {
+        for (var i = 0; i < 4; i++) {
+          var y = 54 + i * 9;
+          var reach = 36 - Math.abs(i - 1.5) * 5;
+          c.beginPath();
+          c.moveTo(64 + s * 10, y);
+          c.quadraticCurveTo(64 + s * (reach + 6), y - 14, 64 + s * reach, y + 18);
+          c.stroke();
+        }
+      });
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.ellipse(64, 74, 20, 23, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(64, 48, 13, 12, 0, 0, Math.PI * 2); c.fill();
+      punch(c, function () { dot(c, 59, 46, 4); dot(c, 69, 46, 4); });
+    }],
+    ['feather', function (c) {
+      c.fillStyle = '#e6e6e6';
+      [-1, 1].forEach(function (s) {                       // the two vanes
+        c.beginPath();
+        c.moveTo(64, 14);
+        c.quadraticCurveTo(64 + s * 30, 52, 64 + s * 12, 104);
+        c.quadraticCurveTo(64 + s * 4, 76, 64, 14);
+        c.closePath(); c.fill();
+      });
+      c.strokeStyle = '#ffffff';
+      bar(c, 64, 16, 66, 116, 5);                          // the quill
+      punch(c, function () {                               // split the barbs
+        for (var i = 0; i < 5; i++) {
+          var y = 34 + i * 15;
+          bar(c, 64, y, 64 - 26 + i * 3, y + 9, 3);
+          bar(c, 64, y + 7, 64 + 26 - i * 3, y + 16, 3);
+        }
+      });
+    }],
+    ['candle', function (c) {
+      c.fillStyle = '#dcdcdc';
+      c.fillRect(50, 54, 28, 60);
+      c.beginPath(); c.ellipse(64, 54, 14, 6, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#c0c0c0';                             // a drip down one side
+      c.beginPath();
+      c.moveTo(50, 60); c.quadraticCurveTo(44, 78, 50, 92);
+      c.closePath(); c.fill();
+      c.strokeStyle = '#8a8a8a';
+      bar(c, 64, 52, 64, 44, 4);                           // wick
+      var fg = c.createRadialGradient(64, 32, 2, 64, 30, 22);
+      fg.addColorStop(0, 'rgba(255,255,255,1)');
+      fg.addColorStop(0.55, 'rgba(255,255,255,0.8)');
+      fg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = fg;
+      c.beginPath();
+      c.moveTo(64, 8);
+      c.bezierCurveTo(80, 26, 78, 44, 64, 46);
+      c.bezierCurveTo(50, 44, 48, 26, 64, 8);
+      c.fill();
+    }]
+  ];
+
+  var ATLAS_ROWS = Math.ceil(SHAPE_CELLS.length / ATLAS_COLS);
+  var SHAPES = {};
+  for (var si = 0; si < SHAPE_CELLS.length; si++) SHAPES[SHAPE_CELLS[si][0]] = si;
 
   function buildAtlas() {
-    var CELL = 128;
     var canvas = document.createElement('canvas');
-    canvas.width = CELL * 4;
-    canvas.height = CELL * 2;
+    canvas.width = CELL * ATLAS_COLS;
+    canvas.height = CELL * ATLAS_ROWS;
     var ctx = canvas.getContext('2d');
-    function cell(index) {
+    for (var i = 0; i < SHAPE_CELLS.length; i++) {
       ctx.save();
-      ctx.translate((index % 4) * CELL, Math.floor(index / 4) * CELL);
-      return ctx;
+      // Into the cell, then flipped: see the note above the shape table.
+      ctx.translate((i % ATLAS_COLS) * CELL,
+                    Math.floor(i / ATLAS_COLS) * CELL + CELL);
+      ctx.scale(1, -1);
+      ctx.beginPath();
+      ctx.rect(0, 0, CELL, CELL);
+      ctx.clip();                 // nothing may spill into the neighbouring cell
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ffffff';
+      SHAPE_CELLS[i][1](ctx);
+      ctx.restore();
     }
-    // puff -- soft radial
-    var c = cell(0);
-    var g = c.createRadialGradient(64, 64, 2, 64, 64, 62);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.45, 'rgba(255,255,255,0.55)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = g; c.fillRect(0, 0, CELL, CELL); c.restore();
-    // flame -- teardrop
-    c = cell(1);
-    var fg = c.createRadialGradient(64, 78, 4, 64, 70, 56);
-    fg.addColorStop(0, 'rgba(255,255,255,1)');
-    fg.addColorStop(0.5, 'rgba(255,255,255,0.7)');
-    fg.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = fg;
-    c.beginPath();
-    c.moveTo(64, 8);
-    c.bezierCurveTo(104, 58, 100, 112, 64, 118);
-    c.bezierCurveTo(28, 112, 24, 58, 64, 8);
-    c.fill(); c.restore();
-    // star
-    c = cell(2);
-    c.fillStyle = '#ffffff';
-    c.beginPath();
-    for (var i = 0; i < 10; i++) {
-      var ang = -Math.PI / 2 + i * Math.PI / 5;
-      var rad = (i % 2 === 0) ? 58 : 22;
-      var x = 64 + Math.cos(ang) * rad, y = 64 + Math.sin(ang) * rad;
-      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
-    }
-    c.closePath(); c.fill(); c.restore();
-    // snowflake
-    c = cell(3);
-    c.strokeStyle = '#ffffff'; c.lineWidth = 8; c.lineCap = 'round';
-    for (i = 0; i < 6; i++) {
-      var a = (i / 6) * Math.PI * 2;
-      c.beginPath();
-      c.moveTo(64, 64);
-      c.lineTo(64 + Math.cos(a) * 52, 64 + Math.sin(a) * 52);
-      c.stroke();
-      c.beginPath();
-      c.moveTo(64 + Math.cos(a) * 30, 64 + Math.sin(a) * 30);
-      c.lineTo(64 + Math.cos(a) * 42 + Math.cos(a + 1.2) * 16,
-               64 + Math.sin(a) * 42 + Math.sin(a + 1.2) * 16);
-      c.stroke();
-    }
-    c.restore();
-    // spark -- short streak
-    c = cell(4);
-    var sg = c.createLinearGradient(64, 10, 64, 118);
-    sg.addColorStop(0, 'rgba(255,255,255,0)');
-    sg.addColorStop(0.5, 'rgba(255,255,255,1)');
-    sg.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = sg; c.fillRect(52, 8, 24, 112); c.restore();
-    // bubble
-    c = cell(5);
-    c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineWidth = 7;
-    c.beginPath(); c.arc(64, 64, 50, 0, Math.PI * 2); c.stroke();
-    c.fillStyle = 'rgba(255,255,255,0.55)';
-    c.beginPath(); c.arc(46, 44, 12, 0, Math.PI * 2); c.fill();
-    c.restore();
-    // ray
-    c = cell(6);
-    var rg = c.createLinearGradient(0, 64, 128, 64);
-    rg.addColorStop(0, 'rgba(255,255,255,0)');
-    rg.addColorStop(0.5, 'rgba(255,255,255,1)');
-    rg.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = rg; c.fillRect(0, 50, 128, 28); c.restore();
-    // ring
-    c = cell(7);
-    c.strokeStyle = '#ffffff'; c.lineWidth = 14;
-    c.beginPath(); c.arc(64, 64, 46, 0, Math.PI * 2); c.stroke(); c.restore();
     return canvas;
+  }
+
+  /* The sheet's grid is only known once the shape table below has been
+     read, which is after FRAG is written -- so the two sizes go in as names
+     and are filled in here, at compile time.  GLSL wants float literals,
+     hence toFixed(1). */
+  function atlasFrag() {
+    return FRAG.replace(/ATLAS_COLS/g, ATLAS_COLS.toFixed(1))
+               .replace(/ATLAS_ROWS/g, ATLAS_ROWS.toFixed(1));
   }
 
   function Particles(gl) {
     this.gl = gl;
-    this.program = GLX.compile(gl, VERT, FRAG, 'particles');
+    this.program = GLX.compile(gl, VERT, atlasFrag(), 'particles');
     this.enabled = true;
     this.count = 0;
     this.pos = new Float32Array(MAX * 3);
@@ -188,8 +450,22 @@
     this.life[i] = opts.life;
     this.maxLife[i] = opts.life;
     this.meta[i * 3] = opts.size;
-    this.meta[i * 3 + 1] = Math.random() * Math.PI * 2;
-    this.meta[i * 3 + 2] = SHAPES[opts.shape] === undefined ? 0 : SHAPES[opts.shape];
+    /* Smoke does not care which way up it is, so it starts at any angle.  A
+       skull does: half of them landing upside down is the difference between
+       a swarm and a mess.  ``upright`` starts one the right way up with just
+       enough jitter that a cluster does not look stamped. */
+    this.meta[i * 3 + 1] = opts.upright
+      ? (Math.random() - 0.5) * (opts.wobble === undefined ? 0.5 : opts.wobble)
+      : Math.random() * Math.PI * 2;
+    /* An effect may name several shapes and get a mix of them, which is the
+       difference between a stream of identical skulls and a scattering of
+       bits of skeleton.  One shape per particle either way -- the sheet is
+       sampled once -- so the choice is made here, at birth. */
+    var shape = opts.shape;
+    if (opts.shapes && opts.shapes.length) {
+      shape = opts.shapes[(Math.random() * opts.shapes.length) | 0];
+    }
+    this.meta[i * 3 + 2] = SHAPES[shape] === undefined ? 0 : SHAPES[shape];
     this.grow[i] = opts.grow || 0;
     this.grav[i] = opts.gravity || 0;
     this.spin[i] = opts.spin || 0;
@@ -277,6 +553,9 @@
           blend: e.blend || 'normal',
           colors: e.colors,
           shape: e.shape || 'puff',
+          shapes: e.shapes,
+          upright: e.upright,
+          wobble: e.wobble,
           orbit: e.orbit || 0,
           orbitRadius: rr
         });
@@ -493,5 +772,9 @@
   };
 
   Particles.SHAPES = SHAPES;
+  /* Also exposed for tooling: the sheet can be dumped to an image, so the
+     art can be looked at without hunting for a hat that rolled the effect. */
+  Particles.buildAtlas = buildAtlas;
+
   global.Particles = Particles;
 })(window);

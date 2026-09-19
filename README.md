@@ -685,6 +685,7 @@ tools/devserver.sh start --port 8972 --no-https   # start/stop/restart/log
 tools/sitetests.py                      # HTTP-level tests for the website
 tools/sitetests.py --https              # ...the same suite over TLS
 tools/checkmaps.py                      # static map validation
+tools/checkeffects.py                   # Unusual effects vs the shapes that exist
 tools/simclient.py --world capture_the_flag --bots 4 --seconds 20
 tools/gametests.py                      # full gameplay test suite
 BLOCKHAVEN_TLS=1 tools/gametests.py     # ...over HTTPS and wss://
