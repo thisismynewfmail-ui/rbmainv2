@@ -158,6 +158,10 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
   position: absolute; inset: 0; background: rgba(6,10,16,.78); display: none;
   align-items: center; justify-content: center; pointer-events: auto;
   backdrop-filter: blur(2px);
+  /* Stated rather than inherited: #view hides the cursor, and a menu that
+     borrows its cursor from whatever is behind it is one stacking change
+     away from being unusable. */
+  cursor: default;
 }
 .overlay.on { display: flex; }
 .menu {
