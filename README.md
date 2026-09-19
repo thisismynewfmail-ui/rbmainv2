@@ -22,19 +22,22 @@ sound, mesh and map is generated at runtime.
 ```
 
 Then open **http://<your-ip>/** on any machine on your network — it serves on
-port 80, so there is no port to type. Add `--domain example.com` once you have
-a certificate and it serves HTTPS on 443 with port 80 redirecting to it; see
-[Processes and ports](#processes-and-ports). The site works on a phone; the
-Game View needs a desktop browser (pointer lock, a keyboard and a mouse), so
-its Load buttons are hidden on small screens.
+port 80, so there is no port to type. Install a certificate and the same
+command serves **HTTPS on 443** with port 80 redirecting to it, reading the
+site's name out of the certificate — no flags, see
+[HTTPS](#https). The site works on a phone; the Game View needs a desktop
+browser (pointer lock, a keyboard and a mouse), so its Load buttons are hidden
+on small screens.
 
 ---
 
 ## Quick start
 
 ```bash
-./run.sh                        # website + all three game hosts on port 80
-./run.sh --domain example.com   # HTTPS on 443, port 80 redirects to it
+./run.sh                        # website + all three game hosts, HTTPS if a
+                                #   certificate is installed, else port 80
+./run.sh --tls-check            # which certificate is in use, and why not
+./run.sh --domain example.com   # name the site explicitly
 ./run.sh --self-signed          # HTTPS with a throwaway certificate
 ./run.sh --no-https             # plain HTTP only
 ./run.sh --port 8972 --no-https # unprivileged: no sudo needed
@@ -42,6 +45,8 @@ its Load buttons are hidden on small screens.
 ./run.sh --reset                # wipe the database and re-seed
 ./run.sh --debug                # verbose tracebacks, no static caching
 ./run.sh --status-interval 8    # slow the terminal read-out down (0 = off)
+
+python3 tools/install_cert.py mysite-ssl-bundle.zip   # install a certificate
 ```
 
 80 and 443 are privileged, so `run.sh` re-runs itself under sudo when it needs
@@ -284,21 +289,82 @@ session token cannot travel in clear. `Strict-Transport-Security` is opt-in
 (`--hsts`): a browser that has seen it refuses plain HTTP for the whole
 max-age, which is unpleasant if a certificate later lapses.
 
-**Getting a certificate.** The registrar does not matter (Porkbun or anyone
-else) — only that the domain's A record points at the machine and that port 80
-reaches it. Start the site, ask certbot for the certificate while it runs, and
-restart:
+### HTTPS
+
+There are two ways to have a certificate and the server takes either one
+without being told which. Nothing needs a flag: `certs/` and
+`/etc/letsencrypt/live/` are both searched on every start, and the name the
+site answers to is read out of the certificate that wins, so `--domain` is a
+convenience rather than a requirement.
+
+**A. You already have one**, from your registrar or your host. Porkbun,
+Namecheap, cPanel and ZeroSSL all hand out a zip; they all name the files
+differently. Install it once:
 
 ```
-./run.sh --domain example.com                       # :80 answers, no cert yet
+python3 tools/install_cert.py ~/Downloads/example.com-ssl-bundle.zip
+sudo ./run.sh
+```
+
+The installer takes the zip, the folder it was unpacked into, or the files
+themselves (`--cert`/`--key`). It works out which file is the certificate and
+which is the private key by reading them rather than by their names — so
+`public.key.pem`, which ships in most bundles and is not a private key, is not
+mistaken for one — assembles the chain if the intermediates came in a separate
+file, puts it leaf-first if the download did not, and refuses to install
+anything expired, mismatched or issued for another name. The result lands in
+`certs/` as `fullchain.pem` and `privkey.pem`, mode 600 on the key, with the
+previous pair kept as `.1` so a bad renewal can be backed out.
+
+**`certs/` is in `.gitignore` and must stay there.** A private key that has
+ever been committed has to be reissued, even if the commit is deleted
+afterwards.
+
+**B. Let's Encrypt issues one here**, over port 80. The registrar does not
+matter — only that the domain's A record points at the machine and that port
+80 reaches it. Start the site, ask certbot while it runs, and restart:
+
+```
+sudo ./run.sh --domain example.com                  # :80 answers, no cert yet
 sudo certbot certonly --webroot -w data/acme -d example.com
-./run.sh --domain example.com                       # now HTTPS on :443
+sudo ./run.sh                                       # now HTTPS on :443
 ```
 
 The server serves the challenge from `data/acme` itself, so certbot needs no
 web server of its own and renewals need nothing from you as long as port 80
-stays open. `--self-signed` makes a throwaway certificate for local work, and
-`--no-https` keeps the old plain-HTTP behaviour.
+stays open — the redirector answers `/.well-known/acme-challenge/` in plain
+HTTP by design.
+
+**When a browser still says "Not secure."** `./run.sh --tls-check` reads every
+certificate it can find and says which one would be served, what each covers,
+when it expires and why any of them were passed over. It binds nothing, so it
+is safe to run against a live server:
+
+```
+$ ./run.sh --tls-check
+Certificates found:
+  certs/fullchain.pem
+      source    bundle in certs
+      covers    *.example.com, example.com
+      expires   Dec 16 10:47:36 2026 GMT (88 days)
+      chain     4 certificates
+      verdict   usable
+
+HTTPS will use certs/fullchain.pem
+and the site will answer as https://example.com
+```
+
+The four things it catches are the four that are invisible until a visitor
+hits them: a key that belongs to a different certificate, a chain that is
+missing its intermediates or has them before the leaf (desktop browsers
+paper over both by fetching the intermediate themselves — phones do not), a
+certificate that has expired, and one that does not cover the name the site
+is reached by. A wildcard is matched the way browsers match it, so
+`*.example.com` covering `www` but not the apex is reported rather than
+discovered in production.
+
+`--self-signed` makes a throwaway certificate for local work, and `--no-https`
+keeps the plain-HTTP behaviour.
 
 **Privileges.** 80 and 443 need root to *bind*, not to serve. `run.sh`
 re-runs itself under sudo when it has to, and then `--user` hands the server
@@ -616,10 +682,15 @@ tools/simclient.py --world capture_the_flag --bots 4 --seconds 20
 tools/gametests.py                      # full gameplay test suite
 BLOCKHAVEN_TLS=1 tools/gametests.py     # ...over HTTPS and wss://
 tools/gametests.py ctf combat tycoon    # or a subset
+tools/tlstests.py                       # certificate discovery and chain tests
+tools/install_cert.py                   # with no arguments: check what is installed
 ```
 
-The test tools follow `BLOCKHAVEN_PORT`, so they and the server agree by
-default. Both suites can be pointed at the encrypted listener, which is how
+`tools/tlstests.py` needs no server: it mints throwaway certificates with
+openssl into a temporary directory and points the discovery code at them, so
+the bundle layouts, the chain assembly and the refusals above are proved
+rather than assumed. The rest of the test tools follow `BLOCKHAVEN_PORT`, so
+they and the server agree by default. Both suites can be pointed at the encrypted listener, which is how
 the TLS path gets exercised rather than assumed: `--https` for the site tests,
 `BLOCKHAVEN_TLS=1` for the gameplay ones, which then drive real `wss://`
 sockets through the same listener the pages come from.

@@ -11,29 +11,52 @@
 # to, and then hands the server back to your own account once the sockets are
 # open (see --stay-root).
 #
-#   ./run.sh                                 HTTP on :80, and a nudge about TLS
-#   ./run.sh --domain example.com            HTTPS on :443 with your Let's
-#                                            Encrypt certificate, :80 redirects
+#   sudo ./run.sh                            HTTPS on :443 if a certificate is
+#                                            installed, :80 redirects to it
+#   ./run.sh --tls-check                     which certificate would be used,
+#                                            and what is wrong with the rest
+#   ./run.sh --domain example.com            name the site explicitly
 #   ./run.sh --self-signed                   HTTPS with a throwaway certificate
 #   ./run.sh --no-https                      plain HTTP only, as before
 #   ./run.sh --port 8972 --no-https          unprivileged, no sudo needed
 #   ./run.sh --reset                         wipe the database and re-seed
 #   ./run.sh --no-games                      website only
 #
-# Getting a certificate for a domain (Porkbun or anywhere else -- the
-# registrar does not matter, only that the A record points here and port 80
-# reaches this machine):
+# ---------------------------------------------------------------------------
+# HTTPS
 #
-#   1. Point the domain's A record at this machine's public address.
-#   2. Start the site so port 80 answers:   ./run.sh --domain example.com
-#   3. In another shell, ask for the certificate. The server answers the
-#      challenge itself, so leave it running:
-#        sudo certbot certonly --webroot -w data/acme -d example.com
-#   4. Restart:                             ./run.sh --domain example.com
+# There are two ways to have a certificate, and the server takes either one
+# without being told which:
 #
-# Renewal needs nothing from you as long as port 80 stays open: certbot's
-# timer writes into data/acme and the server serves it. Restart afterwards to
-# pick the new certificate up (certbot's --deploy-hook is the usual place).
+# A. You already have one, from your registrar or your host (Porkbun,
+#    Namecheap, cPanel, ZeroSSL -- they all hand out a zip). Install it once:
+#
+#      python3 tools/install_cert.py ~/Downloads/example.com-ssl-bundle.zip
+#      sudo ./run.sh
+#
+#    The installer unpacks the zip into certs/, works out which file is the
+#    certificate and which is the key whatever they were named, puts the chain
+#    in the right order, and refuses anything expired or mismatched. After
+#    that ./run.sh finds it on its own -- no --domain, no --cert, no --key --
+#    and the name the site answers to is read out of the certificate.
+#
+# B. Let's Encrypt issues one here, over port 80:
+#
+#      1. Point the domain's A record at this machine's public address.
+#      2. Start the site so port 80 answers:   sudo ./run.sh --domain example.com
+#      3. In another shell, ask for the certificate. The server answers the
+#         challenge itself, so leave it running:
+#           sudo certbot certonly --webroot -w data/acme -d example.com
+#      4. Restart:                             sudo ./run.sh
+#
+#    Renewal needs nothing from you as long as port 80 stays open: certbot's
+#    timer writes into data/acme and the server serves it. Restart afterwards
+#    to pick the new certificate up (certbot's --deploy-hook is the usual
+#    place).
+#
+# If a browser still says "Not secure", ./run.sh --tls-check says why: it
+# lists every certificate found, what each covers, when it expires, and the
+# reason any of them were passed over.
 #
 # Environment:
 #   BLOCKHAVEN_STATUS_INTERVAL   default refresh in seconds (default 4)
@@ -64,10 +87,13 @@ fi
 HTTP_PORT="${BLOCKHAVEN_PORT:-80}"
 HTTPS_PORT="${BLOCKHAVEN_HTTPS_PORT:-443}"
 WANT_TLS=1
+TLS_CHECK=0
+SELF_SIGNED=0
 STAY_ROOT=0
 HAS_USER=0
 HAS_INTERVAL=0
 DOMAIN="${BLOCKHAVEN_DOMAIN:-}"
+CERT_DIR="${BLOCKHAVEN_CERT_DIR:-certs}"
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -77,7 +103,14 @@ while [ $# -gt 0 ]; do
     --https-port=*) HTTPS_PORT="${1#*=}"; ARGS+=("$1"); shift ;;
     --domain) DOMAIN="${2:-}"; ARGS+=("$1" "${2:-}"); shift 2 ;;
     --domain=*) DOMAIN="${1#*=}"; ARGS+=("$1"); shift ;;
+    --cert-dir) CERT_DIR="${2:-}"; ARGS+=("$1" "${2:-}"); shift 2 ;;
+    --cert-dir=*) CERT_DIR="${1#*=}"; ARGS+=("$1"); shift ;;
     --no-https) WANT_TLS=0; ARGS+=("$1"); shift ;;
+    --self-signed) SELF_SIGNED=1; ARGS+=("$1"); shift ;;
+    # Reads certificates and exits. It binds nothing, so it needs neither
+    # root nor the start-up banner -- run it under sudo to have it see a
+    # root-owned key as the server will.
+    --tls-check) TLS_CHECK=1; ARGS+=("$1"); shift ;;
     --user|--user=*) HAS_USER=1; ARGS+=("$1"); shift ;;
     # Ours, not main.py's: keep the server running as root after it binds.
     --stay-root) STAY_ROOT=1; shift ;;
@@ -85,6 +118,10 @@ while [ $# -gt 0 ]; do
     *) ARGS+=("$1"); shift ;;
   esac
 done
+
+if [ "$TLS_CHECK" -eq 1 ]; then
+  exec "$PYTHON" main.py "${ARGS[@]}"
+fi
 
 NEEDS_ROOT=0
 [ "$HTTP_PORT" -lt 1024 ] 2>/dev/null && NEEDS_ROOT=1
@@ -130,6 +167,30 @@ else
   echo "  ports       $HTTP_PORT (plain HTTP)"
 fi
 [ -n "$DOMAIN" ] && echo "  domain      $DOMAIN"
+if [ "$WANT_TLS" -eq 1 ]; then
+  # A glance at the filesystem only -- main.py does the real checking a
+  # moment later, and --tls-check explains it in full.
+  # -name '*key*' is excluded so the line names the certificate rather than
+  # the key sitting beside it; the numbered copies install_cert.py keeps
+  # (fullchain.pem.1) do not match '*.pem' and are skipped for free.
+  CERT_HIT="$(find "$CERT_DIR" -maxdepth 3 -type f \( -name '*.pem' -o -name '*.crt' -o -name '*.cer' \) ! -name '*key*' 2>/dev/null | head -n 1)"
+  ZIP_HIT="$(find "$CERT_DIR" -maxdepth 2 -type f -name '*.zip' 2>/dev/null | head -n 1)"
+  if [ "$SELF_SIGNED" -eq 1 ]; then
+    echo "  certificate throwaway self-signed -- browsers will warn"
+  elif [ -r "$CERT_DIR/fullchain.pem" ]; then
+    echo "  certificate $CERT_DIR/fullchain.pem"
+  elif [ -n "$CERT_HIT" ]; then
+    echo "  certificate $CERT_DIR/  ($(basename "$CERT_HIT"))"
+  elif [ -n "${DOMAIN:-}" ] && [ -r "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+    echo "  certificate /etc/letsencrypt/live/$DOMAIN/"
+  elif [ -n "$ZIP_HIT" ]; then
+    echo "  certificate $(basename "$ZIP_HIT") is still zipped -- install it with"
+    echo "              python3 tools/install_cert.py \"$ZIP_HIT\""
+  else
+    echo "  certificate none found -- the site will be plain HTTP"
+    echo "              python3 tools/install_cert.py <your-bundle.zip>"
+  fi
+fi
 if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$STAY_ROOT" -eq 0 ]; then
   echo "  privileges  binding as root, then serving as ${SUDO_USER}"
 fi
