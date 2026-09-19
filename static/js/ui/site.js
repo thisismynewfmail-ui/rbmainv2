@@ -707,7 +707,6 @@
           Site.escape(row.who) + '"></canvas>' +
           '<span class="msgmain"><span class="msgtop">' +
           '<span class="msgwho">' + Site.escape(row.who) +
-          (row.total > 1 ? ' <span class="pill tiny">' + row.total + '</span>' : '') +
           (row.unread ? ' <span class="badge alert">' + row.unread + '</span>' : '') +
           '</span>' +
           '<span class="msgwhen">' + Site.ago(row.created_at) + '</span></span>' +
