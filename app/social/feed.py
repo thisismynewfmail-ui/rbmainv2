@@ -51,18 +51,11 @@ def recent_activity(limit: int = 18) -> List[Dict[str, Any]]:
                        "text": "is now friends with %s" % row["ub"],
                        "at": row["updated_at"],
                        "link": "/profile/%s" % row["ub"]})
-    for row in db.query(
-            "SELECT v.created_at, v.world_id, u.username FROM world_visits v"
-            " JOIN users u ON u.id=v.user_id ORDER BY v.id DESC LIMIT ?",
-            (limit,)):
-        from ..models import worlds
-        world = worlds.get(row["world_id"])
-        if not world:
-            continue
-        events.append({"kind": "visit", "username": row["username"],
-                       "text": "played %s" % world["name"],
-                       "at": row["created_at"],
-                       "link": "/worlds/%s" % row["world_id"]})
+    # World visits are still recorded -- they are what the visit counters and
+    # the world stats are built from -- but they are not news.  "X played
+    # Capture The Flag" arrives every thirty seconds somebody is in a round,
+    # which is enough to push everything anyone would actually want to read
+    # off the bottom of the feed.
     events.sort(key=lambda e: e["at"], reverse=True)
     return events[:limit]
 

@@ -1502,7 +1502,12 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     margin-bottom: 12px;
   }
 
+  /* The character goes first on a phone.  The pitch is worth reading, but a
+     screen of it above the fold buries the thing a visitor actually came to
+     look at, and the stage is the one part of this page that sells itself. */
   .hero-inner { grid-template-columns: minmax(0, 1fr); padding: 18px 14px 16px; gap: 16px; }
+  .hero-stage { order: 1; }
+  .hero-copy  { order: 2; }
   .hero-copy h1 { font-size: 27px; }
   .hero-lede { font-size: 12px; }
   .hero-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
