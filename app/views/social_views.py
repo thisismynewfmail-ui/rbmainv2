@@ -178,7 +178,7 @@ def api_prefs(req: Request):
 def counts(req: Request):
     """One poll drives every live element in the chrome.
 
-    Credits and the theme come back too so a second device signed into the
+    Noogets and the theme come back too so a second device signed into the
     same account catches up without a reload.
     """
     uid = int(req.user["id"])

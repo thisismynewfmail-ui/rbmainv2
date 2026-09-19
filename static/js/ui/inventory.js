@@ -53,7 +53,7 @@
           Site.post('/api/market/sell', { inv_id: parseInt(button.dataset.sell, 10) })
             .then(function (res) {
               if (!res.ok) { Site.toast(res.error, 'bad'); return; }
-              Site.toast('Sold for ' + res.refund.toLocaleString() + ' credits.');
+              Site.toast('Sold for ' + res.refund.toLocaleString() + ' Noogets.');
               var card = button.closest('.item');
               if (card) card.remove();
               var wallet = document.getElementById('wallet-amount');

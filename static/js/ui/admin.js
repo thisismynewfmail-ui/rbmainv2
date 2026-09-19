@@ -1,4 +1,4 @@
-/* Admin dashboard: live stats, credit adjustments and item grants. */
+/* Admin dashboard: live stats, Nooget adjustments and item grants. */
 (function () {
   'use strict';
 
@@ -721,7 +721,7 @@
             '</td><td class="right">' + row.balance_after.toLocaleString() + '</td></tr>';
         }).join('');
         document.getElementById('am-body').innerHTML =
-          '<dl class="stats"><div><dt>Credits</dt><dd>' + res.credits.toLocaleString() +
+          '<dl class="stats"><div><dt>Noogets</dt><dd>' + res.credits.toLocaleString() +
           '</dd></div><div><dt>Kills</dt><dd>' + res.stats.total.kills +
           '</dd></div><div><dt>Deaths</dt><dd>' + res.stats.total.deaths +
           '</dd></div></dl>' +
@@ -733,7 +733,7 @@
           '</div>' +
           '<h3>Inventory (' + res.inventory.length + ')</h3>' +
           '<table class="grid">' + inv + '</table>' +
-          '<h3 style="margin-top:10px">Credit ledger</h3>' +
+          '<h3 style="margin-top:10px">Nooget ledger</h3>' +
           '<table class="grid">' + ledger + '</table>';
         document.getElementById('admin-modal').classList.remove('hidden');
       });
@@ -789,7 +789,7 @@
           return;
         }
         out.innerHTML = '<div class="notice">' + esc(res.username) + ' now has ' +
-          res.balance.toLocaleString() + ' credits.</div>';
+          res.balance.toLocaleString() + ' Noogets.</div>';
         var row = document.querySelector('[data-user-row="' + res.username + '"] .credits');
         if (row) row.textContent = res.balance.toLocaleString();
       });

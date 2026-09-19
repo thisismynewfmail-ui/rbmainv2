@@ -35,7 +35,7 @@
       <div class="panel-body">
         <dl class="kv">
           <dt>Username</dt><dd>{{ user.username }}</dd>
-          <dt>Credits</dt><dd>{{ fmt_num(user.credits) }}</dd>
+          <dt>Noogets</dt><dd>{{ fmt_num(user.credits) }}</dd>
           <dt>Joined</dt><dd>{{ fmt_date(user.created_at) }}</dd>
           <dt>Role</dt><dd>{{ 'Administrator' if user.is_admin else 'Builder' }}</dd>
         </dl>

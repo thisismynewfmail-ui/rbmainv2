@@ -81,7 +81,7 @@ def purchase(user_id: int, item_id: str) -> Dict[str, Any]:
             raise MarketError("No such account.")
         credits = int(row["credits"])
         if credits < price:
-            raise MarketError("You need %s more credits for %s."
+            raise MarketError("You need %s more Noogets for %s."
                               % (f"{price - credits:,}", item["name"]))
         new_balance = credits - price
         conn.execute("UPDATE users SET credits=? WHERE id=?",

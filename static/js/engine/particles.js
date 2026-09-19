@@ -606,6 +606,40 @@
     }
   };
 
+  /* Which particles a pass draws, and in what order.
+
+     The additive pass does not care: adding colours commutes, so any order
+     puts the same light on the screen.  The normal pass does care, and its
+     order used to be whatever the array happened to be in -- which jumps
+     about every time a particle dies, because remove() fills the hole with
+     the last one.  On the old effects that never showed, because nearly all
+     of them are additive and the two that are not are small and sparse.  On
+     a crowd of overlapping skulls it reads as flicker: the same two sprites
+     swap which is in front from one frame to the next.
+
+     Sorting back to front costs one pass over the live particles and makes
+     what you see depend on where things ARE rather than on what died last
+     frame.  The scratch arrays are kept between frames so a busy effect does
+     not allocate sixty times a second. */
+  Particles.prototype.passOrder = function (pass, eye) {
+    var order = this._order || (this._order = []);
+    order.length = 0;
+    for (var i = 0; i < this.count; i++) {
+      if (this.blend[i] === pass) order.push(i);
+    }
+    if (pass !== 0 || order.length < 2 || !eye) return order;
+    var depth = this._depth || (this._depth = new Float32Array(MAX));
+    for (var n = 0; n < order.length; n++) {
+      var j = order[n];
+      var dx = this.pos[j * 3] - eye[0];
+      var dy = this.pos[j * 3 + 1] - eye[1];
+      var dz = this.pos[j * 3 + 2] - eye[2];
+      depth[j] = dx * dx + dy * dy + dz * dz;
+    }
+    order.sort(function (a, b) { return depth[b] - depth[a]; });
+    return order;
+  };
+
   Particles.prototype.draw = function (renderer) {
     if (!this.count || !this.program) return;
     var gl = this.gl, p = this.program;
@@ -631,9 +665,10 @@
     gl.depthMask(false);
 
     for (var pass = 0; pass < 2; pass++) {
+      var order = this.passOrder(pass, renderer.eye);
       var written = 0;
-      for (var i = 0; i < this.count; i++) {
-        if (this.blend[i] !== pass) continue;
+      for (var n = 0; n < order.length; n++) {
+        var i = order[n];
         var o = written * 10;
         this.instanceData[o] = this.pos[i * 3];
         this.instanceData[o + 1] = this.pos[i * 3 + 1];

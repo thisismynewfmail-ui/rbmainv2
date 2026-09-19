@@ -79,7 +79,7 @@ def site_ticker() -> str:
                         % (world["name"], status["players"], status["instances"],
                            "" if status["instances"] == 1 else "s"))
     bits.append("Hats are the only slot that can roll Unusual -- 0.5% a purchase")
-    bits.append("New here? Grab 2,000 credits and go buy a hat.")
+    bits.append("New here? Grab 2,000 Noogets and go buy a hat.")
     text = "  \u2022  ".join(bits)
     TICKER_CACHE["at"] = time.time()
     TICKER_CACHE["text"] = text

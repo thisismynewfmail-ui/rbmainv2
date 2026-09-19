@@ -129,7 +129,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
         return 1
     client.refresh_csrf()
     inventory = client.get_api("/api/inventory")
-    check("register: the account starts with 2,000 credits",
+    check("register: the account starts with 2,000 Noogets",
           inventory.get("balance") == 2000, inventory.get("balance"))
     owned = {item["item_id"] for item in inventory.get("items", [])}
     check("register: the starter kit is granted",
@@ -163,7 +163,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
           result.get("tier") in ("normal", "unusual"), result.get("tier"))
     expensive = client.api("/api/market/buy", {"item_id": "hat_halo"})
     check("market: you cannot buy what you cannot afford",
-          not expensive.get("ok") and "credits" in expensive.get("error", ""),
+          not expensive.get("ok") and "Noogets" in expensive.get("error", ""),
           expensive)
     unknown = client.api("/api/market/buy", {"item_id": "hat_does_not_exist"})
     check("market: unknown items are rejected", not unknown.get("ok"), unknown)
@@ -285,7 +285,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
           "%s %s" % (status, headers.get("location")))
     denied = client.api("/api/admin/credits", {"username": name, "amount": 999999,
                                                "mode": "add"})
-    check("admin: normal players cannot grant themselves credits",
+    check("admin: normal players cannot grant themselves Noogets",
           not denied.get("ok"), denied)
     balance_now = client.get_api("/api/inventory").get("balance")
     check("admin: the balance really did not change", balance_now == 2000 - 90,
@@ -297,7 +297,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("admin: administrators can open the dashboard", status == 200, status)
     granted = admin.api("/api/admin/credits", {"username": name, "amount": 500,
                                                "mode": "add", "reason": "test"})
-    check("admin: administrators can adjust credits",
+    check("admin: administrators can adjust Noogets",
           granted.get("ok") and granted.get("balance") == 2000 - 90 + 500, granted)
     unusual = admin.api("/api/admin/grant", {"username": name,
                                              "item_id": "hat_crown",

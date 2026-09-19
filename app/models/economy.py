@@ -1,9 +1,9 @@
-"""Server authoritative credit balances.
+"""Server authoritative Nooget balances.
 
 Every balance change in the entire platform funnels through :func:`adjust`,
 which runs inside a single write transaction and appends to an immutable
 ledger.  Clients never send balances -- only intents ("buy item X") -- so a
-tampered request can never mint credits.
+tampered request can never mint Noogets.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def adjust(user_id: int, delta: int, reason: str,
         current = int(row["credits"])
         new_balance = current + delta
         if new_balance < 0 and not allow_negative:
-            raise EconomyError("Not enough credits.")
+            raise EconomyError("Not enough Noogets.")
         new_balance = max(0, min(config.MAX_CREDITS, new_balance))
         applied = new_balance - current
         conn.execute("UPDATE users SET credits=? WHERE id=?",

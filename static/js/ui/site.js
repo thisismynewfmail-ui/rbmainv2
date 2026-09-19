@@ -1019,7 +1019,7 @@
   // ------------------------------------------------------- live nav counters
   /* Polled rather than pushed, because the same account may well be signed in
      on a phone and a desktop at once: whichever tab reads first, both end up
-     showing the server's numbers, the server's credit balance and the
+     showing the server's numbers, the server's Nooget balance and the
      server's theme choice. */
   var lastCounts = { unread: -1, requests: -1 };
 

@@ -6,7 +6,7 @@ by ``dir`` (+1 for the south row, -1 for the north row), which is a 180 degree
 rotation, so one set of geometry serves all eight plots.
 
 Coins here are *plot coins* -- a per-world scratch currency.  They are never
-converted to site credits and never touch the accounts database.
+converted to site Noogets and never touch the accounts database.
 """
 from __future__ import annotations
 
