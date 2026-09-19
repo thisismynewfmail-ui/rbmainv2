@@ -139,6 +139,53 @@ def write(path: Path, text: str, mode: int, owner: Optional[Tuple[int, int]]) ->
 
 
 # --------------------------------------------------------------------- main
+def _note_leftover_source(args, destination: Path) -> None:
+    """The download is a copy of the private key; say where it ended up.
+
+    Installing does not delete what it was given -- nobody wants a tool that
+    removes the file they pointed it at -- so the next best thing is to be
+    plain about what is still lying around and whether git can see it.
+    """
+    if not args.source:
+        return
+    try:
+        source = Path(args.source).expanduser().resolve()
+    except OSError:
+        return
+    if not source.is_file():
+        return
+    try:
+        source.relative_to(destination.resolve())
+        inside_certs = True
+    except (ValueError, OSError):
+        inside_certs = False
+    try:
+        source.relative_to(config.BASE_DIR)
+        inside_project = True
+    except ValueError:
+        inside_project = False
+
+    # Only the project's own certs/ is the one .gitignore covers; --into
+    # can point anywhere, and promising that an arbitrary folder is ignored
+    # would be exactly the wrong thing to be confident about.
+    is_default_certs = inside_certs and destination.resolve() == \
+        config.CERT_DIR.resolve()
+
+    print("  %s holds your private key as well." % source.name)
+    if is_default_certs:
+        print("  It is in %s/, which .gitignore covers, so it will not be "
+              "committed." % config.CERT_DIR.name)
+        print("  Delete it once the site is serving HTTPS.")
+    elif inside_project:
+        print("  It is inside the project folder, and only %s/ is gitignored."
+              % config.CERT_DIR.name)
+        print("  Move it out or delete it, so it cannot be committed by "
+              "accident.")
+    else:
+        print("  Delete it once the site is serving HTTPS.")
+    print("")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Install a TLS certificate into %s/"
@@ -169,6 +216,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not args.source and not args.cert and not args.key:
         usable, text = tls_support.report(args.domain, cert_dir=args.into)
         print(text)
+        if not usable:
+            # The commonest way to be here is having put the download in
+            # certs/ and stopped, so finish the sentence rather than
+            # repeating the generic advice.
+            for archive in sorted(Path(args.into).glob("*.zip")):
+                print("")
+                print("%s is sitting there un-installed. This will do it:"
+                      % archive.name)
+                print("  python3 tools/install_cert.py %s" % archive)
+                break
         return 0 if usable else 1
 
     destination = Path(args.into).expanduser()
@@ -272,6 +329,12 @@ def _install(args, destination: Path, staging: Path) -> int:
                 pass
         write(destination / CERT_NAME, cert_text, 0o644, owner)
         write(destination / KEY_NAME, key_text, 0o600, owner)
+    except PermissionError:
+        return fail("cannot write into %s as this user.\n"
+                    "            Either run it with sudo, or hand the folder "
+                    "back:\n"
+                    "              sudo chown -R $USER %s"
+                    % (destination, destination))
     except OSError as exc:
         return fail("could not write into %s: %s" % (destination, exc))
 
@@ -283,6 +346,7 @@ def _install(args, destination: Path, staging: Path) -> int:
     print("  installed    %s" % (destination / CERT_NAME))
     print("               %s  (mode 600)" % (destination / KEY_NAME))
     print("")
+    _note_leftover_source(args, destination)
     name = ""
     if isinstance(info, dict) and info.get("names"):
         name = tls_support.primary_name([str(n) for n in info["names"]],

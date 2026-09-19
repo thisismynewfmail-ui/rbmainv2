@@ -312,6 +312,7 @@ def test_locate(tls, work: Path, ca_cert: Path, ca_key: Path) -> None:
 def test_installer(work: Path, ca_cert: Path, ca_key: Path) -> None:
     print("== the installer ==")
     import zipfile
+    from app.http import tls as tls_support
     from tools import install_cert
 
     staging = work / "to-zip" / "example.com-ssl-bundle"
@@ -335,7 +336,6 @@ def test_installer(work: Path, ca_cert: Path, ca_key: Path) -> None:
         mode = (destination / "privkey.pem").stat().st_mode & 0o777
         check("the key is not readable by everybody", mode == 0o600,
               oct(mode))
-    from app.http import tls as tls_support
     check("the installed pair loads",
           tls_support.key_matches_cert(str(destination / "fullchain.pem"),
                                        str(destination / "privkey.pem"))[0])
@@ -349,6 +349,49 @@ def test_installer(work: Path, ca_cert: Path, ca_key: Path) -> None:
     check("re-installing succeeds", code == 0, code)
     check("the previous certificate is kept as .1",
           (destination / "fullchain.pem.1").exists())
+
+    # The bundle is very often left in certs/ -- installed from there, and
+    # then scanned on every start from then on.
+    print("")
+    print("== installing from a zip inside certs/ ==")
+    live = work / "live-certs"
+    live.mkdir()
+    in_place = live / "scrpt.zip"
+    shutil.copyfile(archive, in_place)
+    code = install_cert.main([str(in_place), "--into", str(live),
+                              "--domain", "install.example.com"])
+    check("installing from a zip in the destination succeeds", code == 0, code)
+    check("the zip it was given is left alone", in_place.exists())
+    check("the certificate landed beside it",
+          (live / "fullchain.pem").exists() and (live / "privkey.pem").exists())
+
+    pairs = tls_support.scan_bundle(live)
+    check("exactly one certificate is found next to the zip",
+          len(pairs) == 1, [p["cert"] for p in pairs])
+    if pairs:
+        check("and it is the installed one, not the archive",
+              Path(pairs[0]["cert"]).name == "fullchain.pem", pairs[0])
+    chosen = tls_support.locate("install.example.com", cert_dir=str(live))
+    check("the server would serve the installed certificate",
+          bool(chosen) and Path(chosen["cert"]).name == "fullchain.pem",
+          chosen)
+
+    # A zip written without compression carries its PEM files verbatim, so
+    # reading it as text finds real certificate blocks in it.
+    stored_dir = work / "stored-zip"
+    stored_dir.mkdir()
+    stored = stored_dir / "bundle.zip"
+    with zipfile.ZipFile(stored, "w", zipfile.ZIP_STORED) as zf:
+        for path in staging.iterdir():
+            zf.write(path, "b/%s" % path.name)
+    check("an uncompressed zip really does contain raw PEM text",
+          b"-----BEGIN CERTIFICATE-----" in stored.read_bytes())
+    check("but it is not mistaken for a certificate",
+          tls_support.scan_bundle(stored_dir) == [],
+          tls_support.scan_bundle(stored_dir))
+    check("and nothing is served from it",
+          tls_support.locate("install.example.com",
+                             cert_dir=str(stored_dir)) is None)
 
     # A zip that tries to write outside the destination is refused.
     evil = work / "evil.zip"
