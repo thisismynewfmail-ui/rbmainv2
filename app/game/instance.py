@@ -94,13 +94,20 @@ def ray_aabb(origin, direction, box_min, box_max) -> Optional[float]:
     return tmin if tmin >= 0 else (tmax if tmax >= 0 else None)
 
 
+# What the client sends, and the server broadcasts, for "hands empty".  It is
+# deliberately outside the hotbar so a renderer that simply indexes the hotbar
+# with it gets nothing, which is exactly what should be drawn.
+STOW_SLOT = -1
+
+
 class Player:
     """One connected participant."""
 
     __slots__ = ("pid", "user_id", "username", "avatar", "ws", "team",
                  "pos", "vel", "yaw", "pitch", "anim", "grounded", "health",
                  "alive", "respawn_at", "kills", "deaths", "score", "assists",
-                 "slot", "ammo", "reserve", "reload_until", "next_fire",
+                 "slot", "stowed", "ammo", "reserve", "reload_until",
+                 "next_fire",
                  "joined_at", "last_input", "last_pos_time", "playtime",
                  "visit_recorded", "chat_times", "airborne_since",
                  "last_ground_pos", "spawn_protect_until", "connected",
@@ -131,6 +138,10 @@ class Player:
         self.score = 0
         self.assists = 0
         self.slot = 0
+        # Hands empty, weapon still chosen.  Keeping the slot means the ammo
+        # and the reload state survive putting something away and taking it
+        # back out, which is why this is a flag and not slot = -1.
+        self.stowed = False
         self.ammo = [0] * catalog.HOTBAR_SIZE
         self.reserve = [0] * catalog.HOTBAR_SIZE
         self.reload_until = 0.0
@@ -159,6 +170,15 @@ class Player:
         self.flags: Dict[str, Any] = {}
 
     # ------------------------------------------------------------- weapons
+    def held_slot(self) -> int:
+        """The slot as everyone else sees it: -1 while the hands are empty.
+
+        The wire carries one number because the renderer only asks one
+        question -- what is in this player's hands -- and an index that is
+        not in the hotbar answers it without a second field to keep in step.
+        """
+        return -1 if self.stowed else self.slot
+
     def weapon(self, slot: Optional[int] = None) -> Optional[Dict[str, Any]]:
         slot = self.slot if slot is None else slot
         if not (0 <= slot < catalog.HOTBAR_SIZE):
@@ -197,7 +217,7 @@ class Player:
             "id": self.pid, "uid": self.user_id, "name": self.username,
             "team": self.team, "avatar": self.avatar, "hp": self.health,
             "alive": self.alive, "kills": self.kills, "deaths": self.deaths,
-            "score": self.score, "slot": self.slot, "admin": self.admin,
+            "score": self.score, "slot": self.held_slot(), "admin": self.admin,
             "coins": self.coins, "plot": self.plot,
         }
 
@@ -395,8 +415,15 @@ class GameInstance:
         player.spawn_protect_until = now() + 2.0
         player.reset_ammo()
         player.reload_until = 0.0
+        # Putting something away belongs to the life you did it in: coming
+        # back with empty hands and no way to tell why would read as a bug.
+        was_stowed = player.stowed
+        player.stowed = False
         player.send({"t": "spawn", "p": player.pos, "yaw": player.yaw,
-                     "hp": player.health, "prot": 2.0})
+                     "hp": player.health, "prot": 2.0, "stowed": False})
+        if was_stowed:
+            self.broadcast({"t": "slot", "id": player.pid, "i": player.slot},
+                           exclude=player.pid)
         self.broadcast({"t": "respawned", "id": player.pid, "p": player.pos,
                         "hp": player.health}, exclude=player.pid)
 
@@ -619,25 +646,49 @@ class GameInstance:
 
     # -------------------------------------------------------------- shooting
     def handle_slot(self, player: Player, message: Dict[str, Any]) -> None:
+        """Draw a hotbar item, or -- with i = -1 -- put the held one away.
+
+        The client sends -1 when the key for the slot already in hand is
+        pressed again.  It is checked here rather than trusted, because
+        whether a player is holding a weapon decides whether they may fire.
+        """
         try:
             slot = int(message.get("i", 0))
         except (TypeError, ValueError):
             return
-        if not (0 <= slot < catalog.HOTBAR_SIZE):
-            return
         with self.lock:
+            if slot == STOW_SLOT:
+                if player.stowed:
+                    return
+                player.stowed = True
+                player.reload_until = 0.0
+                # Same short delay as drawing something: stowing must not be
+                # a way to skip the pause between weapons.
+                player.next_fire = max(player.next_fire, now() + 0.25)
+                self.broadcast({"t": "slot", "id": player.pid, "i": STOW_SLOT},
+                               exclude=player.pid)
+                player.send({"t": "you", "slot": player.slot, "stowed": True,
+                             "ammo": player.ammo[player.slot],
+                             "reserve": player.reserve[player.slot]})
+                return
+            if not (0 <= slot < catalog.HOTBAR_SIZE):
+                return
             if player.weapon(slot) is None:
                 return
             player.slot = slot
+            player.stowed = False
             player.reload_until = 0.0
             player.next_fire = max(player.next_fire, now() + 0.25)
             self.broadcast({"t": "slot", "id": player.pid, "i": slot},
                            exclude=player.pid)
-            player.send({"t": "you", "slot": slot, "ammo": player.ammo[slot],
+            player.send({"t": "you", "slot": slot, "stowed": False,
+                         "ammo": player.ammo[slot],
                          "reserve": player.reserve[slot]})
 
     def handle_reload(self, player: Player) -> None:
         with self.lock:
+            if player.stowed:
+                return
             stats = player.weapon_stats()
             if stats.get("kind") == "melee":
                 return
@@ -667,6 +718,10 @@ class GameInstance:
     def handle_fire(self, player: Player, message: Dict[str, Any]) -> None:
         with self.lock:
             if not player.alive or self.phase not in ("active", "setup"):
+                return
+            # Nothing in your hands, nothing to fire.  The client stops this
+            # too; this is the half that a modified client cannot skip.
+            if player.stowed:
                 return
             moment = now()
             if moment < player.next_fire or moment < player.reload_until:
@@ -1064,7 +1119,7 @@ class GameInstance:
                 round(player.pos[0], 2), round(player.pos[1], 2),
                 round(player.pos[2], 2),
                 round(player.yaw, 3), round(player.pitch, 3),
-                player.anim, int(player.health), player.slot,
+                player.anim, int(player.health), player.held_slot(),
                 1 if player.alive else 0,
             ])
         payload: Dict[str, Any] = {"t": "snap", "k": self.tick_count, "ps": rows}

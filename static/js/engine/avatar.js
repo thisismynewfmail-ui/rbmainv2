@@ -581,11 +581,33 @@
     var faceSlot = (face && face.data)
       ? Textures.faceSlot(face.item_id, face.data) : null;
 
+    /* Carrying something raises the arms towards the camera.  Zero hangs
+       straight down and -PI/2 is straight out in front, so these are how far
+       up the arms come to present whatever is in the hands.
+
+       They were -1.32 and -1.15 -- within 15 degrees of horizontal -- which
+       held a weapon up at shoulder height across the chest, hiding the torso
+       and reading as sighting down the barrel rather than carrying a tool.
+       Dropped by about 20 degrees the hand sits below the shoulder, the item
+       clears the legs, and the character reads as holding something.  The
+       held item hangs off this same angle (see "held item" below), so it
+       follows the hand without a second number to keep in step. */
+    var HOLD_ARM_RIGHT = -0.95;
+    var HOLD_ARM_LEFT = -0.82;
+    // how much of the look-pitch the arms carry, so aiming up or down still
+    // swings them rather than leaving the item pointing at the horizon
+    var HOLD_PITCH_RIGHT = 0.55;
+    var HOLD_PITCH_LEFT = 0.40;
+
     var holding = opts.holding;
     var rightSwing = pose.armR;
-    if (holding) rightSwing = -1.32 + (opts.pitch || 0) * 0.55;
+    if (holding) {
+      rightSwing = HOLD_ARM_RIGHT + (opts.pitch || 0) * HOLD_PITCH_RIGHT;
+    }
     var leftSwing = pose.armL;
-    if (holding && holding.twoHanded !== false) leftSwing = -1.15 + (opts.pitch || 0) * 0.4;
+    if (holding && holding.twoHanded !== false) {
+      leftSwing = HOLD_ARM_LEFT + (opts.pitch || 0) * HOLD_PITCH_LEFT;
+    }
     var rightHand = null;
 
     /* ------------------------------------------------------------ the body

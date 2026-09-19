@@ -393,6 +393,64 @@ def test_installer(work: Path, ca_cert: Path, ca_key: Path) -> None:
           tls_support.locate("install.example.com",
                              cert_dir=str(stored_dir)) is None)
 
+    # Renewing is the same command again with a newer bundle, which is the
+    # shape this has to hold: the new certificate serves, the old one is
+    # kept but never chosen.
+    print("")
+    print("== renewing over an installed certificate ==")
+    renew = work / "renew-certs"
+    renew.mkdir()
+
+    def make_bundle(tag, days):
+        src = work / ("renew-src-" + tag)
+        src.mkdir()
+        cert, key = issue(work, ca_cert, ca_key, "renew.example.com",
+                          ["renew.example.com"], days=days)
+        # issue() reuses one path per name, so take a copy before the next.
+        cert_text = cert.read_text()
+        (src / "domain.cert.pem").write_text(cert_text)
+        (src / "private.key.pem").write_text(key.read_text())
+        archive = renew / ("bundle-%s.zip" % tag)
+        with zipfile.ZipFile(archive, "w") as zf:
+            for path in src.iterdir():
+                zf.write(path, "b/%s" % path.name)
+        return archive, cert_text
+
+    old_zip, old_text = make_bundle("old", 5)
+    new_zip, new_text = make_bundle("new", 90)
+    check("the two bundles really are different certificates",
+          old_text != new_text)
+
+    code = install_cert.main([str(old_zip), "--into", str(renew),
+                              "--domain", "renew.example.com"])
+    check("the first install succeeds", code == 0, code)
+    code = install_cert.main([str(new_zip), "--into", str(renew),
+                              "--domain", "renew.example.com"])
+    check("installing the renewal over it succeeds", code == 0, code)
+
+    installed = (renew / "fullchain.pem").read_text()
+    check("the renewed certificate is the one installed",
+          new_text.strip() in installed)
+    check("the old certificate is gone from it",
+          old_text.strip() not in installed)
+    check("the old one is kept as a backup",
+          old_text.strip() in (renew / "fullchain.pem.1").read_text())
+    check("the renewed certificate loads with its own key",
+          tls_support.key_matches_cert(str(renew / "fullchain.pem"),
+                                       str(renew / "privkey.pem"))[0])
+    chosen = tls_support.locate("renew.example.com", cert_dir=str(renew))
+    chosen_info = tls_support.inspect(chosen["cert"]) if chosen else {}
+    check("the server would serve the renewed one, not the backup",
+          bool(chosen)
+          and new_text.strip() in Path(chosen["cert"]).read_text(),
+          chosen)
+    check("and it is the long-dated one",
+          isinstance(chosen_info.get("days_left"), int)
+          and chosen_info["days_left"] > 30, chosen_info.get("days_left"))
+    check("both bundle zips are ignored by the search",
+          len(tls_support.scan_bundle(renew)) == 1,
+          [Path(p["cert"]).name for p in tls_support.scan_bundle(renew)])
+
     # A zip that tries to write outside the destination is refused.
     evil = work / "evil.zip"
     with zipfile.ZipFile(evil, "w") as zf:

@@ -30,7 +30,7 @@
           <button class="btn small {{ 'go' if vote == 1 else '' }}" data-vote="up" data-world="{{ world.id }}">&#9650; Like</button>
           <button class="btn small {{ 'danger' if vote == -1 else '' }}" data-vote="down" data-world="{{ world.id }}">&#9660; Dislike</button>
           <button class="btn small {{ 'primary' if favourite else '' }}" data-fav="{{ world.id }}">
-            {{ '&#9733; Favourited' if favourite else '&#9734; Favourite' }}</button>
+            {{ '★ Favourited' if favourite else '☆ Favourite' }}</button>
           {% endif %}
         </span>
         <span class="muted"><span id="rating-value">{{ stats.rating }}</span>% liked by

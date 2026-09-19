@@ -533,8 +533,95 @@ def test_visits() -> None:
             bot.stop()
 
 
+# ----------------------------------------------------------------- hotbar
+def test_hotbar() -> None:
+    """Drawing an item, putting it away again, and what that forbids.
+
+    The toggle lives in the client -- pressing the key for the slot already
+    in hand sends -1 -- but everything that matters about it is enforced
+    here: what other players see in your hands, and whether you may shoot
+    with them empty.  So this drives the wire directly rather than the key.
+    """
+    print("\n== hotbar: drawing and stowing ==")
+    bots = spawn_bots("capture_the_flag", 2)
+    try:
+        holder, watcher = bots[0], bots[1]
+        check("hotbar: both bots joined",
+              bool(holder.me.get("id")) and bool(watcher.me.get("id")))
+        wait_for_active(bots)
+        pump(bots, 2.4)                       # let spawn protection expire
+        pid = holder.me["id"]
+
+        holder.select_slot(0)
+        pump(bots, 0.8)
+        check("hotbar: slot 1 is drawn", holder.held.get(pid) == 0,
+              holder.held.get(pid))
+        check("hotbar: other players see it drawn", watcher.held.get(pid) == 0,
+              watcher.held.get(pid))
+        check("hotbar: the server says it is not stowed",
+              holder.you.get("stowed") is False, holder.you)
+
+        # The same slot again: hands empty.
+        holder.select_slot(-1)
+        pump(bots, 0.8)
+        check("hotbar: pressing it again stows the item",
+              holder.you.get("stowed") is True, holder.you)
+        check("hotbar: the holder reports empty hands",
+              holder.held.get(pid) == -1, holder.held.get(pid))
+        check("hotbar: other players see empty hands",
+              watcher.held.get(pid) == -1, watcher.held.get(pid))
+
+        # ...and empty hands cannot shoot.
+        before = watcher.counts.get("dmg", 0) + watcher.counts.get("died", 0)
+        direction = [0.0, 0.0, 1.0]
+        dx = watcher.pos[0] - holder.pos[0]
+        dz = watcher.pos[2] - holder.pos[2]
+        length = math.sqrt(dx * dx + dz * dz) or 1
+        direction = [dx / length, 0.0, dz / length]
+        for _ in range(25):
+            holder.fire_at(direction)
+            holder.send_input()
+            watcher.send_input()
+            time.sleep(0.08)
+        pump(bots, 1.0)
+        after = watcher.counts.get("dmg", 0) + watcher.counts.get("died", 0)
+        check("hotbar: an empty-handed player cannot fire", after == before,
+              "damage events: %d" % (after - before))
+        check("hotbar: stowing survived the attempt",
+              holder.held.get(pid) == -1, holder.held.get(pid))
+
+        # Drawing it again puts it back, ammo and all.
+        holder.select_slot(0)
+        pump(bots, 0.8)
+        check("hotbar: pressing it once more draws it again",
+              holder.you.get("stowed") is False, holder.you)
+        check("hotbar: other players see it back in hand",
+              watcher.held.get(pid) == 0, watcher.held.get(pid))
+        check("hotbar: the magazine survived being stowed",
+              holder.you.get("ammo") is not None
+              and int(holder.you.get("ammo", 0)) > 0, holder.you.get("ammo"))
+
+        # A different slot is a straight swap, not a stow.
+        holder.select_slot(1)
+        pump(bots, 0.8)
+        check("hotbar: a different slot swaps rather than stows",
+              holder.you.get("stowed") is False
+              and watcher.held.get(pid) == 1, watcher.held.get(pid))
+
+        # Nonsense indexes change nothing.
+        for bad in (99, -7, "x"):
+            holder.send({"t": "slot", "i": bad})
+        pump(bots, 0.8)
+        check("hotbar: out-of-range slots are ignored",
+              watcher.held.get(pid) == 1, watcher.held.get(pid))
+    finally:
+        for bot in bots:
+            bot.stop()
+
+
 SCENARIOS = {
     "ctf": test_ctf,
+    "hotbar": test_hotbar,
     "combat": test_combat,
     "anticheat": test_anticheat,
     "payload": test_payload,

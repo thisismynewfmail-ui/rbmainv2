@@ -171,6 +171,24 @@ def error(status: int, message: str = "") -> Response:
     return Response(body, status)
 
 
+def not_found(message: str = "") -> Response:
+    """A page that is not there sends the visitor to the home page.
+
+    A dead end is nearly always a stale link, a typo, or a guess at an
+    address that needs an account -- and for every one of those the home page
+    is a better answer than a dead end with a number on it.  It is a redirect
+    rather than the home page served under a 404 so the address bar stops
+    pointing at somewhere that does not exist.
+
+    ``message`` is accepted and dropped: the call sites read better for
+    saying what was missing, and it keeps this a drop-in for ``error(404)``.
+    Anything a machine consumes -- the JSON API, static files, the ACME
+    challenge -- still gets a real 404, because a redirect would be a wrong
+    answer there rather than a friendly one.
+    """
+    return redirect("/")
+
+
 def _json_default(obj: Any) -> Any:
     if hasattr(obj, "keys"):
         return dict(obj)

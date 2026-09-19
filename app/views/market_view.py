@@ -50,7 +50,7 @@ def inventory_of(req: Request, username: str = ""):
     from ..models import users
     target = users.get_by_username(username)
     if target is None:
-        return R.error(404, "No such player.")
+        return R.not_found("No such player.")
     uid = int(target["id"])
     viewer = int(req.user["id"]) if req.user else 0
     # Same privacy rule the profile page applies, enforced here too so the

@@ -35,6 +35,9 @@
     this.myPlot = null;
     this.coins = 0;
     this.slot = 0;
+    /* Hands empty with a slot still chosen.  Keeping the slot is what lets
+       the ammo count and the reload survive putting something away. */
+    this.stowed = false;
     this.ammo = [0, 0, 0, 0, 0];
     this.reserve = [0, 0, 0, 0, 0];
     this.reloadUntil = 0;
@@ -406,13 +409,22 @@
     } catch (e) {}
   };
 
+  /* The hotbar keys draw an item, and draw it away again.
+
+     Pressing the key for the slot already in hand stows it, so 1 1 leaves
+     you empty-handed and 1 2 swaps weapons -- one key per slot doing both
+     jobs, which is what the number row is for.  The slot stays selected
+     while stowed, so taking it back out is the same key again and the
+     magazine is where you left it. */
   Client.prototype.selectSlot = function (index) {
     if (index < 0 || index > 4) return;
     if (!this.avatar.hotbar[index]) return;
+    var stow = (index === this.slot && !this.stowed);
     if (this.scoped) { this.scoped = false; this.hud.setScope(false); }
     this.slot = index;
-    this.hud.setSlot(index);
-    this.net.send({ t: 'slot', i: index });
+    this.stowed = stow;
+    this.hud.setSlot(stow ? -1 : index);
+    this.net.send({ t: 'slot', i: stow ? -1 : index });
     this.updateAmmoHud();
     this.audio.play('ui', { volume: 0.4 });
   };
@@ -498,11 +510,24 @@
       self.hud.setHealth(msg.hp);
       self.hud.setRespawn(null);
       self.respawnAt = 0;
+      // A new life starts with the weapon back in hand; the server has
+      // already cleared its own copy of this and told everyone else.
+      if (self.stowed) {
+        self.stowed = false;
+        self.hud.setSlot(self.slot);
+        self.updateAmmoHud();
+      }
     });
     net.on('you', function (msg) {
       if (msg.slot !== undefined) {
         self.slot = msg.slot;
         self.hud.setSlot(msg.slot);
+      }
+      // The server has the last word on whether the hands are empty, so a
+      // refused stow (or one from another tab) puts the HUD back in step.
+      if (msg.stowed !== undefined) {
+        self.stowed = !!msg.stowed;
+        self.hud.setSlot(self.stowed ? -1 : self.slot);
       }
       if (msg.ammo !== undefined) self.ammo[msg.slot !== undefined ? msg.slot : self.slot] = msg.ammo;
       if (msg.reserve !== undefined) self.reserve[msg.slot !== undefined ? msg.slot : self.slot] = msg.reserve;
@@ -845,6 +870,7 @@
 
   // -------------------------------------------------------------- shooting
   Client.prototype.currentWeapon = function () {
+    if (this.stowed) return null;
     return (this.avatar.hotbar || [])[this.slot] || null;
   };
 
@@ -858,6 +884,7 @@
 
   Client.prototype.tryFire = function () {
     if (!this.local.alive || this.paused || this.hud.chatOpen) return;
+    if (this.stowed) return;
     var now = performance.now() / 1000;
     if (now < this.nextFire || now < this.reloadUntil) return;
     var stats = this.weaponStats();
@@ -935,6 +962,10 @@
   }
 
   Client.prototype.updateAmmoHud = function () {
+    if (this.stowed) {
+      this.hud.setAmmo(null, null, '', false);
+      return;
+    }
     var item = this.currentWeapon();
     var stats = this.weaponStats();
     var reloading = performance.now() / 1000 < this.reloadUntil;

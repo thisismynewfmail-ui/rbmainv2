@@ -77,9 +77,9 @@ Requirements: Python 3.9+ and a browser with WebGL. That is the whole list.
 
 | Account | Password | Notes |
 | --- | --- | --- |
-| `admin_system` | `passman69` | Administrator. Can open `/admin-dashboard`. Owns two Unusual hats. |
-| `admin_test` | `passman69` | Ordinary player used to demonstrate the Unusual system (Unusual Propeller Beanie + Unusual Mohawk Spikes). |
-| `builderman_x`, `RetroKid2007`, `BlockSmith`, `NoobSlayer99`, `PixelPatty`, `CartPusher`, `FlagRunner`, `GrillMaster` | `blockhaven` | Demo players so the social features have something to show. |
+| `admin_system` | see `app/config.py` | Administrator. Can open `/admin-dashboard`. Owns two Unusual hats. |
+| `admin_test` | see `app/config.py` | Ordinary player used to demonstrate the Unusual system (Unusual Propeller Beanie + Unusual Mohawk Spikes). |
+| `builderman_x`, `RetroKid2007`, `BlockSmith`, `NoobSlayer99`, `PixelPatty`, `CartPusher`, `FlagRunner`, `GrillMaster` | see `app/bootstrap.py` | Demo players so the social features have something to show. |
 
 Everyone else who registers starts with **2,000 credits**, a Basic Pistol, a
 Basic Shotgun and a Basic Stick.

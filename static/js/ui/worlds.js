@@ -68,7 +68,7 @@
         Site.post('/api/worlds/favourite', { world_id: button.dataset.fav })
           .then(function (res) {
             if (!res.ok) { Site.toast(res.error, 'bad'); return; }
-            button.innerHTML = res.favourite ? '&#9733; Favourited' : '&#9734; Favourite';
+            button.textContent = res.favourite ? '★ Favourited' : '☆ Favourite';
             button.classList.toggle('primary', res.favourite);
           });
       });
