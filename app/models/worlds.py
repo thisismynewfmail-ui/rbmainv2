@@ -75,6 +75,33 @@ WORLDS: List[Dict[str, Any]] = [
         "features": ["Payload cart", "3 checkpoints", "Team swap each round",
                      "Setup timer"],
     },
+    {
+        "id": "blackout_relay",
+        "name": "Blackout Relay",
+        "genre": "Team Objective",
+        "creator": "BLOCKHAVEN",
+        "tagline": "Two bases, one relay, and a tunnel nobody is watching.",
+        "description": (
+            "Dusk over Ironvale. Both teams deploy out of the same concrete "
+            "relay station in the middle of the valley -- red out of the west "
+            "doors, blue out of the east -- and everything after that is a "
+            "race to the other end and back. Lose your own flag and your team "
+            "falls back to the bunkers on your half, right across the "
+            "carrier's way home. There is a hatch behind every keep, and the "
+            "tunnels under the valley surface inside all four bunkers. "
+            "Respawns come in waves, so your team arrives together. First to "
+            "three captures, and the clock cannot end a round while a flag is "
+            "still out there."),
+        "max_players": 24,
+        "team_count": 2,
+        "mode": "captures",
+        "shuffle": True,
+        "round_label": "First to 3 captures",
+        "colors": ["#3f7a4a", "#c4281c", "#0d69ac"],
+        "thumb": "relay",
+        "features": ["24 players", "Respawn waves", "Outpost lockdown",
+                     "Secret tunnels", "Overtime + sudden death"],
+    },
 ]
 
 WORLDS = [db.AttrDict(w) for w in WORLDS]

@@ -12,7 +12,7 @@ library only)** and **vanilla JavaScript**. It has two halves:
 * **The Game View** — press **Load** on a world and you drop into a first- or
   third-person block shooter running in your browser, served from the same
   port on its own sub-page (`/burger_tycoon`, `/capture_the_flag`,
-  `/fortress_team_2`).
+  `/fortress_team_2`, `/blackout_relay`).
 
 No frameworks, no build step, no `pip install`, no asset files. Every texture,
 sound, mesh and map is generated at runtime.
@@ -93,6 +93,7 @@ Basic Shotgun and a Basic Stick.
 | **Burger Tycoon** | `/burger_tycoon` | Endless tycoon, 8 claimable plots, 4 players per plot | 24 |
 | **Capture The Flag** | `/capture_the_flag` | First to 3 captures, then a shuffle vote | 16 |
 | **Fortress Team 2** | `/fortress_team_2` | Payload push, teams swap each round, first to 3 round wins | 24 |
+| **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: deploy waves, outpost lockdown, tunnels, overtime | 24 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -119,6 +120,30 @@ Dustworks: a desert payload map. Blue pushes the bomb cart along the rails
 toward Red's pit; stand near it to move it, stand near it as Red to block it.
 Three checkpoints add time and lock the cart's rollback. Teams swap ends after
 each round, and the match ends at three round wins.
+
+### Blackout Relay
+Ironvale Relay: a capture-the-flag valley at dusk, built around the concrete
+relay station in the middle of it. Both teams deploy from muster halls bolted
+onto the Relay -- red out of the west doors, blue out of the east -- so the
+atrium between them is the shortest way across and the busiest room on the
+map. Each compound has three ways in: the gate off the road, a sally port on
+each flank, and the postern at the back that the lane outside the wall leads
+to. A hatch behind each keep drops into a tunnel that runs the length of the
+valley to the undercroft below the Relay, surfacing inside all four bunkers on
+the way. Four rules of its own on top of ordinary capture the flag:
+
+* **Muster waves.** The dead come back together on a five-second wave rather
+  than trickling in one at a time (never sooner than two seconds after dying).
+* **Outpost lockdown.** While your own flag is off its pedestal your team
+  stops spawning at the Relay and spawns in the two bunkers on your half --
+  right across the carrier's way home. Losing your flag moves you into the
+  way rather than burying you; the counter is to take the bunkers first.
+* **Overtime.** The clock cannot end a round while a flag is away from home.
+* **Sudden death.** Level when the clock finally stops: both flags reset and
+  the next capture wins, or three minutes later it is honours even.
+
+Points go to the escort as well as the runner -- staying within thirty units
+of your own carrier pays, as does killing an attacker near your own flag.
 
 ---
 
@@ -221,8 +246,9 @@ app/
                            hit detection, damage, chat, rounds, shuffle votes
     protocol.py            RFC 6455 websocket implementation
     registry.py            live host/instance stats for the website
-    maps/                  builder.py + the three map generators
-    worlds/                capture_the_flag.py fortress_team2.py burger_tycoon.py
+    maps/                  builder.py + the four map generators
+    worlds/                capture_the_flag.py fortress_team2.py
+                           burger_tycoon.py blackout_relay.py
 static/
   js/engine/               WebGL renderer, geometry, textures, avatar rig,
                            particles, synthesised audio
@@ -690,6 +716,8 @@ tools/simclient.py --world capture_the_flag --bots 4 --seconds 20
 tools/gametests.py                      # full gameplay test suite
 BLOCKHAVEN_TLS=1 tools/gametests.py     # ...over HTTPS and wss://
 tools/gametests.py ctf combat tycoon    # or a subset
+tools/mapcheck.py                       # geometry QA for every map
+tools/mapcheck.py ironvale              # ...or just one
 tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
 ```

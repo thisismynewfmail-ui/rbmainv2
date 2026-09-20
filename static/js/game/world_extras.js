@@ -20,6 +20,51 @@
   // --------------------------------------------------------------------- CTF
   WorldExtras.prototype.setFlags = function (flags) { this.flags = flags || {}; };
 
+  /* A carrier is the most important thing on the map for both teams, and on a
+     world this size you will not spot one by looking.  The beam is drawn in
+     the carrier's own colours, is visible to everybody, and fades with height
+     so it reads as a signal rather than a wall. */
+  WorldExtras.prototype.drawCarrier = function (renderer, flag, time) {
+    var carrier = this.client.players[flag.carrier];
+    var mine = this.client.myId === flag.carrier;
+    var pos = mine ? this.client.local.pos : (carrier && carrier.pos);
+    if (!pos) return;
+    var them = mine ? this.client.myTeam
+                    : (carrier && carrier.team) || this.enemyOf(flag.team);
+    var colour = GLX.mat.hexToRgb(TEAM_COLOR[them] || '#f5c518');
+    for (var i = 0; i < 5; i++) {
+      renderer.pushRaw('box', pos[0], pos[1] + 9 + i * 7, pos[2],
+                       0, time * 0.7, 0, 2.6 - i * 0.35, 6.4, 2.6 - i * 0.35,
+                       colour, 0.34 - i * 0.05, 0, 2, 0.85, null);
+    }
+    renderer.pushRaw('cyl', pos[0], pos[1] + 0.3, pos[2], 0, 0, 0,
+                     11, 0.3, 11, colour, 0.34, 0, 2, 0.8, null);
+  };
+
+  WorldExtras.prototype.enemyOf = function (team) {
+    return team === 'red' ? 'blue' : 'red';
+  };
+
+  /* While your own flag is out, your team falls back to the outposts.  These
+     mark where that is, on your side only -- the enemy already knows. */
+  WorldExtras.prototype.drawOutposts = function (renderer, state, time) {
+    var lockdown = state && state.lockdown;
+    var team = this.client.myTeam;
+    if (!lockdown || !lockdown[team]) return;
+    var markers = (this.client.map && this.client.map.markers) || {};
+    var pads = markers['outpost_' + team];
+    if (!pads || !pads.length) return;
+    var colour = GLX.mat.hexToRgb(TEAM_COLOR[team] || '#f5c518');
+    var pulse = 0.5 + Math.sin(time * 2.4) * 0.18;
+    for (var i = 0; i < pads.length; i++) {
+      var p = pads[i].p;
+      renderer.pushRaw('cyl', p[0], p[1] - 0.6, p[2], 0, 0, 0,
+                       9 * pulse, 0.3, 9 * pulse, colour, 0.5, 0, 2, 0.8, null);
+      renderer.pushRaw('box', p[0], p[1] + 16, p[2], 0, time * 0.5, 0,
+                       1.6, 30, 1.6, colour, 0.16, 0, 2, 0.9, null);
+    }
+  };
+
   WorldExtras.prototype.drawFlags = function (renderer, time) {
     var self = this;
     Object.keys(this.flags).forEach(function (team) {
@@ -49,6 +94,7 @@
         renderer.pushRaw('sph', p[0], p[1] + 2.0, p[2], 0, 0, 0, 6, 6, 6,
                          GLX.mat.hexToRgb(colour), 0.18, 0, 2, 0.9, null);
       }
+      if (carried) self.drawCarrier(renderer, flag, time);
     });
   };
 
@@ -335,7 +381,10 @@
   WorldExtras.prototype.draw = function (renderer, state, time, dt) {
     this.updateAnimations(dt);
     this.drawAnimations(renderer);
-    if (this.mode === 'captures') this.drawFlags(renderer, time);
+    if (this.mode === 'captures') {
+      this.drawFlags(renderer, time);
+      this.drawOutposts(renderer, state, time);
+    }
     else if (this.mode === 'payload') this.drawCart(renderer, state, time);
     else this.drawTycoon(renderer, time);
   };

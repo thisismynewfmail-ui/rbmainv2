@@ -34,8 +34,20 @@ class Flag:
 
 
 class CaptureTheFlag(GameInstance):
+    """Classic capture the flag.
+
+    The tunables are class attributes rather than bare module constants so a
+    world built on this one can retune the round without a second copy of the
+    rules; the defaults are the numbers Crossroads has always played with.
+    """
+
     mode = "captures"
     friendly_fire = False
+    captures_to_win = CAPTURES_TO_WIN
+    flag_return_seconds = FLAG_RETURN_SECONDS
+    round_seconds = ROUND_SECONDS
+    pickup_radius = PICKUP_RADIUS
+    capture_radius = CAPTURE_RADIUS
 
     @staticmethod
     def build_map() -> Dict[str, Any]:
@@ -48,7 +60,7 @@ class CaptureTheFlag(GameInstance):
             marker = markers.get("flag_%s" % team, {"p": [0, 6, 0]})
             self.flags[team] = Flag(team, list(marker["p"]))
         self.captures = {"red": 0, "blue": 0}
-        self.round_ends = now() + ROUND_SECONDS
+        self.round_ends = now() + self.round_seconds
         self.phase = "active"
 
     def team_names(self) -> List[str]:
@@ -63,7 +75,7 @@ class CaptureTheFlag(GameInstance):
             "captures": dict(self.captures),
             "flags": {team: flag.payload() for team, flag in self.flags.items()},
             "time_left": max(0, int(self.round_ends - now())),
-            "target": CAPTURES_TO_WIN,
+            "target": self.captures_to_win,
             "teams": self.team_counts(),
         }
 
@@ -126,7 +138,7 @@ class CaptureTheFlag(GameInstance):
                     continue
                 flag.pos = [carrier.pos[0], carrier.pos[1] + 5.6, carrier.pos[2]]
             elif flag.state == "dropped":
-                if moment - flag.dropped_at > FLAG_RETURN_SECONDS:
+                if moment - flag.dropped_at > self.flag_return_seconds:
                     self.return_flag(flag)
 
         for player in list(self.players.values()):
@@ -136,7 +148,7 @@ class CaptureTheFlag(GameInstance):
             own_flag = self.flags[player.team]
             # pick up the enemy flag
             if enemy_flag.state in ("home", "dropped"):
-                if math.dist(player.pos, enemy_flag.pos) < PICKUP_RADIUS:
+                if math.dist(player.pos, enemy_flag.pos) < self.pickup_radius:
                     enemy_flag.state = "carried"
                     enemy_flag.carrier = player.pid
                     player.score += 5
@@ -149,24 +161,28 @@ class CaptureTheFlag(GameInstance):
                     continue
             # return our own dropped flag by touching it
             if own_flag.state == "dropped" and \
-                    math.dist(player.pos, own_flag.pos) < PICKUP_RADIUS:
+                    math.dist(player.pos, own_flag.pos) < self.pickup_radius:
                 self.return_flag(own_flag, player)
                 continue
             # capture
             if enemy_flag.state == "carried" and enemy_flag.carrier == player.pid:
                 if own_flag.state == "home" and \
-                        math.dist(player.pos, own_flag.home) < CAPTURE_RADIUS:
+                        math.dist(player.pos, own_flag.home) < self.capture_radius:
                     self.capture(player, enemy_flag)
 
         if moment >= self.round_ends:
-            leader = max(self.captures, key=lambda t: self.captures[t])
-            other = self.enemy_of(leader)
-            if self.captures[leader] == self.captures[other]:
-                self.end_round("", "Time up -- it's a draw!")
-            else:
-                self.end_round(leader, "Time up -- %s leads %d-%d"
-                               % (leader.upper(), self.captures[leader],
-                                  self.captures[other]))
+            self.time_expired()
+
+    def time_expired(self) -> None:
+        """What the clock running out means.  Worlds with overtime override it."""
+        leader = max(self.captures, key=lambda t: self.captures[t])
+        other = self.enemy_of(leader)
+        if self.captures[leader] == self.captures[other]:
+            self.end_round("", "Time up -- it's a draw!")
+        else:
+            self.end_round(leader, "Time up -- %s leads %d-%d"
+                           % (leader.upper(), self.captures[leader],
+                              self.captures[other]))
 
     def capture(self, player: Player, flag: Flag) -> None:
         self.captures[player.team] += 1
@@ -182,10 +198,10 @@ class CaptureTheFlag(GameInstance):
                                self.captures["blue"], "BLUE"))
         self.broadcast({"t": "flags",
                         "f": {t: f.payload() for t, f in self.flags.items()}})
-        if self.captures[player.team] >= CAPTURES_TO_WIN:
+        if self.captures[player.team] >= self.captures_to_win:
             self.end_round(player.team,
                            "%s captured %d flags" % (player.team.upper(),
-                                                     CAPTURES_TO_WIN))
+                                                     self.captures_to_win))
 
     def restart_round(self) -> None:
         self.captures = {"red": 0, "blue": 0}
@@ -193,7 +209,7 @@ class CaptureTheFlag(GameInstance):
             flag.state = "home"
             flag.carrier = None
             flag.pos = list(flag.home)
-        self.round_ends = now() + ROUND_SECONDS
+        self.round_ends = now() + self.round_seconds
         super().restart_round()
         self.broadcast({"t": "flags",
                         "f": {t: f.payload() for t, f in self.flags.items()}})

@@ -121,16 +121,22 @@ def build() -> Dict[str, Any]:
 
     # ------------------------------------------------------------- baseplate
     b.floor(0, 0, 420, 340, 0.0, GRASS, 6.0, studs=True, material="grass")
-    # slightly darker grass patches for texture
-    for _ in range(26):
+    # Slightly darker grass patches for texture.  Each one gets its own
+    # hair's-breadth height so two that land on top of each other cannot
+    # fight over the same pixels (see tools/mapcheck.py).
+    for i in range(26):
         x = rng.uniform(-190, 190)
         z = rng.uniform(-150, 150)
-        b.box([x, 0.06, z], [rng.uniform(16, 44), 0.12, rng.uniform(16, 44)],
+        top = 0.10 + i * 0.004
+        b.box([x, (top - 0.3) / 2.0, z],
+              [rng.uniform(16, 44), top + 0.3, rng.uniform(16, 44)],
               GRASS_DARK, collide=False, studs=False)
 
     # ----------------------------------------------------------- the crossing
+    # The east-west road is laid a shade lower than the north-south one, so
+    # the square where they cross belongs to exactly one of them.
     b.box([0, 0.15, 0], [40, 0.3, 300], ROAD, collide=False)
-    b.box([0, 0.15, 0], [380, 0.3, 40], ROAD, collide=False)
+    b.box([0, 0.13, 0], [380, 0.26, 40], ROAD, collide=False)
 
     # central raised plaza with a broken arch (the landmark of the map)
     b.box([0, 1.5, 0], [72, 3.0, 72], STONE_DARK, studs=True)
@@ -195,7 +201,9 @@ def build() -> Dict[str, Any]:
     for sx in (-1, 1):
         b.wall(sx * 208, 0, 6, 340, 26, 0.0, STONE_DARK)
     for sz in (-1, 1):
-        b.wall(0, sz * 168, 420, 6, 26, 0.0, STONE_DARK)
+        # runs between the side walls rather than through them, so no two
+        # wall tops share a plane at the corners
+        b.wall(0, sz * 168, 410, 6, 26, 0.0, STONE_DARK)
 
     # ----------------------------------------------------------------- forts
     _fort(b, "red", 1)     # red sits at -Z and faces +Z

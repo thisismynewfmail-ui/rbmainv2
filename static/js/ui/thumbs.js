@@ -476,6 +476,51 @@
       parts.push({ t: 'cyl', p: [x, 2.4 * scale, z], s: [1.2 * scale, 5 * scale, 1.2 * scale], c: '#7c503a' });
       parts.push({ t: 'sph', p: [x, 6.6 * scale, z], s: [6 * scale, 5.4 * scale, 6 * scale], c: leaf || '#287f47' });
     }
+    /* ---- Ironvale Relay diorama pieces ------------------------------
+       The card is 512x288 and the camera is fixed, so this is composed for
+       silhouette first: one tall relay in the middle, a lit keep at each end,
+       and the road joining them.  Lit windows do the heavy lifting -- at dusk
+       they are what tells you at a glance which end belongs to whom. */
+    function lamp(x, z, h) {
+      parts.push({ t: 'cyl', p: [x, h / 2, z], s: [0.8, h, 0.8], c: '#3e444b', m: 'metal' });
+      box([x, h + 0.6, z], [2.6, 1.0, 1.8], '#fff0c4', { m: 'neon' });
+    }
+    function windows(x, y, z, count, step, colour, axis) {
+      for (var i = 0; i < count; i++) {
+        var o = (i - (count - 1) / 2) * step;
+        if (axis === 'x') box([x + o, y, z], [2.6, 1.7, 0.4], colour, { m: 'neon' });
+        else box([x, y, z + o], [0.4, 1.7, 2.6], colour, { m: 'neon' });
+      }
+    }
+    function bunker(x, z) {
+      box([x, 1.5, z], [13, 3, 10], '#8b9198', { st: 1 });
+      box([x, 3.4, z], [13.8, 0.8, 10.8], '#c3c9ce');
+      box([x, 2.4, z + 5.2], [5, 1.1, 0.4], '#20242a');
+    }
+    function relayBase(side, roof, dark, neon, banner) {
+      var bx = side * 27;
+      box([bx, 0.7, 0], [21, 1.4, 25], '#a8aeb4', { st: 1 });
+      // the wall that faces the middle, gate punched through the centre
+      box([bx - side * 9.5, 4.2, -9], [2, 7, 7], '#c3c9ce');
+      box([bx - side * 9.5, 4.2, 9], [2, 7, 7], '#c3c9ce');
+      box([bx - side * 9.5, 6.7, 0], [2, 2, 11], '#c3c9ce');
+      // the keep: pale walls, a roof in the team colour, windows lit for dusk
+      box([bx + side * 1.5, 5.6, 0], [14, 8.4, 15], '#dfe4e8', { st: 1 });
+      box([bx + side * 1.5, 10.6, 0], [15.4, 1.6, 16.4], roof, { st: 1 });
+      // a thin parapet round the edge, not a lid: the roof has to stay the
+      // colour that tells you whose end of the map this is
+      box([bx + side * 1.5, 12, -7.9], [15.4, 1.2, 1], dark);
+      box([bx + side * 1.5, 12, 7.9], [15.4, 1.2, 1], dark);
+      box([bx + side * 1.5 - side * 7.2, 12, 0], [1, 1.2, 16.4], dark);
+      windows(bx + side * 1.5, 6.4, 7.7, 3, 4.2, neon, 'x');
+      windows(bx + side * 1.5 - side * 7.2, 6.4, 0, 3, 4.2, neon, 'z');
+      // the banner mast you navigate a flag run by
+      parts.push({ t: 'cyl', p: [bx + side * 1.5, 15.6, 0], s: [0.6, 8, 0.6], c: '#3e444b', m: 'metal' });
+      box([bx + side * 1.5, 17.6, 2.7], [5.6, 3.8, 0.35], roof, { dec: banner });
+      parts.push({ t: 'sph', p: [bx + side * 1.5, 20, 0], s: [1.4, 1.4, 1.4], c: neon, m: 'neon' });
+      // the hatch down into the tunnels, behind the keep
+      box([bx + side * 8.6, 1.55, 0], [4.6, 0.3, 6], '#f2b01e', { dec: 'hazard' });
+    }
     box([0, -1, 0], [90, 2, 60], colors && colors[0] ? '#5aa84f' : '#5aa84f', { st: 1 });
     if (kind === 'ctf') {
       box([-26, 5, -8], [26, 10, 22], '#c8cbcd', { st: 1 });
@@ -507,6 +552,42 @@
       box([-30, 6, 16], [24, 12, 16], '#5885a2', { st: 1 });
       box([-30, 12.6, 16], [26, 1.6, 18], '#3f6580');
       box([12, 4, 18], [12, 8, 12], '#8a5a2b', { st: 1 });
+    } else if (kind === 'relay') {
+      parts[0].s = [84, 2, 48];
+      parts[0].c = '#3f7a4a';
+      // everything below is laid out around z = 0 and then pushed away from
+      // the camera in one go, which leaves a band of open ground across the
+      // bottom of the card instead of a building cropped by its edge
+      var built = parts.length;
+      box([0, 0.25, 0], [84, 0.5, 11], '#565c63');
+      box([0, 0.18, 16], [40, 0.36, 8], '#9aa0a6');
+      for (var r = -37; r <= 37; r += 11) box([r, 0.56, 0], [6, 0.2, 1.1], '#d6dade');
+      relayBase(-1, '#cf4030', '#b9c0c6', '#ff8d6e', 'banner_red');
+      relayBase(1, '#2f86cf', '#b9c0c6', '#8ed2ff', 'banner_blue');
+      bunker(-31, -20); bunker(31, -20);
+      // the relay itself, the tallest thing on the card
+      box([0, 0.8, 0], [30, 1.6, 26], '#a8aeb4', { st: 1 });
+      box([0, 7.4, 0], [19, 11.6, 17], '#dfe4e8', { st: 1 });
+      box([0, 13.8, 0], [20.4, 1.2, 18.4], '#9aa0a6', { st: 1 });
+      windows(0, 8.6, 8.7, 4, 4, '#ffe6b0', 'x');
+      box([-12.2, 5.2, -6], [6, 7.2, 8.6], '#d8402f', { st: 1 });
+      box([12.2, 5.2, -6], [6, 7.2, 8.6], '#3f9adf', { st: 1 });
+      box([-12.2, 5.2, 6], [6, 7.2, 8.6], '#d8402f', { st: 1 });
+      box([12.2, 5.2, 6], [6, 7.2, 8.6], '#3f9adf', { st: 1 });
+      box([-12.2, 4.4, 10.4], [4.4, 1.6, 0.4], '#ff8d6e', { m: 'neon' });
+      box([12.2, 4.4, 10.4], [4.4, 1.6, 0.4], '#8ed2ff', { m: 'neon' });
+      box([-9.7, 9.2, 0], [0.4, 4, 9], '#ff6a54', { m: 'neon' });
+      box([9.7, 9.2, 0], [0.4, 4, 9], '#63c0ff', { m: 'neon' });
+      parts.push({ t: 'cyl', p: [0, 19.6, 0], s: [2.2, 10.4, 2.2], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'cyl', p: [0, 22.2, 0], s: [6.6, 0.5, 6.6], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'cone', p: [0, 24.8, 0], s: [7.6, 3, 7.6], c: '#ccd2d7' });
+      parts.push({ t: 'sph', p: [0, 26.8, 0], s: [1.8, 1.8, 1.8], c: '#ff7a3d', m: 'neon' });
+      lamp(-16, 10, 9); lamp(16, 10, 9);
+      tree(-37, -16, 1.15, '#2a5f3c'); tree(36, -17, 1.0, '#2f6b42');
+      tree(-31, 20, 0.9, '#2a5f3c'); tree(32, 21, 0.85, '#2f6b42');
+      parts.push({ t: 'sph', p: [-19, 0.5, 20], s: [5.5, 2.4, 4.6], c: '#6f757b' });
+      parts.push({ t: 'sph', p: [21, 0.5, 21], s: [4.6, 2.1, 4, ], c: '#6f757b' });
+      for (var q = built; q < parts.length; q++) parts[q].p[2] -= 2;
     } else {
       box([-24, 1.2, 4], [40, 2.4, 34], '#cdd0d3', { st: 1 });
       box([-24, 8, -6], [30, 12, 16], '#c98b5e');
@@ -527,7 +608,8 @@
   var WORLD_SKIES = {
     ctf: { top: '#7fb2e5', horizon: '#e8f0f8', sun: [0.35, 0.7, -0.25], clouds: 0.5, tint: '#ffffff' },
     payload: { top: '#e8b46a', horizon: '#f7e4bd', sun: [0.5, 0.55, 0.2], clouds: 0.7, tint: '#ffe9c4' },
-    burger: { top: '#8fc4ef', horizon: '#ffeec4', sun: [0.3, 0.75, 0.4], clouds: 0.42, tint: '#fff6e0' }
+    burger: { top: '#8fc4ef', horizon: '#ffeec4', sun: [0.3, 0.75, 0.4], clouds: 0.42, tint: '#fff6e0' },
+    relay: { top: '#22406f', horizon: '#9b86a0', sun: [0.2, 0.62, 0.76], clouds: 0.5, tint: '#ffc89a' }
   };
 
   Thumbs.renderWorld = function (canvas, kind, colors) {

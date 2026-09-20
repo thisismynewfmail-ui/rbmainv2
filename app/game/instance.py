@@ -45,6 +45,11 @@ HEAD_MAX_Y = 5.45
 EYE_HEIGHT = 5.05
 CHAT_MAX = 160
 VISIT_SECONDS = 30
+# Collision broad-phase bucket size.  Wide enough that a big map does not
+# build a huge dictionary, tight enough that one shot only tests the handful
+# of solids actually near its line.
+COLLIDER_CELL = 48.0
+COLLIDER_CELL_Y = 32.0
 
 DEFAULT_WEAPON = {
     "kind": "hitscan", "damage": 20, "headshot": 2.0, "rpm": 240, "mag": 12,
@@ -213,12 +218,22 @@ class Player:
                 [x + 0.9, y + HEAD_MAX_Y, z + 0.8])
 
     def public(self) -> Dict[str, Any]:
+        """What everyone else is told about this player.
+
+        The position is in here because the welcome payload carries it: a
+        joining client used to fall back to the middle of the map and get
+        yanked to its real spawn a few ticks later by a correction, which on
+        a big map is a visible drop from the sky.  Remote players get their
+        first position from the same field instead of waiting a frame for
+        the next snapshot.
+        """
         return {
             "id": self.pid, "uid": self.user_id, "name": self.username,
             "team": self.team, "avatar": self.avatar, "hp": self.health,
             "alive": self.alive, "kills": self.kills, "deaths": self.deaths,
             "score": self.score, "slot": self.held_slot(), "admin": self.admin,
             "coins": self.coins, "plot": self.plot,
+            "pos": [round(v, 2) for v in self.pos], "yaw": round(self.yaw, 3),
         }
 
     def send(self, payload: Dict[str, Any]) -> None:
@@ -263,6 +278,7 @@ class GameInstance:
         self.instance_id = instance_id
         self.map = map_data
         self.colliders = self._build_colliders(map_data)
+        self.collider_grid = self._build_collider_grid(self.colliders)
         self.max_players = int(world_def.get("max_players", 16))
         self.players: Dict[int, Player] = {}
         self.projectiles: List[Projectile] = []
@@ -353,14 +369,61 @@ class GameInstance:
                           [px + size[0] / 2, py + size[1] / 2, pz + size[2] / 2]))
         return boxes
 
+    @staticmethod
+    def _build_collider_grid(
+            boxes: List[Tuple[List[float], List[float]]]
+    ) -> Dict[Tuple[int, int, int], List[int]]:
+        """Bucket the collision boxes so a shot only tests what is near it.
+
+        Without this every pellet is one slab test per solid on the map, and
+        a shotgun fires eight of them twice a second per player.  The buckets
+        are coarse and a query asks for the ray's whole bounding box, so what
+        comes back is always a superset of what the ray could possibly reach:
+        the answer is unchanged, only the work is.
+        """
+        grid: Dict[Tuple[int, int, int], List[int]] = {}
+        for index, (lo, hi) in enumerate(boxes):
+            for cx in range(int(math.floor(lo[0] / COLLIDER_CELL)),
+                            int(math.floor(hi[0] / COLLIDER_CELL)) + 1):
+                for cy in range(int(math.floor(lo[1] / COLLIDER_CELL_Y)),
+                                int(math.floor(hi[1] / COLLIDER_CELL_Y)) + 1):
+                    for cz in range(int(math.floor(lo[2] / COLLIDER_CELL)),
+                                    int(math.floor(hi[2] / COLLIDER_CELL)) + 1):
+                        grid.setdefault((cx, cy, cz), []).append(index)
+        return grid
+
+    def _colliders_near(self, lo, hi) -> List[Tuple[List[float], List[float]]]:
+        """Every solid whose bucket overlaps the box ``lo``..``hi``."""
+        grid = self.collider_grid
+        if not grid:
+            return self.colliders
+        boxes = self.colliders
+        seen: set = set()
+        out = []
+        for cx in range(int(math.floor(lo[0] / COLLIDER_CELL)),
+                        int(math.floor(hi[0] / COLLIDER_CELL)) + 1):
+            for cy in range(int(math.floor(lo[1] / COLLIDER_CELL_Y)),
+                            int(math.floor(hi[1] / COLLIDER_CELL_Y)) + 1):
+                for cz in range(int(math.floor(lo[2] / COLLIDER_CELL)),
+                                int(math.floor(hi[2] / COLLIDER_CELL)) + 1):
+                    for index in grid.get((cx, cy, cz), ()):
+                        if index in seen:
+                            continue
+                        seen.add(index)
+                        out.append(boxes[index])
+        return out
+
     def ray_world(self, origin, direction, max_dist: float) -> float:
         """Distance to the first solid surface along a ray (or max_dist)."""
         best = max_dist
-        for lo, hi in self.colliders:
-            if (origin[0] < lo[0] and direction[0] <= 0) or \
-               (origin[0] > hi[0] and direction[0] >= 0):
+        end = [origin[i] + direction[i] * max_dist for i in range(3)]
+        lo = [min(origin[i], end[i]) for i in range(3)]
+        hi = [max(origin[i], end[i]) for i in range(3)]
+        for box_lo, box_hi in self._colliders_near(lo, hi):
+            if (origin[0] < box_lo[0] and direction[0] <= 0) or \
+               (origin[0] > box_hi[0] and direction[0] >= 0):
                 continue
-            hit = ray_aabb(origin, direction, lo, hi)
+            hit = ray_aabb(origin, direction, box_lo, box_hi)
             if hit is not None and 0.0 <= hit < best:
                 best = hit
         return best

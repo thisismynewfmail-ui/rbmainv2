@@ -207,6 +207,74 @@ def test_ctf() -> None:
             bot.stop()
 
 
+# ------------------------------------------------------------- blackout relay
+def test_relay() -> None:
+    """The extra rules Blackout Relay layers on top of capture the flag."""
+    print("\n== blackout relay ==")
+    bots = spawn_bots("blackout_relay", 2)
+    try:
+        blue = next((b for b in bots if b.me.get("team") == "blue"), None)
+        red = next((b for b in bots if b.me.get("team") == "red"), None)
+        check("relay: teams are split", blue is not None and red is not None,
+              str([b.me.get("team") for b in bots]))
+        if blue is None:
+            return
+        pump(bots, 1.0)
+        state = blue.state
+        check("relay: the round reports its extra state",
+              "lockdown" in state and "overtime" in state
+              and "sudden_death" in state and "wave" in state,
+              json.dumps(sorted(state)))
+        check("relay: instances hold 24", state.get("max_players") == 24,
+              str(state.get("max_players")))
+
+        markers = blue.map.get("markers", {})
+        for key in ("flag_red", "flag_blue", "outpost_red", "outpost_blue",
+                    "muster_red", "muster_blue"):
+            check("relay: the map ships %s" % key, key in markers)
+        check("relay: both teams get four forward spawns",
+              len(markers.get("outpost_red", [])) >= 4
+              and len(markers.get("outpost_blue", [])) >= 4)
+
+        # walk the blue bot the length of the map to the red flag
+        enemy_flag = markers["flag_red"]["p"]
+        home_flag = markers["flag_blue"]["p"]
+        for _ in range(420):
+            remaining = blue.walk_towards(enemy_flag, 0.08, 26)
+            for other in bots:
+                other.send_input()
+            if remaining == 0.0:
+                break
+            time.sleep(0.04)
+        pump(bots, 0.8)
+        took = [m for m in blue.messages
+                if m.get("t") == "evt" and m.get("k") == "flag_take"]
+        check("relay: taking the flag fires flag_take", bool(took))
+        locked = [m for m in blue.messages
+                  if m.get("t") == "evt" and m.get("k") == "lockdown"
+                  and m.get("on")]
+        check("relay: losing a flag locks that team down to its outposts",
+              bool(locked), json.dumps(blue.state.get("lockdown")))
+
+        for _ in range(420):
+            remaining = blue.walk_towards(home_flag, 0.08, 26)
+            for other in bots:
+                other.send_input()
+            if remaining == 0.0:
+                break
+            time.sleep(0.04)
+        pump(bots, 1.0)
+        captured = [m for m in blue.messages
+                    if m.get("t") == "evt" and m.get("k") == "flag_capture"]
+        check("relay: carrying it home scores a capture", bool(captured))
+        check("relay: the lockdown lifts once the flag is back",
+              not blue.state.get("lockdown", {}).get("red", False),
+              json.dumps(blue.state.get("lockdown")))
+    finally:
+        for bot in bots:
+            bot.stop()
+
+
 # ------------------------------------------------------------------ combat
 def test_combat() -> None:
     print("\n== combat, damage and the kill feed ==")
@@ -621,6 +689,7 @@ def test_hotbar() -> None:
 
 SCENARIOS = {
     "ctf": test_ctf,
+    "relay": test_relay,
     "hotbar": test_hotbar,
     "combat": test_combat,
     "anticheat": test_anticheat,

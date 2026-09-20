@@ -23,7 +23,7 @@
   {% for row in rows %}
   <div class="col">
     <div class="panel">
-      <div class="panel-head {{ 'red' if row.world.id == 'fortress_team_2' else ('gold' if row.world.id == 'burger_tycoon' else 'green') }}">
+      <div class="panel-head {{ 'red' if row.world.id == 'fortress_team_2' else ('gold' if row.world.id == 'burger_tycoon' else ('purple' if row.world.id == 'blackout_relay' else 'green')) }}">
         {{ row.world.name }} &mdash; live instances
       </div>
       <div class="panel-body flush">

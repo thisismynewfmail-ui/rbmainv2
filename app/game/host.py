@@ -44,6 +44,8 @@ def load_world_class(world_id: str):
         from app.game.worlds.capture_the_flag import CaptureTheFlag as cls
     elif world_id == "fortress_team_2":
         from app.game.worlds.fortress_team2 import FortressTeam2 as cls
+    elif world_id == "blackout_relay":
+        from app.game.worlds.blackout_relay import BlackoutRelay as cls
     elif world_id == "burger_tycoon":
         from app.game.worlds.burger_tycoon import BurgerTycoon as cls
     else:

@@ -840,6 +840,7 @@
     this.staticParts = msg.map.parts;
     this.renderer.buildStatic(msg.map.parts);
     this.local.pos = msg.you.pos ? msg.you.pos.slice() : [0, 20, 0];
+    if (typeof msg.you.yaw === 'number') this.local.yaw = msg.you.yaw;
     this.state = msg.state || {};
     var self = this;
     (msg.players || []).forEach(function (player) {

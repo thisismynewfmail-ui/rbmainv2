@@ -211,11 +211,32 @@
       var captures = state.captures || { red: 0, blue: 0 };
       if (red) red.textContent = captures.red;
       if (blue) blue.textContent = captures.blue;
-      if (timer) timer.textContent = formatTime(state.time_left || 0);
+      var panel = el('objective');
+      if (timer) {
+        timer.textContent = state.sudden_death
+          ? 'SUDDEN DEATH ' + formatTime(state.time_left || 0)
+          : (state.overtime ? 'OVERTIME' : formatTime(state.time_left || 0));
+      }
+      if (panel) {
+        panel.classList.toggle('urgent',
+                               !!(state.overtime || state.sudden_death));
+      }
       if (sub) {
         var flags = state.flags || {};
-        sub.innerHTML = 'first to ' + (state.target || 3) + ' captures &bull; ' +
-          flagLabel('RED', flags.red) + ' &bull; ' + flagLabel('BLU', flags.blue);
+        var line = (state.sudden_death ? 'next capture wins'
+                    : 'first to ' + (state.target || 3) + ' captures') +
+          ' &bull; ' + flagLabel('RED', flags.red) +
+          ' &bull; ' + flagLabel('BLU', flags.blue);
+        // Worlds that move your spawn when your flag is out say so here --
+        // where you are about to come back is worth more than a chat line
+        // you have already scrolled past.
+        var lockdown = state.lockdown;
+        if (lockdown && lockdown[this.client.myTeam]) {
+          line += ' &bull; <b style="color:#ffd95e">FALL BACK TO THE OUTPOSTS</b>';
+        } else if (lockdown && lockdown[this.client.myTeam === 'red' ? 'blue' : 'red']) {
+          line += ' &bull; <b style="color:#9ade8f">they are pinned back</b>';
+        }
+        sub.innerHTML = line;
       }
       if (bar) bar.style.display = 'none';
     } else if (mode === 'payload') {
@@ -387,7 +408,12 @@
     if (seconds === null) { wrap.classList.remove('on'); return; }
     wrap.classList.add('on');
     el('respawn-count').textContent = Math.max(0, Math.ceil(seconds));
-    el('respawn-by').textContent = by ? 'Killed by ' + by : '';
+    var reason = el('respawn-by');
+    if (reason) {
+      var wave = this.client.state && this.client.state.wave;
+      reason.innerHTML = (by ? 'Killed by ' + this.escape(by) : '') +
+        (wave ? '<br><span style="opacity:.7">next deploy wave</span>' : '');
+    }
   };
 
   HUD.prototype.setPrompt = function (text) {

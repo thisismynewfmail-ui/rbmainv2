@@ -127,6 +127,10 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 #objective .score .blue { color: #7cc4ff; }
 #objective .timer { font-size: 13px; opacity: .9; }
 #objective .sub { font-size: 11px; opacity: .8; margin-top: 2px; }
+/* Overtime and sudden death: the round is no longer running on the clock you
+   have been watching, so the panel has to stop looking like it is. */
+#objective.urgent { border-color: rgba(255,214,94,.85); background: rgba(48,30,8,.78); }
+#objective.urgent .timer { color: #ffd95e; font-weight: bold; letter-spacing: .04em; }
 #cartbar { height: 12px; margin-top: 5px; background: rgba(0,0,0,.5); border-radius: 6px;
   position: relative; border: 1px solid rgba(255,255,255,.25); }
 #cartbar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#7cc4ff, #2f6f9f);
