@@ -275,6 +275,81 @@ def test_relay() -> None:
             bot.stop()
 
 
+def test_relay_drop() -> None:
+    """A dropped flag: the payload the animation is drawn from, and the clock.
+
+    The carrier here does not die -- it stops talking, which is what a
+    closed laptop or a dropped connection looks like from the server.  That
+    used to leave the flag carried by a body nobody could reach for the rest
+    of the round.
+    """
+    print("\n== blackout relay: the dropped flag ==")
+    bots = spawn_bots("blackout_relay", 2)
+    try:
+        blue = next((b for b in bots if b.me.get("team") == "blue"), None)
+        red = next((b for b in bots if b.me.get("team") == "red"), None)
+        if blue is None or red is None:
+            check("drop: one bot on each team", False,
+                  str([b.me.get("team") for b in bots]))
+            return
+        flag = blue.map["markers"]["flag_red"]["p"]
+        for _ in range(420):
+            remaining = blue.walk_towards(flag, 0.08, 26)
+            red.send_input()
+            blue.send_input()
+            if remaining == 0.0:
+                break
+            time.sleep(0.04)
+        pump([blue, red], 0.8)
+        check("drop: the carrier has the flag",
+              bool([m for m in blue.messages
+                    if m.get("t") == "evt" and m.get("k") == "flag_take"]))
+
+        # blue goes quiet; red stays where it spawned, far from the flag
+        dropped = None
+        for _ in range(160):
+            red.send_input()
+            time.sleep(0.1)
+            events = [m for m in red.messages
+                      if m.get("t") == "evt" and m.get("k") == "flag_drop"]
+            if events:
+                dropped = events[-1]
+                break
+        check("drop: a silent carrier puts the flag down", bool(dropped))
+        if not dropped:
+            return
+        check("drop: the event carries a resting place",
+              isinstance(dropped.get("p"), list) and len(dropped["p"]) == 3,
+              json.dumps(dropped))
+        check("drop: it lands lower than a carrier holds it",
+              dropped["p"][1] <= flag[1] + 2.0,
+              "%.1f vs %.1f" % (dropped["p"][1], flag[1]))
+        check("drop: the event carries a facing for the fall",
+              isinstance(dropped.get("yaw"), (int, float)), json.dumps(dropped))
+        check("drop: the return timer is 45 seconds",
+              dropped.get("hold") == 45.0, str(dropped.get("hold")))
+
+        pump([red], 1.2)
+        state = (red.state.get("flags") or {}).get("red") or {}
+        check("drop: the flag reads as dropped", state.get("state") == "dropped",
+              json.dumps(state))
+        first = state.get("left")
+        check("drop: the state carries the time left",
+              isinstance(first, (int, float)), json.dumps(state))
+        pump([red], 3.5)
+        later = ((red.state.get("flags") or {}).get("red") or {}).get("left")
+        check("drop: the clock runs down",
+              isinstance(later, (int, float)) and isinstance(first, (int, float))
+              and later < first, "%s then %s" % (first, later))
+        check("drop: a silent carrier cannot pick it straight back up",
+              ((red.state.get("flags") or {}).get("red") or {}).get("state")
+              == "dropped",
+              json.dumps((red.state.get("flags") or {}).get("red")))
+    finally:
+        for bot in bots:
+            bot.stop()
+
+
 # ------------------------------------------------------------------ combat
 def test_combat() -> None:
     print("\n== combat, damage and the kill feed ==")
@@ -690,6 +765,7 @@ def test_hotbar() -> None:
 SCENARIOS = {
     "ctf": test_ctf,
     "relay": test_relay,
+    "drop": test_relay_drop,
     "hotbar": test_hotbar,
     "combat": test_combat,
     "anticheat": test_anticheat,

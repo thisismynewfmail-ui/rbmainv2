@@ -79,15 +79,32 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 #chat-input:focus { outline: 2px solid #ffd95e; }
 
 /* ---------------------------------------------------------------- bottom */
-#health-wrap { position: absolute; left: 14px; bottom: 16px; width: 260px; }
-#health-bar { height: 22px; background: rgba(10,14,20,.72); border: 2px solid rgba(255,255,255,.35);
-  border-radius: 3px; overflow: hidden; }
+/* The bar carries its own label now: the colour of the frame is which team
+   you are on, and the breathing outline is what your eye catches when you
+   are looking at the middle of the screen rather than at the corner. */
+#health-wrap { position: absolute; left: 14px; bottom: 16px; width: 260px;
+  --team: rgba(255,255,255,.55); --team-soft: rgba(255,255,255,.22); }
+#health-wrap.red { --team: #ff6a54; --team-soft: rgba(255,106,84,.38); }
+#health-wrap.blue { --team: #63c0ff; --team-soft: rgba(99,192,255,.38); }
+#health-bar { height: 22px; background: rgba(10,14,20,.72);
+  border: 2px solid var(--team); border-radius: 3px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 7px var(--team-soft);
+  animation: health-pulse 2.8s ease-in-out infinite; }
 #health-fill { height: 100%; width: 100%; background: linear-gradient(#66d36e, #2f8f3a);
   transition: width .18s ease-out; }
 #health-fill.low { background: linear-gradient(#e8705c, #a3281c); }
-#health-text { position: absolute; left: 11px; top: 15px; font-weight: bold; font-size: 15px;
+#health-text { position: absolute; left: 11px; top: 3px; font-weight: bold; font-size: 15px;
   text-shadow: 0 1px 3px #000; letter-spacing: .5px; }
-#health-wrap .label { font-size: 10px; opacity: .8; margin-bottom: 2px; letter-spacing: 1px; }
+@keyframes health-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 6px var(--team-soft); }
+  50%      { box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 15px var(--team-soft); }
+}
+/* One firmer pulse when the hit lands, so damage reads on the frame too. */
+#health-bar.hit { animation: health-hit .45s ease-out; }
+@keyframes health-hit {
+  0%   { box-shadow: 0 0 0 2px var(--team), 0 0 22px var(--team-soft); }
+  100% { box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 6px var(--team-soft); }
+}
 
 #ammo { position: absolute; right: 16px; bottom: 16px; text-align: right;
   text-shadow: 0 2px 4px rgba(0,0,0,.9); }

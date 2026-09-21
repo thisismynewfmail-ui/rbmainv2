@@ -27,7 +27,7 @@
   };
 
   // ------------------------------------------------------------- health/ammo
-  HUD.prototype.setHealth = function (hp) {
+  HUD.prototype.setHealth = function (hp, hurt) {
     hp = Math.max(0, Math.min(100, Math.round(hp)));
     var fill = el('health-fill');
     if (fill) {
@@ -36,6 +36,27 @@
     }
     var text = el('health-text');
     if (text) text.textContent = hp;
+    if (hurt) {
+      // Re-trigger the CSS animation by taking the class off and forcing a
+      // reflow before putting it back; without the reflow the browser sees
+      // no change and the frame never flashes twice in a row.
+      var bar = el('health-bar');
+      if (bar) {
+        bar.classList.remove('hit');
+        void bar.offsetWidth;
+        bar.classList.add('hit');
+      }
+    }
+  };
+
+  /* Paint the bar's frame in the player's own team colour.  Which team you
+     are on is something you want in the corner of your eye, not something
+     you should have to open the scoreboard for. */
+  HUD.prototype.setTeam = function (team) {
+    var wrap = el('health-wrap');
+    if (!wrap) return;
+    wrap.classList.remove('red', 'blue');
+    if (team === 'red' || team === 'blue') wrap.classList.add(team);
   };
 
   HUD.prototype.setAmmo = function (mag, reserve, name, reloading) {

@@ -261,8 +261,10 @@ class Solid:
                     out.append(self.boxes[index])
         return out
 
-    def blocked(self, x: float, y: float, z: float) -> bool:
-        hw, height, hd = PLAYER_SIZE[0] / 2.0, PLAYER_SIZE[1], PLAYER_SIZE[2] / 2.0
+    def blocked(self, x: float, y: float, z: float, margin: float = 0.0) -> bool:
+        hw = PLAYER_SIZE[0] / 2.0 + margin
+        hd = PLAYER_SIZE[2] / 2.0 + margin
+        height = PLAYER_SIZE[1]
         for lo, hi in self.near(x, z):
             if hi[0] > x - hw and lo[0] < x + hw and \
                hi[1] > y + 0.05 and lo[1] < y + height and \
@@ -286,13 +288,24 @@ class Solid:
 
 
 def check_points(solid: Solid, points: Sequence[Tuple[str, List[float]]],
-                 drop: float = 3.0) -> List[str]:
+                 drop: float = 3.0, clearance: float = 1.2) -> List[str]:
+    """Every spawn and marker, tested with the real player box.
+
+    ``clearance`` is tested as well as the body itself.  A spawn that only
+    just fits is a spawn that puts somebody inside the wall as soon as
+    anything nudges them -- a knockback, a correction, or simply the client
+    resolving the first frame of movement -- so "it fits" is not the bar.
+    """
     problems = []
     for label, pos in points:
         x, y, z = pos
         if solid.blocked(x, y, z):
             problems.append("%s at (%.1f, %.1f, %.1f) is inside a solid"
                             % (label, x, y, z))
+            continue
+        if clearance > 0 and solid.blocked(x, y, z, clearance):
+            problems.append("%s at (%.1f, %.1f, %.1f) has under %.1f units of "
+                            "clearance around it" % (label, x, y, z, clearance))
             continue
         ground = solid.ground_under(x, y + 0.2, z)
         if ground is None:

@@ -89,18 +89,22 @@ WORLDS: List[Dict[str, Any]] = [
             "falls back to the bunkers on your half, right across the "
             "carrier's way home. There is a hatch behind every keep, and the "
             "tunnels under the valley surface inside all four bunkers. "
-            "Respawns come in waves, so your team arrives together. First to "
-            "three captures, and the clock cannot end a round while a flag is "
-            "still out there."),
+            "Respawns come in waves, so your team arrives together. Half an "
+            "hour on the clock, first to five captures, and the clock cannot "
+            "end a round while a flag is still out there."),
         "max_players": 24,
         "team_count": 2,
         "mode": "captures",
         "shuffle": True,
-        "round_label": "First to 3 captures",
+        "round_label": "First to 5 captures",
         "colors": ["#3f7a4a", "#c4281c", "#0d69ac"],
         "thumb": "relay",
-        "features": ["24 players", "Respawn waves", "Outpost lockdown",
-                     "Secret tunnels", "Overtime + sudden death"],
+        # This world hides enemy health on the nametags: you can read your
+        # own team's condition at a glance, but an enemy is just a name.
+        "ally_health_only": True,
+        "features": ["24 players", "30 minute rounds", "Respawn waves",
+                     "Outpost lockdown", "Secret tunnels",
+                     "Overtime + sudden death"],
     },
 ]
 

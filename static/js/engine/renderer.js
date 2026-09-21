@@ -571,7 +571,14 @@
   Renderer.prototype.pushRaw = function (kind, px, py, pz, rx, ry, rz, sx, sy, sz,
                                          color, alpha, studs, material, emissive,
                                          decal, wrapped) {
-    var batch = this.dynamic[kind] || this.dynamic.box;
+    // Same rule as push(): anything asking to be see-through has to go in
+    // the blended pass.  Objective markers -- flag beams, capture rings,
+    // the dropped-flag clock -- are all drawn through here with an alpha,
+    // and in the opaque pass that alpha is simply ignored, which is why a
+    // faint beam came out as a solid bar of team colour.
+    var set = (alpha !== undefined && alpha < 0.999)
+      ? this.dynamicGlass : this.dynamic;
+    var batch = set[kind] || set.box;
     return batch.add(px, py, pz, rx, ry, rz, sx, sy, sz, color, alpha, studs,
                      material, emissive, decal, wrapped);
   };
