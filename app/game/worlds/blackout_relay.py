@@ -47,9 +47,9 @@ class BlackoutRelay(CaptureTheFlag):
     mode = "captures"
     friendly_fire = False
 
-    captures_to_win = 3
-    round_seconds = 600.0
-    flag_return_seconds = 20.0
+    captures_to_win = 5
+    round_seconds = 1800.0     # half an hour: the map is long and so is a run
+    flag_return_seconds = 45.0
     pickup_radius = 9.0       # the whole top of the pedestal counts
     capture_radius = 15.0
 

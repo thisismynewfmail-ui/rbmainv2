@@ -697,6 +697,7 @@
     });
     net.on('team', function (msg) {
       self.myTeam = msg.team;
+      self.hud.setTeam(msg.team);
       if (msg.plot !== undefined) self.myPlot = msg.plot;
       self.hud.toast('You are on ' + msg.team.toUpperCase());
     });
@@ -704,7 +705,10 @@
       Object.keys(msg.map || {}).forEach(function (id) {
         var player = self.players[id];
         if (player) player.team = msg.map[id];
-        if (parseInt(id, 10) === self.myId) self.myTeam = msg.map[id];
+        if (parseInt(id, 10) === self.myId) {
+          self.myTeam = msg.map[id];
+          self.hud.setTeam(self.myTeam);
+        }
       });
     });
     net.on('slot', function (msg) {
@@ -832,6 +836,7 @@
     this.constants = msg.constants;
     this.myId = msg.you.id;
     this.myTeam = msg.you.team;
+    this.hud.setTeam(this.myTeam);
     this.myPlot = msg.you.plot;
     this.physics = new Physics(msg.map, msg.constants);
     this.renderer.setSky(msg.map.sky);
@@ -952,7 +957,7 @@
 
   Client.prototype.onDamage = function (msg) {
     this.local.health = msg.hp;
-    this.hud.setHealth(msg.hp);
+    this.hud.setHealth(msg.hp, true);
     this.hud.flashDamage();
     this.audio.play('hurt', { volume: 0.6 });
     if (msg.from) {
@@ -1285,9 +1290,15 @@
           var scale = Math.max(0.85, Math.min(3.4, 0.85 + distance * 0.011));
           var colour = player.team === 'red' ? '#ff9a90'
             : (player.team === 'blue' ? '#9ecbff' : '#ffe08a');
-          var sub = (player.team && player.team !== self.myTeam &&
-                     self.world.mode !== 'endless')
-            ? Math.max(0, Math.round(player.health)) + ' hp' : '';
+          // Whose health you may read is a per-world rule.  Worlds that set
+          // ``ally_health_only`` show it for your own side and give you
+          // nothing but a name for the other one, so knowing an enemy is
+          // one shot from dying is something you have to be paying
+          // attention to rather than something the HUD hands you.
+          var ally = player.team === self.myTeam;
+          var show = self.world.mode !== 'endless' && !!player.team &&
+            (self.world.ally_health_only ? ally : !ally);
+          var sub = show ? Math.max(0, Math.round(player.health)) + ' hp' : '';
           renderer.queueTag('p' + player.id, player.name, colour, sub,
                             [player.pos[0], player.pos[1] + 7.6, player.pos[2]],
                             scale);

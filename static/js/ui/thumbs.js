@@ -497,29 +497,34 @@
       box([x, 3.4, z], [13.8, 0.8, 10.8], '#c3c9ce');
       box([x, 2.4, z + 5.2], [5, 1.1, 0.4], '#20242a');
     }
-    function relayBase(side, roof, dark, neon, banner) {
-      var bx = side * 27;
-      box([bx, 0.7, 0], [21, 1.4, 25], '#a8aeb4', { st: 1 });
+    function relayBase(side, roof, dark, neon, banner, at) {
+      var bx = side * (at || 27);
+      var kx = bx + side * 1.2;
+      box([bx, 0.7, 0], [17, 1.4, 21], '#a8aeb4', { st: 1 });
       // the wall that faces the middle, gate punched through the centre
-      box([bx - side * 9.5, 4.2, -9], [2, 7, 7], '#c3c9ce');
-      box([bx - side * 9.5, 4.2, 9], [2, 7, 7], '#c3c9ce');
-      box([bx - side * 9.5, 6.7, 0], [2, 2, 11], '#c3c9ce');
+      box([bx - side * 7.7, 3.8, -7.4], [1.8, 6.2, 6], '#c3c9ce');
+      box([bx - side * 7.7, 3.8, 7.4], [1.8, 6.2, 6], '#c3c9ce');
+      box([bx - side * 7.7, 6, 0], [1.8, 1.8, 9], '#c3c9ce');
       // the keep: pale walls, a roof in the team colour, windows lit for dusk
-      box([bx + side * 1.5, 5.6, 0], [14, 8.4, 15], '#dfe4e8', { st: 1 });
-      box([bx + side * 1.5, 10.6, 0], [15.4, 1.6, 16.4], roof, { st: 1 });
+      box([kx, 4.9, 0], [11.4, 7, 12.4], '#dfe4e8', { st: 1 });
+      box([kx, 9, 0], [12.6, 1.4, 13.6], roof, { st: 1 });
       // a thin parapet round the edge, not a lid: the roof has to stay the
       // colour that tells you whose end of the map this is
-      box([bx + side * 1.5, 12, -7.9], [15.4, 1.2, 1], dark);
-      box([bx + side * 1.5, 12, 7.9], [15.4, 1.2, 1], dark);
-      box([bx + side * 1.5 - side * 7.2, 12, 0], [1, 1.2, 16.4], dark);
-      windows(bx + side * 1.5, 6.4, 7.7, 3, 4.2, neon, 'x');
-      windows(bx + side * 1.5 - side * 7.2, 6.4, 0, 3, 4.2, neon, 'z');
+      box([kx, 10.2, -6.5], [12.6, 1, 0.9], dark);
+      box([kx, 10.2, 6.5], [12.6, 1, 0.9], dark);
+      box([kx - side * 5.9, 10.2, 0], [0.9, 1, 13.6], dark);
+      // roof furniture: a lantern housing and a walkway, so the team colour
+      // up there reads as a building rather than a painted rectangle
+      box([kx + side * 2.6, 10.4, 0], [4.4, 1.4, 9], '#9aa0a6', { st: 1 });
+      box([kx + side * 2.6, 11.2, 0], [1.6, 0.5, 6.4], neon, { m: 'neon' });
+      windows(kx, 5.6, 6.4, 3, 3.6, neon, 'x');
+      windows(kx - side * 5.9, 5.6, 0, 3, 3.6, neon, 'z');
       // the banner mast you navigate a flag run by
-      parts.push({ t: 'cyl', p: [bx + side * 1.5, 15.6, 0], s: [0.6, 8, 0.6], c: '#3e444b', m: 'metal' });
-      box([bx + side * 1.5, 17.6, 2.7], [5.6, 3.8, 0.35], roof, { dec: banner });
-      parts.push({ t: 'sph', p: [bx + side * 1.5, 20, 0], s: [1.4, 1.4, 1.4], c: neon, m: 'neon' });
+      parts.push({ t: 'cyl', p: [kx, 13.4, 0], s: [0.55, 7, 0.55], c: '#3e444b', m: 'metal' });
+      box([kx, 15.2, 2.3], [4.8, 3.2, 0.35], roof, { dec: banner });
+      parts.push({ t: 'sph', p: [kx, 17.3, 0], s: [1.2, 1.2, 1.2], c: neon, m: 'neon' });
       // the hatch down into the tunnels, behind the keep
-      box([bx + side * 8.6, 1.55, 0], [4.6, 0.3, 6], '#f2b01e', { dec: 'hazard' });
+      box([bx + side * 7, 1.55, 0], [4, 0.3, 5], '#f2b01e', { dec: 'hazard' });
     }
     box([0, -1, 0], [90, 2, 60], colors && colors[0] ? '#5aa84f' : '#5aa84f', { st: 1 });
     if (kind === 'ctf') {
@@ -553,40 +558,73 @@
       box([-30, 12.6, 16], [26, 1.6, 18], '#3f6580');
       box([12, 4, 18], [12, 8, 12], '#8a5a2b', { st: 1 });
     } else if (kind === 'relay') {
-      parts[0].s = [84, 2, 48];
+      // Ironvale is a long map: two keeps a proper run apart with a town
+      // between them.  The card has to say that in one glance, so the
+      // keeps go right out to the ends and the middle is given over to the
+      // ground you actually fight across -- road, bunkers, the cutting,
+      // the depot, trees -- with the Relay's mast over the lot of it.
+      parts[0].s = [98, 2, 48];
       parts[0].c = '#3f7a4a';
       // everything below is laid out around z = 0 and then pushed away from
       // the camera in one go, which leaves a band of open ground across the
       // bottom of the card instead of a building cropped by its edge
       var built = parts.length;
-      box([0, 0.25, 0], [84, 0.5, 11], '#565c63');
-      box([0, 0.18, 16], [40, 0.36, 8], '#9aa0a6');
-      for (var r = -37; r <= 37; r += 11) box([r, 0.56, 0], [6, 0.2, 1.1], '#d6dade');
-      relayBase(-1, '#cf4030', '#b9c0c6', '#ff8d6e', 'banner_red');
-      relayBase(1, '#2f86cf', '#b9c0c6', '#8ed2ff', 'banner_blue');
-      bunker(-31, -20); bunker(31, -20);
+      box([0, 0.25, 0], [98, 0.5, 10], '#565c63');
+      for (var r = -43; r <= 43; r += 8) box([r, 0.56, 0], [4.4, 0.2, 1], '#d6dade');
+      box([0, 0.18, 15], [52, 0.36, 6], '#9aa0a6');       // the flank path
+      relayBase(-1, '#cf4030', '#b9c0c6', '#ff8d6e', 'banner_red', 37);
+      relayBase(1, '#2f86cf', '#b9c0c6', '#8ed2ff', 'banner_blue', 37);
+
+      // ---- the midfield, mirrored: this is the spacing the card is about
+      for (var m = -1; m <= 1; m += 2) {
+        // the cutting: a sunken road with a bridge you fight on top of
+        box([m * 19, 2.4, 0], [2.6, 4.8, 17], '#8b9198', { st: 1 });
+        box([m * 19, 5.1, 0], [4.8, 0.7, 19], '#c3c9ce');
+        box([m * 19, 6, -9], [4.8, 1, 0.7], '#9aa0a6');
+        box([m * 19, 6, 9], [4.8, 1, 0.7], '#9aa0a6');
+        // the depot, set back off the road: roller door lit from inside,
+        // an awning over it and crates stacked outside.  It is the nearest
+        // thing to the camera on this side, so it is kept small and given a
+        // roof in a different colour -- a big pale box this close reads as
+        // nothing at all.
+        box([m * 30, 2.6, 13], [10, 5.2, 8], '#c3c9ce', { st: 1 });
+        box([m * 30, 5.5, 13], [11, 0.8, 9], '#7d6047');
+        box([m * 30, 1.9, 8.9], [4.4, 3.6, 0.5], '#ffd79a', { m: 'neon' });
+        box([m * 30, 4.1, 8.2], [6, 0.4, 1.8], '#5c4633');
+        box([m * 23.5, 1.1, 11], [2.6, 2.2, 2.6], '#9a6a3c', { st: 1 });
+        box([m * 23.5, 3.1, 11], [2.2, 1.8, 2.2], '#9a6a3c', { st: 1 });
+        // bunker and pillbox on the far flank, both looking at the road
+        bunker(m * 27, -15);
+        box([m * 11, 1.4, -14], [7, 2.8, 6], '#8b9198', { st: 1 });
+        box([m * 11, 3.1, -14], [7.8, 0.6, 6.8], '#c3c9ce');
+        box([m * 11, 2.1, -10.9], [3.6, 0.9, 0.4], '#20242a');
+        lamp(m * 8, 6.6, 8);
+        lamp(m * 24, 6.6, 8);
+        tree(m * 33, -13, 0.95, '#2a5f3c');
+        tree(m * 15, -10, 0.7, '#2f6b42');
+        tree(m * 33, 19, 0.8, '#2a5f3c');
+        tree(m * 5, 18, 0.7, '#2f6b42');
+      }
+
       // the relay itself, the tallest thing on the card
-      box([0, 0.8, 0], [30, 1.6, 26], '#a8aeb4', { st: 1 });
-      box([0, 7.4, 0], [19, 11.6, 17], '#dfe4e8', { st: 1 });
-      box([0, 13.8, 0], [20.4, 1.2, 18.4], '#9aa0a6', { st: 1 });
-      windows(0, 8.6, 8.7, 4, 4, '#ffe6b0', 'x');
-      box([-12.2, 5.2, -6], [6, 7.2, 8.6], '#d8402f', { st: 1 });
-      box([12.2, 5.2, -6], [6, 7.2, 8.6], '#3f9adf', { st: 1 });
-      box([-12.2, 5.2, 6], [6, 7.2, 8.6], '#d8402f', { st: 1 });
-      box([12.2, 5.2, 6], [6, 7.2, 8.6], '#3f9adf', { st: 1 });
-      box([-12.2, 4.4, 10.4], [4.4, 1.6, 0.4], '#ff8d6e', { m: 'neon' });
-      box([12.2, 4.4, 10.4], [4.4, 1.6, 0.4], '#8ed2ff', { m: 'neon' });
-      box([-9.7, 9.2, 0], [0.4, 4, 9], '#ff6a54', { m: 'neon' });
-      box([9.7, 9.2, 0], [0.4, 4, 9], '#63c0ff', { m: 'neon' });
-      parts.push({ t: 'cyl', p: [0, 19.6, 0], s: [2.2, 10.4, 2.2], c: '#7a8188', m: 'metal' });
-      parts.push({ t: 'cyl', p: [0, 22.2, 0], s: [6.6, 0.5, 6.6], c: '#7a8188', m: 'metal' });
-      parts.push({ t: 'cone', p: [0, 24.8, 0], s: [7.6, 3, 7.6], c: '#ccd2d7' });
-      parts.push({ t: 'sph', p: [0, 26.8, 0], s: [1.8, 1.8, 1.8], c: '#ff7a3d', m: 'neon' });
-      lamp(-16, 10, 9); lamp(16, 10, 9);
-      tree(-37, -16, 1.15, '#2a5f3c'); tree(36, -17, 1.0, '#2f6b42');
-      tree(-31, 20, 0.9, '#2a5f3c'); tree(32, 21, 0.85, '#2f6b42');
-      parts.push({ t: 'sph', p: [-19, 0.5, 20], s: [5.5, 2.4, 4.6], c: '#6f757b' });
-      parts.push({ t: 'sph', p: [21, 0.5, 21], s: [4.6, 2.1, 4, ], c: '#6f757b' });
+      box([0, 0.8, 0], [26, 1.6, 22], '#a8aeb4', { st: 1 });
+      box([0, 6.6, 0], [16, 10, 14.5], '#dfe4e8', { st: 1 });
+      box([0, 12.1, 0], [17.2, 1, 15.7], '#9aa0a6', { st: 1 });
+      windows(0, 7.6, 7.4, 4, 3.4, '#ffe6b0', 'x');
+      box([-10.3, 4.6, -5], [5, 6.2, 7.2], '#d8402f', { st: 1 });
+      box([10.3, 4.6, -5], [5, 6.2, 7.2], '#3f9adf', { st: 1 });
+      box([-10.3, 4.6, 5], [5, 6.2, 7.2], '#d8402f', { st: 1 });
+      box([10.3, 4.6, 5], [5, 6.2, 7.2], '#3f9adf', { st: 1 });
+      box([-10.3, 3.9, 8.7], [3.8, 1.4, 0.4], '#ff8d6e', { m: 'neon' });
+      box([10.3, 3.9, 8.7], [3.8, 1.4, 0.4], '#8ed2ff', { m: 'neon' });
+      box([-8.2, 8.1, 0], [0.4, 3.4, 7.6], '#ff6a54', { m: 'neon' });
+      box([8.2, 8.1, 0], [0.4, 3.4, 7.6], '#63c0ff', { m: 'neon' });
+      parts.push({ t: 'cyl', p: [0, 17.2, 0], s: [2, 9, 2], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'cyl', p: [0, 19.5, 0], s: [5.8, 0.5, 5.8], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'cone', p: [0, 21.8, 0], s: [6.6, 2.6, 6.6], c: '#ccd2d7' });
+      parts.push({ t: 'sph', p: [0, 23.5, 0], s: [1.6, 1.6, 1.6], c: '#ff7a3d', m: 'neon' });
+      parts.push({ t: 'sph', p: [-23, 0.5, 19], s: [4.6, 2, 3.8], c: '#6f757b' });
+      parts.push({ t: 'sph', p: [24, 0.5, 20], s: [3.8, 1.8, 3.4], c: '#6f757b' });
       for (var q = built; q < parts.length; q++) parts[q].p[2] -= 2;
     } else {
       box([-24, 1.2, 4], [40, 2.4, 34], '#cdd0d3', { st: 1 });
@@ -604,6 +642,15 @@
     }
     return parts;
   }
+
+  // Eye, look-at and field of view.  Every card is shot from the same angle
+  // so the browser reads as one set; Ironvale is simply further away,
+  // because it is a long map and the run between the two keeps is the thing
+  // its picture is selling.
+  var WORLD_CAMERAS = {
+    relay: [[49, 38, 69], [0, 5, -2], 42]
+  };
+  var DEFAULT_CAMERA = [[44, 34, 62], [0, 5, -2], 42];
 
   var WORLD_SKIES = {
     ctf: { top: '#7fb2e5', horizon: '#e8f0f8', sun: [0.35, 0.7, -0.25], clouds: 0.5, tint: '#ffffff' },
@@ -627,7 +674,8 @@
     renderer.buildStatic([]);
     renderer.beginFrame(0.016);
     parts.forEach(function (part) { renderer.push(part); });
-    renderer.setCameraMatrix([44, 34, 62], [0, 5, -2], 42);
+    var shot = WORLD_CAMERAS[kind] || DEFAULT_CAMERA;
+    renderer.setCameraMatrix(shot[0], shot[1], shot[2]);
     renderer.render();
     Thumbs.imageCache[key] = snapshot(renderer.canvas);
     blit(canvas, Thumbs.imageCache[key]);

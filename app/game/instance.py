@@ -45,6 +45,14 @@ HEAD_MAX_Y = 5.45
 EYE_HEIGHT = 5.05
 CHAT_MAX = 160
 VISIT_SECONDS = 30
+# How long a connection may say nothing before the world lets it go.  The
+# client pings every 2.5 seconds from a timer, and browsers keep timers
+# running (slowly) in a background tab, so a player who alt-tabs still
+# counts as present.  A socket that has gone away without closing -- a
+# killed tab, a laptop lid, a dropped link -- does not, and it must not be
+# able to hold a flag, a seat against the player cap or a place on the
+# scoreboard for the rest of the round.
+SILENT_SECONDS = 45.0
 # Collision broad-phase bucket size.  Wide enough that a big map does not
 # build a huge dictionary, tight enough that one shot only tests the handful
 # of solids actually near its line.
@@ -118,6 +126,7 @@ class Player:
                  "last_ground_pos", "spawn_protect_until", "connected",
                  "vote", "extra", "last_damage_from", "last_damage_at",
                  "seq", "corrections", "ping", "streak", "last_seen_alive",
+                 "last_message",
                  "coins", "plot", "session_key", "flags", "admin")
 
     def __init__(self, pid: int, user_id: int, username: str,
@@ -153,6 +162,10 @@ class Player:
         self.next_fire = 0.0
         self.joined_at = now()
         self.last_input = now()
+        # Anything at all arriving from this connection, not just movement:
+        # a dead player waiting on a respawn sends no input, and the client
+        # pings every couple of seconds whether or not it is drawing frames.
+        self.last_message = now()
         self.last_pos_time = now()
         self.playtime = 0.0
         self.visit_recorded = False
@@ -599,6 +612,7 @@ class GameInstance:
     # ------------------------------------------------------------- messages
     def handle(self, player: Player, message: Dict[str, Any]) -> None:
         kind = message.get("t")
+        player.last_message = now()
         if kind == "in":
             self.handle_input(player, message)
         elif kind == "fire":
@@ -1291,6 +1305,7 @@ class GameInstance:
                         (moment - player.joined_at) >= VISIT_SECONDS:
                     player.visit_recorded = True
                     self.host.report_visit(self, player)
+            self.drop_silent(moment)
             self.step_projectiles(TICK_DT)
             self.on_tick(TICK_DT)
             if self.phase == "ended" and moment >= self.phase_until:
@@ -1305,6 +1320,25 @@ class GameInstance:
                 self.broadcast({"t": "state", "s": self.full_state()})
                 if self.vote_open:
                     self.broadcast_vote()
+
+    def drop_silent(self, moment: float) -> None:
+        """Let go of connections that have stopped saying anything.
+
+        Called from the tick.  The socket is closed as well as forgotten, so
+        the reader thread sitting on it unwinds and runs its own clean-up;
+        ``remove_player`` is happy to be called twice, and it is the one
+        that tells everybody and files the stats.
+        """
+        for player in list(self.players.values()):
+            if moment - player.last_message < SILENT_SECONDS:
+                continue
+            player.connected = False
+            try:
+                if player.ws is not None:
+                    player.ws.close()
+            except Exception:
+                pass
+            self.remove_player(player.pid)
 
     # ------------------------------------------------------------------ info
     def describe(self) -> Dict[str, Any]:

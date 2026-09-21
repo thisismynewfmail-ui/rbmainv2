@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import random
 import time
 from typing import Any, Dict, List, Optional
 
@@ -13,10 +14,14 @@ FLAG_RETURN_SECONDS = 22.0
 ROUND_SECONDS = 600.0
 PICKUP_RADIUS = 7.0
 CAPTURE_RADIUS = 12.0
+# A carrier this quiet has dropped off the network, not gone still: the
+# client sends input every frame and pings every 2.5 seconds besides.
+CARRIER_SILENCE = 8.0
 
 
 class Flag:
-    __slots__ = ("team", "home", "pos", "state", "carrier", "dropped_at")
+    __slots__ = ("team", "home", "pos", "state", "carrier", "dropped_at",
+                 "yaw")
 
     def __init__(self, team: str, home: List[float]):
         self.team = team
@@ -25,12 +30,25 @@ class Flag:
         self.state = "home"      # home | carried | dropped
         self.carrier: Optional[int] = None
         self.dropped_at = 0.0
+        self.yaw = 0.0           # which way it fell, so every drop looks different
 
-    def payload(self) -> Dict[str, Any]:
-        return {"team": self.team, "state": self.state,
+    def payload(self, hold: float = 0.0) -> Dict[str, Any]:
+        """What the client is told about this flag.
+
+        A dropped flag carries the seconds left on its return with it, so the
+        client can draw the countdown rather than guess at it -- and so the
+        number on screen is the server's number, not a second clock that can
+        drift away from it.
+        """
+        data = {"team": self.team, "state": self.state,
                 "p": [round(v, 2) for v in self.pos],
                 "carrier": self.carrier or 0,
                 "home": [round(v, 2) for v in self.home]}
+        if self.state == "dropped":
+            data["left"] = round(max(0.0, hold - (now() - self.dropped_at)), 1)
+            data["hold"] = round(hold, 1)
+            data["yaw"] = round(self.yaw, 3)
+        return data
 
 
 class CaptureTheFlag(GameInstance):
@@ -66,6 +84,13 @@ class CaptureTheFlag(GameInstance):
     def team_names(self) -> List[str]:
         return ["red", "blue"]
 
+    def flag_payloads(self) -> Dict[str, Any]:
+        return {team: flag.payload(self.flag_return_seconds)
+                for team, flag in self.flags.items()}
+
+    def broadcast_flags(self) -> None:
+        self.broadcast({"t": "flags", "f": self.flag_payloads()})
+
     def enemy_of(self, team: str) -> str:
         return "blue" if team == "red" else "red"
 
@@ -73,7 +98,7 @@ class CaptureTheFlag(GameInstance):
     def round_state(self) -> Dict[str, Any]:
         return {
             "captures": dict(self.captures),
-            "flags": {team: flag.payload() for team, flag in self.flags.items()},
+            "flags": self.flag_payloads(),
             "time_left": max(0, int(self.round_ends - now())),
             "target": self.captures_to_win,
             "teams": self.team_counts(),
@@ -104,12 +129,18 @@ class CaptureTheFlag(GameInstance):
     def drop_flag(self, flag: Flag, position) -> None:
         flag.state = "dropped"
         flag.carrier = None
-        flag.pos = [position[0], max(position[1], flag.home[1] - 4.0),
-                    position[2]]
+        # Let it fall to whatever is under it.  A carrier shot off a roof or
+        # over a stairwell used to leave the flag hanging at the height they
+        # died at, which reads as a bug and is unreachable besides.
+        ground = self.ray_world([position[0], position[1] + 2.0, position[2]],
+                                [0.0, -1.0, 0.0], 120.0)
+        resting = position[1] + 2.0 - ground + 1.2
+        flag.pos = [position[0], min(position[1] + 2.0, resting), position[2]]
+        flag.yaw = random.uniform(-math.pi, math.pi)
         flag.dropped_at = now()
-        self.push_event("flag_drop", team=flag.team, p=flag.pos)
-        self.broadcast({"t": "flags",
-                        "f": {t: f.payload() for t, f in self.flags.items()}})
+        self.push_event("flag_drop", team=flag.team, p=flag.pos,
+                        yaw=round(flag.yaw, 3), hold=self.flag_return_seconds)
+        self.broadcast_flags()
 
     def return_flag(self, flag: Flag, by: Optional[Player] = None) -> None:
         flag.state = "home"
@@ -123,8 +154,7 @@ class CaptureTheFlag(GameInstance):
                                 % (by.username, flag.team))
         else:
             self.system_message("The %s flag returned to base." % flag.team)
-        self.broadcast({"t": "flags",
-                        "f": {t: f.payload() for t, f in self.flags.items()}})
+        self.broadcast_flags()
 
     def on_tick(self, dt: float) -> None:
         if self.phase != "active":
@@ -136,6 +166,17 @@ class CaptureTheFlag(GameInstance):
                 if carrier is None or not carrier.alive:
                     self.drop_flag(flag, flag.pos)
                     continue
+                # A carrier whose connection has gone quiet is not standing
+                # there deciding what to do -- they are gone.  The world
+                # takes longer than this to give up on the player, and the
+                # objective must not wait that out: it lands where they were
+                # and both teams can go and contest it.
+                if moment - carrier.last_message > CARRIER_SILENCE:
+                    self.drop_flag(flag, carrier.pos)
+                    self.system_message("%s lost connection -- the %s flag"
+                                        " is on the ground."
+                                        % (carrier.username, flag.team))
+                    continue
                 flag.pos = [carrier.pos[0], carrier.pos[1] + 5.6, carrier.pos[2]]
             elif flag.state == "dropped":
                 if moment - flag.dropped_at > self.flag_return_seconds:
@@ -143,6 +184,13 @@ class CaptureTheFlag(GameInstance):
 
         for player in list(self.players.values()):
             if not player.alive:
+                continue
+            # A body that has stopped talking to us cannot take, return or
+            # capture anything.  Without this, one that died on top of a
+            # flag picks it straight back up on the tick after the check
+            # above puts it down, over and over, until the world lets go of
+            # the connection.
+            if moment - player.last_message > CARRIER_SILENCE:
                 continue
             enemy_flag = self.flags[self.enemy_of(player.team)]
             own_flag = self.flags[player.team]
@@ -156,8 +204,7 @@ class CaptureTheFlag(GameInstance):
                                     by=player.username, pid=player.pid)
                     self.system_message("%s picked up the %s flag!"
                                         % (player.username, enemy_flag.team))
-                    self.broadcast({"t": "flags", "f": {
-                        t: f.payload() for t, f in self.flags.items()}})
+                    self.broadcast_flags()
                     continue
             # return our own dropped flag by touching it
             if own_flag.state == "dropped" and \
@@ -196,8 +243,7 @@ class CaptureTheFlag(GameInstance):
                             % (player.username, flag.team,
                                "RED", self.captures["red"],
                                self.captures["blue"], "BLUE"))
-        self.broadcast({"t": "flags",
-                        "f": {t: f.payload() for t, f in self.flags.items()}})
+        self.broadcast_flags()
         if self.captures[player.team] >= self.captures_to_win:
             self.end_round(player.team,
                            "%s captured %d flags" % (player.team.upper(),
@@ -211,5 +257,4 @@ class CaptureTheFlag(GameInstance):
             flag.pos = list(flag.home)
         self.round_ends = now() + self.round_seconds
         super().restart_round()
-        self.broadcast({"t": "flags",
-                        "f": {t: f.payload() for t, f in self.flags.items()}})
+        self.broadcast_flags()

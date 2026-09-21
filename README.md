@@ -93,7 +93,7 @@ Basic Shotgun and a Basic Stick.
 | **Burger Tycoon** | `/burger_tycoon` | Endless tycoon, 8 claimable plots, 4 players per plot | 24 |
 | **Capture The Flag** | `/capture_the_flag` | First to 3 captures, then a shuffle vote | 16 |
 | **Fortress Team 2** | `/fortress_team_2` | Payload push, teams swap each round, first to 3 round wins | 24 |
-| **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: deploy waves, outpost lockdown, tunnels, overtime | 24 |
+| **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -123,14 +123,25 @@ each round, and the match ends at three round wins.
 
 ### Blackout Relay
 Ironvale Relay: a capture-the-flag valley at dusk, built around the concrete
-relay station in the middle of it. Both teams deploy from muster halls bolted
-onto the Relay -- red out of the west doors, blue out of the east -- so the
-atrium between them is the shortest way across and the busiest room on the
-map. Each compound has three ways in: the gate off the road, a sally port on
-each flank, and the postern at the back that the lane outside the wall leads
-to. A hatch behind each keep drops into a tunnel that runs the length of the
-valley to the undercroft below the Relay, surfacing inside all four bunkers on
-the way. Four rules of its own on top of ordinary capture the flag:
+relay station in the middle of it. It is a long map -- 904 by 400 units, with
+roughly two hundred units of open country between the Relay and each keep --
+and a flag run end to end takes about thirty-five seconds at a dead sprint.
+First to five captures, or thirty minutes.
+
+Both teams deploy from muster halls bolted onto the Relay -- red out of the
+west doors, blue out of the east -- with a door onto your own half and a back
+door into the atrium, so the middle of the building is the shortest way across
+and the busiest room on the map. Between the Relay and each keep the road runs
+through a town: a freight yard, a cutting spanned by a bridge you can fight on
+top of or under, a fuel depot, pillboxes and bunkers covering the lanes, and
+tree cover on the flanks for anyone going round. Each compound has three ways
+in: the gate off the road, a sally port on each flank, and the postern at the
+back that the lane outside the wall leads to. A hatch behind each keep drops
+into a tunnel that runs the length of the valley to the undercroft below the
+Relay, surfacing inside all four bunkers, both pump houses and both cisterns on
+the way.
+
+Four rules of its own on top of ordinary capture the flag:
 
 * **Muster waves.** The dead come back together on a five-second wave rather
   than trickling in one at a time (never sooner than two seconds after dying).
@@ -141,6 +152,12 @@ the way. Four rules of its own on top of ordinary capture the flag:
 * **Overtime.** The clock cannot end a round while a flag is away from home.
 * **Sudden death.** Level when the clock finally stops: both flags reset and
   the next capture wins, or three minutes later it is honours even.
+
+A dropped flag falls where the carrier did -- the pole topples, the cloth
+settles, and a disc on the ground drains over the forty-five seconds you have
+to reach it before it goes home by itself. Only your own team's health shows
+above their heads here; an enemy's name tag is a name and a colour, nothing
+more.
 
 Points go to the escort as well as the runner -- staying within thirty units
 of your own carrier pays, as does killing an attacker near your own flag.
