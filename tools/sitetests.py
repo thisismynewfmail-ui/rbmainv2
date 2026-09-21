@@ -323,8 +323,10 @@ def run(host: str, port: int, tls: bool = False) -> int:
              "/avatar", "/friends", "/messages", "/settings",
              "/profile/%s" % name, "/inventory/%s" % name,
              "/worlds/capture_the_flag", "/worlds/burger_tycoon",
-             "/worlds/fortress_team_2", "/capture_the_flag", "/burger_tycoon",
-             "/fortress_team_2", "/search?q=hat", "/api/catalog",
+             "/worlds/fortress_team_2", "/worlds/blackout_relay",
+             "/capture_the_flag", "/burger_tycoon",
+             "/fortress_team_2", "/blackout_relay",
+             "/search?q=hat", "/api/catalog",
              "/api/worlds/status"]
     broken = []
     for page in pages:

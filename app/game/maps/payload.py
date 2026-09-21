@@ -115,10 +115,14 @@ def build() -> Dict[str, Any]:
 
     # ------------------------------------------------------------- baseplate
     b.floor(0, 0, 560, 380, 0.0, SAND, 6.0, studs=True)
-    for _ in range(30):
-        b.box([rng.uniform(-220, 220), 0.08, rng.uniform(-160, 160)],
-              [rng.uniform(20, 60), 0.16, rng.uniform(20, 60)], SAND_DARK,
-              collide=False)
+    # Each scuff sits at its own hair's-breadth height, so two overlapping
+    # ones cannot fight over the same pixels (see tools/mapcheck.py).
+    for i in range(30):
+        top = 0.14 + i * 0.004
+        b.box([rng.uniform(-220, 220), (top - 0.3) / 2.0,
+               rng.uniform(-160, 160)],
+              [rng.uniform(20, 60), top + 0.3, rng.uniform(20, 60)],
+              SAND_DARK, collide=False)
 
     # canyon walls all the way around
     for sx in (-1, 1):
