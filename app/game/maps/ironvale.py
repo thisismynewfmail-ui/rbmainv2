@@ -49,11 +49,16 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .builder import MapBuilder
 
+# Red is blue turned round: every solid on one half has a twin on the other,
+# and tools/mapcheck.py holds the map to that.
+MIRROR_AXIS = "x"
+
 # --------------------------------------------------------------- palette
 GRASS = "#3f7a4a"
 GRASS_DARK = "#35663e"
 GRASS_LIGHT = "#4c8c55"
 DIRT = "#6b5a45"
+SOIL = "#584836"             # the ground under the turf, seen only in cuts
 SAND = "#b9a888"
 ASPHALT = "#4e545b"
 ASPHALT_LINE = "#c9cdd2"
@@ -86,6 +91,7 @@ TEAM_NEON = {"red": RED_NEON, "blue": BLUE_NEON}
 PAD = 2.0                  # every building floor sits one step above ground
 TERRAIN_TOP = 0.0
 TERRAIN_BOTTOM = -4.0
+TURF = 0.6                 # the grass is a skin on the ground, not all of it
 TUNNEL_CEIL = TERRAIN_BOTTOM      # the terrain slab is the tunnel roof
 TUNNEL_FLOOR = -18.0
 TUNNEL_BASE = -22.0
@@ -180,6 +186,8 @@ DRAIN_X = (43.0, 57.0)
 DRAIN_Z = (59.0, 73.0)
 
 STEP_MAX = 2.0             # the client steps up to 2.1; stay inside it
+ROCK_ROOF_T = 1.2          # the rock plate under the terrain in the tunnels
+ROCK_CEIL = TUNNEL_CEIL - ROCK_ROOF_T      # its underside: the tunnel ceiling
 
 
 # =========================================================== small helpers
@@ -310,7 +318,7 @@ def room_walls(b: MapBuilder, area: Tuple[float, float, float, float],
 def flight(b: MapBuilder, axis: str, near: float, far: float,
            lo: float, hi: float, y_near: float, y_far: float,
            colour: str, fill: Optional[float] = None,
-           rise: float = STEP_MAX, **kw) -> None:
+           rise: float = STEP_MAX, lights: str = "", **kw) -> None:
     """A straight staircase whose two ends land exactly on the floors it joins.
 
     It travels along ``axis`` from ``near`` to ``far`` (either end may be the
@@ -319,44 +327,88 @@ def flight(b: MapBuilder, axis: str, near: float, far: float,
     rise, so a flight can always be butted straight against a slab without
     overlapping it.  Treads are solid down to ``fill`` so there is no hollow
     underneath to fall into or see through.
+
+    ``lights`` puts a strip of that colour along the nosing of every other
+    step -- the front edge, standing a hair proud of both the tread and the
+    riser, so it reads from the top of the flight and from the bottom.  The
+    strips are built from the same arithmetic as the treads, so they cannot
+    end up anywhere the stairs are not: a light that follows a flight down a
+    shaft instead of hanging over it.
     """
     drop = abs(y_far - y_near)
     steps = max(1, int(math.ceil(drop / rise - 1e-6)))
     dy = (y_far - y_near) / steps
     run = (far - near) / steps
+    ahead = 1.0 if run > 0 else -1.0
     base = fill if fill is not None else min(y_near, y_far) - 6.0
+
+    def block(a: float, c: float, y0: float, y1: float, x0: float, x1: float,
+              c_: str, **extra) -> None:
+        if axis == "x":
+            b.box([(a + c) / 2.0, (y0 + y1) / 2.0, (x0 + x1) / 2.0],
+                  [abs(c - a), y1 - y0, x1 - x0], c_, **extra)
+        else:
+            b.box([(x0 + x1) / 2.0, (y0 + y1) / 2.0, (a + c) / 2.0],
+                  [x1 - x0, y1 - y0, abs(c - a)], c_, **extra)
+
     for i in range(steps):
         a, c = near + run * i, near + run * (i + 1)
-        top = y_near + dy * (i + 1)
-        if axis == "x":
-            b.box([(a + c) / 2.0, (base + top) / 2.0, (lo + hi) / 2.0],
-                  [abs(c - a), top - base, hi - lo], colour, **kw)
-        else:
-            b.box([(lo + hi) / 2.0, (base + top) / 2.0, (a + c) / 2.0],
-                  [hi - lo, top - base, abs(c - a)], colour, **kw)
+        block(a, c, base, y_near + dy * (i + 1), lo, hi, colour, **kw)
+
+    if not lights:
+        return
+    for i in range(steps - 1):
+        if i % 2 == 0:
+            continue
+        joint = near + run * (i + 1)          # between step i and step i + 1
+        # the higher of the two steps owns the edge, and its riser faces down
+        # the stairs: forward on a flight that descends, back towards
+        # ``near`` on one that climbs
+        high = y_near + dy * (i + 1 if dy < 0 else i + 2)
+        face = ahead if dy < 0 else -ahead
+        block(joint - face * 0.35, joint + face * 0.06, high - 0.3,
+              high + 0.05, lo + 1.2, hi - 1.2, lights, material="neon",
+              collide=False)
 
 
 def crenels(b: MapBuilder, axis: str, at: float, lo: float, hi: float,
             y: float, colour: str, every: float = 9.0, size: float = 4.5,
-            height: float = 3.0, thickness: float = 3.0) -> None:
-    """Decorative merlons along a parapet -- never solid, never in the way."""
+            height: float = 3.0, thickness: float = 3.0,
+            gaps: Sequence[Tuple[float, float]] = ()) -> None:
+    """Merlons along a parapet: solid, because a merlon is cover.
+
+    A decorative one you could walk straight through was a lie about the
+    one thing a battlement is for.  ``gaps`` are openings in the parapet
+    underneath -- where a stair arrives -- and nothing is built over them.
+    """
     count = max(2, int((hi - lo) / every))
     step = (hi - lo) / count
     for i in range(count):
         centre = lo + step * (i + 0.5)
+        if any(g0 - 0.5 < centre + size / 2.0 and centre - size / 2.0 < g1 + 0.5
+               for g0, g1 in gaps):
+            continue
         if axis == "z":
             b.box([at, y + height / 2.0, centre], [thickness, height, size],
-                  colour, collide=False)
+                  colour)
         else:
             b.box([centre, y + height / 2.0, at], [size, height, thickness],
-                  colour, collide=False)
+                  colour)
 
 
-def strip_light(b: MapBuilder, x: float, z: float, y: float, length: float,
-                axis: str = "x", colour: str = LAMP, width: float = 1.6) -> None:
-    """A ceiling tube.  Neon is self-lit, so these carry the interiors."""
+def strip_light(b: MapBuilder, x: float, z: float, ceiling: float,
+                length: float, axis: str = "x", colour: str = LAMP,
+                width: float = 1.6) -> None:
+    """A ceiling tube, fixed to the ceiling rather than hung below it.
+
+    ``ceiling`` is the underside of the slab it belongs to.  The tube's top
+    is sunk a tenth into that slab, so from anywhere in the room it reads as
+    a fitting in the ceiling -- a tube a couple of units down with nothing
+    holding it up is a light floating in the air.
+    """
     size = [length, 0.5, width] if axis == "x" else [width, 0.5, length]
-    b.box([x, y, z], size, colour, material="neon", collide=False)
+    b.box([x, ceiling - 0.15, z], size, colour, material="neon",
+          collide=False)
 
 
 def floodlight(b: MapBuilder, x: float, z: float, y: float = 0.0,
@@ -369,33 +421,49 @@ def floodlight(b: MapBuilder, x: float, z: float, y: float = 0.0,
           collide=False)
 
 
+KERB_H = 0.8     # a hazard kerb: you step over it, you cannot walk through it
+
+
+def kerb(b: MapBuilder, x: float, y: float, z: float, length: float,
+         outward: str) -> None:
+    """A striped kerb at the edge of a drop, stripes facing the way you come.
+
+    It is solid -- well under a step high, so it never stops anybody, but
+    the edge of a drop is marked by something that is really there.  The
+    stripes are a decal on a box's +Z face, so the box is turned until that
+    face looks ``outward`` (away from the drop, at whoever is walking up).
+    """
+    turn = {"z+": 0.0, "z-": math.pi, "x+": math.pi / 2.0,
+            "x-": -math.pi / 2.0}[outward]
+    b.box([x, y + KERB_H / 2.0, z], [length, KERB_H, 2.0], "#f2b01e",
+          r=[0, turn, 0], decal="hazard")
+
+
 def hazard_rim(b: MapBuilder, area: Tuple[float, float, float, float],
                y: float) -> None:
-    """A striped lip around an open shaft, so nobody walks into one blind."""
+    """A striped kerb round an open shaft, so nobody walks into one blind."""
     x0, x1, z0, z1 = area
-    for at, axis in ((x0 - 1.0, "z"), (x1 + 1.0, "z")):
-        b.box([at, y + 0.45, (z0 + z1) / 2.0], [2.0, 0.9, z1 - z0 + 4.0],
-              "#f2b01e", collide=False, decal="hazard")
-    for at in (z0 - 1.0, z1 + 1.0):
-        b.box([(x0 + x1) / 2.0, y + 0.45, at], [x1 - x0, 0.9, 2.0],
-              "#f2b01e", collide=False, decal="hazard")
+    kerb(b, x0 - 1.0, y, (z0 + z1) / 2.0, z1 - z0 + 4.0, "x-")
+    kerb(b, x1 + 1.0, y, (z0 + z1) / 2.0, z1 - z0 + 4.0, "x+")
+    kerb(b, (x0 + x1) / 2.0, y, z0 - 1.0, x1 - x0, "z-")
+    kerb(b, (x0 + x1) / 2.0, y, z1 + 1.0, x1 - x0, "z+")
 
 
+def step_paint(b: MapBuilder, x0: float, x1: float, edge: float,
+               outward: float, y: float) -> None:
+    """A yellow band painted along the floor at the head of a stair.
 
-
-def shaft_lamp(b: MapBuilder, area: Tuple[float, float, float, float]) -> None:
-    """Light a stair shaft from its rim rather than from thin air.
-
-    A strip hung down the middle of an open shaft is a strip floating over a
-    staircase when anybody looks into it from above.  These sit recessed
-    under the lip of the hole, so the stairs are lit and there is nothing
-    to see hanging in the gap.
+    ``edge`` is where the floor stops (along z) and ``outward`` the way
+    back onto the floor from it.  Painted, not built: a kerb at the top of
+    a staircase is something to trip over on the way down it.
     """
-    x0, x1, z0, z1 = area
-    for at in (x0 + 0.7, x1 - 0.7):
-        b.box([at, TERRAIN_BOTTOM + 0.7, (z0 + z1) / 2.0],
-              [1.0, 0.8, (z1 - z0) - 4.0], "#9fe8ff", material="neon",
-              collide=False)
+    b.box([(x0 + x1) / 2.0, y + 0.02, edge + outward * 1.05],
+          [x1 - x0 - 0.2, 0.16, 2.0], "#f2b01e", collide=False)
+
+
+
+
+STAIR_LIGHT = "#9fe8ff"
 
 
 def deploy_pad(b: MapBuilder, x: float, z: float, y: float, colour: str,
@@ -485,19 +553,15 @@ def _muster_hall(b: MapBuilder, team: str, sx: int, sz: int) -> List[Dict[str, A
     # lit inside, with the team's colours over the door you walk out of
     for sz_off in (-1, 1):
         strip_light(b, (skin_x + in_x) / 2.0,
-                    (zlo + zhi) / 2.0 + sz_off * 7.0, ANNEX_TOP - 1.6,
+                    (zlo + zhi) / 2.0 + sz_off * 7.0, ANNEX_TOP,
                     abs(in_x - skin_x) - 6.0, "x")
         b.box([(skin_x + in_x) / 2.0, PAD + 9.0,
                (zlo + zhi) / 2.0 + sz_off * ((zhi - zlo) / 2.0 - 5.4)],
               [abs(in_x - skin_x) - 4.0, 1.0, 0.8], colour, collide=False)
-    face_sign(b, skin_x + inward * 0.5, PAD + 13.75, (dlo + dhi) / 2.0,
+    face_sign(b, skin_x + inward * 0.3, PAD + 13.75, (dlo + dhi) / 2.0,
               12.0, 3.4, "sign_%s" % team, "x+" if inward > 0 else "x-")
 
-    # wall racks and a floor stripe: kit the room out without putting a
-    # single solid where somebody is about to spawn
-    for at in (zlo + 6.0, zhi - 6.0):     # either side of the back door
-        b.box([in_x + inward * 0.8, PAD + 7.0, at], [1.2, 5.0, 6.0], STEEL,
-              collide=False, material="metal")
+    # a floor stripe down the room, painted rather than built
     b.box([(skin_x + in_x) / 2.0, PAD + 0.12, (zlo + zhi) / 2.0],
           [abs(in_x - skin_x) - 6.0, 0.24, 3.0], dark, collide=False)
     # cover for the moment you step outside, set beside the doorway rather
@@ -535,15 +599,13 @@ def _muster_hall(b: MapBuilder, team: str, sx: int, sz: int) -> List[Dict[str, A
 
 def _relay(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]) -> None:
     """The building in the middle of the map: muster halls, atrium, mast."""
-    roof_gap = (-42.0, -28.0, RELAY_ROOF)      # where the roof stair arrives
+    # where the roof stair arrives.  A head at or above the parapet's top is
+    # what makes an opening full height; one at its foot is a solid wall.
+    roof_gap = (-42.0, -28.0, RELAY_ROOF + 3.4)
 
     # ---------------------------------------------------------- the plinth
     plate(b, carve(rect(-PLINTH_X, PLINTH_X, -PLINTH_Z, PLINTH_Z), holes),
           PAD, PAD, CONCRETE, studs=True)
-    for sx in (-1, 1):
-        b.box([sx * (RELAY_X + PLINTH_X) / 2.0, PAD + 0.15, 0.0],
-              [PLINTH_X - RELAY_X, 0.3, ROAD_Z * 2.0], CONCRETE_DARK,
-              collide=False)
 
     # ------------------------------------------------------------- shell
     side_doors = [(-16.0, 16.0, 18.0),
@@ -566,7 +628,8 @@ def _relay(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]) ->
                doors={"x-": [roof_gap], "x+": [roof_gap]})
     for sx in (-1, 1):
         crenels(b, "z", sx * (RELAY_X - 1.5), -RELAY_Z + 4, RELAY_Z - 4,
-                RELAY_ROOF + 3.4, CONCRETE_LIGHT, every=11.0, thickness=2.4)
+                RELAY_ROOF + 3.4, CONCRETE_LIGHT, every=11.0, thickness=2.4,
+                gaps=[roof_gap[:2]])
     for sz in (-1, 1):
         crenels(b, "x", sz * (RELAY_Z - 1.5), -RELAY_X + 7, RELAY_X - 7,
                 RELAY_ROOF + 3.4, CONCRETE_LIGHT, every=11.0, thickness=2.4)
@@ -578,7 +641,7 @@ def _relay(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]) ->
                   [6.0, MEZZ_Y - 1.5 - PAD, 6.0], CONCRETE_DARK)
     b.box([0, PAD + 1.0, 0], [44, 2.0, 44], CONCRETE_DARK, studs=True)
     b.box([0, PAD + 3.0, 0], [28, 2.0, 28], CONCRETE_LIGHT, studs=True)
-    b.cyl([0, PAD + 4.6, 0], [18, 1.2, 18], "#f5c518", collide=False,
+    b.cyl([0, PAD + 4.15, 0], [18, 0.3, 18], "#f5c518", collide=False,
           material="neon")
     # the mast: solid while it is inside the building, scenery above the roof
     b.cyl([0, (PAD + 4.0 + RELAY_ROOF) / 2.0, 0],
@@ -621,24 +684,33 @@ def _relay(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]) ->
         near = sz * MEZZ_IN_Z
         slab(b, rect(-41.0, 41.0, min(near, far), max(near, far)), MEZZ_Y,
              1.5, CONCRETE_DARK, studs=True)
-        b.box([0, MEZZ_Y + 1.6, near - sz * 0.5], [82.0, 3.2, 1.0], STEEL,
-              collide=False, material="metal")
+        # The rail along the balcony edge is solid -- a rail you can walk
+        # through is a rail that walks you off the edge -- and so it stops
+        # at each landing instead of running across the top of the stairs.
+        for a, c in ((-41.0, -35.0), (-25.0, 25.0), (35.0, 41.0)):
+            b.box([(a + c) / 2.0, MEZZ_Y + 1.6, near - sz * 0.5],
+                  [c - a, 3.2, 1.0], STEEL, material="metal")
         for sx in (-1, 1):
             flight(b, "z", sz * 19.0, near, sx * 30.0 - 5.0, sx * 30.0 + 5.0,
                    PAD, MEZZ_Y, CONCRETE, fill=PAD, rise=1.95)
-        strip_light(b, 0, sz * 43.0, RELAY_TOP - 2.0, 70.0, "x")
-    strip_light(b, 0, 0, RELAY_TOP - 3.4, 88.0, "z")
+        strip_light(b, 0, sz * 43.0, RELAY_TOP, 70.0, "x")
+    # Down the middle of the hall, on the ceiling either side of the
+    # oculus -- never across it, where there is no ceiling to be fixed to.
+    for sz in (-1, 1):
+        strip_light(b, 0, sz * 27.5, RELAY_TOP, 25.0, "z")
 
     # ----------------------------------------- stairs down to the undercroft
     for sx in (-1, 1):
         area = rect(sx * RELAY_STAIR_X[0], sx * RELAY_STAIR_X[1],
                     RELAY_STAIR_Z[0], RELAY_STAIR_Z[1])
         flight(b, "z", area[3], area[2], area[0], area[1], PAD, TUNNEL_FLOOR,
-               CONCRETE_DARK, fill=TUNNEL_FLOOR)
-        b.box([(area[0] + area[1]) / 2.0, PAD + 0.45, area[3] + 2.4],
-              [area[1] - area[0], 0.9, 2.0], "#f2b01e", collide=False,
-              decal="hazard")
-        shaft_lamp(b, area)
+               CONCRETE_DARK, fill=TUNNEL_FLOOR, lights=STAIR_LIGHT)
+        step_paint(b, area[0], area[1], area[3], 1.0, PAD)
+        # the far end is a twenty-unit drop onto the bottom of the flight;
+        # the mezzanine stair covers the inside corner, so the kerb stops
+        # short of it
+        lo, hi = sorted((sx * 35.5, sx * RELAY_STAIR_X[1]))
+        kerb(b, (lo + hi) / 2.0, PAD, area[2] - 1.0, hi - lo, "z-")
 
     # ------------------------------------------------- the four muster halls
     for team, sx in (("red", -1), ("blue", 1)):
@@ -703,9 +775,6 @@ def _base(b: MapBuilder, team: str, sx: int,
     # --------------------------------------------------------------- apron
     plate(b, carve(rect(sx * front_out, sx * BASE_BACK, -side_out, side_out),
                    holes), PAD, PAD, CONCRETE, studs=True)
-    # a darker concrete lane from the gate to the keep door
-    b.box([sx * (front_in + KEEP_FRONT) / 2.0, PAD + 0.15, 0],
-          [KEEP_FRONT - front_in, 0.3, 46.0], CONCRETE_DARK, collide=False)
 
     # ---------------------------------------------------- the compound wall
     wall(b, "z", sx * (front_out + BASE_WALL_T / 2.0), BASE_WALL_T,
@@ -729,8 +798,12 @@ def _base(b: MapBuilder, team: str, sx: int,
          BASE_TOP + 1.5, BASE_TOP + 5.0, CONCRETE_LIGHT)
     crenels(b, "z", sx * (front_out + 1.5), -side_in, side_in,
             BASE_TOP + 5.0, CONCRETE, every=12.0, thickness=2.4)
-    b.box([sx * (front_out + RAMPART_W - 0.5), BASE_TOP + 3.0, 0],
-          [1.0, 3.0, side_out * 2.0], STEEL, collide=False, material="metal")
+    # the rail along the courtyard edge of the walk, broken where each of
+    # the two stairs arrives beside it
+    rail_x = sx * (front_out + RAMPART_W - 0.5)
+    for a, c in ((-side_out, -58.0), (-44.0, 44.0), (58.0, side_out)):
+        b.box([rail_x, BASE_TOP + 3.0, (a + c) / 2.0], [1.0, 3.0, c - a],
+              STEEL, material="metal")
     for sz in (-1, 1):
         stair = xs(front_out + RAMPART_W, front_out + RAMPART_W + 12.0)
         flight(b, "z", sz * 78.0, sz * 48.0, stair[0], stair[1],
@@ -756,7 +829,7 @@ def _base(b: MapBuilder, team: str, sx: int,
     # the doorway the moment an attacker steps through it
     b.box([sx * FLAG_X, PAD + 1.0, 0], [26, 2.0, 26], CONCRETE_DARK, studs=True)
     b.box([sx * FLAG_X, PAD + 3.0, 0], [16, 2.0, 16], colour, studs=True)
-    b.cyl([sx * FLAG_X, PAD + 4.3, 0], [12, 0.6, 12], neon, material="neon",
+    b.cyl([sx * FLAG_X, PAD + 4.15, 0], [12, 0.3, 12], neon, material="neon",
           collide=False)
 
     # inner gallery: a U of balcony that looks down on the pedestal
@@ -772,19 +845,18 @@ def _base(b: MapBuilder, team: str, sx: int,
                PAD, GALLERY_Y, CONCRETE, fill=PAD)
         b.box([sx * (gallery_step + gallery_back) / 2.0, GALLERY_Y + 1.6,
                sz * 30.5], [gallery_back - gallery_step, 3.2, 1.0],
-              STEEL, collide=False, material="metal")
+              STEEL, material="metal")
     back_leg = xs(gallery_back, keep_far)
     slab(b, (back_leg[0], back_leg[1], -keep_z_in, keep_z_in), GALLERY_Y, 1.5,
          CONCRETE_DARK, studs=True)
     b.box([sx * (gallery_back - 0.5), GALLERY_Y + 1.6, 0],
-          [1.0, 3.2, 60.0], STEEL,
-          collide=False, material="metal")
+          [1.0, 3.2, 60.0], STEEL, material="metal")
 
     # keep lighting and the team's colours inside the flag room
-    strip_light(b, sx * (keep_in + 14.0), 0, KEEP_TOP - 1.8, 56.0, "z")
-    strip_light(b, sx * (keep_far - 14.0), 0, KEEP_TOP - 1.8, 56.0, "z")
+    strip_light(b, sx * (keep_in + 14.0), 0, KEEP_TOP, 56.0, "z")
+    strip_light(b, sx * (keep_far - 14.0), 0, KEEP_TOP, 56.0, "z")
     for sz in (-1, 1):
-        b.box([sx * FLAG_X, KEEP_TOP - 1.0, sz * 22.0], [30.0, 1.0, 0.8],
+        b.box([sx * FLAG_X, KEEP_TOP - 0.3, sz * 22.0], [30.0, 0.8, 0.8],
               neon, material="neon", collide=False)
 
     # outside stairs onto the keep roof, one on each flank
@@ -795,17 +867,19 @@ def _base(b: MapBuilder, team: str, sx: int,
     for sz in (-1, 1):
         wall(b, "x", sz * (KEEP_Z - 1.5), 3.0, *xs(KEEP_FRONT, KEEP_BACK),
              y0=KEEP_ROOF, y1=KEEP_ROOF + 3.4, colour=CONCRETE,
-             gaps=[xs(keep_far - 10.0, keep_far + 2.0) + (KEEP_ROOF,)])
+             gaps=[xs(keep_far - 10.0, keep_far + 2.0) + (KEEP_ROOF + 3.4,)])
     for at in (KEEP_FRONT + 1.5, KEEP_BACK - 1.5):
         wall(b, "z", sx * at, 3.0, -KEEP_Z + 3, KEEP_Z - 3,
              KEEP_ROOF, KEEP_ROOF + 3.4, CONCRETE)
     crenels(b, "z", sx * (KEEP_FRONT + 1.5), -KEEP_Z + 6, KEEP_Z - 6,
             KEEP_ROOF + 3.4, CONCRETE_LIGHT, every=10.0, thickness=2.4)
-    # the banner mast: the landmark you navigate a flag run by
+    # The banner mast: the landmark you navigate a flag run by.  The banner
+    # flies from the mast itself -- hoisted along it, not hung in the air
+    # beside it -- and faces down the road, towards everyone coming for it.
     b.cyl([sx * FLAG_X, KEEP_ROOF + 13.0, 0], [1.6, 26.0, 1.6], STEEL_DARK,
-          material="metal", collide=False)
-    face_sign(b, sx * FLAG_X, KEEP_ROOF + 20.0, 6.5, 12.0, 14.0,
-              "banner_%s" % team, "z+", colour)
+          material="metal")
+    face_sign(b, sx * FLAG_X, KEEP_ROOF + 19.0, 6.7, 12.0, 14.0,
+              "banner_%s" % team, "x-" if sx > 0 else "x+", colour)
     b.sphere([sx * FLAG_X, KEEP_ROOF + 27.0, 0], [3.0, 3.0, 3.0], neon,
              material="neon", collide=False)
 
@@ -815,7 +889,7 @@ def _base(b: MapBuilder, team: str, sx: int,
                CONCRETE, doors={inward_side: [(12.0, 28.0, 11.0)]})
     slab(b, rect(sx * yard0, sx * yard1, -34.0, 34.0), 14.5, 1.5,
          CONCRETE_DARK, studs=True)
-    strip_light(b, sx * (yard0 + yard1) / 2.0, 18.0, 11.4, 20.0, "x",
+    strip_light(b, sx * (yard0 + yard1) / 2.0, 18.0, 13.0, 20.0, "x",
                 "#9fe8ff")
     face_sign(b, sx * (yard0 + 0.5), PAD + 8.0, -26.0, 14.0, 6.0, "hazard",
               "x+" if sx < 0 else "x-", "#f2b01e")
@@ -823,8 +897,10 @@ def _base(b: MapBuilder, team: str, sx: int,
     area = rect(sx * HATCH_STAIR_X[0], sx * HATCH_STAIR_X[1],
                 HATCH_STAIR_Z[0], HATCH_STAIR_Z[1])
     flight(b, "z", area[3], area[2], area[0], area[1], PAD, TUNNEL_FLOOR,
-           CONCRETE_DARK, fill=TUNNEL_FLOOR)
-    shaft_lamp(b, area)
+           CONCRETE_DARK, fill=TUNNEL_FLOOR, lights=STAIR_LIGHT)
+    step_paint(b, area[0], area[1], area[3], 1.0, PAD)
+    kerb(b, (area[0] + area[1]) / 2.0, PAD, area[2] - 1.0,
+         area[1] - area[0], "z-")
 
     # a resupply shed to break the yard up, plus crates in the courtyard
     room_walls(b, rect(sx * (yard0 + 0.5), sx * (yard1 - 0.5), 62.0, 96.0),
@@ -832,10 +908,10 @@ def _base(b: MapBuilder, team: str, sx: int,
                doors={inward_side: [(70.0, 86.0, 10.0)]})
     slab(b, rect(sx * yard0, sx * yard1, 62.0, 96.0), 13.5, 1.5, dark,
          studs=True)
-    b.box([sx * (yard0 + yard1) / 2.0, PAD + 6.0, 79.0], [16.0, 1.4, 20.0],
+    b.box([sx * (yard0 + yard1) / 2.0, 12.0 - 0.2, 79.0], [12.0, 0.6, 14.0],
           LAMP, material="neon", collide=False)
 
-    rng = random.Random(0x51E6E + sx)
+    rng = random.Random(0x51E6E)             # one layout, mirrored: fair cover
     for _ in range(9):
         cx = rng.uniform(front_in + 8.0, KEEP_FRONT - 8.0)
         cz = rng.uniform(-side_in + 10.0, side_in - 10.0)
@@ -904,7 +980,7 @@ def _bunker(b: MapBuilder, sx: int, sz: int,
            TERRAIN_TOP, BUNKER_ROOF, CONCRETE_DARK, fill=TERRAIN_TOP)
     # roof parapet, open only where the ramp arrives
     room_walls(b, area, 3.0, BUNKER_ROOF, BUNKER_ROOF + 3.2, CONCRETE,
-               doors={inner_side: [ramp + (BUNKER_ROOF,)]})
+               doors={inner_side: [ramp + (BUNKER_ROOF + 3.2,)]})
     crenels(b, "x", sz * (z1 - 1.5), *xsp(x0 + 8, x1 - 8),
             y=BUNKER_ROOF + 3.2, colour=CONCRETE_LIGHT, every=10.0,
             thickness=2.4)
@@ -913,13 +989,13 @@ def _bunker(b: MapBuilder, sx: int, sz: int,
     area = rect(sx * BUNKER_STAIR_X[0], sx * BUNKER_STAIR_X[1],
                 *zs(TUN_SPUR_Z, TUN_SPUR_TOP))
     flight(b, "z", sz * TUN_SPUR_TOP, sz * TUN_SPUR_Z, area[0], area[1],
-           PAD, TUNNEL_FLOOR, CONCRETE_DARK, fill=TUNNEL_FLOOR)
-    shaft_lamp(b, area)
-    strip_light(b, sx * (x0 + x1) / 2.0, sz * (z0 + 8.0), BUNKER_TOP - 1.6,
+           PAD, TUNNEL_FLOOR, CONCRETE_DARK, fill=TUNNEL_FLOOR,
+           lights=STAIR_LIGHT)
+    step_paint(b, area[0], area[1], sz * TUN_SPUR_TOP, sz, PAD)
+    kerb(b, (area[0] + area[1]) / 2.0, PAD, sz * (TUN_SPUR_Z - 1.0),
+         area[1] - area[0], "z-" if sz > 0 else "z+")
+    strip_light(b, sx * (x0 + x1) / 2.0, sz * (z0 + 8.0), BUNKER_TOP,
                 40.0, "x")
-    b.box([sx * (BUNKER_STAIR_X[0] + BUNKER_STAIR_X[1]) / 2.0, PAD + 0.45,
-           sz * (TUN_SPUR_Z - 2.5)], [20.0, 0.9, 2.0], "#f2b01e",
-          collide=False, decal="hazard")
 
     # crates inside, so the doorway is not a straight line through the room
     b.box([sx * (x0 + 34.0), PAD + 3.0, sz * (z0 + 8.0)], [8.0, 6.0, 8.0],
@@ -991,18 +1067,19 @@ def _outpost_tower(b: MapBuilder, sx: int, sz: int) -> None:
     flight(b, "x", sx * (x1 + 26.0), sx * x1, ramp[0], ramp[1],
            TERRAIN_TOP, 16.0, CONCRETE_DARK, fill=TERRAIN_TOP)
     room_walls(b, area, 3.0, 16.0, 19.2, CONCRETE,
-               doors={outer_side: [ramp + (16.0,)]})
-    strip_light(b, sx * (x0 + x1) / 2.0, sz * (z0 + z1) / 2.0, 12.4,
+               doors={outer_side: [ramp + (19.2,)]})
+    strip_light(b, sx * (x0 + x1) / 2.0, sz * (z0 + z1) / 2.0, 14.0,
                 26.0, "x")
-    # a lattice mast for the skyline -- scenery, never in the way
+    # a lattice mast for the skyline, standing on the roof -- and solid,
+    # because anything on a roof you can walk on is in somebody's way
     mast = (sx * (x0 + x1) / 2.0, sz * (z0 + z1) / 2.0)
-    b.cyl([mast[0], 34.0, mast[1]], [2.4, 34.0, 2.4], STEEL_DARK,
-          collide=False, material="metal")
+    b.cyl([mast[0], 33.0, mast[1]], [2.4, 34.0, 2.4], STEEL_DARK,
+          material="metal")
     for i in range(4):
         b.box([mast[0], 24.0 + i * 7.0, mast[1]],
               [9.0 - i * 1.4, 0.7, 9.0 - i * 1.4], STEEL, collide=False,
               material="metal")
-    b.sphere([mast[0], 52.0, mast[1]], [2.4, 2.4, 2.4], "#ff7a3d",
+    b.sphere([mast[0], 51.0, mast[1]], [2.4, 2.4, 2.4], "#ff7a3d",
              material="neon", collide=False)
 
 
@@ -1026,12 +1103,20 @@ def _cutting(b: MapBuilder, sx: int) -> None:
         z0, z1 = min(near, far), max(near, far)
         slab(b, (lo, hi, z0, z1), CUTTING_TOP, CUTTING_TOP, CONCRETE_DARK,
              studs=True)
-        # a parapet on the face that looks back at the Relay, so the bank is
-        # cover from one side and exposed from the other
-        wall(b, "z", lo + 1.5, 3.0, z0, z1, CUTTING_TOP, CUTTING_TOP + 3.4,
-             CONCRETE)
-        crenels(b, "z", lo + 1.5, z0 + 6, z1 - 6, CUTTING_TOP + 3.4,
-                CONCRETE_LIGHT, every=12.0, thickness=2.4)
+        # A parapet on the face that looks back at the Relay, so the bank is
+        # cover for whoever holds it against whoever comes out of the middle.
+        # It is placed from that face itself -- the inner one, sx * the
+        # smaller magnitude -- because "the lower x" is the Relay side on
+        # the blue half and the compound side on the red one, and a bank
+        # that faces the other way on one half is a bank that favours one
+        # team.  It opens where the inner ramp arrives.
+        inner = sx * (CUTTING_X[0] + 1.5)
+        ramp_gap = (min(sz * CUTTING_GAP, sz * 40.0),
+                    max(sz * CUTTING_GAP, sz * 40.0))
+        wall(b, "z", inner, 3.0, z0, z1, CUTTING_TOP, CUTTING_TOP + 3.4,
+             CONCRETE, gaps=[ramp_gap + (CUTTING_TOP + 3.4,)])
+        crenels(b, "z", inner, z0 + 6, z1 - 6, CUTTING_TOP + 3.4,
+                CONCRETE_LIGHT, every=12.0, thickness=2.4, gaps=[ramp_gap])
         # Two ramps onto each wing: one climbed from the road end on the
         # Relay side, one from the flank end on the compound side.  Neither
         # team gets the bank for free and neither is locked out of it.
@@ -1044,10 +1129,10 @@ def _cutting(b: MapBuilder, sx: int) -> None:
             flight(b, "x", sx * (face + out * 26.0), sx * face,
                    min(a, c), max(a, c), TERRAIN_TOP, CUTTING_TOP,
                    CONCRETE_DARK, fill=TERRAIN_TOP)
-        # the gap's edge is lit, because walking off a twelve-unit drop in
-        # the dark is not an interesting way to lose a flag
-        b.box([mid, CUTTING_TOP + 0.3, near - sz * 1.2],
-              [hi - lo, 0.6, 2.4], "#f2b01e", collide=False, decal="hazard")
+        # the gap's edge is marked, because walking off a twelve-unit drop
+        # in the dark is not an interesting way to lose a flag
+        kerb(b, mid, CUTTING_TOP, near + sz * 1.0, hi - lo,
+             "z+" if sz > 0 else "z-")
         floodlight(b, mid, near + sz * 9.0, TERRAIN_TOP, 22.0)
         # a pillbox on the shoulder of the cut, covering the road through it
         room_walls(b, rect(lo + 4.0, hi - 4.0, near + sz * 8.0,
@@ -1058,12 +1143,7 @@ def _cutting(b: MapBuilder, sx: int) -> None:
                                                         CUTTING_TOP + 8.0)]})
         slab(b, rect(lo + 4.0, hi - 4.0, near + sz * 8.0, near + sz * 34.0),
              CUTTING_TOP + 11.5, 1.5, CONCRETE_LIGHT, studs=True)
-        strip_light(b, mid, near + sz * 21.0, CUTTING_TOP + 8.6, 22.0, "x")
-
-    # the cut itself: kerbs either side of the road where it passes through
-    for sz in (-1, 1):
-        b.box([mid, 1.6, sz * (CUTTING_GAP + 1.5)], [hi - lo, 3.2, 3.0],
-              CONCRETE, studs=True)
+        strip_light(b, mid, near + sz * 21.0, CUTTING_TOP + 10.0, 22.0, "x")
 
 
 def _depot(b: MapBuilder, sx: int, sz: int, rng: random.Random,
@@ -1100,16 +1180,17 @@ def _depot(b: MapBuilder, sx: int, sz: int, rng: random.Random,
         flight(b, "x", sx * (x1 + 24.0), sx * x1, stair[0], stair[1],
                TERRAIN_TOP, DEPOT_ROOF, CONCRETE_DARK, fill=TERRAIN_TOP)
         room_walls(b, area, 3.0, DEPOT_ROOF, DEPOT_ROOF + 3.2, CONCRETE,
-                   doors={outer: [stair + (DEPOT_ROOF,)]})
+                   doors={outer: [stair + (DEPOT_ROOF + 3.2,)]})
         strip_light(b, sx * (x0 + x1) / 2.0, sz * (z0 + z1) / 2.0,
-                    DEPOT_TOP - 1.6, 42.0, "x")
+                    DEPOT_TOP, 42.0, "x")
         # the pumps themselves, and the hatch down into the cistern
         for i in range(2):
             b.cyl([sx * (x0 + 12.0 + i * 16.0), PAD + 4.0, sz * (z1 - 8.0)],
                   [9.0, 8.0, 9.0], STEEL, material="metal")
-        b.box([sx * (PUMP_STAIR_X[0] + PUMP_STAIR_X[1]) / 2.0, PAD + 0.45,
-               sz * (PUMP_STAIR_Z[0] - 2.5)], [20.0, 0.9, 2.0], "#f2b01e",
-              collide=False, decal="hazard")
+        pump = xsp(*PUMP_STAIR_X)
+        step_paint(b, pump[0], pump[1], sz * PUMP_STAIR_Z[1], sz, PAD)
+        kerb(b, (pump[0] + pump[1]) / 2.0, PAD, sz * (PUMP_STAIR_Z[0] - 1.0),
+             pump[1] - pump[0], "z-" if sz > 0 else "z+")
     else:
         # ---- fuel depot: a canopy on legs over four tanks.  No walls, so
         # it is cover you can shoot through the gaps of rather than a room
@@ -1138,16 +1219,19 @@ def _depot(b: MapBuilder, sx: int, sz: int, rng: random.Random,
              y1=PAD + 5.0, colour=CONCRETE)
 
 
-def _treeline(b: MapBuilder, x0: float, z0: float, x1: float, z1: float,
-              count: int, rng: random.Random, scale: float = 1.2) -> None:
+def _treeline(b: MapBuilder, sx: int, x0: float, z0: float, x1: float,
+              z1: float, count: int, rng: random.Random,
+              scale: float = 1.2) -> None:
     """A row of trees, planted to block a sight line rather than to decorate.
 
     Scattered trees are noise; a line of them across a lane is a wall you can
-    shoot through the gaps of, which is the useful kind of cover.
+    shoot through the gaps of, which is the useful kind of cover.  ``x0`` and
+    ``x1`` are magnitudes; ``sx`` picks the half, and the jitter is mirrored
+    with it so both halves get the same line.
     """
     for i in range(count):
         t = i / float(max(1, count - 1))
-        x = x0 + (x1 - x0) * t + rng.uniform(-5.0, 5.0)
+        x = sx * (x0 + (x1 - x0) * t + rng.uniform(-5.0, 5.0))
         z = z0 + (z1 - z0) * t + rng.uniform(-5.0, 5.0)
         if i % 3 == 2:
             b.tree(x, z, 0.0, scale * rng.uniform(0.85, 1.15), WOOD, "#2f6b42")
@@ -1161,22 +1245,36 @@ def _field(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]],
     """Everything between a compound wall and the Relay plinth."""
     outposts: Dict[str, List[Dict[str, Any]]] = {"red": [], "blue": []}
 
-    # the road, and the two dirt tracks that flank it
+    # The road, and the two dirt tracks that flank it.  A track is paint on
+    # the terrain, so it is cut round the same stairwells the terrain is --
+    # otherwise it is a brown lid across the stairs -- and it stops at a
+    # bunker's walls rather than running on under the floor to meet the
+    # stairwell's cut face from the inside.
+    under = list(holes)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            under.append(rect(sx * BUNKER_X[0], sx * BUNKER_X[1],
+                              sz * BUNKER_Z[0], sz * BUNKER_Z[1]))
+
+    def lay(area: Tuple[float, float, float, float], top: float,
+            colour: str) -> None:
+        for x0, x1, z0, z1 in carve(area, under):
+            b.box([(x0 + x1) / 2.0, top / 2.0, (z0 + z1) / 2.0],
+                  [x1 - x0, top, z1 - z0], colour, collide=False)
+
     for sx in (-1, 1):
         lo, hi = sorted((sx * PLINTH_X, sx * BASE_FRONT))
-        b.box([(lo + hi) / 2.0, 0.15, 0], [hi - lo, 0.3, ROAD_Z * 2.0],
-              ASPHALT, collide=False)
+        lay((lo, hi, -ROAD_Z, ROAD_Z), 0.3, ASPHALT)
         for sz in (-1, 1):
-            b.box([(lo + hi) / 2.0, 0.12, sz * 121.0], [hi - lo, 0.24, 18.0],
-                  DIRT, collide=False)
+            lay((lo, hi, sz * 121.0 - 9.0, sz * 121.0 + 9.0), 0.24, DIRT)
         for i in range(14):
             mark = lo + (hi - lo) * (i + 0.5) / 14.0
             b.box([mark, 0.32, 0], [9.0, 0.16, 1.8], ASPHALT_LINE,
                   collide=False)
     # the lane that runs outside each compound wall, front to back
     for sz in (-1, 1):
-        b.box([0, 0.12, sz * ALLEY_Z], [MAP_X * 2 - WALL_T * 2, 0.24, 16.0],
-              DIRT, collide=False)
+        lay((-PLAY_X, PLAY_X, sz * ALLEY_Z - 8.0, sz * ALLEY_Z + 8.0), 0.24,
+            DIRT)
 
     for sx in (-1, 1):
         team = "red" if sx < 0 else "blue"
@@ -1205,10 +1303,15 @@ def _field(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]],
                       [12.0, 6.0, 12.0], rng.choice([WOOD, CONCRETE_DARK]),
                       studs=True)
             # tree lines: one across the outer lane where it passes the
-            # Cutting, one screening the bunker's open flank
-            _treeline(b, sx * 190.0, sz * 160.0, sx * 246.0, sz * 196.0, 7, rng)
-            _treeline(b, sx * 276.0, sz * 118.0, sx * 320.0, sz * 160.0, 6, rng)
-            _treeline(b, sx * 124.0, sz * 118.0, sx * 176.0, sz * 152.0, 6, rng)
+            # Cutting, one screening the bunker's open flank.  Each line's
+            # jitter comes from its own seed, shared by the red and blue
+            # copy, so the cover they give is the same on both halves.
+            for n, (ax, az, cx, cz, count) in enumerate((
+                    (190.0, 160.0, 246.0, 196.0, 7),
+                    (276.0, 118.0, 320.0, 160.0, 6),
+                    (124.0, 118.0, 176.0, 152.0, 6))):
+                _treeline(b, sx, ax, sz * az, cx, sz * cz, count,
+                          random.Random(0x7EE5 + n * 17 + (sz > 0)))
 
         # floodlights down the road: one pair per band, so the run from the
         # gate to the Relay is lit the whole way at dusk
@@ -1239,43 +1342,32 @@ def _field(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]],
         return not any(r[0] - 8 < x < r[1] + 8 and r[2] - 8 < z < r[3] + 8
                        for r in keep_out)
 
+    # Drawn for the blue half and mirrored onto the red one: a trunk or a
+    # rock is cover, and cover that only one team gets is not scenery.
     placed = 0
     attempts = 0
-    while placed < 86 and attempts < 1600:
+    while placed < 43 and attempts < 1600:
         attempts += 1
-        x = rng.uniform(-PLAY_X + 12, PLAY_X - 12)
+        x = rng.uniform(12.0, PLAY_X - 12)
         z = rng.uniform(-PLAY_Z + 12, PLAY_Z - 12)
         if not clear(x, z):
             continue
-        roll = rng.random()
-        if roll < 0.42:
-            b.pine(x, z, 0.0, rng.uniform(0.9, 1.7), WOOD_DARK, "#2a5f3c")
-        elif roll < 0.74:
-            b.tree(x, z, 0.0, rng.uniform(0.9, 1.5), WOOD, "#2f6b42")
-        else:
-            b.rock(x, z, 0.0, rng.uniform(0.9, 2.1), ROCK)
+        roll, size = rng.random(), rng.random()
+        for side in (1, -1):
+            if roll < 0.42:
+                b.pine(side * x, z, 0.0, 0.9 + size * 0.8, WOOD_DARK,
+                       "#2a5f3c")
+            elif roll < 0.74:
+                b.tree(side * x, z, 0.0, 0.9 + size * 0.6, WOOD, "#2f6b42")
+            else:
+                b.rock(side * x, z, 0.0, 0.9 + size * 1.2, ROCK)
         placed += 1
 
-    # scuff marks, but only where there is actually paving to scuff: the two
-    # compound aprons and the Relay plinth.  Each patch gets its own depth as
-    # well as its own height, so two that overlap cannot share a surface
-    paved = [rect(-PLINTH_X, -ANNEX_OUT, -PLINTH_Z, PLINTH_Z),
-             rect(ANNEX_OUT, PLINTH_X, -PLINTH_Z, PLINTH_Z)]
-    for side in (-1, 1):
-        paved.append(rect(side * BASE_FRONT, side * BASE_BACK, -BASE_Z, BASE_Z))
-    for i in range(26):
-        area = paved[i % len(paved)]
-        w, d = rng.uniform(16, 40), rng.uniform(14, 34)
-        x = rng.uniform(area[0] + w / 2 + 4.0, area[1] - w / 2 - 4.0)
-        z = rng.uniform(area[2] + d / 2 + 4.0, area[3] - d / 2 - 4.0)
-        if any(h[0] < x + w / 2 and h[1] > x - w / 2 and
-               h[2] < z + d / 2 and h[3] > z - d / 2 for h in holes):
-            continue
-        top = PAD + 0.10 + i * 0.004
-        bottom = PAD - 0.3 - i * 0.004
-        b.box([x, (top + bottom) / 2.0, z], [w, top - bottom, d],
-              CONCRETE_DARK if i % 2 else "#8b9198", collide=False)
-
+    paths = [rect(-BASE_FRONT, BASE_FRONT, -ROAD_Z, ROAD_Z)]
+    for sz in (-1, 1):
+        paths.append(rect(-BASE_FRONT, BASE_FRONT, sz * 112.0, sz * 130.0))
+        paths.append(rect(-PLAY_X, PLAY_X, sz * (ALLEY_Z - 8.0),
+                          sz * (ALLEY_Z + 8.0)))
     # darker grass patches so the open ground is not a flat green sheet
     # every patch gets its own paper-thin height, so two that happen to
     # overlap can never end up fighting for the same pixels
@@ -1283,12 +1375,12 @@ def _field(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]],
     tries = 0
     while laid < 58 and tries < 600:
         tries += 1
-        x = rng.uniform(-PLAY_X, PLAY_X)
-        z = rng.uniform(-PLAY_Z, PLAY_Z)
         w, d = rng.uniform(22, 58), rng.uniform(22, 58)
+        x = rng.uniform(-PLAY_X + w / 2.0, PLAY_X - w / 2.0)
+        z = rng.uniform(-PLAY_Z + d / 2.0, PLAY_Z - d / 2.0)
         if any(h[0] < x + w / 2 and h[1] > x - w / 2 and
-               h[2] < z + d / 2 and h[3] > z - d / 2 for h in holes):
-            continue                      # never hang a patch over a shaft
+               h[2] < z + d / 2 and h[3] > z - d / 2 for h in holes + paths):
+            continue                      # not over a shaft, not on a path
         top = 0.10 + laid * 0.004
         b.box([x, (top - 0.4) / 2.0, z], [w, top + 0.4, d],
               GRASS_DARK if laid % 2 else GRASS_LIGHT, collide=False)
@@ -1321,7 +1413,7 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
         lawn.  This is the same rectangle a shaft's hole is cut from, so the
         stairwells stay open.
         """
-        plate(b, carve(area, holes), TUNNEL_CEIL, 1.2, ROCK_DARK)
+        plate(b, carve(area, holes), TUNNEL_CEIL, ROCK_ROOF_T, ROCK_DARK)
 
     # ------------------------------------------------------- the undercroft
     slab(b, rect(-UNDER_X, UNDER_X, -UNDER_Z, UNDER_Z), TUNNEL_FLOOR,
@@ -1341,8 +1433,8 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
     # A tube that crosses an open shaft is a tube hanging in mid-air when you
     # look down it from the atrium.
     for sz in (-1, 1):
-        strip_light(b, 0, sz * 56.0, TUNNEL_CEIL - 1.4, 150.0, "x", "#9fe8ff")
-    b.box([0, TUNNEL_FLOOR + 0.3, 0], [40.0, 0.6, 40.0], "#f5c518",
+        strip_light(b, 0, sz * 56.0, ROCK_CEIL, 150.0, "x", "#9fe8ff")
+    b.box([0, TUNNEL_FLOOR + 0.15, 0], [40.0, 0.3, 40.0], "#f5c518",
           collide=False, material="neon")
 
     for sx in (-1, 1):
@@ -1367,7 +1459,7 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
                      gaps=[xs(spur_lo - 3.0, spur_hi + 3.0) + (TUNNEL_CEIL,)])
         for i in range(11):
             strip_light(b, sx * (104.0 + i * 30.0), (main_lo + main_hi) / 2.0,
-                        TUNNEL_CEIL - 1.4, 26.0, "x", "#9fe8ff")
+                        ROCK_CEIL, 26.0, "x", "#9fe8ff")
         for i in range(8):
             x = sx * (106.0 + i * 38.0)
             if abs(x) > cis_lo - 8.0 and abs(x) < cis_hi + 8.0:
@@ -1388,9 +1480,11 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
         for sz in (-1, 1):
             wall(b, "x", sz * (TUN_SPUR_TOP + 3.5), 3.0, *xs(spur_lo, spur_hi),
                  y0=TUNNEL_FLOOR, y1=TUNNEL_CEIL, colour=ROCK_DARK)
+            # from the corridor junction up to where the stair comes down,
+            # and no further: past that there is no roof, only the shaft
             for i in range(4):
                 strip_light(b, sx * (spur_lo + spur_hi) / 2.0,
-                            sz * (42.0 + i * 22.0), TUNNEL_CEIL - 1.4, 22.0,
+                            sz * (20.0 + i * 22.0), ROCK_CEIL, 22.0,
                             "z", "#9fe8ff")
 
         # ----------------------------------------------------- the cistern
@@ -1420,7 +1514,7 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
                 TUNNEL_FLOOR + 0.6, WATER)
         for i in range(5):
             strip_light(b, sx * (cis_lo + cis_hi) / 2.0,
-                        cis_z0 + 12.0 + i * 24.0, TUNNEL_CEIL - 1.4, 40.0,
+                        cis_z0 + 12.0 + i * 24.0, ROCK_CEIL, 40.0,
                         "x", "#9fe8ff")
         for i in range(2):
             b.box([sx * (cis_lo + 8.0), TUNNEL_FLOOR + 3.0,
@@ -1430,8 +1524,7 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
         shaft = rect(sx * PUMP_STAIR_X[0], sx * PUMP_STAIR_X[1],
                      PUMP_STAIR_Z[0], PUMP_STAIR_Z[1])
         flight(b, "z", shaft[2], shaft[3], shaft[0], shaft[1], TUNNEL_FLOOR,
-               PAD, CONCRETE_DARK, fill=TUNNEL_FLOOR)
-        shaft_lamp(b, shaft)
+               PAD, CONCRETE_DARK, fill=TUNNEL_FLOOR, lights=STAIR_LIGHT)
 
         # --------------------------------------------- the hatch chamber
         h0, h1 = HATCH_X
@@ -1446,7 +1539,7 @@ def _tunnels(b: MapBuilder, holes: Sequence[Tuple[float, float, float, float]]
         for at in (hz0 - 1.5, hz1 + 1.5):
             wall(b, "x", at, 3.0, *xs(h0 - 3.0, h1 + 3.0), y0=TUNNEL_FLOOR,
                  y1=TUNNEL_CEIL, colour=ROCK_DARK)
-        strip_light(b, sx * (h0 + h1) / 2.0, -30.0, TUNNEL_CEIL - 1.4, 24.0,
+        strip_light(b, sx * (h0 + h1) / 2.0, -30.0, ROCK_CEIL, 24.0,
                     "x", "#9fe8ff")
         b.box([sx * (h0 + h1) / 2.0, TUNNEL_FLOOR + 3.0, -31.0],
               [10.0, 6.0, 6.0], WOOD, studs=True)
@@ -1485,8 +1578,13 @@ def build() -> Dict[str, Any]:
     holes = shaft_holes()
 
     # ------------------------------------------------------------ terrain
-    plate(b, carve(rect(-MAP_X, MAP_X, -MAP_Z, MAP_Z), holes), TERRAIN_TOP,
-          TERRAIN_TOP - TERRAIN_BOTTOM, GRASS, studs=True, material="grass")
+    # Turf over soil, both solid and cut from the same rectangles.  Walking
+    # on it is no different; looking down a stairwell or a drain, the walls
+    # are a band of grass over earth instead of four units of lawn.
+    ground = carve(rect(-MAP_X, MAP_X, -MAP_Z, MAP_Z), holes)
+    plate(b, ground, TERRAIN_TOP, TURF, GRASS, studs=True, material="grass")
+    plate(b, ground, TERRAIN_TOP - TURF, TERRAIN_TOP - TURF - TERRAIN_BOTTOM,
+          SOIL)
     for sx in (-1, 1):
         wall(b, "z", sx * (PLAY_X + WALL_T / 2.0), WALL_T, -MAP_Z, MAP_Z,
              TERRAIN_TOP, 40.0, ROCK)

@@ -757,6 +757,22 @@ asserts on what the servers broadcast: flag captures, damage and the kill feed,
 fire-rate clamping, movement correction, cart pushing, tycoon buying and
 income, instance overflow, visit accounting and the end-of-round shuffle vote.
 
+`mapcheck.py` needs no server; it builds each map and audits the geometry:
+
+| Check | Catches |
+| --- | --- |
+| z-fighting | two surfaces on one plane, facing the same way, overlapping |
+| decor over a void | paint, paths or plates that run off an edge or across a stairwell |
+| lights in the air | neon that is not fixed to a ceiling, a wall or a step |
+| walk-through clutter | anything without collision standing where a player can walk |
+| loose decor | a decorative part touching nothing at all |
+| mirror symmetry | a solid with no twin across the middle (maps that set `MIRROR_AXIS`) |
+| spawns and markers | spawns inside walls, without clearance, or over holes |
+| playfield | holes in the ground |
+| routes | every objective reachable *and* leavable (skipped with `--fast`) |
+
+Ironvale is held to all of them; the older maps are reported, not fixed.
+
 ## Data
 
 Everything lives in `data/blockhaven.sqlite3` (WAL mode). Delete it, or run

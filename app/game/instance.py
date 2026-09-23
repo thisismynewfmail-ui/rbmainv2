@@ -364,9 +364,15 @@ class GameInstance:
                 rx, ry, rz = part["r"]
                 if abs(rx) > 1e-3 or abs(rz) > 1e-3:
                     continue
-                if abs(ry % (math.pi / 2.0)) > 1e-3:
+                # A quarter turn either way.  ``ry % (pi / 2)`` is not the
+                # test: Python's remainder of -pi/2 (stored to four places)
+                # is pi/2 less a hair, so a part turned -90 degrees lost its
+                # collision here while the client, which tests the same thing
+                # with abs(), kept it.
+                turns = ry / (math.pi / 2.0)
+                if abs(turns - round(turns)) > 1e-3:
                     continue
-                if int(round(ry / (math.pi / 2.0))) % 2:
+                if int(round(turns)) % 2:
                     size = [size[2], size[1], size[0]]
             kind = part.get("t", "box")
             if kind == "sph":

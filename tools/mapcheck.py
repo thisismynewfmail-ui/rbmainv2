@@ -25,6 +25,30 @@ It answers the three questions that decide whether a map feels finished:
     under it and checked for headroom, so a slab with a hole in it (or a hole
     with no slab around it) shows up here rather than in a match.
 
+``decor over a void``
+    Paint, paths and plates laid on the ground have to have ground under all
+    of them.  One that runs off the edge of a platform is a grey rectangle
+    hanging in the air; one laid across a stairwell is a lid over the stairs.
+
+``lights in the air``
+    Neon has to be fixed to something: under a ceiling, on a wall, in a
+    step.  A tube a couple of units below the ceiling it belongs to reads as
+    a light floating in the room.
+
+``walk-through clutter``
+    Anything without collision that stands in the space a player walks
+    through -- a panel, a railing, a lamp over a staircase.  It looks solid
+    and it is not, which is worse than it not being there at all.
+
+``loose decor``
+    A decorative part that touches nothing: a banner beside its mast rather
+    than on it, a beacon an inch above the pole it belongs to.
+
+``mirror symmetry``
+    For a map that says it is mirrored (``MIRROR_AXIS`` in its module),
+    every solid has a twin across the middle.  Cover only one team gets is a
+    thumb on the scale, however it got there.
+
 Nothing in here is specific to one map, so a new world gets the same audit
 for free.
 """
@@ -86,9 +110,10 @@ def collider_bounds(part: Dict[str, Any]) -> Optional[Tuple[List[float], List[fl
         rx, ry, rz = part["r"]
         if abs(rx) > 1e-3 or abs(rz) > 1e-3:
             return None
-        if abs(ry % (math.pi / 2.0)) > 1e-3:
+        turns = ry / (math.pi / 2.0)
+        if abs(turns - round(turns)) > 1e-3:
             return None
-        if int(round(ry / (math.pi / 2.0))) % 2:
+        if int(round(turns)) % 2:
             size = [size[2], size[1], size[0]]
     kind = part.get("t", "box")
     if kind == "sph":
@@ -345,6 +370,299 @@ def check_playfield(solid: Solid, data: Dict[str, Any], step: float = 12.0
     return out
 
 
+# ------------------------------------------------------------ decoration
+JUMP_UP_DECOR = 9.0     # the same jump the route check allows
+
+
+class PartIndex:
+    """Every part's bounds in a bucket grid, collision or not.
+
+    The occupancy index above only knows about solids; the decoration checks
+    also want to know what a strip of paint is lying on, and paint can lie on
+    other paint.
+    """
+
+    CELL = 24.0
+
+    def __init__(self, parts: Sequence[Dict[str, Any]]):
+        self.bounds: List[Optional[Tuple[List[float], List[float]]]] = []
+        self.grid: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+        for index, part in enumerate(parts):
+            bounds = box_bounds(part)
+            self.bounds.append(bounds)
+            if bounds is None:
+                continue
+            lo, hi = bounds
+            for cx in range(int(lo[0] // self.CELL), int(hi[0] // self.CELL) + 1):
+                for cz in range(int(lo[2] // self.CELL), int(hi[2] // self.CELL) + 1):
+                    self.grid[(cx, cz)].append(index)
+
+    def around(self, lo: Sequence[float], hi: Sequence[float]) -> List[int]:
+        found = set()
+        for cx in range(int(lo[0] // self.CELL), int(hi[0] // self.CELL) + 1):
+            for cz in range(int(lo[2] // self.CELL), int(hi[2] // self.CELL) + 1):
+                found.update(self.grid.get((cx, cz), ()))
+        return sorted(found)
+
+
+def _samples(lo: Sequence[float], hi: Sequence[float], spacing: float = 1.0,
+             cap: int = 24) -> List[Tuple[float, float, float]]:
+    """Cell centres over a footprint, with the area each one stands for."""
+    wide, deep = hi[0] - lo[0], hi[2] - lo[2]
+    nx = max(1, min(cap, int(math.ceil(wide / spacing))))
+    nz = max(1, min(cap, int(math.ceil(deep / spacing))))
+    cell = (wide / nx) * (deep / nz)
+    return [(lo[0] + wide * (i + 0.5) / nx, lo[2] + deep * (j + 0.5) / nz, cell)
+            for i in range(nx) for j in range(nz)]
+
+
+def _decor(part: Dict[str, Any]) -> bool:
+    """Non-solid, opaque, and a shape these checks can reason about."""
+    return (not part.get("col") and part.get("t", "box") in ("box", "cyl")
+            and float(part.get("a", 1.0)) >= 0.999)
+
+
+def find_floating_decor(parts: Sequence[Dict[str, Any]], index: PartIndex
+                        ) -> List[str]:
+    """Floor overlays that run off whatever they were laid on.
+
+    A part counts as an overlay when it is thin and, at its middle, lies on
+    or in some other surface.  Then every other point of it has to lie on
+    something too -- the gap it may bridge is a crack, not a stairwell.
+    """
+    reports = []
+    for i, part in enumerate(parts):
+        bounds = index.bounds[i]
+        if bounds is None or not _decor(part):
+            continue
+        lo, hi = bounds
+        if hi[1] - lo[1] > 1.0:
+            continue
+        near = [j for j in index.around(lo, hi) if j != i]
+
+        def lying(x: float, z: float) -> bool:
+            # on something: another part's top lies in this one's thickness
+            for j in near:
+                qlo, qhi = index.bounds[j]
+                if qlo[0] <= x <= qhi[0] and qlo[2] <= z <= qhi[2] and \
+                        lo[1] - 0.05 <= qhi[1] <= hi[1] + 1e-6:
+                    return True
+            return False
+
+        def held(x: float, z: float) -> bool:
+            # on, in or under something within a crack's width
+            for j in near:
+                qlo, qhi = index.bounds[j]
+                if qlo[0] <= x <= qhi[0] and qlo[2] <= z <= qhi[2] and \
+                        qhi[1] >= lo[1] - 0.3 and qlo[1] <= hi[1] + 0.3:
+                    return True
+            return False
+
+        if not lying(part["p"][0], part["p"][2]):
+            continue                          # not an overlay: hung, or mounted
+        loose = 0.0
+        where = None
+        for x, z, cell in _samples(lo, hi):
+            if not held(x, z):
+                loose += cell
+                where = where or (x, z)
+        if loose >= 1.0:
+            reports.append("#%d %s hangs %.0f sq units of itself over nothing "
+                           "(first at %.1f, %.1f)" % (i, _describe(part), loose,
+                                                      where[0], where[1]))
+    return reports
+
+
+def find_hanging_lights(parts: Sequence[Dict[str, Any]], index: PartIndex
+                        ) -> List[str]:
+    """Neon that touches nothing along a stretch of its length."""
+    reports = []
+    for i, part in enumerate(parts):
+        bounds = index.bounds[i]
+        if bounds is None or part.get("m") != "neon" or part.get("col"):
+            continue
+        lo, hi = bounds
+        axis = 0 if hi[0] - lo[0] >= hi[2] - lo[2] else 2
+        length = hi[axis] - lo[axis]
+        steps = max(1, int(math.ceil(length)))
+        near = [j for j in index.around([lo[0] - 1, lo[1], lo[2] - 1],
+                                        [hi[0] + 1, hi[1], hi[2] + 1])
+                if j != i and parts[j].get("m") != "neon"]
+        run = best = 0.0
+        for k in range(steps):
+            a = lo[axis] + length * k / steps
+            c = lo[axis] + length * (k + 1) / steps
+            slo, shi = list(lo), list(hi)
+            slo[axis], shi[axis] = a, c
+            slo = [v - 0.25 for v in slo]
+            shi = [v + 0.25 for v in shi]
+            held = False
+            for j in near:
+                qlo, qhi = index.bounds[j]
+                if all(qhi[d] > slo[d] and qlo[d] < shi[d] for d in range(3)):
+                    held = True
+                    break
+            run = 0.0 if held else run + (c - a)
+            best = max(best, run)
+        if best > 1.5:
+            reports.append("#%d %s hangs free for %.1f units"
+                           % (i, _describe(part), best))
+    return reports
+
+
+def climbable_surfaces(solid: Solid, reach_x: float = 6.0) -> Dict[int, bool]:
+    """Which solid tops a player can actually get onto.
+
+    Flooded out from the lowest ground: a top is reachable when a reachable
+    one lies within ``reach_x`` of it sideways and it is no more than a jump
+    above that one (any drop is fine -- you can always fall).  The top of a
+    floodlight pole and the top of the perimeter wall are floors to the
+    physics and to nobody else, and what stands on them is nobody's problem.
+    Keyed by ``id()`` of the box's upper corner, which is how the callers
+    below meet the boxes.
+    """
+    boxes = solid.boxes
+    lowest = min((b[1][1] for b in boxes), default=0.0)
+    seen = [False] * len(boxes)
+    queue = [k for k, b in enumerate(boxes) if b[1][1] <= lowest + 0.5]
+    for k in queue:
+        seen[k] = True
+    cell = Solid.CELL
+    while queue:
+        k = queue.pop()
+        alo, ahi = boxes[k]
+        for cx in range(int((alo[0] - reach_x) // cell), int((ahi[0] + reach_x) // cell) + 1):
+            for cz in range(int((alo[2] - reach_x) // cell), int((ahi[2] + reach_x) // cell) + 1):
+                for m in solid.grid.get((cx, cz), ()):
+                    if seen[m]:
+                        continue
+                    blo, bhi = boxes[m]
+                    if bhi[0] < alo[0] - reach_x or blo[0] > ahi[0] + reach_x:
+                        continue
+                    if bhi[2] < alo[2] - reach_x or blo[2] > ahi[2] + reach_x:
+                        continue
+                    if bhi[1] > ahi[1] + JUMP_UP_DECOR:
+                        continue
+                    seen[m] = True
+                    queue.append(m)
+    return {id(boxes[k][1]): ok for k, ok in enumerate(seen)}
+
+
+def find_loose_decor(parts: Sequence[Dict[str, Any]], index: PartIndex
+                     ) -> List[str]:
+    """Decorative parts that are not touching any other part at all."""
+    reports = []
+    for i, part in enumerate(parts):
+        bounds = index.bounds[i]
+        if bounds is None or part.get("col"):
+            continue
+        lo = [v - 0.06 for v in bounds[0]]
+        hi = [v + 0.06 for v in bounds[1]]
+        touching = False
+        for j in index.around(lo, hi):
+            if j == i:
+                continue
+            qlo, qhi = index.bounds[j]
+            if all(qhi[d] > lo[d] and qlo[d] < hi[d] for d in range(3)):
+                touching = True
+                break
+        if not touching:
+            reports.append("#%d %s touches nothing" % (i, _describe(part)))
+    return reports
+
+
+def find_asymmetry(parts: Sequence[Dict[str, Any]], axis: str) -> List[str]:
+    """Solids with no mirror twin across the plane ``axis`` = 0."""
+    k = AXES.index(axis)
+
+    def key(lo: Sequence[float], hi: Sequence[float]) -> Tuple[float, ...]:
+        return tuple(round(v, 2) for d in range(3) for v in (lo[d], hi[d]))
+
+    have: Dict[Tuple[float, ...], int] = defaultdict(int)
+    boxes = []
+    for i, part in enumerate(parts):
+        bounds = collider_bounds(part)
+        if bounds is None:
+            continue
+        boxes.append((i, bounds))
+        have[key(*bounds)] += 1
+    reports = []
+    for i, (lo, hi) in boxes:
+        mlo, mhi = list(lo), list(hi)
+        mlo[k], mhi[k] = -hi[k], -lo[k]
+        if not have.get(key(mlo, mhi)):
+            reports.append("#%d %s has no twin at %s = %.1f"
+                           % (i, _describe(parts[i]), axis,
+                              -(lo[k] + hi[k]) / 2.0))
+    return reports
+
+
+def find_walkthrough(parts: Sequence[Dict[str, Any]], solid: Solid,
+                     index: PartIndex) -> List[str]:
+    """Non-solid parts standing in the space a player walks through.
+
+    For every point under the part, find the floor beneath it and ask
+    whether a player could be standing there with the part inside their
+    body -- trying the body at a few offsets, so something a hand's width
+    off a wall is caught while a sign flat on the wall is not.
+    """
+    height = PLAYER_SIZE[1]
+    hw, hd = PLAYER_SIZE[0] / 2.0, PLAYER_SIZE[2] / 2.0
+    floor_skin = 0.45                 # paint and pads may be this thick
+    reach = climbable_surfaces(solid)
+    reports = []
+
+    for i, part in enumerate(parts):
+        bounds = index.bounds[i]
+        if bounds is None or not _decor(part):
+            continue
+        lo, hi = bounds
+        near = solid.near((lo[0] + hi[0]) / 2.0, (lo[2] + hi[2]) / 2.0)
+        near = [b for b in near
+                if b[1][0] > lo[0] - hw and b[0][0] < hi[0] + hw and
+                b[1][2] > lo[2] - hd and b[0][2] < hi[2] + hd]
+        tops = [b[1][1] for b in near if b[1][1] <= lo[1] + 0.5]
+        if tops and lo[1] >= max(tops) + height:
+            continue                           # clear over every floor below
+        caught = 0.0
+        deepest = 0.0
+        where = None
+        for x, z, cell in _samples(lo, hi):
+            floor = None
+            for blo, bhi in near:
+                if blo[0] <= x <= bhi[0] and blo[2] <= z <= bhi[2] and \
+                        bhi[1] <= lo[1] + 0.5 and (floor is None or bhi[1] > floor[1]):
+                    floor = (id(bhi), bhi[1])
+            if floor is None or not reach.get(floor[0]):
+                continue
+            floor = floor[1]
+            into = min(hi[1], floor + height) - max(lo[1], floor + floor_skin)
+            if into <= 0.05:
+                continue
+            stands = False
+            for dx in (0.0, -hw + 0.1, hw - 0.1):
+                for dz in (0.0, -hd + 0.1, hd - 0.1):
+                    cx, cz = x + dx, z + dz
+                    if solid.blocked(cx, floor, cz):
+                        continue
+                    ground = solid.ground_under(cx, floor + 0.1, cz)
+                    if ground is not None and abs(ground - floor) < 0.15:
+                        stands = True
+                        break
+                if stands:
+                    break
+            if stands:
+                caught += cell
+                deepest = max(deepest, into)
+                where = where or (x, floor, z)
+        if caught >= 0.6:
+            reports.append("#%d %s can be walked through: %.1f units of it "
+                           "inside a player standing at (%.1f, %.1f, %.1f)"
+                           % (i, _describe(part), deepest, where[0], where[1],
+                              where[2]))
+    return reports
+
+
 # ----------------------------------------------------------- reachability
 STEP_UP = 2.1          # matches Physics.STEP_HEIGHT in the client
 JUMP_UP = 9.0          # jump speed 34 against gravity 62
@@ -505,6 +823,13 @@ def audit(name: str, module) -> int:
                 points.append(("%s %d" % (key, i), list(entry["p"])))
 
     fights = find_zfighting(parts, Opaque(parts))
+    index = PartIndex(parts)
+    floating = find_floating_decor(parts, index)
+    hanging = find_hanging_lights(parts, index)
+    walkable = find_walkthrough(parts, solid, index)
+    loose = find_loose_decor(parts, index)
+    mirror = getattr(module, "MIRROR_AXIS", None)
+    lopsided = find_asymmetry(parts, mirror) if mirror else []
     spawn_problems = check_points(solid, points)
     field_problems = check_playfield(solid, data)
     key_points = [pt for pt in points
@@ -517,6 +842,11 @@ def audit(name: str, module) -> int:
     print("  parts %d   colliders %d   spawn/marker probes %d"
           % (len(parts), len(colliders), len(points)))
     for title, items in (("z-fighting", fights),
+                         ("decor over a void", floating),
+                         ("lights in the air", hanging),
+                         ("walk-through clutter", walkable),
+                         ("loose decor", loose),
+                         ("mirror symmetry", lopsided),
                          ("spawns and markers", spawn_problems),
                          ("playfield", field_problems),
                          ("routes", route_problems)):
@@ -528,7 +858,9 @@ def audit(name: str, module) -> int:
             print("      - %s" % line)
         if len(items) > 14:
             print("      ... and %d more" % (len(items) - 14))
-    return len(fights) + len(spawn_problems) + len(field_problems)
+    return (len(fights) + len(floating) + len(hanging) + len(walkable) +
+            len(loose) + len(lopsided) + len(spawn_problems) +
+            len(field_problems))
 
 
 def main(argv: Sequence[str]) -> int:
