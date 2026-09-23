@@ -241,10 +241,10 @@ class MapBuilder:
                 rx, ry, rz = part["r"]
                 if abs(rx) > 1e-3 or abs(rz) > 1e-3:
                     continue
-                quarter = abs((ry % (math.pi / 2.0))) < 1e-3
-                if not quarter:
-                    continue
-                turns = int(round(ry / (math.pi / 2.0))) % 2
+                quarter = ry / (math.pi / 2.0)
+                if abs(quarter - round(quarter)) > 1e-3:
+                    continue           # (either way round: see instance.py)
+                turns = int(round(quarter)) % 2
                 w, h, d = part["s"]
                 size = [d, h, w] if turns else [w, h, d]
             else:

@@ -687,6 +687,76 @@
   };
 
   // ------------------------------------------------------- live 3D preview
+  var PREVIEW_FOV = 42;
+  var EFFECT_ROOM = 1.8;      // headroom an Unusual effect's plume needs
+
+  /* How much room a character in this outfit takes up.
+
+     Every body is the same 5.4 tall, but what is worn on the head is not: a
+     cone or a lantern adds the best part of two units, and a framing fixed
+     for a bare head crops the top of it.  Measured once per outfit in the
+     neutral pose, as a cylinder round the character's own axis -- the
+     preview spins, and a fit that followed the turn would breathe in and
+     out with it. */
+  function avatarExtent(descriptor) {
+    var parts = Avatar.build(descriptor, {
+      position: [0, 0, 0], yaw: 0,
+      pose: Avatar.pose('idle', 0, 0, descriptor)
+    });
+    var low = 1e9, high = -1e9, radius = 0.5;
+    parts.forEach(function (p) {
+      // a part turned off true can stand taller than its own height says,
+      // so anything rotated is bounded by its half-diagonal instead
+      var r = p.r;
+      var turned = r && (Math.abs(r[0]) + Math.abs(r[1]) + Math.abs(r[2])) > 1e-3;
+      var hy = turned ? Math.hypot(p.s[0], p.s[1], p.s[2]) / 2 : p.s[1] / 2;
+      low = Math.min(low, p.p[1] - hy);
+      high = Math.max(high, p.p[1] + hy);
+      radius = Math.max(radius, Math.hypot(p.p[0], p.p[2]) +
+                                Math.hypot(p.s[0], p.s[2]) / 2);
+    });
+    if (low > high) { low = 0; high = Avatar.RIG.height; }
+    var hat = (descriptor.items || {}).hat;
+    if (hat && hat.tier === 'unusual' && hat.effect_def) high += EFFECT_ROOM;
+    return { low: Math.min(low, 0), high: high, radius: radius };
+  }
+
+  /* The camera distance at which a standing cylinder fits the frame.
+
+     Same method as frameCamera above -- project the extremes into the
+     camera's basis and solve for the distance -- run against sixteen points
+     round the rim of the cylinder rather than the corners of a box.  The
+     preview's eye rises with its distance, so the answer is refined a few
+     times; it settles in two. */
+  function fitDistance(extent, tilt, aspect, padding) {
+    var half = (extent.high - extent.low) / 2;
+    var tanY = Math.tan(PREVIEW_FOV * 0.5 * Math.PI / 180);
+    var tanX = tanY * Math.max(0.2, aspect);
+    var d = 12.5;
+    for (var pass = 0; pass < 3; pass++) {
+      var rise = Math.sin(tilt) * d * 0.85 + 0.6;      // as in loop() below
+      var len = Math.hypot(d, rise);
+      var fwd = [0, -rise / len, -d / len];            // looking along -z
+      var up = [0, d / len, -rise / len];
+      var need = 0.1;
+      for (var k = 0; k < 16; k++) {
+        var a = k * Math.PI / 8;
+        for (var side = -1; side <= 1; side += 2) {
+          var v = [Math.cos(a) * extent.radius, side * half,
+                   Math.sin(a) * extent.radius];
+          var px = Math.abs(v[0]);
+          var py = Math.abs(v[1] * up[1] + v[2] * up[2]);
+          var pz = v[1] * fwd[1] + v[2] * fwd[2];
+          need = Math.max(need, px / tanX - pz, py / tanY - pz);
+        }
+      }
+      // ``need`` is the slant distance to the target; the preview's
+      // distance is the level one, and the eye climbs as it backs off
+      d = need * padding * (d / len);
+    }
+    return d;
+  }
+
   function LivePreview(container, descriptor) {
     this.container = container;
     this.descriptor = descriptor;
@@ -706,7 +776,13 @@
     this.renderer.far = 200;
     this.angle = -0.45;
     this.tilt = 0.2;
-    this.distance = 12.5;
+    // The camera fits the character in whatever it is wearing; ``zoom`` is
+    // the viewer's scroll on top of that, and ``padding`` how much room the
+    // panel leaves round the fit.
+    this.zoom = 1;
+    this.padding = 1.16;
+    this.extent = avatarExtent(descriptor);
+    this.frame = null;      // eased focus and distance, set on the first frame
     this.spin = true;
     this.time = 0;
     this.poseState = 'idle';
@@ -764,7 +840,7 @@
     this.canvas.addEventListener('wheel', function (e) {
       e.preventDefault();
       self.glide = 0;
-      self.distance = Math.max(6, Math.min(26, self.distance + e.deltaY * 0.012));
+      self.zoom = Math.max(0.5, Math.min(2.1, self.zoom * (1 + e.deltaY * 0.001)));
     }, { passive: false });
   };
 
@@ -777,6 +853,7 @@
       Avatar.resetPose(this);
     }
     this.descriptor = descriptor;
+    this.extent = avatarExtent(descriptor);     // the camera eases to it
   };
 
   /* The preview paints its own sky, and it is a night one whichever theme the
@@ -823,20 +900,21 @@
     }
     var hat = (this.descriptor.items || {}).hat;
     var unusual = (hat && hat.tier === 'unusual' && hat.effect_def) ? 1 : 0;
-    // An Unusual effect plumes upward out of the hat, so a look wearing one
-    // needs headroom a bare head does not.  A stage that asked for it buys
-    // that headroom by aiming a fraction higher and easing back a fraction
-    // further, smoothed so a roll that gains or loses an effect never jumps.
-    // Only the welcome stage rolls its own looks, so only it asks.
-    var wantRoom = this.roomForEffects ? unusual : 0;
-    this.effectRoom = (this.effectRoom || 0) +
-      (wantRoom - (this.effectRoom || 0)) * Math.min(1, dt * 3);
-    // The projection fixes the vertical field of view, so a narrow panel is
-    // the one that crops: pull the camera back until the character's width
-    // fits again.  Wide panels are already fine and are left alone.
+    // Aim at the middle of what the character is wearing and stand back
+    // until all of it is in -- a tall hat, a narrow panel, an Unusual
+    // effect's plume (counted in the extent) and a tilt from above all move
+    // the camera rather than the crop.  Eased, so a new outfit slides into
+    // frame instead of the camera jumping to it.
     var aspect = this.renderer.aspect || 1;
-    var distance = this.distance * (1 + 0.055 * this.effectRoom) *
-      Math.max(1, 0.78 / Math.max(0.2, aspect));
+    var want = {
+      focus: (this.extent.low + this.extent.high) / 2,
+      distance: fitDistance(this.extent, this.tilt, aspect, this.padding)
+    };
+    if (!this.frame) this.frame = { focus: want.focus, distance: want.distance };
+    var ease = Math.min(1, dt * 5);
+    this.frame.focus += (want.focus - this.frame.focus) * ease;
+    this.frame.distance += (want.distance - this.frame.distance) * ease;
+    var distance = this.frame.distance * this.zoom;
     this.renderer.beginFrame(dt);
     parts.forEach(function (part) { this.renderer.push(part); }, this);
     // Simple ground shadow.  It draws in the opaque pass, so during a swap it
@@ -845,14 +923,13 @@
     this.renderer.pushRaw('cyl', 0, 0.02, 0, 0, 0, 0,
                           5.2 * shadow, 0.04, 4.0 * shadow,
                           [0.35, 0.42, 0.5], 0.32, 0, 0, 0.8, null);
-    var centre = [0, (this.focusY === undefined ? 2.9 : this.focusY) +
-                     0.36 * this.effectRoom, 0];
+    var centre = [0, this.frame.focus, 0];
     var eye = [
       centre[0] + Math.sin(this.angle) * distance,
       centre[1] + Math.sin(this.tilt) * distance * 0.85 + 0.6,
       centre[2] + Math.cos(this.angle) * distance
     ];
-    this.renderer.setCameraMatrix(eye, centre, 42);
+    this.renderer.setCameraMatrix(eye, centre, PREVIEW_FOV);
     if (unusual && swap.alpha > 0.02) {
       this.particles.setEmitter('hat', hat.effect_def,
                                 Avatar.hatAnchor([0, swap.lift, 0], 0, hat));
@@ -868,7 +945,7 @@
      finished positioning the preview, so glideHome eases back to the framing
      the page asked for rather than the constructor's defaults. */
   LivePreview.prototype.markHome = function () {
-    this.home = { angle: this.angle, tilt: this.tilt, distance: this.distance };
+    this.home = { angle: this.angle, tilt: this.tilt, zoom: this.zoom };
   };
 
   /* Ease the camera back to the framing the page asked for -- but leave the
@@ -886,11 +963,11 @@
     if (!this.glide || !this.home) return;
     var k = Math.min(1, dt * 4.5);
     this.tilt += (this.home.tilt - this.tilt) * k;
-    this.distance += (this.home.distance - this.distance) * k;
+    this.zoom += (this.home.zoom - this.zoom) * k;
     if (Math.abs(this.home.tilt - this.tilt) < 0.002 &&
-        Math.abs(this.home.distance - this.distance) < 0.02) {
+        Math.abs(this.home.zoom - this.zoom) < 0.002) {
       this.tilt = this.home.tilt;
-      this.distance = this.home.distance;
+      this.zoom = this.home.zoom;
       this.glide = 0;
     }
   };
@@ -1151,13 +1228,10 @@
       preview.skyMode = 'stage';
       preview.applyTheme();
       preview.setPose(look.pose);
-      // Framed so the stage is filled rather than floated in: the character
-      // is pulled in close enough to read at a glance, and the look-at point
-      // sits above its waist so it stands on the lower half of the panel with
-      // the headroom a tall hat and its effect need overhead.
-      preview.distance = 12.9;
-      preview.focusY = 2.95;
-      preview.roomForEffects = true;
+      // Framed so the stage is filled rather than floated in: the fit is a
+      // touch tighter than the editor's, and -- like every preview -- it
+      // leaves the headroom a tall hat and its effect need overhead.
+      preview.padding = 1.1;
       preview.markHome();
       el.__preview = preview;
       el.__look = look;
