@@ -688,73 +688,190 @@
 
   // ------------------------------------------------------- live 3D preview
   var PREVIEW_FOV = 42;
-  var EFFECT_ROOM = 1.8;      // headroom an Unusual effect's plume needs
+  var RING = 16;               // samples round each ring of the silhouette
+  var RING_COS = [], RING_SIN = [];
+  for (var ringStep = 0; ringStep < RING; ringStep++) {
+    RING_COS.push(Math.cos(ringStep * Math.PI * 2 / RING));
+    RING_SIN.push(Math.sin(ringStep * Math.PI * 2 / RING));
+  }
+  // The shadow the character stands on: half its width and depth.  It hugs
+  // the feet -- it grounds the character without claiming the floor round
+  // it, which would only push the character up the panel to make room.
+  var SHADOW = [1.8, 1.4];
+  // A particle sprite is ``size`` either side of its centre, but its art
+  // keeps clear of the cell's edge (a candle's flame tip is at 0.88).
+  var SPRITE_ART = 0.9;
+  // The least room framing leaves at the edge of the panel for things that
+  // may use the margin round the character (see avatarProfile).
+  var EDGE_MARGIN = 0.015;
 
-  /* How much room a character in this outfit takes up.
+  /* Where an Unusual effect's particles go, read off the effect itself,
+     relative to the hat's anchor.
 
-     Every body is the same 5.4 tall, but what is worn on the head is not: a
-     cone or a lantern adds the best part of two units, and a framing fixed
-     for a bare head crops the top of it.  Measured once per outfit in the
-     neutral pose, as a cylinder round the character's own axis -- the
-     preview spins, and a fit that followed the turn would breathe in and
-     out with it. */
-  function avatarExtent(descriptor) {
-    var parts = Avatar.build(descriptor, {
-      position: [0, 0, 0], yaw: 0,
-      pose: Avatar.pose('idle', 0, 0, descriptor)
-    });
-    var low = 1e9, high = -1e9, radius = 0.5;
-    parts.forEach(function (p) {
-      // a part turned off true can stand taller than its own height says,
-      // so anything rotated is bounded by its half-diagonal instead
-      var r = p.r;
-      var turned = r && (Math.abs(r[0]) + Math.abs(r[1]) + Math.abs(r[2])) > 1e-3;
-      var hy = turned ? Math.hypot(p.s[0], p.s[1], p.s[2]) / 2 : p.s[1] / 2;
-      low = Math.min(low, p.p[1] - hy);
-      high = Math.max(high, p.p[1] + hy);
-      radius = Math.max(radius, Math.hypot(p.p[0], p.p[2]) +
-                                Math.hypot(p.s[0], p.s[2]) / 2);
-    });
-    if (low > high) { low = 0; high = Avatar.RIG.height; }
-    var hat = (descriptor.items || {}).hat;
-    if (hat && hat.tier === 'unusual' && hat.effect_def) high += EFFECT_ROOM;
-    return { low: Math.min(low, 0), high: high, radius: radius };
+     A particle starts within ``radius`` of the anchor, sets off at ``rise``
+     and up to ``spread`` sideways, is pushed by ``gravity`` (an orbiting
+     one is not -- it circles at its own radius and drifts up) and fades out
+     over the last 45% of its life.  Its path is followed for as long as it
+     is at least ``alpha`` lit: ``high``/``low``/``centre`` bound the
+     centres, and ``top``/``bottom``/``radius`` add the sprite, which grows
+     or shrinks on the way.  Candlelight Vigil stands a hand's width over
+     the hat; a Burning flame climbs a couple of units; a Frostbite fall
+     drops below the brim. */
+  function effectReach(effect, alpha) {
+    var lit = ((effect.life || [1, 1])[1] || 1) * (1 - 0.45 * alpha);
+    var rise = effect.rise || [0.5, 1.2];
+    var gravity = effect.orbit ? 0 : (effect.gravity || 0);
+    var size = (effect.size || [0.4, 0.4])[1];
+    var grow = effect.grow || 0;
+    var start = effect.radius === undefined ? 0.5 : effect.radius;
+    var drift = effect.orbit ? 0 : (effect.spread || 0.4) * Math.SQRT2;
+    var reach = { high: -1e9, low: 1e9, centre: 0, top: -1e9, bottom: 1e9, radius: 0 };
+    for (var k = 0; k <= 24; k++) {
+      var t = lit * k / 24;
+      var half = Math.max(0.01, size + grow * t) * SPRITE_ART;
+      var fall = 0.5 * gravity * t * t;
+      var up = 0.2 + rise[1] * t + fall;      // spawned up to 0.2 over the anchor
+      var down = -0.05 + rise[0] * t + fall;  // ...and down to 0.05 under it
+      var out = start + drift * t;
+      reach.high = Math.max(reach.high, up);
+      reach.low = Math.min(reach.low, down);
+      reach.centre = Math.max(reach.centre, out);
+      reach.top = Math.max(reach.top, up + half);
+      reach.bottom = Math.min(reach.bottom, down - half);
+      reach.radius = Math.max(reach.radius, out + half);
+    }
+    return reach;
   }
 
-  /* The camera distance at which a standing cylinder fits the frame.
+  /* The room a character takes up, as a lathe: at each height, how far the
+     outfit reaches from the axis the preview spins it round.
 
-     Same method as frameCamera above -- project the extremes into the
-     camera's basis and solve for the distance -- run against sixteen points
-     round the rim of the cylinder rather than the corners of a box.  The
-     preview's eye rises with its distance, so the answer is refined a few
-     times; it settles in two. */
-  function fitDistance(extent, tilt, aspect, padding) {
-    var half = (extent.high - extent.low) / 2;
+     Every part's eight corners are taken with its rotation applied, so a
+     narrow hat on top stays narrow instead of inheriting the width of the
+     shoulders, and wings stay wide only where they are.  The pose is
+     sampled across its cycle, so a walk's swinging arms are inside it too;
+     and an Unusual effect adds the column its particles actually fill.
+     Each ring is ``[height, reach]``, plus a third ``edge`` flag on the
+     ones that may use the margin round the character (see below). */
+  function avatarProfile(descriptor, poseState) {
+    var M = GLX.mat, m = new Float32Array(16);
+    var state = poseState || 'idle';
+    var speed = state === 'run' ? 1 : (state === 'walk' ? 0.6 : 0);
+    var times = speed ? [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.72, 0.84] : [0, 0.9, 1.8];
+    // heights are gathered a tenth at a time, each keeping the furthest
+    // reach inside it and exactly how low and high it goes
+    var bands = {};
+    function note(y, r) {
+      var key = Math.floor(y * 10);
+      var band = bands[key] || (bands[key] = { lo: y, hi: y, r: r });
+      band.lo = Math.min(band.lo, y);
+      band.hi = Math.max(band.hi, y);
+      band.r = Math.max(band.r, r);
+    }
+    times.forEach(function (t) {
+      var parts = Avatar.build(descriptor, {
+        position: [0, 0, 0], yaw: 0,
+        pose: Avatar.pose(state, t, speed, descriptor)
+      });
+      parts.forEach(function (p) {
+        var r = p.r || [0, 0, 0];
+        M.compose(m, 0, p.p[0], p.p[1], p.p[2], r[0], r[1], r[2],
+                  p.s[0], p.s[1], p.s[2]);
+        for (var cx = -0.5; cx <= 0.5; cx += 1) {
+          for (var cy = -0.5; cy <= 0.5; cy += 1) {
+            for (var cz = -0.5; cz <= 0.5; cz += 1) {
+              var x = m[0] * cx + m[4] * cy + m[8] * cz + m[12];
+              var y = m[1] * cx + m[5] * cy + m[9] * cz + m[13];
+              var z = m[2] * cx + m[6] * cy + m[10] * cz + m[14];
+              note(y, Math.hypot(x, z));
+            }
+          }
+        }
+      });
+    });
+    var rings = [], low = 0, high = 0;
+    function ring(y, r, edge) {
+      rings.push(edge ? [y, r, 1] : [y, r]);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    }
+    Object.keys(bands).forEach(function (key) {
+      var band = bands[key];
+      ring(band.lo, band.r);
+      if (band.hi > band.lo) ring(band.hi, band.r);
+    });
+    // Rings marked ``edge`` may run into the margin, but not off the panel:
+    // the shadow on the floor, and an effect's particles as they fade.  The
+    // fully-lit ones stay inside the margin like the character does.
+    ring(0, Math.max(SHADOW[0], SHADOW[1]), true);
+    var hat = (descriptor.items || {}).hat;
+    if (hat && hat.tier === 'unusual' && hat.effect_def) {
+      var anchor = Avatar.hatAnchor([0, 0, 0], 0, hat)[1];
+      [1, 0.5].forEach(function (alpha) {
+        var plume = effectReach(hat.effect_def, alpha);
+        var edge = alpha < 1;
+        // a sprite faces the camera, so it adds its size to the column's
+        // width, and above and below it -- not both at once
+        for (var k = 0; k <= 6; k++) {
+          ring(anchor + plume.low + (plume.high - plume.low) * k / 6,
+               plume.radius, edge);
+        }
+        ring(anchor + plume.top, plume.centre, edge);
+        ring(anchor + plume.bottom, plume.centre, edge);
+      });
+    }
+    return { rings: rings, low: low, high: high };
+  }
+
+  /* Where to aim and how far back to stand so the silhouette fills
+     ``1 - 2 * margin`` of the panel -- height or width, whichever runs out
+     first -- and sits in the middle of it, at every angle of the spin.
+
+     The preview's eye rises as it backs off, so there is no closed form:
+     project every ring, see how much of the frame it covers and how far
+     off centre it sits, correct both, and go again.  It settles in a few
+     passes, and it starts from the last answer. */
+  function fitView(profile, tilt, aspect, margin, guess) {
     var tanY = Math.tan(PREVIEW_FOV * 0.5 * Math.PI / 180);
     var tanX = tanY * Math.max(0.2, aspect);
-    var d = 12.5;
-    for (var pass = 0; pass < 3; pass++) {
-      var rise = Math.sin(tilt) * d * 0.85 + 0.6;      // as in loop() below
+    var target = 1 - 2 * margin;
+    // an ``edge`` ring may come this much closer to the edge than the rest
+    var slack = 2 * Math.max(0, margin - EDGE_MARGIN);
+    var rings = profile.rings;
+    var focus = guess ? guess.focus : (profile.low + profile.high) / 2;
+    var d = guess ? guess.distance : 12;
+    for (var pass = 0; pass < 12; pass++) {
+      var rise = Math.sin(tilt) * d * 0.85 + 0.6;       // as in loop() below
       var len = Math.hypot(d, rise);
-      var fwd = [0, -rise / len, -d / len];            // looking along -z
-      var up = [0, d / len, -rise / len];
-      var need = 0.1;
-      for (var k = 0; k < 16; k++) {
-        var a = k * Math.PI / 8;
-        for (var side = -1; side <= 1; side += 2) {
-          var v = [Math.cos(a) * extent.radius, side * half,
-                   Math.sin(a) * extent.radius];
-          var px = Math.abs(v[0]);
-          var py = Math.abs(v[1] * up[1] + v[2] * up[2]);
-          var pz = v[1] * fwd[1] + v[2] * fwd[2];
-          need = Math.max(need, px / tanX - pz, py / tanY - pz);
+      var fy = -rise / len, fz = -d / len;              // looking along -z
+      var uy = d / len, uz = -rise / len;
+      var top = -1e9, bottom = 1e9, side = 0;
+      for (var i = 0; i < rings.length; i++) {
+        var vy = rings[i][0] - focus - rise;
+        var r = rings[i][1];
+        var giveY = rings[i][2] ? slack * tanY : 0;
+        var giveX = rings[i][2] ? slack * tanX : 0;
+        for (var j = 0; j < RING; j++) {
+          var vz = RING_SIN[j] * r - d;
+          var depth = vy * fy + vz * fz;
+          if (depth < 0.1) continue;
+          var sy = (vy * uy + vz * uz) / depth;
+          top = Math.max(top, sy - giveY);
+          bottom = Math.min(bottom, sy + giveY);
+          side = Math.max(side, Math.abs(RING_COS[j] * r) / depth - giveX);
         }
       }
-      // ``need`` is the slant distance to the target; the preview's
-      // distance is the level one, and the eye climbs as it backs off
-      d = need * padding * (d / len);
+      var fill = Math.max((top - bottom) / (2 * tanY), side / tanX);
+      // raise the camera with the aim to centre the silhouette, then back
+      // off (or close in) until it fills the share of the frame it should
+      var shift = ((top + bottom) / 2) * len / uy;
+      var next = Math.max(3, d * fill / target);
+      focus += shift;
+      var settled = Math.abs(shift) < 1e-3 && Math.abs(next - d) < 1e-3;
+      d = next;
+      if (settled) break;
     }
-    return d;
+    return { focus: focus, distance: d };
   }
 
   function LivePreview(container, descriptor) {
@@ -777,15 +894,16 @@
     this.angle = -0.45;
     this.tilt = 0.2;
     // The camera fits the character in whatever it is wearing; ``zoom`` is
-    // the viewer's scroll on top of that, and ``padding`` how much room the
-    // panel leaves round the fit.
+    // the viewer's scroll on top of that, and ``margin`` the share of the
+    // panel left clear above and below it (or either side, if the outfit
+    // is wider than it is tall for the panel).
     this.zoom = 1;
-    this.padding = 1.16;
-    this.extent = avatarExtent(descriptor);
+    this.margin = 0.04;
+    this.poseState = 'idle';
+    this.profile = avatarProfile(descriptor, this.poseState);
     this.frame = null;      // eased focus and distance, set on the first frame
     this.spin = true;
     this.time = 0;
-    this.poseState = 'idle';
     this.poseSpeed = 0;
     this.swapT = -1;        // >= 0 while a model swap is playing
     this.swapApply = null;
@@ -853,7 +971,7 @@
       Avatar.resetPose(this);
     }
     this.descriptor = descriptor;
-    this.extent = avatarExtent(descriptor);     // the camera eases to it
+    this.profile = avatarProfile(descriptor, this.poseState);  // eased to
   };
 
   /* The preview paints its own sky, and it is a night one whichever theme the
@@ -901,17 +1019,26 @@
     var hat = (this.descriptor.items || {}).hat;
     var unusual = (hat && hat.tier === 'unusual' && hat.effect_def) ? 1 : 0;
     // Aim at the middle of what the character is wearing and stand back
-    // until all of it is in -- a tall hat, a narrow panel, an Unusual
-    // effect's plume (counted in the extent) and a tilt from above all move
+    // just far enough for all of it to fill the panel -- a tall hat, a
+    // narrow panel, an Unusual effect's plume and a tilt from above all move
     // the camera rather than the crop.  Eased, so a new outfit slides into
     // frame instead of the camera jumping to it.
     var aspect = this.renderer.aspect || 1;
-    var want = {
-      focus: (this.extent.low + this.extent.high) / 2,
-      distance: fitDistance(this.extent, this.tilt, aspect, this.padding)
-    };
+    var fit = this.fit;
+    if (!fit || fit.profile !== this.profile || fit.tilt !== this.tilt ||
+        fit.aspect !== aspect || fit.margin !== this.margin) {
+      fit = this.fit = {
+        profile: this.profile, tilt: this.tilt, aspect: aspect,
+        margin: this.margin,
+        view: fitView(this.profile, this.tilt, aspect, this.margin,
+                      this.fit && this.fit.view)
+      };
+    }
+    var want = fit.view;
     if (!this.frame) this.frame = { focus: want.focus, distance: want.distance };
-    var ease = Math.min(1, dt * 5);
+    // backing off to make room is quicker than closing in, so a taller
+    // outfit is only ever cut off for a moment on its way into frame
+    var ease = Math.min(1, dt * (want.distance > this.frame.distance ? 10 : 5));
     this.frame.focus += (want.focus - this.frame.focus) * ease;
     this.frame.distance += (want.distance - this.frame.distance) * ease;
     var distance = this.frame.distance * this.zoom;
@@ -921,7 +1048,7 @@
     // closes up rather than fading -- same read, no see-through disc.
     var shadow = 0.25 + 0.75 * swap.alpha;
     this.renderer.pushRaw('cyl', 0, 0.02, 0, 0, 0, 0,
-                          5.2 * shadow, 0.04, 4.0 * shadow,
+                          SHADOW[0] * 2 * shadow, 0.04, SHADOW[1] * 2 * shadow,
                           [0.35, 0.42, 0.5], 0.32, 0, 0, 0.8, null);
     var centre = [0, this.frame.focus, 0];
     var eye = [
@@ -1012,6 +1139,7 @@
   LivePreview.prototype.setPose = function (state) {
     this.poseState = state || 'idle';
     this.poseSpeed = (state === 'run') ? 1 : (state === 'walk' ? 0.6 : 0);
+    this.profile = avatarProfile(this.descriptor, this.poseState);
   };
 
   Thumbs.LivePreview = LivePreview;
@@ -1228,10 +1356,10 @@
       preview.skyMode = 'stage';
       preview.applyTheme();
       preview.setPose(look.pose);
-      // Framed so the stage is filled rather than floated in: the fit is a
-      // touch tighter than the editor's, and -- like every preview -- it
-      // leaves the headroom a tall hat and its effect need overhead.
-      preview.padding = 1.1;
+      // Framed so the stage is filled rather than floated in -- and, like
+      // every preview, fitted to the look it is wearing, hat, effect and
+      // all, so a tall one is never cropped.
+      preview.margin = 0.05;
       preview.markHome();
       el.__preview = preview;
       el.__look = look;
