@@ -65,7 +65,6 @@ def heartbeat(req: Request):
     before = game_registry.raw(world_id) or {}
     previous = _humans(before)
     game_registry.heartbeat(world_id, payload)
-    players = int(payload.get("players", 0))
     humans = _humans(payload)
     status = game_registry.world_status(world_id)
     if status["players"]:

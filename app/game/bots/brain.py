@@ -497,7 +497,6 @@ class Brain:
             if self.goal != "fight" and not provoked:
                 return
         best, best_d = None, 1e9
-        eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
         checks = 2 if near else 0
         aggression = self.t("aggression", 0.5)
         reach = 90 + aggression * 90

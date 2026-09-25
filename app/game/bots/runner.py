@@ -28,7 +28,6 @@ import time
 from typing import Any, Dict, List, Optional
 
 from ..instance import Player, now
-from . import nav as nav_module
 from .brain import Brain, styled
 
 TEAMS = ("red", "blue")
@@ -375,7 +374,6 @@ class BotRunner:
                 if node >= 0:
                     brain.go(self.nav.point(node), "wander%d" % node)
             return
-        moment = now()
         # a station off cooldown pays best when you are standing at it
         for active in plot.actives():
             if active["ready_in"] <= 0 and self.rng.random() < 0.4 + brain.objective * 0.5:

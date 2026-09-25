@@ -8,7 +8,6 @@ director so a bot is never left half in a world.
 """
 from __future__ import annotations
 
-import json
 import time
 from typing import Any, Dict, List
 
@@ -44,6 +43,79 @@ def overview(req: Request):
         at=int(time.time()))
 
 
+@router.get("/api/admin/bots/rounds")
+@admin_required
+def rounds(req: Request):
+    director = _director()
+    return api_ok(rounds=director.rounds() if director.loaded else {})
+
+
+FEED_LIMIT = 40
+
+
+def _feed_rows(kind: str) -> List[Dict[str, Any]]:
+    """The latest social activity involving bots, straight from the tables.
+
+    Every query walks its table newest-first by primary key and stops at the
+    limit, so it costs the same with ten bots or two hundred thousand.
+    """
+    out: List[Dict[str, Any]] = []
+    if kind == "friends":
+        for r in db.query(
+                "SELECT f.status, f.created_at, f.updated_at, a.id AS a_id, a.username AS a,"
+                " a.is_bot AS a_bot, b.id AS b_id, b.username AS b, b.is_bot AS b_bot"
+                " FROM friendships f JOIN users a ON a.id=f.requester_id"
+                " JOIN users b ON b.id = CASE WHEN f.requester_id=f.user_low"
+                " THEN f.user_high ELSE f.user_low END"
+                " WHERE a.is_bot=1 OR b.is_bot=1 ORDER BY f.id DESC LIMIT ?", (FEED_LIMIT,)):
+            out.append({"kind": "friends" if r["status"] == "accepted" else "request",
+                        "at": int(r["updated_at"] or r["created_at"]),
+                        "who": r["a"], "who_id": r["a_id"], "who_bot": bool(r["a_bot"]),
+                        "to": r["b"], "to_id": r["b_id"], "to_bot": bool(r["b_bot"]),
+                        "text": ""})
+    elif kind == "chatter":
+        for r in db.query(
+                "SELECT c.body, c.created_at, a.id AS a_id, a.username AS a, a.is_bot AS a_bot,"
+                " p.id AS p_id, p.username AS p, p.is_bot AS p_bot"
+                " FROM profile_comments c JOIN users a ON a.id=c.author_id"
+                " JOIN users p ON p.id=c.profile_id"
+                " WHERE a.is_bot=1 OR p.is_bot=1 ORDER BY c.id DESC LIMIT ?", (FEED_LIMIT,)):
+            out.append({"kind": "comment", "at": int(r["created_at"]),
+                        "who": r["a"], "who_id": r["a_id"], "who_bot": bool(r["a_bot"]),
+                        "to": r["p"], "to_id": r["p_id"], "to_bot": bool(r["p_bot"]),
+                        "text": r["body"]})
+        for r in db.query(
+                "SELECT p.body, p.created_at, p.likes, u.id AS a_id, u.username AS a"
+                " FROM posts p JOIN users u ON u.id=p.user_id"
+                " WHERE u.is_bot=1 ORDER BY p.id DESC LIMIT ?", (FEED_LIMIT // 3,)):
+            out.append({"kind": "post", "at": int(r["created_at"]),
+                        "who": r["a"], "who_id": r["a_id"], "who_bot": True,
+                        "to": "", "to_id": 0, "to_bot": False,
+                        "text": r["body"], "likes": int(r["likes"] or 0)})
+    elif kind == "messages":
+        for r in db.query(
+                "SELECT m.body, m.created_at, s.id AS a_id, s.username AS a, s.is_bot AS a_bot,"
+                " t.id AS b_id, t.username AS b, t.is_bot AS b_bot"
+                " FROM messages m JOIN users s ON s.id=m.sender_id"
+                " JOIN users t ON t.id=m.recipient_id"
+                " WHERE s.is_bot=1 OR t.is_bot=1 ORDER BY m.id DESC LIMIT ?", (FEED_LIMIT,)):
+            out.append({"kind": "dm", "at": int(r["created_at"]),
+                        "who": r["a"], "who_id": r["a_id"], "who_bot": bool(r["a_bot"]),
+                        "to": r["b"], "to_id": r["b_id"], "to_bot": bool(r["b_bot"]),
+                        "text": r["body"]})
+    out.sort(key=lambda e: -e["at"])
+    return out[:FEED_LIMIT]
+
+
+@router.get("/api/admin/bots/feed")
+@admin_required
+def feed(req: Request):
+    kind = req.query.get("kind") or "chatter"
+    if kind not in ("friends", "chatter", "messages"):
+        return api_error("Unknown feed.")
+    return api_ok(rows=_feed_rows(kind), kind=kind)
+
+
 @router.get("/api/admin/bots/schema")
 @admin_required
 def schema(req: Request):
@@ -52,7 +124,9 @@ def schema(req: Request):
                   version=bot_config.version(),
                   tag_counts=director.tag_counts() if director.loaded else {},
                   tags=[{"id": t["id"], "label": t["label"], "group": t["group"],
-                         "prompt": t["prompt"]} for t in personas.all_tags()])
+                         "prompt": t["prompt"]} for t in personas.all_tags()],
+                  groups=[{"id": g, "exclusive": ex, "core": core, "max": most}
+                          for g, ex, core, most in personas.GROUPS])
 
 
 @router.post("/api/admin/bots/config")

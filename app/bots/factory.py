@@ -34,7 +34,6 @@ import time
 import traceback
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
-from .. import config as site_config
 from .. import db
 from ..models import catalog
 from . import config as bot_config
@@ -48,7 +47,7 @@ PALETTE = [e["hex"] for e in catalog.BODY_PALETTE]
 
 _lock = threading.RLock()
 _job: Optional[Dict[str, Any]] = None
-_history: List[Dict[str, Any]] = []
+_finished: List[Dict[str, Any]] = []
 _reserved: Set[str] = set()
 _auto = {"carry": 0.0, "at": 0.0}
 
@@ -63,7 +62,7 @@ def job_status() -> Dict[str, Any]:
         job = dict(_job) if _job else None
         if job:
             job["log"] = list(job.get("log", []))[-30:]
-        return {"job": job, "history": list(_history[-10:])}
+        return {"job": job, "history": list(_finished[-10:])}
 
 
 def _log(job: Dict[str, Any], text: str) -> None:
@@ -124,10 +123,10 @@ def _finish(job: Dict[str, Any]) -> None:
     with _lock:
         job["running"] = False
         job["finished"] = _now()
-        _history.append({k: job.get(k) for k in (
+        _finished.append({k: job.get(k) for k in (
             "id", "kind", "origin", "total", "done", "failed", "skipped",
             "started", "finished", "names_llm", "names_generated", "duplicates")})
-        del _history[:-30]
+        del _finished[:-30]
 
 
 def _run_create(job: Dict[str, Any]) -> None:
@@ -400,6 +399,11 @@ def style_text(text: str, traits: Dict[str, float], rng: random.Random) -> str:
     return text[:180]
 
 
+def _between_hours(pair, rng: random.Random) -> float:
+    lo, hi = float(pair[0]), float(pair[1])
+    return rng.uniform(min(lo, hi), max(lo, hi))
+
+
 def procedural_profile(card: Dict[str, Any], rng: random.Random) -> Tuple[str, str]:
     tags = card["tags"]
     traits = card["traits"]
@@ -603,14 +607,20 @@ def _design(reserved: List[str], rng: random.Random, now: int,
     public = float(bot_config.get("creation.public_server_share") or 40) / 100.0
     c_lo, c_hi = bot_config.get("creation.credits") or [150, 14000]
     unusual = float(bot_config.get("creation.unusual_chance") or 0)
+    off_window = bot_config.get("presence.offline_hours") or [1, 48]
     cards = []
     for name in reserved:
         tags = personas.draw_tags(rng, rng.randint(int(t_lo), int(t_hi)), weights)
         traits = personas.derive_traits(tags, rng)
         # new accounts are more common than old ones
         joined = int(start + (end - start) * (rng.random() ** 0.8))
-        recency = rng.random() ** 2.2
-        last_seen = int(max(joined, now - (now - joined) * recency * 0.3))
+        if rng.random() < 0.85:
+            # most accounts are regulars: last seen inside the usual offline gap
+            last_seen = int(max(joined, now - _between_hours(off_window, rng) * 3600))
+        else:
+            # the rest drifted away for a while and are coming back
+            recency = rng.random() ** 2.2
+            last_seen = int(max(joined, now - (now - joined) * recency * 0.3))
         wealth = traits.get("wealth", 0.5)
         credits = int(float(c_lo) + (float(c_hi) - float(c_lo)) * min(1.0, rng.random() ** 1.6 * (0.5 + wealth)))
         cards.append({
@@ -641,7 +651,6 @@ def _design(reserved: List[str], rng: random.Random, now: int,
 
 def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
     rng = random.Random()
-    starting = int(site_config.STARTING_CREDITS)
     created: List[Dict[str, Any]] = []
     with db.transaction() as conn:
         serial: Dict[str, int] = {}

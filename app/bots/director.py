@@ -46,7 +46,6 @@ from array import array
 from collections import deque
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
-from .. import config as site_config
 from .. import db
 from ..models import worlds as world_registry
 from . import config as bot_config
@@ -247,7 +246,9 @@ class Director:
         lo, hi = bot_config.get("friends.max_friends") or [3, 45]
         social_trait = float(traits.get("social", 0.5))
         target = lo + (hi - lo) * max(0.0, min(1.0, social_trait ** 1.3))
-        self.friend_target.append(int(max(0, min(200, round(target * random.uniform(0.8, 1.2))))))
+        # a fixed wobble per bot, so the target is the same after every restart
+        wobble = 0.8 + 0.4 * ((uid * 2654435761) % 1000) / 999.0
+        self.friend_target.append(int(max(0, min(200, round(target * wobble)))))
         bit = 0
         while mask:
             if mask & 1:
@@ -920,7 +921,6 @@ class Director:
         """
         if world not in self.dormant:
             return prefer
-        from ..game import registry
         now = _now()
         info = world_registry.get(world)
         cap = int(info["max_players"])
@@ -1065,6 +1065,30 @@ class Director:
 
     def world_view(self, world: str) -> Dict[str, Any]:
         return self.summaries.get(world) or {"players": 0, "instances": 0, "list": []}
+
+    def rounds(self, per_world: int = 24) -> Dict[str, Any]:
+        """Every round in every world, live first, for the dashboard."""
+        now = _now()
+        out: Dict[str, Any] = {}
+        with self.lock:
+            for world in WORLD_IDS:
+                rows: List[Dict[str, Any]] = []
+                for iid, h in sorted(self.hosted[world].items()):
+                    if not (h["bots"] or h["humans"]):
+                        continue
+                    rows.append({"id": iid, "state": "live", "bots": h["bots"],
+                                 "humans": h["humans"], "max": h["max"],
+                                 "round": h.get("round", 1), "phase": h.get("phase", ""),
+                                 "summary": ""})
+                sleeping = sorted(self.dormant[world].values(), key=lambda d: -d.count)
+                for inst in sleeping[:max(0, per_world - len(rows))]:
+                    rows.append({"id": inst.id, "state": "asleep", "bots": inst.count,
+                                 "humans": 0, "max": inst.max, "round": inst.round,
+                                 "phase": inst.phase, "summary": inst.summary(),
+                                 "age": max(0, now - int(inst.created))})
+                out[world] = {"rows": rows,
+                              "hidden": max(0, len(sleeping) + len(rows) - per_world)}
+        return out
 
     def dormant_players(self, world: str, limit: int = 60) -> List[Dict[str, Any]]:
         with self.lock:
@@ -1287,6 +1311,8 @@ class Director:
                 "ready_at": base64.b64encode(self.ready_at.tobytes()).decode(),
                 "session_end": base64.b64encode(self.session_end.tobytes()).decode(),
                 "dormant": [d.dump() for w in WORLD_IDS for d in self.dormant[w].values()],
+                "history": [[p["at"], p["online"], p["playing"], p["target"]]
+                            for p in self.history],
             }
         try:
             storage.ensure_root()
@@ -1297,12 +1323,26 @@ class Director:
         except OSError:
             pass
 
+    def _restore_history(self, rows: List[Any], now: int) -> None:
+        if self.history:
+            return
+        for row in rows:
+            try:
+                at, online, playing, target = (int(v) for v in row[:4])
+            except (TypeError, ValueError):
+                continue
+            if now - 24 * 3600 < at <= now:
+                self.history.append({"at": at, "online": online, "playing": playing,
+                                     "target": target, "n": self.n})
+
     def _restore_snapshot(self, now: int) -> bool:
         try:
             with open(str(SNAPSHOT)) as handle:
                 data = json.load(handle)
         except (OSError, ValueError):
             return False
+        # the activity chart survives a restart even when the rest is stale
+        self._restore_history(data.get("history") or [], now)
         if now - int(data.get("at", 0)) > SNAPSHOT_MAX_AGE:
             return False
 
@@ -1381,6 +1421,9 @@ class Director:
                     "sleeping_instances": summary.get("instances", 0),
                     "live_bots": live_bots, "live_humans": live_humans,
                     "live_instances": len(self.hosted[world]),
+                    # a host keeps an empty round warm; only count rounds with players
+                    "active_instances": sum(1 for h in self.hosted[world].values()
+                                            if h["bots"] or h["humans"]),
                 }
             return {
                 "total": self.n, "online": self.online, "playing": self.playing,
@@ -1391,6 +1434,7 @@ class Director:
                 "tick_ms": round(self.last_tick_ms, 2),
                 "events": list(self.events)[-30:],
                 "history": list(self.history)[-360:],
+                "plan": self.plan(now),
                 "loaded": self.loaded,
                 "enabled": self.enabled(),
             }
@@ -1491,6 +1535,16 @@ class Director:
                     if len(out) >= limit:
                         break
             return out
+
+    def plan(self, now: int, back_hours: int = 6, ahead_hours: int = 2) -> List[Dict[str, int]]:
+        """The target line for the activity chart, every ten minutes."""
+        if not (self.enabled() and bot_config.get("presence.enabled")):
+            return []
+        start = now - now % 600 - back_hours * 3600
+        steps = (back_hours + ahead_hours) * 6 + 1
+        return [{"at": start + k * 600,
+                 "target": int(round(self.n * self.curve(start + k * 600)))}
+                for k in range(steps + 1)]
 
     def curve_preview(self) -> List[Dict[str, Any]]:
         """Tomorrow's target curve, hour by hour, for the settings page."""

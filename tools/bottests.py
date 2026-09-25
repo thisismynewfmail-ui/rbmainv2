@@ -226,8 +226,6 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
         start = time.perf_counter()
         ticks = int(seconds / engine.TICK_DT)
         worst = 0.0
-        voids = 0
-        captures = 0
         for n in range(ticks):
             clock.t += engine.TICK_DT
             if person is not None:
@@ -294,7 +292,7 @@ def test_live(seconds: float) -> None:
 # ===================================================================== scale
 def test_scale(count: int) -> None:
     print("\n== scale (%d bots) ==" % count)
-    from app import bootstrap, db
+    from app import bootstrap
     with contextlib.redirect_stdout(io.StringIO()):
         bootstrap.seed()
     from app.bots import config as bot_config, director as dm, factory

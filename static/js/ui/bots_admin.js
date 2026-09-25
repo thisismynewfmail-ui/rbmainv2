@@ -13,7 +13,7 @@
   'use strict';
 
   var ICONS = {
-    stats: '▣', creation: '✚', personas: '☺', presence: '◔',
+    stats: '▣', creation: '✚', personas: '☺', presence: '☼',
     worlds: '◉', ingame: '⌖', friends: '❤', chatter: '✎',
     messages: '✉', llm: '⚙', prompts: '¶'
   };
@@ -24,6 +24,7 @@
     base: 'A platform-wide base that every bot scales by its own persona.'
   };
   var STATE_LABEL = { offline: 'Offline', waking: 'Settling in', online: 'Online', playing: 'In a world' };
+  var NEXT_LABEL = { offline: 'comes online', waking: 'ready', online: 'next move', playing: 'leaves world' };
 
   var BZ = {
     ready: false, visible: false, sub: 'stats',
@@ -76,6 +77,7 @@
       BZ.values = res.values;
       BZ.tags = res.tags || [];
       BZ.tagCounts = res.tag_counts || {};
+      BZ.schemaGroups = res.groups || [];
     });
   }
 
@@ -115,9 +117,11 @@
     Object.keys(worlds).forEach(function (id) {
       asleep += worlds[id].sleeping_instances || 0;
       liveBots += worlds[id].live_bots || 0;
-      liveInst += worlds[id].live_instances || 0;
+      liveInst += worlds[id].active_instances || 0;
       humans += worlds[id].live_humans || 0;
     });
+    var social = (o.chatter || {}).stats || {};
+    var talk = (social.comments || 0) + (social.replies || 0) + (social.dms || 0) + (social.posts || 0);
     var llm = o.llm || {}, info = llm.info || {};
     var llmState = !llm.enabled ? 'off' : (llm.available && info.reachable ? 'ready'
       : (llm.down_for ? 'backing off ' + llm.down_for + 's' : 'unreachable'));
@@ -128,11 +132,128 @@
       kpi('Online', num(s.online), 'target ' + num(s.target_online), 'var(--bz-online)') +
       kpi('In worlds', num(s.playing), 'target ' + num(s.target_playing), 'var(--bz-playing)') +
       kpi('Offline', num(s.offline), Math.round((s.curve_now || 0) * 100) + '% wanted now', 'var(--bz-offline)') +
-      kpi('Live rounds', num(liveInst), num(liveBots) + ' bots with ' + num(humans) + ' people', 'var(--link)') +
-      kpi('Asleep', num(asleep), 'instances at no cost', 'var(--bz-waking)') +
+      kpi('Live rounds', num(liveInst), liveInst ? num(liveBots) + ' bots with ' + num(humans) +
+          (humans === 1 ? ' person' : ' people') : 'nobody real is playing', 'var(--link)') +
+      kpi('Asleep', num(asleep), 'rounds simulated for free', 'var(--bz-waking)') +
+      kpi('Social', num(talk), num(social.requests_sent || 0) + ' friend requests, ' +
+          num(social.likes || 0) + ' likes', 'var(--bz-bot)') +
       kpi('Language model', '<span class="' + (llmState === 'ready' ? 'bz-ok' : 'bz-bad') + '">' +
           esc(llmState) + '</span>', (llm.per_minute || 0) + '/min, ' + queue + ' queued', 'var(--bz-target)');
-    drawChart(el('bz-spark'), s.history || [], null);
+    drawActivity(el('bz-spark'), s.history || [], s.plan || []);
+  }
+
+  function hhmm(at) {
+    var d = new Date(at * 1000);
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+
+  function niceTop(v) {
+    if (v <= 5) return 5;
+    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    var steps = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+    for (var i = 0; i < steps.length; i++) if (steps[i] * mag >= v) return steps[i] * mag;
+    return 10 * mag;
+  }
+
+  /* The hero chart: the target the peak curve asks for (dashed, six hours
+     back and two ahead) with what the director actually did laid over it. */
+  function drawActivity(canvas, history, plan) {
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var ratio = Math.min(2, window.devicePixelRatio || 1);
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    var style = getComputedStyle(document.documentElement);
+    function color(name, fallback) { return style.getPropertyValue(name).trim() || fallback; }
+    var c = { online: color('--bz-online', '#37c26a'), playing: color('--bz-playing', '#f0b429'),
+              target: color('--bz-target', '#5a7fa8'), ink: color('--ink-soft', '#888'),
+              line: color('--line-soft', '#ddd') };
+    var now = Date.now() / 1000;
+    var t0 = plan.length ? plan[0].at : now - 6 * 3600;
+    var t1 = plan.length ? plan[plan.length - 1].at : now;
+    history = history.filter(function (p) { return p.at >= t0; });
+    var top = 1;
+    plan.forEach(function (p) { top = Math.max(top, p.target); });
+    history.forEach(function (p) { top = Math.max(top, p.online, p.playing); });
+    top = niceTop(top * 1.08);
+    var pad = { l: 38, r: 10, t: 10, b: 18 };
+    var iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+    function X(at) { return pad.l + iw * (at - t0) / Math.max(1, t1 - t0); }
+    function Y(v) { return pad.t + ih - ih * v / top; }
+    ctx.font = '9px Verdana, sans-serif';
+    ctx.lineWidth = 1;
+    // grid and y labels
+    [0, 0.5, 1].forEach(function (f) {
+      var y = Math.round(Y(top * f)) + 0.5;
+      ctx.strokeStyle = c.line;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+      ctx.fillStyle = c.ink;
+      ctx.textAlign = 'right';
+      ctx.fillText(num(Math.round(top * f)), pad.l - 5, y + 3);
+    });
+    // the future is shaded
+    var nx = Math.min(w - pad.r, Math.max(pad.l, X(now)));
+    ctx.fillStyle = 'rgba(128,128,128,.07)';
+    ctx.fillRect(nx, pad.t, w - pad.r - nx, ih);
+    // hour ticks
+    ctx.textAlign = 'center';
+    ctx.fillStyle = c.ink;
+    for (var at = Math.ceil(t0 / 3600) * 3600; at <= t1; at += 3600) {
+      var x = X(at);
+      ctx.fillRect(Math.round(x), pad.t + ih, 1, 3);
+      ctx.fillText(hhmm(at), x, h - 4);
+    }
+    function path(points, key, stroke, dash, width) {
+      if (!points.length) return;
+      ctx.beginPath();
+      points.forEach(function (p, i) {
+        var x = X(p.at), y = Y(p[key] || 0);
+        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      });
+      if (points.length === 1) ctx.lineTo(X(points[0].at) + 2, Y(points[0][key] || 0));
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width || 2;
+      ctx.setLineDash(dash ? [4, 3] : []);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    path(plan, 'target', c.target, true, 1.3);
+    // soft fill under "online" so the shape reads at a glance
+    if (history.length > 1) {
+      ctx.beginPath();
+      history.forEach(function (p, i) {
+        if (i) ctx.lineTo(X(p.at), Y(p.online)); else ctx.moveTo(X(p.at), Y(p.online));
+      });
+      ctx.lineTo(X(history[history.length - 1].at), Y(0));
+      ctx.lineTo(X(history[0].at), Y(0));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(55,194,106,.12)';
+      ctx.fill();
+    }
+    path(history, 'playing', c.playing);
+    path(history, 'online', c.online);
+    history.slice(-1).forEach(function (p) {
+      [['online', c.online], ['playing', c.playing]].forEach(function (k) {
+        ctx.beginPath();
+        ctx.arc(X(p.at), Y(p[k[0]]), 3, 0, Math.PI * 2);
+        ctx.fillStyle = k[1];
+        ctx.fill();
+      });
+    });
+    // now marker
+    ctx.strokeStyle = c.ink;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(Math.round(nx) + 0.5, pad.t); ctx.lineTo(Math.round(nx) + 0.5, pad.t + ih); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = c.ink;
+    ctx.fillText('now', nx + 4, pad.t + 9);
+    if (history.length < 3) ctx.fillText('collecting — one sample a minute', pad.l + 6, pad.t + 9);
+    ctx.textAlign = 'start';
   }
 
   function updateLiveBits() {
@@ -146,10 +267,10 @@
     if (BZ.sub === 'worlds') { drawWorldTable(); }
   }
 
-  /* A plain canvas chart: online, in worlds and the target, over the last
-     hours, sampled once a minute by the director. */
-  function drawChart(canvas, history, curve) {
-    if (!canvas) return;
+  /* The presence curve: the share of bots the director keeps online over
+     the next day, with the peak window shaded and a "now" marker. */
+  function drawCurveChart(canvas, curve) {
+    if (!canvas || !curve.length) return;
     var ctx = canvas.getContext('2d');
     var ratio = Math.min(2, window.devicePixelRatio || 1);
     var w = canvas.clientWidth, h = canvas.clientHeight;
@@ -159,75 +280,66 @@
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, w, h);
     var style = getComputedStyle(document.documentElement);
-    var colors = {
-      online: style.getPropertyValue('--bz-online').trim() || '#37c26a',
-      playing: style.getPropertyValue('--bz-playing').trim() || '#f0b429',
-      target: style.getPropertyValue('--bz-target').trim() || '#5a7fa8',
-      ink: style.getPropertyValue('--ink-soft').trim() || '#888'
-    };
-    var pad = { l: 8, r: 8, t: 22, b: 14 };
-    if (curve) {
-      var max = 1;
-      var pts = curve.map(function (p, i) {
-        return [pad.l + (w - pad.l - pad.r) * i / Math.max(1, curve.length - 1),
-                h - pad.b - (h - pad.t - pad.b) * p.share / max];
-      });
-      ctx.beginPath();
-      pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
-      ctx.lineTo(pts[pts.length - 1][0], h - pad.b);
-      ctx.lineTo(pts[0][0], h - pad.b);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(154,95,224,.14)';
-      ctx.fill();
-      ctx.beginPath();
-      pts.forEach(function (p, i) { if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
-      ctx.strokeStyle = '#9a5fe0';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.fillStyle = colors.ink;
-      ctx.font = '9px Verdana, sans-serif';
-      curve.forEach(function (p, i) {
-        if (i % 6) return;
-        var d = new Date(p.at * 1000);
-        ctx.fillText(('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2),
-                     pts[i][0] - 10, h - 2);
-      });
-      // "now" marker
-      ctx.strokeStyle = colors.ink;
-      ctx.setLineDash([2, 3]);
-      var nowX = pad.l + (w - pad.l - pad.r) * ((Date.now() / 1000 - curve[0].at) /
-        Math.max(1, curve[curve.length - 1].at - curve[0].at));
-      ctx.beginPath(); ctx.moveTo(nowX, pad.t); ctx.lineTo(nowX, h - pad.b); ctx.stroke();
-      ctx.setLineDash([]);
-      return;
-    }
-    if (!history.length) {
-      ctx.fillStyle = colors.ink;
-      ctx.font = '11px Verdana, sans-serif';
-      ctx.fillText('Collecting history — one sample a minute.', 12, h / 2 + 4);
-      return;
-    }
-    var top = 1;
-    history.forEach(function (p) { top = Math.max(top, p.online, p.target, p.playing); });
-    function line(key, color, dash) {
-      ctx.beginPath();
-      history.forEach(function (p, i) {
-        var x = pad.l + (w - pad.l - pad.r) * (history.length === 1 ? 1 : i / (history.length - 1));
-        var y = h - pad.b - (h - pad.t - pad.b) * (p[key] || 0) / top;
-        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-      });
-      ctx.strokeStyle = color;
-      ctx.lineWidth = dash ? 1.2 : 2;
-      ctx.setLineDash(dash ? [4, 3] : []);
-      ctx.stroke();
-    }
-    line('target', colors.target, true);
-    line('playing', colors.playing);
-    line('online', colors.online);
-    ctx.setLineDash([]);
-    ctx.fillStyle = colors.ink;
+    var ink = style.getPropertyValue('--ink-soft').trim() || '#888';
+    var grid = style.getPropertyValue('--line-soft').trim() || '#ddd';
+    var pad = { l: 38, r: 10, t: 12, b: 18 };
+    var iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+    var t0 = curve[0].at, t1 = curve[curve.length - 1].at;
+    function X(at) { return pad.l + iw * (at - t0) / Math.max(1, t1 - t0); }
+    function Y(v) { return pad.t + ih - ih * v; }
     ctx.font = '9px Verdana, sans-serif';
-    ctx.fillText(num(top), 10, 12);
+    ctx.lineWidth = 1;
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
+      var y = Math.round(Y(f)) + 0.5;
+      ctx.strokeStyle = grid;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(f * 100) + '%', pad.l - 5, y + 3);
+    });
+    ctx.textAlign = 'center';
+    curve.forEach(function (p, i) {
+      if (i % 6) return;
+      ctx.fillText(hhmm(p.at), X(p.at), h - 4);
+    });
+    ctx.beginPath();
+    curve.forEach(function (p, i) { if (i) ctx.lineTo(X(p.at), Y(p.share)); else ctx.moveTo(X(p.at), Y(p.share)); });
+    ctx.lineTo(X(t1), Y(0));
+    ctx.lineTo(X(t0), Y(0));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(154,95,224,.16)';
+    ctx.fill();
+    ctx.beginPath();
+    curve.forEach(function (p, i) { if (i) ctx.lineTo(X(p.at), Y(p.share)); else ctx.moveTo(X(p.at), Y(p.share)); });
+    ctx.strokeStyle = '#9a5fe0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // the highest point, labelled
+    var best = curve.reduce(function (a, p) { return p.share > a.share ? p : a; }, curve[0]);
+    ctx.fillStyle = '#7b45c2';
+    ctx.textAlign = 'left';
+    ctx.fillText(Math.round(best.share * 100) + '% at ' + hhmm(best.at), Math.min(w - 90, X(best.at) + 4), Y(best.share) - 5);
+    var nowAt = Date.now() / 1000;
+    var nx = X(nowAt), share = curve[0].share;
+    for (var i = 1; i < curve.length; i++) {
+      if (curve[i].at >= nowAt) {
+        var a = curve[i - 1], b = curve[i];
+        share = a.share + (b.share - a.share) * (nowAt - a.at) / Math.max(1, b.at - a.at);
+        break;
+      }
+    }
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(Math.round(nx) + 0.5, pad.t); ctx.lineTo(Math.round(nx) + 0.5, pad.t + ih); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(nx, Y(share), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#9a5fe0';
+    ctx.fill();
+    ctx.fillStyle = ink;
+    ctx.fillText('now ' + Math.round(share * 100) + '%', nx + 6, pad.t + 9);
+    ctx.textAlign = 'start';
   }
 
   // ================================================================= nav
@@ -261,7 +373,7 @@
     var sec = sectionInfo(BZ.sub);
     var html = '';
     var extra = {
-      stats: statsPane, creation: creationPane, personas: null, presence: presencePane,
+      stats: statsPane, creation: creationPane, personas: personasPane, presence: presencePane,
       worlds: worldsPane, ingame: null, friends: feedsPane, chatter: feedsPane,
       messages: feedsPane, llm: llmPane, prompts: promptsPane
     }[BZ.sub];
@@ -281,6 +393,44 @@
     if (BZ.sub === 'worlds') { drawWorldTable(); }
     if (BZ.sub === 'friends' || BZ.sub === 'chatter' || BZ.sub === 'messages') { drawFeeds(); }
     syncBands();
+  }
+
+  // ============================================================ personas
+  var GROUP_HELP = {
+    schedule: 'When it tends to be online: shifts its own peak hours.',
+    skill: 'Aim, reaction time and how well it finds its way around.',
+    focus: 'What it does in a round: objectives, frags, exploring or messing about.',
+    social: 'How many friends it wants and how often it comments and chats.',
+    voice: 'How it types, in every message the model writes for it.',
+    temper: 'How it takes losing, dying and trash talk.',
+    weapon: 'The loadout it reaches for.',
+    age: 'Slang and topics in its persona block.',
+    world: 'Favourite worlds: weights where it queues.',
+    interest: 'What it talks about on walls and in posts.',
+    custom: 'Your own tags, from the Custom tags list below.'
+  };
+
+  function personasPane() {
+    var groups = (BZ.schemaGroups || []);
+    var bots = (BZ.overview && BZ.overview.population) || 0;
+    var depth = BZ.values['friends.depth'] || 0;
+    return '<p class="bz-lead">Every bot draws one tag from each <b>core</b> group, so the system always knows ' +
+      'how to drive it, then a few extras. The tags are the bot: they set its traits (when it is online, ' +
+      'how it plays, how it types), decide who it befriends — two bots need <b>' + depth +
+      '</b> shared tag' + (depth === 1 ? '' : 's') + ' (Friends → depth) — and each tag\'s line below goes ' +
+      'into the persona block the language model sees. Hover a tag for its line; weights below change how ' +
+      'often new bots draw it.</p><div class="bz-groups">' + groups.map(function (g) {
+        var tags = BZ.tags.filter(function (t) { return t.group === g.id; });
+        if (!tags.length) return '';
+        return '<div class="bz-group"><div class="bz-group-head"><b>' + esc(g.id) + '</b>' +
+          (g.core ? '<span class="pill">every bot</span>' : '<span class="pill">up to ' + g.max + '</span>') +
+          '</div><div class="tiny muted">' + esc(GROUP_HELP[g.id] || '') + '</div><div class="bz-tags">' +
+          tags.map(function (t) {
+            var count = BZ.tagCounts[t.id] || 0;
+            return '<span class="bz-tag g-' + esc(g.id) + '" title="' + esc(t.prompt) + '">' + esc(t.label) +
+              ' <small>' + (bots ? Math.round(count / bots * 100) + '%' : num(count)) + '</small></span>';
+          }).join('') + '</div></div>';
+      }).join('') + '</div>';
   }
 
   // ==================================================== feature switches
@@ -500,12 +650,15 @@
         return '<option value="' + esc(tag.id) + '"' + (t.tag === tag.id ? ' selected' : '') + '>' +
           esc(tag.label) + ' (' + esc(tag.group) + ')</option>';
       }).join('') + '</select>' +
-      '<select id="bz-sort"><option value="recent">Newest</option><option value="name">Name</option>' +
-      '<option value="joined">Join date</option><option value="seen">Last seen</option></select>' +
       '</div>' +
+      '<div class="bz-results"><span id="bz-result-count" class="muted">&nbsp;</span><label class="tiny">Sort by ' +
+      '<select id="bz-sort">' + [['recent', 'Newest bots'], ['name', 'Name'], ['joined', 'Join date'],
+        ['seen', 'Last seen']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (t.sort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select></label></div>' +
       '<div class="tablewrap"><table class="bz-table" id="bz-table"><tr><th>Bot</th><th>State</th><th>Where</th>' +
       '<th class="hide-sm">Friends</th><th>Comments</th><th class="hide-sm">K / D</th><th class="hide-sm">Joined</th>' +
-      '<th class="hide-sm">Next</th></tr><tr><td colspan="8" class="muted">Loading…</td></tr></table></div>' +
+      '<th class="hide-sm" title="When the bot will next change what it is doing">Next</th></tr><tr><td colspan="8" class="muted">Loading…</td></tr></table></div>' +
       '<div class="bz-pager" id="bz-pager"></div>';
   }
 
@@ -515,16 +668,23 @@
     var stats = BZ.overview.stats || {}, worlds = stats.worlds || {};
     box.innerHTML = (BZ.overview.worlds || []).map(function (w) {
       var s = worlds[w.id] || {};
-      var total = (s.live_humans || 0) + (s.live_bots || 0) + (s.sleeping_bots || 0);
+      var bots = (s.live_bots || 0) + (s.sleeping_bots || 0);
+      var total = (s.live_humans || 0) + bots;
       var pct = function (n) { return total ? (n / total * 100) : 0; };
-      return '<div class="bz-world"><b>' + esc(w.name) + '</b>' +
-        '<div class="bz-split" title="people / bots in live rounds / bots asleep">' +
+      var live = s.active_instances || 0, asleep = s.sleeping_instances || 0;
+      var picked = BZ.table.world === w.id;
+      return '<button type="button" class="bz-world' + (picked ? ' on' : '') + '" data-bz-world="' + esc(w.id) +
+        '" title="Show the bots in ' + esc(w.name) + '"><span class="bz-world-head"><b>' + esc(w.name) + '</b>' +
+        '<span class="bz-world-count">' + num(total) + '</span></span>' +
+        '<span class="bz-split" title="people, bots in live rounds, bots in sleeping rounds">' +
         '<i class="p" style="width:' + pct(s.live_humans || 0) + '%"></i>' +
         '<i class="l" style="width:' + pct(s.live_bots || 0) + '%"></i>' +
-        '<i class="s" style="width:' + pct(s.sleeping_bots || 0) + '%"></i></div>' +
-        '<div class="tiny"><span>' + num(s.live_humans) + ' people</span><span>' + num(s.live_bots) + ' live bots</span></div>' +
-        '<div class="tiny"><span>' + num(s.sleeping_bots) + ' asleep</span><span>' + num(s.sleeping_instances) +
-        ' + ' + num(s.live_instances) + ' inst.</span></div></div>';
+        '<i class="s" style="width:' + pct(s.sleeping_bots || 0) + '%"></i></span>' +
+        '<span class="tiny"><span><i class="k p"></i>' + num(s.live_humans) + ' people</span>' +
+        '<span><i class="k l"></i>' + num(s.live_bots) + ' live</span>' +
+        '<span><i class="k s"></i>' + num(s.sleeping_bots) + ' asleep</span></span>' +
+        '<span class="tiny muted">' + (live ? num(live) + ' live round' + (live === 1 ? '' : 's') + ', ' : '') +
+        num(asleep) + ' asleep round' + (asleep === 1 ? '' : 's') + '</span></button>';
     }).join('');
   }
 
@@ -558,7 +718,7 @@
         }).join('') + (r.tags.length > 6 ? '<span class="bz-tag">+' + (r.tags.length - 6) + '</span>' : '') +
         '</div></div></div></td>' +
         '<td><span class="bz-state ' + r.state + '"><i></i>' + (STATE_LABEL[r.state] || r.state) + '</span>' +
-        '<span class="bz-sub">' + (r.state === 'offline' ? 'since ' + ago(r.since) : 'for ' + ago(r.since).replace(' ago', '')) + '</span></td>' +
+        '<span class="bz-sub">for ' + ago(r.since).replace(' ago', '') + '</span></td>' +
         '<td>' + where + '</td>' +
         '<td class="hide-sm bz-num">' + r.friends + ' / ' + r.friend_target +
         '<div class="bz-meter"><i style="width:' + Math.min(100, r.friend_target ? r.friends / r.friend_target * 100 : 0) + '%"></i></div></td>' +
@@ -566,10 +726,14 @@
           esc(r.last_comment) + '” <span class="muted">' + ago(r.last_comment_at) + '</span></div>' : '') + '</td>' +
         '<td class="hide-sm bz-num">' + num(r.kills) + ' / ' + num(r.deaths) + '<span class="bz-sub">K/D ' + kd + '</span></td>' +
         '<td class="hide-sm bz-num">' + new Date(r.joined * 1000).toLocaleDateString() + '</td>' +
-        '<td class="hide-sm bz-num">' + (r.next_at ? inFuture(r.next_at) : '—') + '</td></tr>';
+        '<td class="hide-sm bz-num">' + (r.next_at ? '<span class="bz-sub">' + (NEXT_LABEL[r.state] || 'next') +
+          '</span>' + inFuture(r.next_at) : '—') + '</td></tr>';
     }).join('');
     if (!rows) rows = '<tr><td colspan="8" class="muted">No bots match. Create some in Bot Creation.</td></tr>';
     table.innerHTML = head + rows;
+    var count = el('bz-result-count');
+    if (count) count.textContent = num(t.total) + ' bot' + (t.total === 1 ? '' : 's') +
+      (t.q || t.state || t.world || t.tag ? ' match' + (t.total === 1 ? 'es' : '') : '');
     var pages = Math.max(1, Math.ceil(t.total / t.size));
     el('bz-pager').innerHTML = '<span>' + num(t.total) + ' bot' + (t.total === 1 ? '' : 's') + '</span>' +
       '<span><button class="btn small" type="button" data-bz="prev"' + (t.page <= 0 ? ' disabled' : '') + '>&laquo; Prev</button> ' +
@@ -746,7 +910,7 @@
 
   function drawCurve() {
     var canvas = el('bz-curve');
-    if (canvas && BZ.overview) drawChart(canvas, [], BZ.overview.curve || []);
+    if (canvas && BZ.overview) drawCurveChart(canvas, BZ.overview.curve || []);
   }
 
   // ========================================================== worlds pane
@@ -754,7 +918,8 @@
     return '<p class="bz-intro">Bots only run on a game host in rounds a real player is in. Everywhere else a round ' +
       'sleeps: its score, clock and objective carry on in closed form, it shows in every player count and list, and it ' +
       'costs nothing until somebody presses Join — then it wakes mid-round.</p><div class="tablewrap">' +
-      '<table class="grid" id="bz-world-table"></table></div>';
+      '<table class="grid" id="bz-world-table"></table></div>' +
+      '<h4 class="bz-h">Rounds right now</h4><div class="bz-rounds" id="bz-rounds"></div>';
   }
 
   function drawWorldTable() {
@@ -762,49 +927,107 @@
     if (!table || !BZ.overview) return;
     var worlds = (BZ.overview.stats || {}).worlds || {};
     table.innerHTML = '<tr><th>World</th><th>People</th><th>Bots with people</th><th>Bots asleep</th>' +
-      '<th>Live instances</th><th>Sleeping instances</th></tr>' + (BZ.overview.worlds || []).map(function (w) {
+      '<th>Live rounds</th><th>Sleeping rounds</th></tr>' + (BZ.overview.worlds || []).map(function (w) {
         var s = worlds[w.id] || {};
         return '<tr><td><b>' + esc(w.name) + '</b></td><td>' + num(s.live_humans) + '</td><td>' + num(s.live_bots) +
-          '</td><td>' + num(s.sleeping_bots) + '</td><td>' + num(s.live_instances) + '</td><td>' +
+          '</td><td>' + num(s.sleeping_bots) + '</td><td>' + num(s.active_instances) + '</td><td>' +
           num(s.sleeping_instances) + '</td></tr>';
       }).join('');
+    Site.get('/api/admin/bots/rounds').then(function (res) {
+      var box = el('bz-rounds');
+      if (!box || !res.ok) return;
+      box.innerHTML = (BZ.overview.worlds || []).map(function (w) {
+        var info = res.rounds[w.id] || { rows: [], hidden: 0 };
+        var rows = info.rows.map(function (r) {
+          var fill = r.max ? Math.min(100, (r.bots + r.humans) / r.max * 100) : 0;
+          return '<div class="bz-round ' + r.state + '"><span class="bz-round-id">#' + r.id + '</span>' +
+            '<span class="bz-round-state">' + (r.state === 'live' ? 'live' : 'asleep') + '</span>' +
+            '<span class="bz-round-who">' + (r.humans ? num(r.humans) + ' ' + (r.humans === 1 ? 'person' : 'people') + ' + ' : '') +
+            num(r.bots) + ' bot' + (r.bots === 1 ? '' : 's') + ' <span class="muted">/ ' + r.max + '</span></span>' +
+            '<span class="bz-meter"><i style="width:' + fill + '%"></i></span>' +
+            '<span class="bz-round-score">' + esc(r.summary || ('round ' + r.round)) +
+            (r.phase && r.phase !== 'active' ? ' <span class="muted">(' + esc(r.phase) + ')</span>' : '') + '</span></div>';
+        }).join('') || '<div class="muted tiny">No rounds.</div>';
+        return '<div class="bz-round-world"><b>' + esc(w.name) + '</b>' + rows +
+          (info.hidden ? '<div class="muted tiny">…and ' + num(info.hidden) + ' more asleep</div>' : '') + '</div>';
+      }).join('');
+    });
   }
 
   // ============================================================ feed panes
+  var FEEDS = {
+    friends: { title: 'Latest friendships', empty: 'No bot has a friend yet.',
+      cells: function (s) {
+        return [['Requests sent', s.requests_sent], ['Accepted', s.accepted], ['Declined', s.declined],
+                ['Follows', s.follows]];
+      } },
+    chatter: { title: 'Latest comments and posts', empty: 'Nothing written yet.',
+      cells: function (s, c) {
+        return [['Comments', s.comments], ['Wall replies', s.replies], ['Posts', s.posts], ['Likes', s.likes],
+                ['Held back (budget)', s.deferred], ['Waiting wall replies', c.pending_walls]];
+      } },
+    messages: { title: 'Latest direct messages', empty: 'No messages to or from a bot yet.',
+      cells: function (s, c, g, game) {
+        return [['DMs answered', s.dms], ['Waiting DMs', c.pending_dms], ['Chat heard', g.heard],
+                ['Chat answered', g.answered], ['Live chat rooms', game.rooms]];
+      } }
+  };
+
   function feedsPane() {
-    return '<div class="bz-grid2"><div><b>What they are saying</b><div class="bz-feed" id="bz-feed-social"></div></div>' +
-      '<div><b>Numbers</b><div class="bz-status" id="bz-feed-stats"></div>' +
-      '<b style="display:block;margin-top:8px">In-game chat</b><div class="bz-feed" id="bz-feed-chat"></div></div></div>';
+    var f = FEEDS[BZ.sub];
+    BZ.feedAt = 0;
+    return '<div class="bz-grid2 bz-feeds"><div><div class="bz-feed-head"><b>' + esc(f.title) +
+      '</b><span class="muted tiny">newest first · click a bot to open it</span></div>' +
+      '<div class="bz-feed tall" id="bz-feed-db"><span class="muted tiny">Loading…</span></div></div>' +
+      '<div><div class="bz-feed-head"><b>Since the server started</b></div><div class="bz-status compact" id="bz-feed-stats"></div>' +
+      (BZ.sub === 'messages' ? '<div class="bz-feed-head" style="margin-top:10px"><b>In-game chat answered</b></div>' +
+        '<div class="bz-feed" id="bz-feed-chat"></div>' : '') + '</div></div>';
+  }
+
+  function person(name, id, bot) {
+    if (!name) return '';
+    return bot ? '<a href="#" class="bz-name bot" data-bz-open="' + id + '">' + esc(name) + '</a>'
+               : '<a href="/profile/' + encodeURIComponent(name) + '" class="bz-name" target="_blank">' + esc(name) +
+                 '</a> <span class="pill tiny-pill">real</span>';
+  }
+
+  var FEED_VERB = { request: 'sent a friend request to', friends: 'is friends with', comment: 'on',
+                    post: 'posted', dm: 'to' };
+
+  function loadFeed() {
+    var kind = BZ.sub;
+    Site.get('/api/admin/bots/feed?kind=' + kind).then(function (res) {
+      var box = el('bz-feed-db');
+      if (!box || !res.ok || BZ.sub !== kind) return;
+      box.innerHTML = res.rows.length ? res.rows.map(function (r) {
+        var line = person(r.who, r.who_id, r.who_bot);
+        if (r.kind === 'post') line += ' posted';
+        else line += ' <span class="muted">' + FEED_VERB[r.kind] + '</span> ' + person(r.to, r.to_id, r.to_bot);
+        return '<div class="row"><span class="t">' + ago(r.at) + '</span><span class="k ' + r.kind + '">' +
+          esc(r.kind) + '</span>' + line + (r.text ? '<div class="say">' + esc(r.text) + '</div>' : '') +
+          (r.likes ? '<span class="muted tiny"> ♥ ' + num(r.likes) + '</span>' : '') + '</div>';
+      }).join('') : '<span class="muted tiny">' + esc(FEEDS[kind].empty) + '</span>';
+    });
   }
 
   function drawFeeds() {
-    if (!BZ.overview) return;
+    if (!BZ.overview || !FEEDS[BZ.sub]) return;
     var chatter = BZ.overview.chatter || {}, game = BZ.overview.gamechat || {};
-    var social = el('bz-feed-social');
-    if (social) {
-      var rows = (chatter.recent || []).slice().reverse();
-      social.innerHTML = rows.length ? rows.map(function (r) {
-        return '<div class="row"><span class="t">' + ago(r.at) + '</span><span class="k">' + esc(r.kind) + '</span><b>' +
-          esc(r.who) + '</b>' + (r.where ? ' → ' + esc(r.where) : '') + ': ' + esc(r.text) + '</div>';
-      }).join('') : '<span class="muted tiny">Nothing written yet.</span>';
+    if (Date.now() - (BZ.feedAt || 0) > 10000) {
+      BZ.feedAt = Date.now();
+      loadFeed();
     }
     var chat = el('bz-feed-chat');
     if (chat) {
       var lines = (game.recent || []).slice().reverse();
       chat.innerHTML = lines.length ? lines.map(function (r) {
         return '<div class="row"><span class="t">' + ago(r.at) + '</span><span class="k">' + esc(r.world) + '</span><b>' +
-          esc(r.who) + '</b> to ' + esc(r.to) + ': ' + esc(r.text) + '</div>';
+          esc(r.who) + '</b> <span class="muted">to</span> ' + esc(r.to) + '<div class="say">' + esc(r.text) + '</div></div>';
       }).join('') : '<span class="muted tiny">No bot has answered anybody in a round yet.</span>';
     }
     var stats = el('bz-feed-stats');
     if (stats) {
-      var s = chatter.stats || {}, g = game.stats || {};
-      var cells = [['Requests sent', s.requests_sent], ['Accepted', s.accepted], ['Declined', s.declined],
-        ['Follows', s.follows], ['Comments', s.comments], ['Replies', s.replies], ['Posts', s.posts],
-        ['Likes', s.likes], ['DMs answered', s.dms], ['Deferred (budget)', s.deferred],
-        ['Waiting DMs', chatter.pending_dms], ['Waiting wall replies', chatter.pending_walls],
-        ['Chat heard', g.heard], ['Chat answered', g.answered], ['Live chat rooms', game.rooms]];
-      stats.innerHTML = cells.map(function (c) {
+      stats.innerHTML = FEEDS[BZ.sub].cells(chatter.stats || {}, chatter, game.stats || {}, game).map(function (c) {
         return '<dl class="cell"><dt>' + esc(c[0]) + '</dt><dd>' + num(c[1]) + '</dd></dl>';
       }).join('');
     }
@@ -914,8 +1137,18 @@
       }
       t = event.target.closest('[data-bz-state]');
       if (t) { BZ.table.state = t.dataset.bzState; BZ.table.page = 0; drawSub(); return; }
+      t = event.target.closest('[data-bz-world]');
+      if (t) {
+        // a world card toggles the world filter
+        var picked = BZ.table.world === t.dataset.bzWorld ? '' : t.dataset.bzWorld;
+        BZ.table.world = picked;
+        BZ.table.state = picked ? 'playing' : '';
+        BZ.table.page = 0;
+        drawSub();
+        return;
+      }
       t = event.target.closest('[data-bz-open]');
-      if (t) { openBot(t.dataset.bzOpen); return; }
+      if (t) { event.preventDefault(); openBot(t.dataset.bzOpen); return; }
       t = event.target.closest('[data-bz-log]');
       if (t) { openLog(t.dataset.bzLog); return; }
       t = event.target.closest('[data-bz-act]');
