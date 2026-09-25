@@ -89,6 +89,13 @@ class Director:
         self.hosted: Dict[str, Dict[int, Dict[str, Any]]] = {w: {} for w in WORLD_IDS}
         self.hosted_at: Dict[str, float] = {w: 0.0 for w in WORLD_IDS}
         self.next_inst: Dict[str, int] = {w: 2 for w in WORLD_IDS}
+        # sleeping instances with room, so a bot joining a world samples a few
+        # instead of scanning thousands (entries go stale and are dropped
+        # lazily; the whole index is rebuilt every minute)
+        self.open: Dict[str, List[int]] = {w: [] for w in WORLD_IDS}
+        self.open_set: Dict[str, Set[int]] = {w: set() for w in WORLD_IDS}
+        self._open_at = 0.0
+        self._free_hint: Dict[str, int] = {w: 1 for w in WORLD_IDS}
         self.ops: Dict[str, List[Dict[str, Any]]] = {w: [] for w in WORLD_IDS}
         self.expect: Dict[int, Tuple[str, int, float]] = {}   # uid -> (world, inst, deadline)
         # bots the director has placed in live (hosted) rounds: world -> uid -> inst
@@ -112,6 +119,7 @@ class Director:
         self._flat: List[Tuple[str, dormant_model.Dormant]] = []
         self._flat_at = 0.0
         self._listing_at = 0.0
+        self._count_at = 0.0
         self.chatter = None          # set by start(): chatter.Engine
         self.gamechat = None         # set by start(): gamechat.Relay
         self.version = 0
@@ -223,6 +231,7 @@ class Director:
             restored = self._restore_snapshot(now)
             if not restored:
                 self._warm_start(now)
+            self._rebuild_open()
         self._note("loaded %d bots in %.1fs%s" % (self.n, time.time() - started,
                                                   " (restored)" if self.n and restored else ""))
 
@@ -489,7 +498,11 @@ class Director:
         draw = float(lo) + span * (self.rng.random() ** (1.0 + activity * 1.6))
         seconds = draw * 3600.0
         base = self.since[i] if fresh else now
-        when = max(now + 30, int(base + seconds))
+        when = int(base + seconds)
+        if when < now + 30:
+            # overdue (the server was down through its return): spread the
+            # returns over a quarter of an hour instead of all at once
+            when = now + 30 + int(self.rng.random() * 900)
         self._schedule(i, when)
 
     def _wake(self, i: int, now: int) -> None:
@@ -767,12 +780,50 @@ class Director:
             if options and self.rng.random() < min(0.95, 0.25 * pull):
                 iid, _h = max(options, key=lambda o: (self.rng.random() * pull, -o[1]["count"]))
                 return "hosted", iid
-        candidates = [d for d in dorm.values() if d.count < d.cap and d.room() > 1]
-        if candidates:
-            weights = [1.0 + d.count * 1.5 for d in candidates]
-            pick = self.rng.choices(candidates, weights)[0]
+        pick = self._sample_open(world)
+        if pick is not None:
             return "dormant", pick.id
         return "dormant", self._new_dormant(world).id
+
+    # -------------------------------------------------- open-instance index
+    def _mark_open(self, world: str, iid: int) -> None:
+        if iid not in self.open_set[world]:
+            self.open_set[world].add(iid)
+            self.open[world].append(iid)
+
+    def _rebuild_open(self) -> None:
+        for world in WORLD_IDS:
+            ids = [d.id for d in self.dormant[world].values()
+                   if len(d.members) < d.cap and d.room() > 1]
+            self.open[world] = ids
+            self.open_set[world] = set(ids)
+            self._free_hint[world] = 1
+
+    def _sample_open(self, world: str):
+        """A handful of sleeping instances with room, fuller ones favoured.
+
+        Sampling six and weighting those keeps the preference for busy
+        rounds that a weighted draw over every instance has, at a constant
+        cost however many instances a world has.
+        """
+        ids = self.open[world]
+        dorm = self.dormant[world]
+        picks = []
+        tries = 0
+        while ids and len(picks) < 6 and tries < 24:
+            tries += 1
+            k = self.rng.randrange(len(ids))
+            d = dorm.get(ids[k])
+            if d is None or len(d.members) >= d.cap or d.room() <= 1:
+                gone = ids[k]
+                ids[k] = ids[-1]
+                ids.pop()
+                self.open_set[world].discard(gone)
+                continue
+            picks.append(d)
+        if not picks:
+            return None
+        return self.rng.choices(picks, [1.0 + len(d.members) * 1.5 for d in picks])[0]
 
     def _new_dormant(self, world: str, inst_id: Optional[int] = None) -> dormant_model.Dormant:
         info = world_registry.get(world)
@@ -782,15 +833,18 @@ class Director:
         cap = self.rng.uniform(float(lo), float(hi)) / 100.0
         inst = dormant_model.Dormant(info, inst_id, time.time(), random.Random(), cap)
         self.dormant[world][inst_id] = inst
+        self._mark_open(world, inst_id)
         return inst
 
     def _allocate_id(self, world: str) -> int:
-        taken = set(self.dormant[world]) | set(self.hosted[world])
-        candidate = 1
+        dorm, hosted = self.dormant[world], self.hosted[world]
         # the lowest free number, so the list reads #1, #2, #3 rather than
-        # counting up forever over a long-running server
-        while candidate in taken:
+        # counting up forever over a long-running server; the hint skips the
+        # numbers known to be taken and falls back to 1 once a minute
+        candidate = self._free_hint[world]
+        while candidate in dorm or candidate in hosted:
             candidate += 1
+        self._free_hint[world] = candidate + 1
         self.next_inst[world] = max(self.next_inst[world], candidate + 1)
         return candidate
 
@@ -820,6 +874,9 @@ class Director:
                 self.session_rows.append(stats)
             if not dorm.members:
                 self.dormant[world].pop(inst_id, None)
+                self._free_hint[world] = min(self._free_hint[world], inst_id)
+            else:
+                self._mark_open(world, inst_id)
         elif self.live[world].pop(uid, None) is not None:
             self.ops[world].append({"op": "leave", "uid": uid, "inst": inst_id,
                                     "reason": reason})
@@ -1133,23 +1190,31 @@ class Director:
         """Refresh the per-world numbers the site reads, and advance a slice
         of the sleeping instances.
 
-        The counts are recomputed every pass (a sum over instances); the
-        sorted listing only every few seconds, and only its top rows; and each
-        pass advances a thirtieth of the sleeping instances, so every one is
-        fresh within half a minute without ever advancing them all at once.
+        The counts are recomputed every two seconds (a sum over instances),
+        the sorted listing every five and only its top rows, and each pass
+        advances a sixtieth of the sleeping instances, so every one is fresh
+        within a minute without ever advancing them all at once.
         """
         import heapq
         pace = float(bot_config.get("worlds.sim_pace") or 1.0)
-        relist = now - self._listing_at >= 4.0
+        relist = now - self._listing_at >= 5.0
         if relist:
             self._listing_at = now
+        if now - self._open_at >= 60.0:
+            self._open_at = now
+            self._rebuild_open()
+        recount = now - self._count_at >= 2.0
+        if recount:
+            self._count_at = now
         for world in WORLD_IDS:
             insts = self.dormant[world]
-            players = 0
-            for inst in insts.values():
-                players += len(inst.members)
-            summary = self.summaries.get(world) or {}
-            summary.update({"players": players, "instances": len(insts), "at": now})
+            summary = self.summaries.get(world)
+            if summary is None or recount or relist:
+                summary = summary or {}
+                players = 0
+                for inst in insts.values():
+                    players += len(inst.members)
+                summary.update({"players": players, "instances": len(insts), "at": now})
             if relist or "list" not in summary:
                 top = heapq.nlargest(80, insts.values(), key=lambda d: (len(d.members), -d.id))
                 summary["list"] = [d.describe() for d in top]
@@ -1160,9 +1225,9 @@ class Director:
         everything = self._flat
         if not everything:
             return
-        # nobody can see a sleeping round's phase change within half a minute,
-        # and a woken one is advanced to the second anyway
-        step = max(1, len(everything) // 30)
+        # nobody can see a sleeping round's phase change within a minute, and
+        # one that is woken, joined or left is advanced to the second anyway
+        step = max(1, len(everything) // 60)
         start = self._dorm_cursor % len(everything)
         for world, inst in everything[start:start + step]:
             if inst.members:
@@ -1280,7 +1345,7 @@ class Director:
         now = int(t)
         with self.lock:
             want_online, want_playing = self.targets(now)
-            for i in self._due(now, 1500):
+            for i in self._due(now, 800):
                 self._event(i, now, want_online, want_playing)
             if t - self._last["ctrl"] >= 5.0:
                 self._last["ctrl"] = t

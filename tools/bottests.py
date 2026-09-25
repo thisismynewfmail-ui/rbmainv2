@@ -339,7 +339,7 @@ def test_scale(count: int) -> None:
         tt = now + s
         t0 = time.perf_counter()
         want = fresh.targets(tt)
-        for i in fresh._due(tt, 1500):
+        for i in fresh._due(tt, 800):
             fresh._event(i, tt, *want)
         if s % 5 == 0:
             fresh._control(tt)

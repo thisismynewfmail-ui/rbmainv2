@@ -765,12 +765,17 @@ So there are two tiers.
   are woken by a timing wheel keyed by second, so a tick touches only the bots
   whose moment has come. It keeps the online count on the peak curve, picks a
   world and an instance for bots that want to play, and sends them home when
-  their session ends. Measured with 100,000 bots on a desktop-class CPU: the
-  director holds about **34 MB** (roughly 340 bytes a bot), a tick averages
-  **well under 3 ms** with the worst under 5 ms, and loading everyone takes
-  about 3 seconds in a background thread while the site is already serving.
-  A Raspberry Pi 3 is several times slower per core, which still leaves a
-  1 Hz loop mostly idle (see `bottests.py scale`).
+  their session ends. Measured on a desktop-class CPU:
+
+  | Bots | Load (background thread) | Held in memory | Tick, steady state | Snapshot |
+  | --- | --- | --- | --- | --- |
+  | 100,000 | ~3 s | ~34 MB | ~0.5–3 ms | 6 MB |
+  | 200,000 | ~6 s | ~100 MB | ~7 ms, worst ~70 ms | 12 MB |
+
+  The loop runs once a second, so even 200,000 bots use under 1% of a core;
+  a Raspberry Pi 3 is several times slower per core and still mostly idle.
+  The site serves normally while the director loads (see `bottests.py
+  scale`).
 - **Sleeping rounds.** An instance holding only bots never reaches a game
   host. It lives in the director as a closed-form model (`dormant.py`): the
   flag captures, the cart's progress and round wins, the Burger Tycoon plots'
@@ -795,12 +800,14 @@ So there are two tiers.
 
 Nothing is written to the database per tick. Presence is written when a bot
 logs in or out; game stats are written when a bot leaves a round; the
-director snapshots itself to `data/bots/state.json` every few minutes (about
-6 MB for 100,000 bots) so a restart comes back mid-game instead of everyone
-logging in at once.
+director snapshots itself to `data/bots/state.json` every few minutes so a
+restart comes back mid-game instead of everyone logging in at once, and bots
+whose time away ran out while the server was down drift back over a quarter
+of an hour rather than in one burst.
 
 On disk a bot costs what a player costs — about 3.5 KB, most of it the items
-in its inventory — so 100,000 bots add roughly 360 MB to the database.
+in its inventory — so 100,000 bots add roughly 360 MB to the database and
+200,000 about 725 MB.
 
 ### Presence and the peak curve
 
