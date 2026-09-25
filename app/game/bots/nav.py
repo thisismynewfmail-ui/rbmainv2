@@ -40,7 +40,7 @@ DROP_MAX = 34.0        # the furthest a bot will choose to drop
 SPACING = 4.0
 BUCKET = 8.0
 INF = 1e30
-VERSION = 3
+VERSION = 4            # 4: jumps and drops need headroom over the lower spot
 
 CACHE_DIR = None       # set lazily from app.config
 
@@ -166,6 +166,13 @@ class NavGrid:
                     return True
             return False
 
+        def headroom_blocked(x, z, y0, y1) -> bool:
+            for lo, hi in near(x - hw, x + hw, z - hd, z + hd):
+                if hi[0] > x - hw and lo[0] < x + hw and hi[2] > z - hd and lo[2] < z + hd \
+                        and hi[1] > y0 and lo[1] < y1:
+                    return True
+            return False
+
         out: List[List[Tuple[int, float]]] = [[] for _ in range(len(px))]
         diag = self.spacing * math.sqrt(2.0)
         for key, ids in cols.items():
@@ -190,6 +197,17 @@ class NavGrid:
                         top = max(py[a], py[b])
                         if blocked(px[a], pz[a], px[b], pz[b], top + 0.15, top + height):
                             continue
+                        if rise:
+                            # the climb or the fall happens over the lower
+                            # spot: the air there has to be clear from head
+                            # height all the way up to a head on the upper
+                            # level, or a roof over the lower floor turns the
+                            # "jump" into a head bump (and the "drop" into a
+                            # landing on that roof)
+                            low = a if rise > 0 else b
+                            if headroom_blocked(px[low], pz[low], py[low] + height,
+                                                top + height):
+                                continue
                         up_ab = rise
                         cost_ab = flat + (4.0 if up_ab > STEP_UP else 0.0) + max(0.0, up_ab) * 0.4
                         cost_ba = flat + (4.0 if -up_ab > STEP_UP else 0.0) + max(0.0, -up_ab) * 0.4
@@ -274,10 +292,22 @@ class NavGrid:
         return (int(round((x - self.x0) / self.spacing)),
                 int(round((z - self.z0) / self.spacing)))
 
-    def nearest(self, pos: Sequence[float], reach: int = 2) -> int:
-        """The node a position stands on (or nearest to), or -1."""
+    def nearest(self, pos: Sequence[float], reach: int = 2, standing: bool = False) -> int:
+        """The node a position stands on (or nearest to), or -1.
+
+        ``standing`` is for a body's own position: its path must start on the
+        floor it is on, never on a roof or walkway above it, however close --
+        a path that starts up there asks for a jump no one can make.
+        """
         if not self.ready:
             return -1
+        if standing:
+            found = self._nearest(pos, reach + 1, max_rise=STEP_UP + 0.6)
+            if found >= 0:
+                return found
+        return self._nearest(pos, reach)
+
+    def _nearest(self, pos: Sequence[float], reach: int, max_rise: float = INF) -> int:
         ix, iz = self.column(pos[0], pos[2])
         best, best_score = -1, INF
         for r in range(0, reach + 1):
@@ -290,6 +320,8 @@ class NavGrid:
                         continue
                     for node in ids:
                         dy = self.py[node] - pos[1]
+                        if dy > max_rise or dy < -DROP_MAX:
+                            continue
                         # prefer the floor under the feet over the roof above
                         vertical = abs(dy) * (3.0 if dy > 2.6 else 1.0)
                         score = vertical + math.hypot(self.px[node] - pos[0],

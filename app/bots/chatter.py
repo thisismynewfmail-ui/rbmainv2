@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .. import db
 from . import config as bot_config
-from . import llm, personas, prompts, social, storage
+from . import llm, modifiers, personas, prompts, social, storage
 
 IDLE, PLAYING = 2, 3
 
@@ -85,6 +85,7 @@ class Engine:
                       "dms": 0, "follows": 0, "deferred": 0}
         self.recent: List[Dict[str, Any]] = []
         self.primed = 0
+        self.momentum = modifiers.Momentum()
 
     # --------------------------------------------------------------- timers
     def _ensure(self) -> None:
@@ -157,6 +158,9 @@ class Engine:
         if t - self.last["replies"] >= 2.0:
             self.last["replies"] = t
             self._answer_pending(now)
+        if t - self.last.get("prune", 0.0) >= 60.0:
+            self.last["prune"] = t
+            self.momentum.prune(t)
 
     def _ready(self, i: int) -> bool:
         return i < self.d.n and self.d.state[i] in (IDLE, PLAYING)
@@ -439,13 +443,19 @@ class Engine:
         if i < 0 or not bot_config.get("messages.dm_enabled"):
             return
         card = self.d.card(bot_id)
+        now = _now()
         storage.append(bot_id, card["name"], storage.dm_log(sender_name),
-                       [{"at": _now(), "who": sender_name, "text": body}])
+                       [{"at": now, "who": sender_name, "text": body}])
+        self.momentum.heard(bot_id, sender_id, now, (card["name"], sender_name))
         lo, hi = bot_config.get("messages.dm_delay_seconds") or [20, 180]
+        # a conversation with momentum is answered sooner (Dynamic Modifiers)
+        faster = self.momentum.speedup(bot_id, sender_id, now)
+        due = now + self.rng.uniform(float(lo), float(hi)) * (1.0 - faster)
+        if faster:
+            self.stats["quickened"] = self.stats.get("quickened", 0) + 1
         with self.lock:
             waiting = self.pending_dm.setdefault(bot_id, {})
-            if sender_id not in waiting:
-                waiting[sender_id] = _now() + self.rng.uniform(float(lo), float(hi))
+            waiting[sender_id] = min(waiting.get(sender_id, due), due)
 
     def _answer_pending(self, now: int) -> None:
         with self.lock:
@@ -466,9 +476,13 @@ class Engine:
                 continue
             if (bot, other) in self.busy and self.busy[(bot, other)] > now:
                 continue
+            # one reply in flight per conversation; released the moment it
+            # has gone out (or failed), so a quick back-and-forth stays quick
+            self.busy[(bot, other)] = now + 120
             if self._reply_dm(i, bot, other):
                 self._clear_dm(bot, other)
-                self.busy[(bot, other)] = now + 120
+            else:
+                self.busy.pop((bot, other), None)
         for bot, entry in walls:
             i = self.d.index_of(bot)
             if i < 0 or not self._ready(i) or now < entry["due"]:
@@ -525,6 +539,7 @@ class Engine:
             return prompts.dm(card, other_name, history, relation)
 
         def done(text: Optional[str], error: Optional[str]) -> None:
+            self.busy.pop((bot, other), None)
             text = prompts.tidy(text, "dm", card["name"], [other_name])
             if not text:
                 return
@@ -535,6 +550,7 @@ class Engine:
                 subject = last["subject"] if last["subject"].lower().startswith("re:") \
                     else "Re: " + last["subject"]
             if social.dm(bot, other_name, text, subject):
+                self.momentum.replied(bot, other, _now())
                 social.mark_read(bot, other)
                 storage.append(bot, card["name"], log_name,
                                [{"at": _now(), "who": card["name"], "text": text}])
@@ -582,6 +598,7 @@ class Engine:
     def snapshot(self) -> Dict[str, Any]:
         with self.lock:
             return {"stats": dict(self.stats),
+                    "momentum": self.momentum.snapshot(_now()),
                     "pending_dms": sum(len(v) for v in self.pending_dm.values()),
                     "pending_walls": sum(len(v) for v in self.pending_wall.values()),
                     "recent": list(self.recent[-20:])}

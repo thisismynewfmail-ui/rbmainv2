@@ -474,6 +474,63 @@ class GameInstance:
             merged.extend(value)
         return merged or [{"p": [0, 6, 0], "yaw": 0}]
 
+    # the client's movement box (static/js/game/physics.js SIZE)
+    BODY_HALF_W, BODY_HALF_D, BODY_HEIGHT = 1.2, 0.9, 5.4
+
+    def body_fits(self, x: float, y: float, z: float) -> bool:
+        """Is there room for a player's body standing at (x, y, z)?"""
+        lo = [x - self.BODY_HALF_W, y + 0.05, z - self.BODY_HALF_D]
+        hi = [x + self.BODY_HALF_W, y + self.BODY_HEIGHT, z + self.BODY_HALF_D]
+        return not any(b_hi[0] > lo[0] and b_lo[0] < hi[0] and b_hi[1] > lo[1]
+                       and b_lo[1] < hi[1] and b_hi[2] > lo[2] and b_lo[2] < hi[2]
+                       for b_lo, b_hi in self._colliders_near(lo, hi))
+
+    def _floored(self, x: float, y: float, z: float) -> bool:
+        lo = [x - self.BODY_HALF_W, y - 2.5, z - self.BODY_HALF_D]
+        hi = [x + self.BODY_HALF_W, y + 0.3, z + self.BODY_HALF_D]
+        return any(b_hi[0] > lo[0] and b_lo[0] < hi[0] and b_hi[2] > lo[2]
+                   and b_lo[2] < hi[2] and lo[1] <= b_hi[1] <= hi[1]
+                   for b_lo, b_hi in self._colliders_near(lo, hi))
+
+    def clear_spawns(self, points: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """The spawn points with every one a body would be stuck in moved out.
+
+        A spawn inside a solid part puts whoever lands on it inside the wall.
+        A blocked point is moved to the nearest spot a body fits, with floor
+        under it, in sight of where it was meant to be (so it stays in the
+        same room) and clear of the other spawns; one with nowhere to go is
+        dropped, unless that would leave none at all.
+        """
+        kept: List[Dict[str, Any]] = []
+        spots: List[List[float]] = []
+        for point in points:
+            x, y, z = (float(v) for v in point["p"])
+            if self.body_fits(x, y, z):
+                kept.append(point)
+                spots.append([x, y, z])
+                continue
+            moved = None
+            for radius in (2.0, 3.5, 5.0, 6.5, 8.0, 10.0):
+                steps = max(8, int(radius * 4))
+                for k in range(steps):
+                    angle = 2.0 * math.pi * k / steps
+                    nx, nz = x + math.cos(angle) * radius, z + math.sin(angle) * radius
+                    if not self.body_fits(nx, y, nz) or not self._floored(nx, y, nz):
+                        continue
+                    if any(math.dist((nx, nz), (sx, sz)) < 3.5 for sx, _sy, sz in spots):
+                        continue
+                    eye = y + 3.2
+                    if not self.line_of_sight([x, eye, z], [nx, eye, nz]):
+                        continue
+                    moved = [round(nx, 2), y, round(nz, 2)]
+                    break
+                if moved:
+                    break
+            if moved:
+                kept.append(dict(point, p=moved))
+                spots.append(moved)
+        return kept or list(points)
+
     def spawn_player(self, player: Player) -> None:
         points = self.spawn_points(player.team)
         best = None
@@ -653,6 +710,9 @@ class GameInstance:
         payload = {"t": "evt", "k": kind}
         payload.update(data)
         self.broadcast(payload)
+        if self.bots is not None:
+            # the bots in the round hear about it too (Speech Events)
+            self.bots.on_game_event(kind, data)
 
     # ------------------------------------------------------------- messages
     def handle(self, player: Player, message: Dict[str, Any]) -> None:
@@ -1206,7 +1266,7 @@ class GameInstance:
                 player.score += 50
             self.host.report_round(self, player, won=player.team == winner)
         if self.bots is not None:
-            self.bots.on_round_end(winner)
+            self.bots.on_round_end(winner, reason)
 
     def scoreboard(self) -> List[Dict[str, Any]]:
         rows = [{"id": p.pid, "name": p.username, "uid": p.user_id,

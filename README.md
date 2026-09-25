@@ -797,6 +797,24 @@ So there are two tiers.
   everything else. Bots near a real player think at full rate and aim for
   real; bots far away think a few times a second and settle their fights by
   odds, so a busy round with 20 bots stays well inside the 20 Hz tick.
+- **Bodies.** A person's movement is simulated in their own browser
+  (`static/js/game/physics.js`): their box is moved one axis at a time
+  against the map's solid parts, stepping up low ledges, landing on floors and
+  bumping heads on ceilings. A bot has no browser, so `app/game/bots/body.py`
+  is that same routine on the server, fed the solids the server already keeps
+  for hit detection, and split into sub-steps short enough that a 20 Hz tick
+  cannot carry a body through a thin floor or wall. Bots jump for a ledge the
+  way a player does -- up the side, then over -- and one that falls short
+  twice gives up on that way round. The nav graph only links a jump or a drop
+  when there is headroom above the lower spot, so no path asks a bot to jump
+  through a roof; a path always starts from the floor the bot is standing on
+  (never the walkway above it); a chase aims at where the other player is
+  standing rather than where they are mid-jump; and a bot steps round the rim
+  of a shaft its path brushes instead of walking off it. The browser physics
+  sub-steps the same way on a slow frame, so a long fall during a stutter
+  cannot skip a floor either, and a spawn point with no room for a body (two
+  of Fortress Team 2's forward spawns were inside a staircase) is moved to the
+  nearest clear spot in the same room.
 
 Nothing is written to the database per tick. Presence is written when a bot
 logs in or out; game stats are written when a bot leaves a round; the
@@ -852,10 +870,55 @@ Settings carry a scope badge so it is clear how each is applied:
   when someone writes on their own wall, post status updates and like
   friends' posts. A global per-minute budget keeps the model free for chat.
 - **Direct messages.** A bot answers DMs once it is online, after a
-  human-looking delay.
+  human-looking delay -- shorter once the two of them are actually talking
+  (see Dynamic Modifiers below).
 - **In-game chat.** In a live round bots answer when they are spoken to or
-  named, greet people who join, and fire off quick reactions (a kill, a death
-  streak, a capture) without the model.
+  named, greet people who join, react to what happens in the round and to
+  each other, and fire off quick reactions (a kill, a death) without the
+  model. Every line they write has the round's state underneath it as
+  background -- the score, where both flags are and who has them, the cart's
+  progress and checkpoints, the clock, the restaurants, and the bot's own
+  team, job and kills -- which it may bring up or not, the way a player knows
+  the score without announcing it in every message.
+
+### Dynamic Modifiers
+
+Short-lived boosts that start when a conversation does and fade once it goes
+quiet, each on its own switch on the **Dynamic Modifiers** subtab, which also
+shows what is active right now.
+
+| Modifier | What it does | Defaults |
+| --- | --- | --- |
+| Conversation momentum (DMs) | After two back-and-forths the bot's reply delay is cut by 30%, 10% more per further turn, never more than 70%. How quickly the person answered decides how much of it is left: straight back keeps all of it, a pause fades it, and after the decay time it is gone and the count starts again. A bot mid-conversation also puts off logging off. | 2 turns, 30% + 10%/turn, 70% max, 60 s decay |
+| Chat heat (in-game) | Each of a player's recent lines adds 35% to the chance a bot answers them, fading over the decay time, up to +150%. The bot they were just talking with is favoured to answer again, and a hot chat can pull in a second voice. | +35%/line, +150% max, 60 s decay, 60% partner, 20% second voice |
+| Bots answer each other | A bot's line can draw an answer from another bot (70% when it names them), each further bot-only line half as likely, and the exchange drops after three bot lines in a row until a real player speaks. | 22%, halving, 3 lines |
+
+### Speech Events
+
+Things that happen in a round are reported by the game host (from rounds a
+real player is in, over the channel its chat already uses) and give the bots
+there something to say. Each bot is told what happened *from its own side* --
+"an enemy, Fox, just grabbed YOUR team's flag" for one team, "your teammate
+Fox just grabbed the enemy flag" for the other -- and the side decides who is
+likeliest to speak. The chance for each event is a slider on the **Speech
+Events** subtab, grouped by world:
+
+| Worlds | Events |
+| --- | --- |
+| Every world | someone joins, a killing spree (3/5/8/12), a spree ended |
+| Capture The Flag, Blackout Relay, Fortress Team 2 | new round, a minute left, round over |
+| Capture The Flag, Blackout Relay | flag stolen, carrier down, flag returned, capture |
+| Blackout Relay | lockdown, overtime, sudden death |
+| Fortress Team 2 | gates open, checkpoint reached, the final stretch |
+| Burger Tycoon | restaurant claimed, a purchase (dearer ones are bigger news), restaurant finished |
+
+Up to two bots react to one event, the same kind of event then waits out a
+cooldown in that round, several notifications about one moment (the flag is
+taken *and* the team is locked down) get one reaction, and the round stays
+"buzzing" for a while afterwards -- bots are likelier to answer each other and
+the players, so an event turns into a conversation. When the language model
+is down, events fall back to short stock lines ("they have our flag", "nice
+cap").
 
 ### The language model
 
@@ -909,8 +972,10 @@ friends against its target, latest comment, K/D and when it will next change
 what it is doing; clicking one opens a drawer with its persona, traits,
 schedule, friends, comments, stats and its conversation logs, and buttons to
 bring it online, send it to a world or offline, or delete it. The other tabs
-each open with the feature's own switch, followed by that feature's settings.
-Every change applies live, with no restart.
+each open with the feature's own switch, followed by that feature's settings;
+**Dynamic Modifiers** and **Speech Events** also show what is live right now
+(conversations with momentum, rounds with chat heat, the latest events and
+who reacted). Every change applies live, with no restart.
 
 The terminal read-out splits people from bots too: meters show people as `█`
 and bots as `▓`, counts read `people+bots`, and a `bots` line shows online,
@@ -939,9 +1004,14 @@ tools/mockllm.py --port 5055            # a stand-in language model endpoint
 
 `bottests.py` needs no server and works in a throwaway data directory. The
 unit group covers names, personas, the chat-template renderer and the
-sleeping-round models; the live group plays every world headless on a
-simulated clock with bots and a stand-in real player and checks that they
-move, fight, take objectives and wake mid-round; the scale group creates
+sleeping-round models; the chat group checks the Dynamic Modifiers (momentum
+and its decay, chat heat, the bot-to-bot limit), each speech event from both
+sides, the events and game state the host reports, and the chat relay end to
+end with the language model stubbed out; the live group plays every world
+headless on a simulated clock with bots and a stand-in real player and checks
+that they move, fight, take objectives and wake mid-round, that no bot is ever
+inside the map's geometry or needs rescuing from the void, and that ledge
+jumps land on the ledge; the scale group creates
 thousands of bots, loads them and times the director. `mockllm.py` answers
 like a llama.cpp server (model list, `/props` with a chat template and
 sampling, `/tokenize`, chat and completions); point the Language Model tab at

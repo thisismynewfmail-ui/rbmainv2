@@ -113,22 +113,139 @@ def comment(card: Dict[str, Any], owner: str, wall: List[Dict[str, Any]],
             "max_tokens": max_tokens}
 
 
+def _clock(seconds: Any) -> str:
+    try:
+        seconds = int(seconds)
+    except (TypeError, ValueError):
+        return ""
+    if seconds <= 0:
+        return ""
+    return "%d:%02d" % (seconds // 60, seconds % 60)
+
+
+def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[str]:
+    """What the bot could see on its own screen right now, as plain lines.
+
+    It is background: the model is told it may use it, not that it must --
+    a player knows the score without announcing it in every message.
+    """
+    if not state:
+        return []
+    lines: List[str] = []
+    mode = state.get("mode")
+    other = "blue" if team == "red" else ("red" if team == "blue" else "")
+    if mode == "captures":
+        score = state.get("score") or {}
+        target = state.get("target")
+        if team in score and other:
+            lines.append("Score: your team (%s) %d, %s %d%s." % (
+                team, int(score.get(team, 0)), other, int(score.get(other, 0)),
+                "; first to %s captures wins" % target if target else ""))
+        flags = state.get("flags") or {}
+
+        def flag_line(side: str, label: str) -> None:
+            flag = flags.get(side) or {}
+            where = flag.get("state")
+            if where == "home":
+                lines.append("%s: safe at its base." % label)
+            elif where == "carried":
+                carrier = flag.get("by", "someone")
+                whose = "your teammate" if flag.get("by_team") == team else "an enemy"
+                if me.get("carrying") and side != team:
+                    lines.append("%s: YOU are carrying it." % label)
+                else:
+                    lines.append("%s: carried by %s (%s)." % (label, carrier, whose))
+            elif where == "dropped":
+                lines.append("%s: lying on the ground." % label)
+        if team in flags:
+            flag_line(team, "Your team's flag")
+        if other in flags:
+            flag_line(other, "The enemy flag")
+        if state.get("sudden_death"):
+            lines.append("Sudden death: the next capture wins.")
+        elif state.get("overtime"):
+            lines.append("Overtime: the round goes on while a flag is out.")
+    elif mode == "payload":
+        attackers = state.get("attackers")
+        if team and attackers:
+            lines.append("Your team is %s this round." % (
+                "attacking (pushing the cart)" if attackers == team
+                else "defending (stopping the cart)"))
+        reached, of = (state.get("checkpoints") or [0, 0])[:2]
+        cart = "The cart is %s%% of the way along the track (%s of %s checkpoints)" % (
+            state.get("progress", 0), reached, of)
+        if state.get("blocked"):
+            cart += ", stopped because a defender is on it"
+        elif state.get("pushing"):
+            cart += ", %s pushing it" % state.get("pushing")
+        lines.append(cart + ".")
+        wins = state.get("round_wins") or {}
+        if team in wins and other:
+            lines.append("Rounds won: your team %d, %s %d%s." % (
+                int(wins.get(team, 0)), other, int(wins.get(other, 0)),
+                "; first to %s takes the match" % state.get("target_wins")
+                if state.get("target_wins") else ""))
+        if state.get("setup_left"):
+            lines.append("Setup: the gates open in %s." % _clock(state["setup_left"]))
+    elif mode == "endless":
+        if me.get("plot"):
+            lines.append("Your restaurant: %s, %s upgrades built, %s coins in hand." % (
+                me.get("plot"), me.get("built", 0), me.get("coins", 0)))
+        best = state.get("restaurants") or []
+        if best:
+            lines.append("Restaurants doing best: " + "; ".join(
+                "%s (%s, %s of %s upgrades)" % (r.get("name"), r.get("owner"),
+                                                r.get("built"), r.get("total"))
+                for r in best[:3]) + ".")
+    left = _clock(state.get("time_left"))
+    if left and mode != "endless" and state.get("phase") == "active":
+        lines.append("Time left in the round: %s." % left)
+    if state.get("players"):
+        lines.append("%s players in this server." % state["players"])
+    mine = []
+    if me:
+        if me.get("alive") is False:
+            mine.append("you are dead and waiting to respawn")
+        if mode != "endless" and ("kills" in me or "deaths" in me):
+            mine.append("%s kills and %s deaths this round" % (me.get("kills", 0),
+                                                              me.get("deaths", 0)))
+        role = {"attack": "you have been attacking", "defend": "you have been defending",
+                "roam": "you have been roaming the middle", "cart": "you have been on the cart",
+                "tycoon": "you have been building your restaurant"}.get(me.get("role", ""))
+        if role:
+            mine.append(role)
+    if mine:
+        lines.append("You: " + "; ".join(mine) + ".")
+    return lines
+
+
 def chat(card: Dict[str, Any], world: str, team: str,
          log: List[Dict[str, Any]], happening: List[str],
-         addressed_by: str = "") -> Dict[str, Any]:
+         addressed_by: str = "", state: Optional[Dict[str, Any]] = None,
+         me: Optional[Dict[str, Any]] = None, event: str = "") -> Dict[str, Any]:
     max_tokens = int(bot_config.get("llm.max_tokens_chat") or 48)
     system = _fmt(bot_config.get("prompts.chat"), world=world) + "\n\n" + \
         persona_block(card)
-    if team:
+    if team and (state or {}).get("mode") != "endless":
         system += "\nYou are on the %s team this round." % team
+    context = game_context(state or {}, me or {}, team)
     header = "Recent chat in the round, oldest first:"
     ending = []
+    if context:
+        ending.append("What you can see on your screen right now (background only; "
+                      "bring it up only if it fits what you are saying):\n" +
+                      "\n".join("- " + line for line in context))
     if happening:
-        ending.append("What is happening: " + "; ".join(happening[-6:]))
-    if addressed_by:
-        ending.append("%s is talking to you." % addressed_by)
-    ending.append("Your next chat message, or (skip):")
-    tail = "\n\n" + "\n".join(ending)
+        ending.append("Recently in the round: " + "; ".join(happening[-6:]))
+    if event:
+        ending.append("Just now: " + event)
+        ending.append("React in chat the way a player would at this moment, or (skip) "
+                      "if you would not bother:")
+    else:
+        if addressed_by:
+            ending.append("%s is talking to you." % addressed_by)
+        ending.append("Your next chat message, or (skip):")
+    tail = "\n\n" + "\n\n".join(ending)
     budget = _budget(system + header + tail, max_tokens)
     context_lines = int(bot_config.get("messages.chat_context_lines") or 30)
     lines = cull([_line(e) for e in log[-context_lines:]], budget) or ["(quiet so far)"]
