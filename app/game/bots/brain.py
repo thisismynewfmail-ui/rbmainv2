@@ -40,6 +40,7 @@ from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..instance import EYE_HEIGHT, GRAVITY, JUMP_SPEED, WALK_SPEED, now
+from . import body as body_module
 from . import nav as nav_module
 
 G = GRAVITY
@@ -77,6 +78,22 @@ def styled(text: str, traits: Dict[str, float], rng: random.Random) -> str:
     if traits.get("emoji", 0) > 0.45 and rng.random() < 0.5:
         text += " " + rng.choice([":D", "xD", ":P", ":)", "<3", ":(" if "rip" in text else ":)"])
     return text
+
+
+def feet(player) -> List[float]:
+    """Where a player is standing: for one in mid-jump, the floor they left.
+
+    Chasing someone's position while they hop would send a bot at a point in
+    the air -- or, through the nav graph, at the roof they happened to be
+    level with at the top of the jump."""
+    brain = getattr(player, "brain", None)
+    if brain is not None:
+        return list(brain.ground) if brain.airborne else list(player.pos)
+    if not getattr(player, "grounded", True):
+        ground = getattr(player, "last_ground_pos", None)
+        if ground:
+            return [player.pos[0], ground[1], player.pos[2]]
+    return list(player.pos)
 
 
 def _angle_to(dx: float, dy: float, dz: float) -> Tuple[float, float]:
@@ -118,12 +135,18 @@ class Brain:
         self.repath_at = 0.0
         self.airborne = False
         self.vy = 0.0
-        self.land_y: Optional[float] = None
         self.speed = WALK_SPEED
         self.strafe = 0.0
         self.strafe_until = 0.0
         self.last_progress = (list(player.pos), now())
         self.ground = list(player.pos)
+        self.climb: Optional[List[float]] = None
+        self.failed_climbs = 0
+        # counters the tests read: void rescues, ledge jumps, ones that fell short
+        self.rescues = 0
+        self.climbs = 0
+        self.short_climbs = 0
+        self.edges = 0
         # decisions
         self.goal = "objective"
         self.goal_until = 0.0
@@ -213,7 +236,8 @@ class Brain:
         self.ground = list(self.p.pos)
         self.waypoints = []
         self.dest = None
-        self.airborne = False
+        # let the body settle onto whatever is under the spawn point
+        self.airborne = True
         self.vy = 0.0
         self.target = None
         self.goal_until = 0.0
@@ -280,57 +304,53 @@ class Brain:
             target = self.waypoints[0]
             dx, dz = target[0] - p.pos[0], target[2] - p.pos[2]
             dist = math.hypot(dx, dz)
-            speed = self.speed
             if dist < 0.6:
                 self.waypoints.pop(0)
-                if not self.airborne:
-                    self._settle(target[1])
+                self.climb = None
+                self.failed_climbs = 0
             else:
                 ux, uz = dx / dist, dz / dist
                 rise = target[1] - p.pos[1]
                 if not self.airborne and rise > STEP + 0.1 and dist < 7.0:
-                    # a ledge: jump for it, the way a player would
+                    # a ledge: jump for it, the way a player would; the body
+                    # meets the ledge's side until it has risen above it
                     self.airborne = True
                     self.vy = JUMP_SPEED
-                    self.land_y = target[1]
+                    self.climb = target
+                    self.climbs += 1
+                speed = min(self.speed, dist / max(dt, 1e-3))
                 vx, vz = ux * speed, uz * speed
-                move = min(dist, speed * dt)
-                p.pos[0] += ux * move
-                p.pos[2] += uz * move
                 moving = True
-        # strafing in a fight
+        # strafing in a fight, never off an edge
         if self.target is not None and moment < self.strafe_until and not still:
             side = self.strafe * self.speed * 0.55
             sx, sz = math.cos(self.aim_yaw) * side, -math.sin(self.aim_yaw) * side
-            nx, nz = p.pos[0] + sx * dt, p.pos[2] + sz * dt
-            if self._walkable(nx, p.pos[1], nz):
-                p.pos[0], p.pos[2] = nx, nz
+            if self._walkable(p.pos[0] + sx * dt, p.pos[1], p.pos[2] + sz * dt):
                 vx += sx
                 vz += sz
                 moving = True
-        # vertical
-        if self.airborne:
-            self.vy -= G * dt
-            p.pos[1] += self.vy * dt
-            floor = self._floor(p.pos[0], p.pos[1] + 0.5, p.pos[2])
-            if self.vy <= 0 and floor is not None and p.pos[1] <= floor:
-                p.pos[1] = floor
-                self.airborne = False
-                self.vy = 0.0
-                self.land_y = None
-                self.ground = list(p.pos)
-        elif moving:
-            floor = self._floor(p.pos[0], p.pos[1] + STEP + 0.2, p.pos[2])
-            if floor is not None and floor < p.pos[1] - STEP - 0.2:
-                # walked off an edge: fall
-                self.airborne = True
-                self.vy = 0.0
-            elif floor is not None:
-                p.pos[1] = floor
-                self.ground = list(p.pos)
-        elif moment < self.jumpy_until and self.rng.random() < dt * 1.6:
+        if not moving and not self.airborne and moment < self.jumpy_until \
+                and self.rng.random() < dt * 1.6:
             self.airborne = True
             self.vy = JUMP_SPEED
+        # the body: gravity, walls, ledges, floors and ceilings
+        if moving or self.airborne or self.vy:
+            self.vy -= G * dt
+            vel = [vx, self.vy, vz]
+            boxes = body_module.nearby(self.instance, p.pos, vel, dt)
+            if moving and not self.airborne:
+                vel[0], vel[2] = self._edge_guard(boxes, vel[0], vel[2], dt)
+            result = body_module.move(boxes, p.pos, vel, dt)
+            vx, vz = vel[0], vel[2]
+            if result.grounded and vel[1] <= 0:
+                if self.airborne and self.climb is not None:
+                    self._after_climb()
+                self.airborne = False
+                self.vy = 0.0
+                self.ground = list(p.pos)
+            else:
+                self.airborne = True
+                self.vy = vel[1]
         p.vel = [vx, self.vy if self.airborne else 0.0, vz]
         p.grounded = not self.airborne
         # where it is looking
@@ -362,31 +382,49 @@ class Brain:
             self.vy = 0.0
             self.waypoints = []
             self.repath_at = 0.0
+            self.rescues += 1
 
-    def _floor(self, x: float, y: float, z: float) -> Optional[float]:
-        """The surface under a point.
+    def _edge_guard(self, boxes, vx: float, vz: float, dt: float) -> Tuple[float, float]:
+        """Do not walk off an edge the path does not mean to drop from.
 
-        The graph only holds columns a whole player fits in, so the column
-        right against a wall has no node even though there is floor there;
-        the neighbouring columns are asked too, nearest first.
+        Paths are string-pulled and wobbled a little, the way people walk, so
+        now and then a line brushes the rim of a shaft; a person steps round
+        it, and so does a bot: along the edge if it can, otherwise it stops
+        and plans again.
         """
-        grid = self.runner.nav
-        if grid is None or not grid.ready:
-            return self.p.pos[1]
-        ix, iz = grid.column(x, z)
-        best = None
-        for ring in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1),
-                     (1, 1), (1, -1), (-1, 1), (-1, -1)):
-            ids = grid.cols.get((ix + ring[0]) * grid.nz + (iz + ring[1]))
-            if not ids:
-                continue
-            for node in ids:
-                top = grid.py[node]
-                if top <= y + 0.05 and (best is None or top > best):
-                    best = top
-            if best is not None and ring == (0, 0):
-                break
-        return best
+        p = self.p
+        if self.waypoints and self.waypoints[0][1] < p.pos[1] - STEP - 0.2:
+            return vx, vz                    # this path drops down here
+        x, y, z = p.pos
+        if body_module.supported(boxes, x + vx * dt, y, z + vz * dt):
+            return vx, vz
+        if vx and body_module.supported(boxes, x + vx * dt, y, z):
+            return vx, 0.0
+        if vz and body_module.supported(boxes, x, y, z + vz * dt):
+            return 0.0, vz
+        self.edges += 1
+        self.dest_key = ""
+        self.repath_at = 0.0
+        return 0.0, 0.0
+
+    def _after_climb(self) -> None:
+        """Landed after jumping for a ledge: did it work?"""
+        target, self.climb = self.climb, None
+        if target[1] - self.p.pos[1] <= STEP + 0.1:
+            self.failed_climbs = 0
+            return
+        if not self.waypoints or self.waypoints[0] != target:
+            return          # it changed its mind mid-air: not a failed climb
+        self.short_climbs += 1
+        self.failed_climbs += 1
+        if self.failed_climbs >= 2:
+            # twice short of it: give up on that way round, as a person would,
+            # rather than hopping at the same wall all round
+            self.failed_climbs = 0
+            self.waypoints = []
+            self.dest_key = ""
+            self.repath_at = 0.0
+            self.goal_until = 0.0
 
     def _walkable(self, x: float, y: float, z: float) -> bool:
         grid = self.runner.nav
@@ -395,10 +433,6 @@ class Brain:
         ix, iz = grid.column(x, z)
         ids = grid.cols.get(ix * grid.nz + iz)
         return bool(ids) and any(abs(grid.py[n] - y) <= STEP for n in ids)
-
-    def _settle(self, y: float) -> None:
-        if abs(self.p.pos[1] - y) <= STEP + 0.2:
-            self.p.pos[1] = y
 
     def go(self, point: List[float], key: str = "", field: str = "",
            precise: bool = False) -> None:
@@ -412,11 +446,12 @@ class Brain:
         self.repath_at = moment + (6.0 if field else 2.5)
         p = self.p
         if grid is None or not grid.ready:
-            self.waypoints = [list(point)]
+            self._beeline(point, moment)
             return
-        start = grid.nearest(p.pos)
+        feet_now = self.ground if self.airborne else p.pos
+        start = grid.nearest(feet_now, 2, standing=True)
         if start < 0:
-            self.waypoints = [list(point)]
+            self._beeline(point, moment)
             return
         nodes: Optional[List[int]] = None
         if field:
@@ -426,19 +461,37 @@ class Brain:
         if nodes is None:
             goal = grid.nearest(point, 3)
             if goal < 0:
-                self.waypoints = [list(point)]
+                self._beeline(point, moment)
                 return
             budget = self.runner.path_budget()
             nodes = grid.astar(start, goal, budget) or []
         points = grid.smooth(p.pos, nodes, 12)
-        if precise and points:
+        if not points:
+            # no route found this time (a cheap search ran out of budget):
+            # walk straight at it only if it is on this level, otherwise
+            # wait and try a full search on the next think
+            self._beeline(point, moment)
+            return
+        if precise:
             points.append(list(point))
         # a little of the player in the line: nobody walks the exact centre
         wobble = 1.2 * (1.0 - self.skill * 0.5)
         for pt in points[:-1]:
             pt[0] += self.rng.uniform(-wobble, wobble)
             pt[2] += self.rng.uniform(-wobble, wobble)
-        self.waypoints = points or [list(point)]
+        self.waypoints = points
+
+    def _beeline(self, point: List[float], moment: float) -> None:
+        """Straight at ``point`` if it is on this level; never at a floor above
+        or below, which is how a bot ends up hopping at a wall."""
+        # mid-hop, "this level" is the floor it jumped from
+        level = self.ground[1] if self.airborne else self.p.pos[1]
+        if abs(point[1] - level) <= STEP:
+            self.waypoints = [[point[0], level, point[2]]]
+            return
+        self.waypoints = []
+        self.dest_key = ""
+        self.repath_at = moment + 0.3
 
     def near_point(self, point: List[float], radius: float) -> bool:
         return math.dist(self.p.pos, point) <= radius
@@ -618,11 +671,11 @@ class Brain:
                 # go where the fighting is: the objective, or a nearby enemy
                 enemy = self._closest_enemy()
                 if enemy is not None:
-                    self.go(enemy.pos, "enemy%d" % enemy.pid)
+                    self.go(feet(enemy), "enemy%d" % enemy.pid)
                 else:
                     self.runner.objective(self)
             elif self._prefers_close():
-                self.go(tgt.pos, "enemy%d" % tgt.pid)
+                self.go(feet(tgt), "enemy%d" % tgt.pid)
         elif goal == "explore":
             point = self.goal_data.get("point")
             if point:
@@ -634,13 +687,13 @@ class Brain:
         elif goal == "follow":
             tgt = self.instance.players.get(self.goal_data.get("pid", 0))
             if tgt is not None and math.dist(tgt.pos, self.p.pos) > 12:
-                self.go(tgt.pos, "follow%d" % tgt.pid)
+                self.go(feet(tgt), "follow%d" % tgt.pid)
             else:
                 self.waypoints = []
         elif goal == "revenge":
             tgt = self.instance.players.get(self.revenge or 0)
             if tgt is not None:
-                self.go(tgt.pos, "revenge%d" % tgt.pid)
+                self.go(feet(tgt), "revenge%d" % tgt.pid)
         elif goal == "jumpy":
             if self.rng.random() < 0.3:
                 grid = self.runner.nav
@@ -725,7 +778,7 @@ class Brain:
             # right on top of us (or the one running off with our flag)
             chase = distance < 22 or self.runner.carries_our_flag(self, tgt)
         if chase:
-            self.go(tgt.pos, "enemy%d" % tgt.pid)
+            self.go(feet(tgt), "enemy%d" % tgt.pid)
         if near:
             self._aim_and_fire(moment, tgt, distance, stats, kind, interval)
         else:
@@ -785,7 +838,8 @@ class Brain:
                 self.burst = 0
                 cadence += self.rng.uniform(0.25, 0.7)
         self.next_shot = moment + cadence
-        if self.rng.random() < 0.06 + self.t("jumpy", 0.2) * 0.12:
+        if not self.airborne and self.rng.random() < 0.06 + self.t("jumpy", 0.2) * 0.12:
+            # a hop while shooting -- from the ground only, nobody jumps off air
             self.airborne = True
             self.vy = JUMP_SPEED
 

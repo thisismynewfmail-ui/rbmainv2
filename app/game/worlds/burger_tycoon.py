@@ -359,6 +359,9 @@ class BurgerTycoon(GameInstance):
             plot.owner_name = player.username
             plot.claimed_at = now()
             self.system_message("%s claimed %s!" % (player.username, plot.name))
+            if self.bots is not None:
+                self.bots.on_game_event("tycoon_claim", {
+                    "by": player.username, "plot": plot.name, "plot_id": plot.id})
         self.broadcast_plot(plot, full=True)
 
     def on_player_ready(self, player: Player) -> None:
@@ -444,6 +447,9 @@ class BurgerTycoon(GameInstance):
             target.owner_name = player.username
             target.claimed_at = now()
             self.system_message("%s claimed %s!" % (player.username, target.name))
+            if self.bots is not None:
+                self.bots.on_game_event("tycoon_claim", {
+                    "by": player.username, "plot": target.name, "plot_id": target.id})
         else:
             self.system_message("%s joined the %s crew."
                                 % (player.username, target.name))
@@ -488,6 +494,14 @@ class BurgerTycoon(GameInstance):
         self.broadcast_plot(plot)
         self.system_message("%s built %s at %s."
                             % (player.username, upgrade["name"], plot.name))
+        if self.bots is not None:
+            detail = {"by": player.username, "by_team": player.team,
+                      "plot": plot.name, "plot_id": plot.id,
+                      "built": len(plot.built), "total": len(UPGRADES)}
+            self.bots.on_game_event("tycoon_build", dict(
+                detail, upgrade=upgrade["name"], cost=upgrade["cost"]))
+            if len(plot.built) >= len(UPGRADES):
+                self.bots.on_game_event("tycoon_complete", detail)
 
     def use_active(self, player: Player, upgrade_id: str) -> None:
         plot = self.plot_of(player)

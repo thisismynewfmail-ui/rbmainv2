@@ -87,8 +87,30 @@
            box.maxZ > minZ && box.minZ < maxZ;
   }
 
-  /* Move an entity, resolving collisions one axis at a time. */
+  var MAX_STEP = 1.0;   // longest move along any axis in one sub-step
+
+  /* Move an entity, resolving collisions one axis at a time.
+
+     A slow frame (the loop allows up to a tenth of a second) at falling speed
+     would carry the body several units in one go, far enough to skip a thin
+     floor, so a long move is split into sub-steps no longer than MAX_STEP.
+     At ordinary frame rates this is a single step, exactly as before. */
   Physics.prototype.move = function (state, dt) {
+    var vel = state.vel;
+    var longest = Math.max(Math.abs(vel[0]), Math.abs(vel[1]), Math.abs(vel[2])) * dt;
+    var steps = Math.min(8, Math.max(1, Math.ceil(longest / MAX_STEP)));
+    var result = { grounded: false, hitWall: false, landed: false, headBump: false };
+    for (var s = 0; s < steps; s++) {
+      var part = this.moveOnce(state, dt / steps);
+      result.grounded = part.grounded;
+      result.hitWall = result.hitWall || part.hitWall;
+      result.landed = result.landed || part.landed;
+      result.headBump = result.headBump || part.headBump;
+    }
+    return result;
+  };
+
+  Physics.prototype.moveOnce = function (state, dt) {
     var hw = SIZE.w / 2, hd = SIZE.d / 2, h = SIZE.h;
     var pos = state.pos, vel = state.vel;
     var result = { grounded: false, hitWall: false, landed: false, headBump: false };

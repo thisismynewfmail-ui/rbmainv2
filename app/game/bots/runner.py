@@ -28,7 +28,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from ..instance import Player, now
-from .brain import Brain, styled
+from .brain import Brain, feet, styled
 
 TEAMS = ("red", "blue")
 
@@ -47,6 +47,12 @@ class BotRunner:
         self.quick_times: List[float] = []
         self.reported_chat = len(instance.chat_log)
         self.events: List[str] = []
+        self.speech: List[Dict[str, Any]] = []      # speech events not yet reported
+        self.carriers: Dict[str, Any] = {}          # flag team -> (name, team) carrying it
+        self.streaks: Dict[int, int] = {}           # pid -> kills since last death
+        self.said_time_low = False
+        self.said_final = False
+        self._clock_check = 0.0
         self.path_tokens = 0
         self.sleep_at = 0.0
         self.wants_report = False
@@ -129,6 +135,9 @@ class BotRunner:
                     traceback.print_exc()
         if self.chat_due:
             self._flush_chat(moment)
+        if self.humans and moment - self._clock_check >= 1.0:
+            self._clock_check = moment
+            self._check_clock()
 
     def path_budget(self) -> int:
         """Rationed A*: a few full searches a tick, cheap ones after that."""
@@ -198,13 +207,165 @@ class BotRunner:
             return None
         self.wants_report = False
         events, self.events = self.events[-8:], []
+        speech, self.speech = self.speech[-12:], []
         return {
             "inst": inst.instance_id, "lines": lines, "events": events,
+            "speech": speech,
+            "state": self.game_state(),
             "bots": [{"uid": b.uid, "name": b.p.username, "team": b.p.team,
-                      "traits": {"chatty": b.t("chatty", 0.4)}}
+                      "traits": {"chatty": b.t("chatty", 0.4)},
+                      "me": self.bot_state(b)}
                      for b in self.brains.values()],
-            "humans": [{"uid": h.user_id, "name": h.username} for h in self.humans],
+            "humans": [{"uid": h.user_id, "name": h.username, "team": h.team}
+                       for h in self.humans],
         }
+
+    # ========================================================== game state
+    def game_state(self) -> Dict[str, Any]:
+        """What anybody in the round can see on their screen right now: the
+        score, the flags or the cart, the clock. Bots get it as background
+        for anything they say."""
+        inst = self.instance
+        try:
+            round_state = inst.round_state() or {}
+        except Exception:
+            round_state = {}
+        state: Dict[str, Any] = {"mode": self.mode, "phase": inst.phase,
+                                 "round": inst.round_number}
+        if self.mode == "captures" and hasattr(inst, "flags"):
+            state["score"] = dict(round_state.get("captures") or {})
+            state["target"] = round_state.get("target")
+            state["time_left"] = round_state.get("time_left")
+            flags = {}
+            for team, flag in inst.flags.items():
+                entry: Dict[str, Any] = {"state": flag.state}
+                if flag.state == "carried":
+                    carrier = inst.players.get(flag.carrier or 0)
+                    if carrier is not None:
+                        entry["by"] = carrier.username
+                        entry["by_team"] = carrier.team
+                flags[team] = entry
+            state["flags"] = flags
+            for key in ("overtime", "sudden_death"):
+                if round_state.get(key):
+                    state[key] = True
+        elif self.mode == "payload" and hasattr(inst, "cart_distance"):
+            cart = round_state.get("cart") or {}
+            state.update({
+                "attackers": getattr(inst, "attackers", ""),
+                "progress": round(float(cart.get("progress", 0.0)) * 100),
+                "checkpoints": [int(round_state.get("checkpoints_reached", 0) or 0),
+                                len(round_state.get("checkpoints") or [])],
+                "round_wins": dict(round_state.get("round_wins") or {}),
+                "target_wins": round_state.get("target_wins"),
+                "time_left": round_state.get("time_left"),
+                "setup_left": round_state.get("setup_left"),
+                "pushing": int(cart.get("pushers", 0) or 0),
+                "blocked": bool(cart.get("blocked")),
+            })
+        elif self.mode == "endless":
+            plots = sorted(round_state.get("plots") or [], key=lambda p: -p.get("earned", 0))
+            state["restaurants"] = [
+                {"name": p.get("name"), "owner": p.get("owner") or "", "built": p.get("built"),
+                 "total": p.get("total"), "income": p.get("income")}
+                for p in plots if p.get("owner")][:5]
+        state["people"] = [h.username for h in self.humans]
+        state["players"] = len(inst.players)
+        return state
+
+    def bot_state(self, brain: Brain) -> Dict[str, Any]:
+        """This bot's own view: its team, job and how its round is going."""
+        p = brain.p
+        me: Dict[str, Any] = {"alive": bool(p.alive), "kills": int(p.kills),
+                              "deaths": int(p.deaths), "score": int(p.score),
+                              "role": getattr(brain, "role", "")}
+        if self.mode == "captures":
+            me["carrying"] = self.urgent(brain)
+        if self.mode == "endless":
+            plot = getattr(self.instance, "plot_of", lambda _p: None)(p)
+            if plot is not None:
+                me["plot"] = plot.name
+                me["built"] = len(plot.built)
+                me["coins"] = int(getattr(p, "coins", 0) or 0)
+        return me
+
+    # ======================================================== speech events
+    def on_game_event(self, kind: str, data: Dict[str, Any]) -> None:
+        """Something happened that the people in the round could talk about.
+
+        Nothing is decided here: the event is written up with who and which
+        team, queued for the web server's chat relay, and the heartbeat is
+        nudged so the reaction comes while it is still news."""
+        if not self.humans or not self.brains:
+            return
+        if not self.cfg.get("speech_enabled", True):
+            return
+        inst = self.instance
+        event: Dict[str, Any] = {"kind": kind, "at": time.time()}
+        by_name = str(data.get("by") or "")
+        if kind == "flag_take":
+            carrier = inst.players.get(int(data.get("pid", 0) or 0))
+            event.update(team=data.get("team", ""), by=by_name,
+                         by_team=carrier.team if carrier else "")
+            self.carriers[str(data.get("team", ""))] = (by_name, event["by_team"])
+        elif kind == "flag_drop":
+            name, team = self.carriers.pop(str(data.get("team", "")), ("", ""))
+            event.update(team=data.get("team", ""), by=name, by_team=team)
+        elif kind == "flag_return":
+            returner = self._by_name(by_name)
+            event.update(team=data.get("team", ""), by=by_name,
+                         by_team=returner.team if returner else "")
+            self.carriers.pop(str(data.get("team", "")), None)
+        elif kind == "flag_capture":
+            event.update(team=data.get("team", ""), by=by_name,
+                         by_team=data.get("team", ""), score=data.get("score") or {})
+            for team in list(self.carriers):
+                if self.carriers[team][0] == by_name:
+                    self.carriers.pop(team, None)
+        elif kind == "lockdown":
+            event.update(team=data.get("team", ""), on=bool(data.get("on")))
+        elif kind in ("overtime", "sudden_death"):
+            event["score"] = dict(getattr(inst, "captures", {}) or {})
+        elif kind in ("setup_end", "checkpoint"):
+            event["attackers"] = getattr(inst, "attackers", "")
+            if kind == "checkpoint":
+                event["n"] = data.get("n", 0)
+                event["of"] = len(getattr(inst, "checkpoint_fractions", []) or [])
+        else:
+            event.update(data)
+        self.speech.append(event)
+        del self.speech[:-12]
+        self.wants_report = True
+        wake = getattr(self.host, "wake_heartbeat", None)
+        if wake is not None:
+            wake()
+
+    def _by_name(self, name: str) -> Optional[Player]:
+        if not name:
+            return None
+        for player in self.instance.players.values():
+            if player.username == name:
+                return player
+        return None
+
+    def _check_clock(self) -> None:
+        """The events nobody pushes: a minute left, the cart's last stretch."""
+        inst = self.instance
+        if inst.phase != "active" or self.mode == "endless":
+            return
+        ends = getattr(inst, "round_ends", 0) or 0
+        left = ends - now()
+        if not self.said_time_low and 0 < left <= 60:
+            self.said_time_low = True
+            event: Dict[str, Any] = {"left": int(left)}
+            if self.mode == "captures":
+                event["score"] = dict(getattr(inst, "captures", {}) or {})
+            self.on_game_event("time_low", event)
+        if self.mode == "payload" and not self.said_final:
+            length = max(1.0, float(getattr(inst, "track_length", 1.0) or 1.0))
+            if float(getattr(inst, "cart_distance", 0.0) or 0.0) / length >= 0.85:
+                self.said_final = True
+                self.on_game_event("cart_final", {"attackers": getattr(inst, "attackers", "")})
 
     # =============================================================== events
     def on_kill(self, killer, victim, weapon: str) -> None:
@@ -214,36 +375,70 @@ class BotRunner:
             killer.brain.on_kill(victim)
         if killer is not None and victim is not None and self.humans:
             self.note("%s killed %s with %s" % (killer.username, victim.username, weapon))
+        ended = self.streaks.pop(victim.pid, 0) if victim is not None else 0
+        if killer is not None and killer is not victim:
+            count = self.streaks.get(killer.pid, 0) + 1
+            self.streaks[killer.pid] = count
+            if count in (3, 5, 8, 12):
+                self.on_game_event("killstreak", {"by": killer.username,
+                                                  "by_team": killer.team, "n": count})
+        if ended >= 3 and killer is not None and killer is not victim:
+            self.on_game_event("streak_ended", {"by": killer.username, "by_team": killer.team,
+                                                "victim": victim.username, "n": ended})
 
     def on_human_join(self, player) -> None:
         self.humans = [p for p in self.instance.players.values() if p.brain is None]
         self.sleep_at = 0.0
         greet = float(self.cfg.get("greet", 35) or 0) / 100.0
-        if self.brains and self.rng.random() < greet:
+        if self._speech_on():
+            # the chat relay greets them, knowing the score and who they are
+            self.on_game_event("player_joined", {"by": player.username,
+                                                 "by_team": player.team})
+        elif self.brains and self.rng.random() < greet:
             brain = self.rng.choice(list(self.brains.values()))
             brain.say("hello", player.username, 1.0, delay=self.rng.uniform(1.5, 4.5))
         self.wants_report = True
         self.note("%s joined" % player.username)
 
-    def on_round_end(self, winner: str) -> None:
+    def _speech_on(self) -> bool:
+        return bool(self.cfg.get("speech_enabled", True)) and \
+            bool(self.cfg.get("messages_ingame_chat", True))
+
+    def on_round_end(self, winner: str, reason: str = "") -> None:
+        if self._speech_on():
+            self.on_game_event("round_end", {
+                "winner": winner, "reason": reason,
+                "score": dict(getattr(self.instance, "captures", None)
+                              or getattr(self.instance, "round_wins", None) or {})})
+            return
         for brain in self.brains.values():
             if self.rng.random() < 0.3:
                 brain.say("round", chance=0.4 + brain.t("kindness", 0.5) * 0.5,
                           delay=self.rng.uniform(0.5, 4.0))
 
     def on_round_start(self) -> None:
+        self.said_time_low = False
+        self.said_final = False
+        self.carriers.clear()
         for brain in self.brains.values():
             # the round wiped kills and deaths; the score carries on
             brain.base = (0, 0, brain.base[2])
             brain.goal_until = 0.0
             brain.role = brain._pick_role()
+        self.on_game_event("round_start", {
+            "round": self.instance.round_number,
+            "attackers": getattr(self.instance, "attackers", "")})
 
     def on_capture(self, team: str) -> None:
+        if self._speech_on():
+            return          # the capture reaches the chat relay as an event
         for brain in self.brains.values():
             if brain.p.team == team:
                 brain.say("capture", chance=0.2)
 
     def on_flag_taken(self, team: str) -> None:
+        if self._speech_on():
+            return
         for brain in self.brains.values():
             if brain.p.team == team and self.rng.random() < 0.25:
                 brain.say("lost", chance=0.35)
@@ -308,7 +503,7 @@ class BotRunner:
             carrier = inst.players.get(own.carrier or 0)
             if carrier is not None and (brain.role != "attack" or
                                         math.dist(p.pos, carrier.pos) < 90):
-                brain.go(carrier.pos, "chase%d" % carrier.pid)
+                brain.go(feet(carrier), "chase%d" % carrier.pid)
                 if brain.target is None and brain.near:
                     brain.target = carrier.pid
                 return
@@ -316,7 +511,7 @@ class BotRunner:
             carrier = inst.players.get(enemy.carrier or 0)
             if carrier is not None and carrier.team == mine:
                 if math.dist(p.pos, carrier.pos) > 18:
-                    brain.go(carrier.pos, "escort%d" % carrier.pid)
+                    brain.go(feet(carrier), "escort%d" % carrier.pid)
                 return
         if brain.role == "attack" or (brain.role == "roam" and self.rng.random() < 0.4):
             if enemy.state == "home":
@@ -572,6 +767,7 @@ class BotRunner:
                     if node >= 0:
                         player.pos = grid.point(node)
                         brain.ground = list(player.pos)
+                        brain.airborne = True
                         theirs.state = "carried"
                         theirs.carrier = player.pid
                         theirs.pos = [player.pos[0], player.pos[1] + 5.6, player.pos[2]]
@@ -593,6 +789,7 @@ class BotRunner:
             player.last_ground_pos = list(player.pos)
             if brain is not None:
                 brain.ground = list(player.pos)
+                brain.airborne = True
                 brain.last_progress = (list(player.pos), moment)
             player.yaw = rng.uniform(-math.pi, math.pi)
             player.spawn_protect_until = 0.0

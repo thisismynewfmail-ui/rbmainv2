@@ -35,9 +35,11 @@ class FortressTeam2(GameInstance):
             "track_length", payload_map.track_length(self.track)))
         self.checkpoint_fractions: List[float] = list(
             markers.get("checkpoints", [0.34, 0.68, 1.0]))
+        # the first forward room overlaps the stepped block beside it, and two
+        # of its spawn points are inside those steps
         self.forward_spawns = {
-            1: markers.get("forward_blue_1", []),
-            2: markers.get("forward_blue_2", []),
+            1: self.clear_spawns(markers.get("forward_blue_1", [])),
+            2: self.clear_spawns(markers.get("forward_blue_2", [])),
         }
         self.cart_distance = 0.0
         self.cart_pos, self.cart_yaw = payload_map.point_at(self.track, 0.0)
@@ -192,7 +194,7 @@ class FortressTeam2(GameInstance):
                 self.host.report_round(self, player,
                                        won=player.team == winner)
             if self.bots is not None:
-                self.bots.on_round_end(winner)
+                self.bots.on_round_end(winner, reason)
 
     def tick(self) -> None:
         super().tick()

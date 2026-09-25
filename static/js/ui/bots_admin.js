@@ -15,7 +15,7 @@
   var ICONS = {
     stats: '▣', creation: '✚', personas: '☺', presence: '☼',
     worlds: '◉', ingame: '⌖', friends: '❤', chatter: '✎',
-    messages: '✉', llm: '⚙', prompts: '¶'
+    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦'
   };
   var SCOPE_LABEL = { universal: 'Universal', 'per-bot': 'Per-bot range', base: 'Base × persona' };
   var SCOPE_HELP = {
@@ -273,6 +273,8 @@
     if (BZ.sub === 'chatter' || BZ.sub === 'messages' || BZ.sub === 'friends') { drawFeeds(); }
     if (BZ.sub === 'presence') { drawCurve(); }
     if (BZ.sub === 'worlds') { drawWorldTable(); }
+    if (BZ.sub === 'modifiers') { drawModifiers(); }
+    if (BZ.sub === 'speech') { drawSpeech(); }
   }
 
   /* The presence curve: the share of bots the director keeps online over
@@ -383,7 +385,8 @@
     var extra = {
       stats: statsPane, creation: creationPane, personas: personasPane, presence: presencePane,
       worlds: worldsPane, ingame: null, friends: feedsPane, chatter: feedsPane,
-      messages: feedsPane, llm: llmPane, prompts: promptsPane
+      messages: feedsPane, llm: llmPane, prompts: promptsPane,
+      modifiers: modifiersPane, speech: speechPane
     }[BZ.sub];
     html += '<div class="panel"><div class="panel-head purple"><span>' + (ICONS[BZ.sub] || '') + ' ' +
       esc(sec.label) + '</span><span class="head-links">' + esc(sec.blurb) + '</span></div>' +
@@ -400,6 +403,8 @@
     if (BZ.sub === 'presence') { drawCurve(); }
     if (BZ.sub === 'worlds') { drawWorldTable(); }
     if (BZ.sub === 'friends' || BZ.sub === 'chatter' || BZ.sub === 'messages') { drawFeeds(); }
+    if (BZ.sub === 'modifiers') { drawModifiers(); }
+    if (BZ.sub === 'speech') { drawSpeech(); }
     syncBands();
   }
 
@@ -514,7 +519,8 @@
 
   function fieldHtml(f) {
     var v = current(f.key);
-    var wide = f.kind === 'textarea' || f.kind === 'weights' || (f.kind === 'list' && f.rows > 4);
+    var wide = f.kind === 'textarea' || f.kind === 'weights' || f.kind === 'chances' ||
+      (f.kind === 'list' && f.rows > 4);
     var ctl = '';
     var unit = f.unit ? '<span class="unit">' + esc(f.unit) + '</span>' : '';
     if (f.kind === 'bool') {
@@ -553,10 +559,13 @@
     } else if (f.kind === 'list') {
       ctl = '<textarea data-bz-list="' + f.key + '" rows="' + (f.rows || 4) + '">' + esc((v || []).join('\n')) +
         '</textarea><span class="unit" data-bz-count="' + f.key + '">' + (v || []).length + ' lines</span>';
+    } else if (f.kind === 'chances') {
+      ctl = chancesHtml(f, v || {});
     } else if (f.kind === 'weights') {
       ctl = weightsHtml(f, v || {});
     }
-    if (f.kind !== 'range' && f.kind !== 'hours' && f.kind !== 'daterange' && f.kind !== 'weights') {
+    if (f.kind !== 'range' && f.kind !== 'hours' && f.kind !== 'daterange' && f.kind !== 'weights' &&
+        f.kind !== 'chances') {
       ctl = '<div class="bz-ctl">' + ctl + '</div>';
     }
     return '<div class="bz-field' + (wide ? ' wide' : '') + (Object.prototype.hasOwnProperty.call(BZ.dirty, f.key) ? ' dirty' : '') +
@@ -564,6 +573,25 @@
       '<span class="bz-scope ' + f.scope + '" title="' + esc(SCOPE_HELP[f.scope] || '') + '">' +
       esc(SCOPE_LABEL[f.scope] || f.scope) + '</span></div>' + ctl +
       (f.help ? '<div class="help">' + esc(f.help) + '</div>' : '') + '</div>';
+  }
+
+  /* One row per speech event, grouped by the worlds it happens in. */
+  function chancesHtml(f, v) {
+    var out = '<div class="bz-chances">';
+    var lastGroup = null;
+    (f.options || []).forEach(function (o) {
+      var id = o[0], label = o[1], group = o[2] || '', help = o[3] || '';
+      if (group !== lastGroup) {
+        out += '<h4>' + esc(group) + '</h4>';
+        lastGroup = group;
+      }
+      var pct = v[id] != null ? v[id] : 0;
+      out += '<div class="bz-chance' + (pct ? '' : ' off') + '"><span class="name">' + esc(label) +
+        '<small>' + esc(help) + '</small></span>' +
+        '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-bz-chance="' + f.key +
+        '" data-event="' + esc(id) + '"><output>' + (pct ? pct + '%' : 'off') + '</output></div>';
+    });
+    return out + '</div>';
   }
 
   function weightsHtml(f, v) {
@@ -1041,6 +1069,108 @@
     }
   }
 
+  // ======================================================= modifiers pane
+  function modifiersPane() {
+    return '<p class="bz-intro">Modifiers are short-lived: they start when a conversation does and fade ' +
+      'away once it goes quiet. Below is what is active right now.</p>' +
+      '<div class="bz-grid2"><div><div class="bz-feed-head"><b>DM conversations with momentum</b>' +
+      '<span class="muted tiny">fades after the decay time</span></div><div id="bz-mod-dm"></div></div>' +
+      '<div><div class="bz-feed-head"><b>Rounds with chat heat</b><span class="muted tiny">' +
+      'players talking, buzz after events</span></div><div id="bz-mod-heat"></div>' +
+      '<div class="bz-feed-head" style="margin-top:10px"><b>Since the server started</b></div>' +
+      '<div class="bz-status compact" id="bz-mod-stats"></div></div></div>';
+  }
+
+  function meter(pct) {
+    return '<span class="bz-meter wide"><i style="width:' + Math.max(0, Math.min(100, pct)) + '%"></i></span>';
+  }
+
+  function drawModifiers() {
+    if (!BZ.overview) return;
+    var chatter = BZ.overview.chatter || {}, game = BZ.overview.gamechat || {};
+    var dm = el('bz-mod-dm');
+    if (dm) {
+      var rows = chatter.momentum || [];
+      var decay = Number(BZ.values['modifiers.dm_decay_seconds']) || 60;
+      dm.innerHTML = rows.length ? '<table class="grid bz-mod-table"><tr><th>Bot</th><th>Talking with</th>' +
+        '<th>Turns</th><th>Replies sooner</th><th>Fades in</th></tr>' + rows.map(function (r) {
+          return '<tr><td><a href="#" class="bz-name bot" data-bz-open="' + r.bot + '">' + esc(r.bot_name || ('#' + r.bot)) +
+            '</a></td><td>' + esc(r.other_name || ('#' + r.other)) + '<span class="bz-sub">' +
+            (r.waiting_on === 'human' ? 'bot is typing' : 'waiting on them') + '</span></td><td class="bz-num">' +
+            r.turns + '</td><td class="bz-num">' + (r.speedup ? r.speedup + '%' : '<span class="muted">not yet</span>') +
+            meter(r.speedup) + '</td><td class="bz-num">' + Math.round(r.fades_in) + 's' +
+            meter(r.fades_in / decay * 100) + '</td></tr>';
+        }).join('') + '</table>' : '<span class="muted tiny">Nobody is trading messages with a bot right now.</span>';
+    }
+    var heat = el('bz-mod-heat');
+    if (heat) {
+      var rooms = game.heat || [];
+      heat.innerHTML = rooms.length ? '<table class="grid bz-mod-table"><tr><th>Round</th><th>Talking</th>' +
+        '<th>Heat</th><th>Reply odds</th><th>Buzz</th></tr>' + rooms.map(function (r) {
+          return '<tr><td><b>' + esc(r.world_name) + '</b> <span class="muted">#' + r.inst + '</span></td><td>' +
+            esc((r.talking || []).join(', ')) + '</td><td class="bz-num">' + r.heat.toFixed(1) +
+            meter(r.heat / 5 * 100) + '</td><td class="bz-num">×' + r.multiplier.toFixed(2) + '</td><td class="bz-num">' +
+            (r.buzz > 1.001 ? '×' + r.buzz.toFixed(2) : '<span class="muted">—</span>') + '</td></tr>';
+        }).join('') + '</table>' : '<span class="muted tiny">No real player is talking in a round right now.</span>';
+    }
+    var stats = el('bz-mod-stats');
+    if (stats) {
+      var c = chatter.stats || {}, g = game.stats || {};
+      stats.innerHTML = [['DMs answered sooner', c.quickened], ['In-game answers', g.answered],
+        ['Second voices', g.second_voices], ['Bot-to-bot replies', g.bot_replies],
+        ['Skipped (odds)', g.skipped], ['Held back (budget)', g.budget]].map(function (x) {
+        return '<dl class="cell"><dt>' + esc(x[0]) + '</dt><dd>' + num(x[1]) + '</dd></dl>';
+      }).join('');
+    }
+  }
+
+  // ========================================================= speech pane
+  function speechPane() {
+    return '<p class="bz-intro">Each event is reported by the game host only from rounds a real player is in. ' +
+      'The bots in that round see it from their own side (their flag or the enemy\'s, attacking or ' +
+      'defending), and the chance below decides whether anyone says something about it.</p>' +
+      '<div class="bz-grid2"><div><div class="bz-feed-head"><b>Latest events</b>' +
+      '<span class="muted tiny">newest first</span></div><div class="bz-feed tall" id="bz-speech-feed"></div></div>' +
+      '<div><div class="bz-feed-head"><b>Since the server started</b></div>' +
+      '<div class="bz-status compact" id="bz-speech-stats"></div>' +
+      '<div class="bz-feed-head" style="margin-top:10px"><b>What bots said</b></div>' +
+      '<div class="bz-feed" id="bz-speech-said"></div></div></div>';
+  }
+
+  function drawSpeech() {
+    if (!BZ.overview) return;
+    var game = BZ.overview.gamechat || {};
+    var feed = el('bz-speech-feed');
+    if (feed) {
+      var events = (game.events || []).slice().reverse();
+      var worlds = {};
+      (BZ.overview.worlds || []).forEach(function (w) { worlds[w.id] = w.name; });
+      feed.innerHTML = events.length ? events.map(function (e) {
+        return '<div class="row"><span class="t">' + ago(e.at) + '</span><span class="k">' + esc(e.label) +
+          '</span>' + esc(worlds[e.world] || e.world) + ' <span class="muted">#' + e.inst + '</span>' +
+          '<div class="say">' + (e.voices && e.voices.length ? esc(e.voices.join(', ')) + ' reacted'
+            : '<span class="muted">' + esc(e.outcome || '') + '</span>') + '</div></div>';
+      }).join('') : '<span class="muted tiny">No events yet: they come from rounds with a real player in them.</span>';
+    }
+    var stats = el('bz-speech-stats');
+    if (stats) {
+      var g = game.stats || {};
+      stats.innerHTML = [['Events heard', g.events], ['Reactions', g.reactions],
+        ['Stock lines (model down)', g.canned], ['Repeats dropped', g.repeats]].map(function (x) {
+        return '<dl class="cell"><dt>' + esc(x[0]) + '</dt><dd>' + num(x[1]) + '</dd></dl>';
+      }).join('');
+    }
+    var said = el('bz-speech-said');
+    if (said) {
+      var lines = (game.recent || []).slice().reverse();
+      said.innerHTML = lines.length ? lines.map(function (r) {
+        return '<div class="row"><span class="t">' + ago(r.at) + '</span><span class="k">' + esc(r.world) + '</span><b>' +
+          esc(r.who) + '</b>' + (r.to ? ' <span class="muted">(' + esc(String(r.to).replace(/_/g, ' ')) + ')</span>' : '') +
+          '<div class="say">' + esc(r.text) + '</div></div>';
+      }).join('') : '<span class="muted tiny">Nothing said in a round yet.</span>';
+    }
+  }
+
   // ============================================================ llm pane
   function llmPane() {
     return '<div id="bz-llm-status"></div>' +
@@ -1282,6 +1412,13 @@
         var counter = document.querySelector('[data-bz-count="' + t.dataset.bzList + '"]');
         if (counter) counter.textContent = lines.filter(function (l) { return l.trim(); }).length + ' lines';
         markDirty(t.dataset.bzList, lines);
+      } else if (t.dataset.bzChance) {
+        var ckey = t.dataset.bzChance;
+        var chances = JSON.parse(JSON.stringify(current(ckey) || {}));
+        chances[t.dataset.event] = Number(t.value);
+        t.nextElementSibling.textContent = Number(t.value) ? t.value + '%' : 'off';
+        t.parentNode.classList.toggle('off', !Number(t.value));
+        markDirty(ckey, chances);
       } else if (t.dataset.bzWeight) {
         var wkey = t.dataset.bzWeight;
         var weights = JSON.parse(JSON.stringify(current(wkey) || {}));

@@ -26,6 +26,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional
 
 from .. import db
+from . import speech as speech_catalogue
 
 META_KEY = "bots.config"
 
@@ -144,6 +145,8 @@ SECTIONS = [
     ("friends", "Friends", "Bots adding and confirming friends."),
     ("chatter", "Chatter", "Profile comments, posts and likes between associated bots."),
     ("messages", "DMs & Chat", "Private messages and in-game chat."),
+    ("modifiers", "Dynamic Modifiers", "Short-lived boosts that follow a live conversation, then fade."),
+    ("speech", "Speech Events", "What happens in a round, and how likely bots are to talk about it."),
     ("llm", "Language Model", "The endpoint every word a bot writes comes from."),
     ("prompts", "Prompts", "The system message used for each kind of interaction."),
 ]
@@ -438,6 +441,92 @@ FIELDS: List[Field] = [
       "Characters a second; a reply appears after it would have been typed.",
       1, 40, 0.5, "chars/s"),
 
+    # ------------------------------------------------------------ modifiers
+    F("modifiers.dm_enabled", "Conversation momentum (DMs)", "bool", True,
+      "modifiers", "When somebody keeps trading messages with a bot, it answers "
+      "sooner; once the conversation goes quiet the effect fades away.",
+      toggle=True),
+    F("modifiers.dm_min_turns", "Back-and-forths before it starts", "int", 2,
+      "modifiers", "One back-and-forth is the bot answering and the person "
+      "answering back.", 1, 20, 1, "turns"),
+    F("modifiers.dm_speedup", "Replies this much sooner", "pct", 30,
+      "modifiers", "Cut from the bot's usual reading and typing time once the "
+      "momentum kicks in.", 0, 95, 1, "%"),
+    F("modifiers.dm_step", "More for each further turn", "pct", 10,
+      "modifiers", "Added on top for every back-and-forth after that.", 0, 50,
+      1, "%"),
+    F("modifiers.dm_max", "Never more than", "pct", 70, "modifiers",
+      "The ceiling on how much sooner a bot can answer.", 0, 95, 1, "%"),
+    F("modifiers.dm_decay_seconds", "Decay time (DMs)", "int", 60,
+      "modifiers", "How long a pause kills the momentum. It fades gradually: "
+      "an answer straight back keeps all of it, one half this long later "
+      "keeps half, and after this long it is gone and the count starts again.",
+      5, 3600, 5, "s"),
+    F("modifiers.dm_stay_online", "Stay online mid-conversation", "bool", True,
+      "modifiers", "A bot about to log off stays on a little longer while a "
+      "conversation still has momentum."),
+    F("modifiers.chat_enabled", "Chat heat (in-game)", "bool", True,
+      "modifiers", "When a real player keeps talking in a round, bots are more "
+      "likely to answer; once they go quiet it fades back to normal.",
+      toggle=True),
+    F("modifiers.chat_boost", "Boost per recent message", "pct", 35,
+      "modifiers", "Extra reply chance for each of the player's recent lines "
+      "before the one being answered (each fades out over the decay time).",
+      0, 300, 5, "%"),
+    F("modifiers.chat_max", "Most extra chance", "pct", 150, "modifiers",
+      "The ceiling on the boost: 150% means up to two and a half times the "
+      "usual chance.", 0, 500, 5, "%"),
+    F("modifiers.chat_decay_seconds", "Decay time (in-game)", "int", 60,
+      "modifiers", "A line stops adding heat this long after it was said, "
+      "fading gradually until then.", 5, 600, 5, "s"),
+    F("modifiers.chat_partner", "Keep talking to the same bot", "pct", 60,
+      "modifiers", "Chance the bot a player was just talking with is the one "
+      "that answers their next line (fades with the heat).", 0, 100, 1, "%"),
+    F("modifiers.chat_second_voice", "Second voice", "pct", 20, "modifiers",
+      "Chance another bot chimes in as well when the chat is hot.", 0, 100, 1,
+      "%"),
+    F("modifiers.bots_talk", "Bots answer each other", "bool", True,
+      "modifiers", "A bot's line in a round can draw a reply from another bot "
+      "there, so a round's chat is a conversation, not a list of answers to "
+      "the player.", toggle=True),
+    F("modifiers.bot_reply_chance", "Reply to another bot", "pct", 22,
+      "modifiers", "Chance a bot's line gets an answer from another bot; much "
+      "higher when it named that bot.", 0, 100, 1, "%", scope="base"),
+    F("modifiers.bot_chain_max", "Longest bot-only exchange", "int", 3,
+      "modifiers", "After this many bot lines in a row with no real player "
+      "speaking, the bots let it drop.", 0, 12, 1, "lines"),
+    F("modifiers.bot_chain_fade", "Each further bot reply", "pct", 50,
+      "modifiers", "How much less likely each further reply in a bot-only "
+      "exchange is.", 0, 100, 5, "% less"),
+
+    # --------------------------------------------------------------- speech
+    F("speech.enabled", "Speech events", "bool", True, "speech",
+      "Things that happen in a round -- a stolen flag, a capture, a "
+      "checkpoint, a finished restaurant -- make the bots there more likely "
+      "to say something about it, told what happened from their own side.",
+      toggle=True),
+    F("speech.chances", "Chance per event", "chances",
+      dict(speech_catalogue.DEFAULT_CHANCES), "speech",
+      "The chance that someone in the round reacts in chat when it happens. "
+      "0 turns an event off.", 0, 100, 1, "%", options="events"),
+    F("speech.max_voices", "Most bots reacting to one event", "int", 2,
+      "speech", "", 1, 6, 1, "bots"),
+    F("speech.follow_chance", "Another bot joins in", "pct", 35, "speech",
+      "Chance each further bot also reacts, up to the limit above.", 0, 100,
+      1, "%"),
+    F("speech.cooldown_seconds", "Quiet time per kind of event", "int", 20,
+      "speech", "After bots react to an event, the same kind of event in that "
+      "round cannot set them off again for this long.", 0, 600, 5, "s"),
+    F("speech.buzz_seconds", "Buzz afterwards", "int", 45, "speech",
+      "For this long after an event the round is buzzing: bots are more likely "
+      "to answer each other and the players, fading as it goes.", 0, 600, 5,
+      "s"),
+    F("speech.buzz_boost", "How much more likely during the buzz", "pct", 60,
+      "speech", "", 0, 300, 5, "%"),
+    F("speech.canned_fallback", "Canned lines when the model is down", "bool",
+      True, "speech", "Short stock reactions (\"they have our flag\", \"nice "
+      "cap\") stand in when the language model is unavailable."),
+
     # ----------------------------------------------------------------- llm
     F("llm.enabled", "Use the language model", "bool", True, "llm",
       "Every word a bot writes comes from the endpoint below.", toggle=True),
@@ -594,6 +683,17 @@ def clean(field: Field, value: Any) -> Any:
     if kind == "select":
         allowed = [o[0] for o in (field.options or [])]
         return value if value in allowed else field.default
+    if kind == "chances":
+        if not isinstance(value, dict):
+            return dict(field.default)
+        out_c = dict(field.default)
+        for key, pct in value.items():
+            if key not in out_c:
+                continue
+            number = _num(field, pct)
+            if number is not None:
+                out_c[key] = int(round(number))
+        return out_c
     if kind == "weights":
         if not isinstance(value, dict):
             return dict(field.default)
@@ -708,6 +808,8 @@ def schema() -> Dict[str, Any]:
         if field.options == "tags":
             entry["options"] = [[t["id"], t["label"], t["group"]]
                                 for t in personas.all_tags()]
+        elif field.options == "events":
+            entry["options"] = speech_catalogue.options()
         fields.append(entry)
     return {"sections": [{"id": s, "label": l, "blurb": b}
                          for s, l, b in SECTIONS],
@@ -730,7 +832,7 @@ def ingame_section() -> Dict[str, Any]:
     for key in ("messages.ingame_chat", "messages.quick_reactions",
                 "messages.chat_per_minute", "messages.typing_cps",
                 "messages.chat_reply_chance", "worlds.sleep_grace_seconds",
-                "worlds.max_live_bots", "system.enabled"):
+                "worlds.max_live_bots", "system.enabled", "speech.enabled"):
         out[key.replace(".", "_")] = values.get(key)
     out["v"] = _version
     out["at"] = int(time.time())

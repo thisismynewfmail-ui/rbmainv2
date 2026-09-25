@@ -14,6 +14,10 @@ Three groups:
              checked: flags taken and captured, the cart pushed, restaurants
              built, nobody stuck in a wall or lost in the void, and the time a
              tick costs
+``chat``     the Dynamic Modifiers (DM momentum and its decay, in-game chat
+             heat, bots answering each other within limits), Speech Events
+             from each side of the round, the game state the host reports and
+             the chat relay end to end with the language model stubbed out
 ``scale``    the director carrying a large population (``--bots N``,
              default 20000) on a throwaway database, timed per tick
 
@@ -229,6 +233,9 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
         start = time.perf_counter()
         ticks = int(seconds / engine.TICK_DT)
         worst = 0.0
+        inside = 0
+        at_flag = 0
+        checked = 0.0
         for n in range(ticks):
             clock.t += engine.TICK_DT
             if person is not None:
@@ -236,7 +243,17 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
             began = time.perf_counter()
             inst.tick()
             worst = max(worst, time.perf_counter() - began)
-        elapsed = time.perf_counter() - start
+            check_start = time.perf_counter()
+            flags = getattr(inst, "flags", None)
+            for brain in inst.bots.brains.values():
+                if brain.p.alive and _inside_solid(inst, brain.p.pos):
+                    inside += 1
+                if flags and brain.p.alive and brain.p.team in flags:
+                    enemy = flags["blue" if brain.p.team == "red" else "red"]
+                    if math.dist(brain.p.pos, enemy.home) < 20:
+                        at_flag += 1
+            checked += time.perf_counter() - check_start
+        elapsed = time.perf_counter() - start - checked
         stuck = 0
         for brain in inst.bots.brains.values():
             p = brain.p
@@ -249,6 +266,11 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
                   "ms_per_tick": elapsed / ticks * 1000.0, "worst_ms": worst * 1000.0,
                   "chat": chat, "system": system, "stuck": stuck,
                   "void": sum(1 for m in system if "the void" in m),
+                  "inside": inside,
+                  "at_flag": at_flag,
+                  "rescues": sum(b.rescues for b in inst.bots.brains.values()),
+                  "climbs": sum(b.climbs for b in inst.bots.brains.values()),
+                  "short_climbs": sum(b.short_climbs for b in inst.bots.brains.values()),
                   "kills": sum(p.kills for p in inst.players.values()),
                   "alive": sum(1 for p in inst.players.values() if p.alive)}
         return result
@@ -257,11 +279,27 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
             module.now = original
 
 
+def _inside_solid(inst, pos) -> bool:
+    """Is a bot's body overlapping the map anywhere (beyond rounding)?"""
+    from app.game.bots import body
+    inset = 0.05
+    x0, x1 = pos[0] - body.HALF_W + inset, pos[0] + body.HALF_W - inset
+    z0, z1 = pos[2] - body.HALF_D + inset, pos[2] + body.HALF_D - inset
+    y0, y1 = pos[1] + 0.1, pos[1] + body.HEIGHT - inset
+    for lo, hi in inst._colliders_near([x0, y0, z0], [x1, y1, z1]):
+        if hi[0] > x0 and lo[0] < x1 and hi[1] > y0 and lo[1] < y1 and hi[2] > z0 and lo[2] < z1:
+            return True
+    return False
+
+
 def _carrier_run() -> int:
     """One bot on the enemy flag with the road home clear: it must pick the
     flag up and carry it all the way, whatever mood it was in."""
     def put_on_flag(inst):
         bot = next(p for p in inst.players.values() if p.brain is not None)
+        if not bot.alive:
+            # a round woken mid-game can start a bot on its respawn timer
+            inst.spawn_player(bot)
         enemy = inst.flags[inst.enemy_of(bot.team)]
         bot.pos = list(enemy.home)
         bot.brain.ground = list(bot.pos)
@@ -274,6 +312,15 @@ def _carrier_run() -> int:
 
 def test_live(seconds: float) -> None:
     print("\n== live (headless, %.0f simulated seconds each) ==" % seconds)
+    for world_id in ("capture_the_flag", "blackout_relay", "fortress_team_2", "burger_tycoon"):
+        host = FakeHost(world_id)
+        inst = host.cls(host, host.world, 7, host.map)
+        points = [sp for team in (inst.team_names() or [""]) for sp in inst.spawn_points(team)]
+        for extra in (getattr(inst, "forward_spawns", None) or {}).values():
+            points.extend(extra)
+        stuck = [sp["p"] for sp in points if not inst.body_fits(*sp["p"])]
+        check("%s: every spawn point has room for a body (%d points)" % (world_id, len(points)),
+              not stuck, stuck)
     for world_id, bots in (("capture_the_flag", 14), ("blackout_relay", 18),
                            ("fortress_team_2", 16), ("burger_tycoon", 14)):
         r = run_world(world_id, seconds, bots)
@@ -289,11 +336,22 @@ def test_live(seconds: float) -> None:
                 print("      chat: %s: %s" % (line.get("from"), line.get("m")))
         check("%s: bots fight (kills happen)" % label, r["kills"] > 0, r["kills"])
         check("%s: nobody stuck for long" % label, r["stuck"] <= max(1, bots // 8), r["stuck"])
+        check("%s: no bot is ever inside the map's geometry" % label, r["inside"] == 0,
+              "%d frames" % r["inside"])
+        check("%s: no bot falls through the world and needs rescuing" % label,
+              r["rescues"] == 0, r["rescues"])
+        check("%s: ledge jumps land on the ledge (%d of %d fell short)"
+              % (label, r["short_climbs"], r["climbs"]),
+              r["short_climbs"] <= max(3, r["climbs"] // 10), r["short_climbs"])
         check("%s: tick cost stays low" % label, r["ms_per_tick"] < 12.0,
               "%.2f ms" % r["ms_per_tick"])
         if inst.mode == "captures":
             taken = sum(1 for m in r["system"] if "picked up" in m)
-            check("%s: flags get taken" % label, taken > 0, r["system"][-5:])
+            # a round can go a couple of minutes without a grab, as real ones
+            # do; bots standing at the enemy flag shows they went for it
+            check("%s: bots go for the enemy flag (%d taken, %d bot-seconds at it)"
+                  % (label, taken, r["at_flag"] // 20), taken > 0 or r["at_flag"] >= 40,
+                  r["system"][-5:])
             if world_id == "capture_the_flag":
                 caps = _carrier_run()
                 check("%s: a bot holding the flag runs it home and scores" % label,
@@ -305,6 +363,251 @@ def test_live(seconds: float) -> None:
         else:
             built = sum(len(p.built) for p in inst.plots)
             check("%s: restaurants get built" % label, built >= 3, built)
+
+
+# ====================================================================== chat
+class _StubDirector:
+    """What the chat relay and the chatter engine ask of the director."""
+
+    def __init__(self, names: Dict[int, str]):
+        import threading
+        self.names = names
+        self.lock = threading.RLock()
+        self.ops = {w: [] for w in ("burger_tycoon", "capture_the_flag",
+                                    "fortress_team_2", "blackout_relay")}
+        self.chatter = None
+
+    def enabled(self) -> bool:
+        return True
+
+    def card(self, uid: int) -> Dict[str, Any]:
+        return {"id": uid, "name": self.names.get(uid, "bot%d" % uid), "tags": ["friendly"],
+                "traits": {"chatty": 0.7}, "joined": 1700000000, "blurb": ""}
+
+    def index_of(self, uid: int) -> int:
+        return 0 if uid in self.names else -1
+
+
+class _StubLLM:
+    """Answers every chat request at once, and remembers the prompts."""
+
+    def __init__(self, reply: str = "no way", up: bool = True):
+        self.prompts: List[Dict[str, Any]] = []
+        self.reply = reply
+        self.up = up
+
+    def context_limit(self) -> int:
+        return 16000
+
+    def estimate_tokens(self, text: str) -> int:
+        return len(text or "") // 4 + 1
+
+    def submit(self, kind, priority, build, done, ttl=600.0, bot=0) -> bool:
+        if not self.up:
+            return False
+        request = build()
+        self.prompts.append({"kind": kind, "bot": bot, "request": request})
+        done(self.reply + " %d" % len(self.prompts), None)
+        return True
+
+
+def test_chat() -> None:
+    print("\n== chat: dynamic modifiers and speech events ==")
+    from app import bootstrap
+    with contextlib.redirect_stdout(io.StringIO()):
+        bootstrap.seed()
+    from app.bots import config as bot_config, gamechat, llm, modifiers, speech
+    bot_config.save({"llm.enabled": True})
+
+    # ---- DM momentum
+    m = modifiers.Momentum()
+    t = 1000.0
+    m.heard(7, 1, t)                          # they write
+    m.replied(7, 1, t + 40)                   # the bot answers
+    m.heard(7, 1, t + 45)                     # they answer back: 1 turn
+    check("momentum: one back-and-forth is not enough (needs 2)",
+          m.speedup(7, 1, t + 45) == 0.0, m.speedup(7, 1, t + 45))
+    m.replied(7, 1, t + 60)
+    m.heard(7, 1, t + 60)                     # straight back: 2 turns
+    check("momentum: two back-and-forths make the bot 30% quicker",
+          abs(m.speedup(7, 1, t + 60) - 0.30) < 1e-6, m.speedup(7, 1, t + 60))
+    m.replied(7, 1, t + 70)
+    m.heard(7, 1, t + 70)                     # third turn, straight back
+    check("momentum: each further turn adds 10%",
+          abs(m.speedup(7, 1, t + 70) - 0.40) < 1e-6, m.speedup(7, 1, t + 70))
+    m.replied(7, 1, t + 80)
+    m.heard(7, 1, t + 110)                    # 30 s to answer: half the boost left
+    check("momentum: a 30 s pause leaves half of it (decay 60 s)",
+          abs(m.speedup(7, 1, t + 110) - 0.25) < 1e-6, m.speedup(7, 1, t + 110))
+    check("momentum: a bot mid-conversation counts as talking", m.talking(7, t + 120))
+    m.replied(7, 1, t + 120)
+    m.heard(7, 1, t + 190)                    # over a minute: gone, start again
+    check("momentum: after the decay time it is gone and the count restarts",
+          m.speedup(7, 1, t + 190) == 0.0 and m.pairs[(7, 1)]["turns"] == 0)
+    check("momentum: nobody talking once it has faded", not m.talking(7, t + 400))
+    for _ in range(12):
+        m.replied(9, 2, t)
+        m.heard(9, 2, t)
+    check("momentum: never more than the ceiling (70%)",
+          abs(m.speedup(9, 2, t) - 0.70) < 1e-6, m.speedup(9, 2, t))
+    bot_config.save({"modifiers.dm_enabled": False})
+    check("momentum: switched off, replies are never quicker", m.speedup(9, 2, t) == 0.0)
+    bot_config.save({"modifiers.dm_enabled": True})
+
+    # ---- the chatter engine uses it for the reply delay
+    from app.bots import chatter
+    stub = _StubDirector({50: "botty"})
+    engine = chatter.Engine(stub)
+    bot_config.save({"messages.dm_delay_seconds": [100, 100]})
+    delays = []
+    for turn in range(3):
+        before = chatter._now()
+        engine.on_dm(50, 3, "someone", "hey %d" % turn)
+        delays.append(round(engine.pending_dm[50][3] - before))
+        engine._clear_dm(50, 3)
+        engine.momentum.replied(50, 3, chatter._now())
+    check("momentum: the DM reply delay shrinks once it is a conversation",
+          delays[0] >= 99 and delays[2] <= 71, delays)
+    bot_config.save({"messages.dm_delay_seconds": [20, 180]})
+
+    # ---- chat heat
+    heat = modifiers.Heat()
+    check("heat: one line is no boost", heat.multiplier(0.0) == 1.0 or not heat.lines)
+    heat.heard(1, 0.0)
+    heat.heard(1, 5.0)
+    heat.heard(1, 10.0)
+    hot = heat.multiplier(10.0, 1)
+    check("heat: a player who keeps talking is likelier to get an answer", hot > 1.5, hot)
+    check("heat: it fades back to normal once they stop", heat.multiplier(75.0, 1) == 1.0,
+          heat.multiplier(75.0, 1))
+    heat.answered(1, 99, 10.0)
+    partner, warmth = heat.partner_of(1, 40.0)
+    check("heat: the bot they were talking with stays their partner, fading",
+          partner == 99 and 0.4 < warmth < 0.6, (partner, warmth))
+
+    # ---- speech: every event reads from both sides
+    red = speech.describe({"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}, "ann", "red")
+    blue = speech.describe({"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}, "bob", "blue")
+    check("speech: a stolen flag is bad news for its team", red[1] == "victim" and "YOUR team's flag" in red[0], red)
+    check("speech: ...and good news for the thief's team", blue[1] == "ally" and "teammate Fox" in blue[0], blue)
+    missing = [k.id for k in speech.KINDS
+               if not speech.describe(dict(kind=k.id, by="x", by_team="red", team="red", winner="red",
+                                           attackers="red", n=3, victim="y", plot="P"), "me", "red")[0]]
+    check("speech: every event has something to say", not missing, missing)
+    check("speech: events only happen in their own worlds",
+          speech.applies("flag_take", "capture_the_flag") and not speech.applies("flag_take", "burger_tycoon")
+          and speech.applies("tycoon_build", "burger_tycoon") and speech.applies("killstreak", "fortress_team_2"))
+
+    # ---- the host reports events, the round's state and each bot's view
+    def give_flag(inst):
+        bot = next(p for p in inst.players.values() if p.brain is not None)
+        if not bot.alive:
+            inst.spawn_player(bot)
+        enemy = inst.flags[inst.enemy_of(bot.team)]
+        bot.pos = list(enemy.home)
+        bot.brain.ground = list(bot.pos)
+    r = run_world("capture_the_flag", 40.0, 1, setup=give_flag, seed=3)
+    report = r["inst"].bots.chat_report() or {}
+    kinds = [e.get("kind") for e in report.get("speech", [])]
+    state = report.get("state") or {}
+    me = ((report.get("bots") or [{}])[0]).get("me") or {}
+    check("host: taking and capturing the flag are reported as speech events",
+          "flag_take" in kinds and "flag_capture" in kinds, kinds)
+    check("host: the report carries the score and the flags",
+          sum((state.get("score") or {}).values()) >= 1 and set(state.get("flags") or {}) == {"red", "blue"},
+          state)
+    check("host: and the bot's own view (kills, job)", "kills" in me and "role" in me, me)
+
+    # ---- the relay, end to end with the model stubbed out
+    bots = {11: "ann", 12: "bob", 13: "cara"}
+    stub = _StubDirector(bots)
+    relay = gamechat.Relay(stub)
+    sent: List[Any] = []
+    relay._send = lambda room, uid, text, delay: sent.append((uid, text, delay))
+    fake = _StubLLM()
+    real_client = llm.client
+    llm.client = lambda: fake
+    try:
+        bot_config.save({"speech.chances": dict(speech.DEFAULT_CHANCES, flag_take=100),
+                         "speech.max_voices": 2, "speech.follow_chance": 100,
+                         "messages.chat_per_minute": 30})
+        roster = [{"uid": 11, "name": "ann", "team": "red", "traits": {"chatty": 0.6},
+                   "me": {"alive": True, "kills": 2, "deaths": 1, "role": "defend"}},
+                  {"uid": 12, "name": "bob", "team": "blue", "traits": {"chatty": 0.6}, "me": {}},
+                  {"uid": 13, "name": "cara", "team": "red", "traits": {"chatty": 0.6}, "me": {}}]
+        base = {"inst": 4, "bots": roster, "humans": [{"uid": 1, "name": "Fox", "team": "blue"}],
+                "state": {"mode": "captures", "phase": "active", "score": {"red": 0, "blue": 1},
+                          "target": 3, "time_left": 200,
+                          "flags": {"red": {"state": "carried", "by": "Fox", "by_team": "blue"},
+                                    "blue": {"state": "home"}}}}
+        relay.on_report("capture_the_flag", dict(base, lines=[], speech=[
+            {"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}]))
+        check("relay: a stolen flag gets reactions (chance 100%, two voices)", len(sent) == 2, sent)
+        text = " ".join(m["content"] for p in fake.prompts for m in p["request"]["messages"])
+        check("relay: the bot is told what happened, from its side",
+              "Just now:" in text and ("YOUR team's flag" in text or "teammate Fox" in text), text[-400:])
+        check("relay: ...with the round's state as background",
+              "Score: your team" in text and "background only" in text)
+        sent.clear()
+        fake.prompts.clear()
+        relay.on_report("capture_the_flag", dict(base, lines=[], speech=[
+            {"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}]))
+        check("relay: the same kind of event waits out its cooldown", not sent, sent)
+
+        # chat heat: a player who keeps talking gets answered more often
+        bot_config.save({"messages.chat_reply_chance": 20, "speech.enabled": False})
+
+        def answered(lines_said: int, trials: int = 200) -> float:
+            hits = 0
+            for trial in range(trials):
+                relay.rooms.clear()
+                sent.clear()
+                for n in range(lines_said):
+                    relay.on_report("capture_the_flag", dict(base, lines=[
+                        {"who": "Fox", "uid": 1, "text": "this map is wild", "team": "blue",
+                         "at": time.time(), "bot": False}], speech=[]))
+                    got = bool(sent)
+                    sent.clear()
+                hits += got
+            return hits / float(trials)
+        cold, warm = answered(1), answered(4)
+        check("heat: the fourth line in a row is likelier to get an answer than the first",
+              warm > cold * 1.4, "%.2f vs %.2f" % (warm, cold))
+
+        # bots answering bots stops at the limit
+        bot_config.save({"modifiers.bot_reply_chance": 100, "modifiers.bot_chain_fade": 0,
+                         "modifiers.bot_chain_max": 3, "messages.chat_per_minute": 100})
+        relay.rooms.clear()
+        sent.clear()
+        per_line = []
+        for n in range(8):
+            before = len(sent)
+            relay.on_report("capture_the_flag", dict(base, lines=[
+                {"who": "ann", "uid": 11, "text": "anyone on d", "team": "red",
+                 "at": time.time(), "bot": True}], speech=[]))
+            per_line.append(len(sent) - before)
+        check("bots: bots answer each other, but never past the limit (3 lines)",
+              1 <= sum(per_line[:3]) <= 3 and sum(per_line[3:]) == 0, per_line)
+        relay.on_report("capture_the_flag", dict(base, lines=[
+            {"who": "Fox", "uid": 1, "text": "lol", "team": "blue", "at": time.time(), "bot": False}],
+            speech=[]))
+        check("bots: a real player speaking resets the limit",
+              relay.rooms[("capture_the_flag", 4)].chain == 0)
+
+        # the model down: speech events still get a stock line
+        bot_config.save({"speech.enabled": True, "speech.cooldown_seconds": 0})
+        fake.up = False
+        relay.rooms.clear()
+        sent.clear()
+        relay.on_report("capture_the_flag", dict(base, lines=[], speech=[
+            {"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}]))
+        check("relay: with the model down a stolen flag still gets a stock line",
+              sent and all(isinstance(s_[1], str) and s_[1] for s_ in sent), sent)
+    finally:
+        llm.client = real_client
+        bot_config.reset("modifiers")
+        bot_config.reset("speech")
+        bot_config.save({"messages.chat_reply_chance": 60, "messages.chat_per_minute": 8})
 
 
 # ===================================================================== scale
@@ -364,7 +667,7 @@ def test_scale(count: int) -> None:
 def main(argv: List[str]) -> int:
     global VERBOSE
     parser = argparse.ArgumentParser()
-    parser.add_argument("groups", nargs="*", default=["unit", "live", "scale"])
+    parser.add_argument("groups", nargs="*", default=["unit", "chat", "live", "scale"])
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--bots", type=int, default=20000)
     parser.add_argument("--seconds", type=float, default=150.0)
@@ -373,6 +676,8 @@ def main(argv: List[str]) -> int:
     isolate()
     if "unit" in args.groups:
         test_unit()
+    if "chat" in args.groups:
+        test_chat()
     if "live" in args.groups:
         test_live(args.seconds)
     if "scale" in args.groups:

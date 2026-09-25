@@ -561,6 +561,12 @@ class Director:
             too_long = now - self.since[i] > float(s_hi) * 3600 * 1.5
             if self.online < want_online * 0.97 and not too_long:
                 self.session_end[i] = now + self.rng.randint(600, 2400)
+            elif self._mid_conversation(i, now):
+                # nobody logs off halfway through a conversation
+                decay = int(bot_config.get("modifiers.dm_decay_seconds") or 60)
+                self.session_end[i] = now + decay + self.rng.randint(30, 180)
+                self._schedule(i, self.session_end[i])
+                return
             else:
                 self._sleep(i, now)
                 return
@@ -642,6 +648,12 @@ class Director:
         for i in picked:
             self._wake(i, now)
 
+    def _mid_conversation(self, i: int, now: int) -> bool:
+        if not (bot_config.get("modifiers.dm_stay_online")
+                and bot_config.get("modifiers.dm_enabled")) or self.chatter is None:
+            return False
+        return self.chatter.momentum.talking(int(self.uids[i]), now)
+
     def _sleep_some(self, count: int, now: int) -> None:
         base = max(0.02, self.curve(now))
         state = self.state
@@ -651,6 +663,8 @@ class Director:
                 return False
             if state[i] == PLAYING and self._is_hosted(i):
                 return False            # never pull a bot out of a live round
+            if self._mid_conversation(i, now):
+                return False            # or out of a conversation
             return True
 
         picked = self._sample(count, eligible,
