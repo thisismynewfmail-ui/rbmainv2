@@ -173,6 +173,13 @@
               target: color('--bz-target', '#5a7fa8'), ink: color('--ink-soft', '#888'),
               line: color('--line-soft', '#ddd') };
     var now = Date.now() / 1000;
+    if (!plan.length && !history.length) {
+      ctx.fillStyle = color('--ink-soft', '#888');
+      ctx.font = '11px Verdana, sans-serif';
+      ctx.fillText(BZ.overview && BZ.overview.running ? 'Presence is switched off: nothing to plot.'
+                   : 'The bot director is not running, so there is nothing to plot.', 12, h / 2 + 4);
+      return;
+    }
     var t0 = plan.length ? plan[0].at : now - 6 * 3600;
     var t1 = plan.length ? plan[plan.length - 1].at : now;
     history = history.filter(function (p) { return p.at >= t0; });
@@ -249,9 +256,10 @@
     ctx.setLineDash([2, 3]);
     ctx.beginPath(); ctx.moveTo(Math.round(nx) + 0.5, pad.t); ctx.lineTo(Math.round(nx) + 0.5, pad.t + ih); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.textAlign = 'left';
+    ctx.textAlign = nx > w - 40 ? 'right' : 'left';
     ctx.fillStyle = c.ink;
-    ctx.fillText('now', nx + 4, pad.t + 9);
+    ctx.fillText('now', nx > w - 40 ? nx - 4 : nx + 4, pad.t + 9);
+    ctx.textAlign = 'left';
     if (history.length < 3) ctx.fillText('collecting — one sample a minute', pad.l + 6, pad.t + 9);
     ctx.textAlign = 'start';
   }
