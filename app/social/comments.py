@@ -60,7 +60,25 @@ def add_to_profile(profile_id: int, author_id: int, body: str) -> int:
     cur = db.execute(
         "INSERT INTO profile_comments(profile_id,author_id,body,created_at)"
         " VALUES(?,?,?,?)", (profile_id, author_id, body, int(time.time())))
-    return int(cur.lastrowid)
+    comment_id = int(cur.lastrowid)
+    _tell_bot(profile_id, author_id, body, comment_id)
+    return comment_id
+
+
+def _tell_bot(profile_id: int, author_id: int, body: str, comment_id: int) -> None:
+    """A comment on a bot's wall: the bot may answer when it is next about."""
+    try:
+        from ..bots import director
+        running = director.running()
+        if running is None or running.chatter is None or not running.is_bot(profile_id):
+            return
+        author = db.query_one("SELECT username FROM users WHERE id=?", (author_id,))
+        if author is not None:
+            running.chatter.on_wall_comment(profile_id, author_id, author["username"],
+                                            body, comment_id,
+                                            from_bot=running.is_bot(author_id))
+    except Exception:
+        pass
 
 
 def for_profile(profile_id: int, limit: int = 40) -> List[Dict[str, Any]]:

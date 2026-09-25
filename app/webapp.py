@@ -13,8 +13,8 @@ from .models import users
 
 # importing the view modules registers their routes on the shared router
 from .views import base as views_base
-from .views import (admin, auth, avatar_view, home, internal, market_view,  # noqa: F401
-                    profile, social_views, worlds_view)
+from .views import (admin, auth, avatar_view, bots_admin, home, internal,  # noqa: F401
+                    market_view, profile, social_views, worlds_view)
 
 router = views_base.router
 worlds_view.register_world_routes()

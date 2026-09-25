@@ -170,8 +170,41 @@ def purge_expired_sessions() -> None:
 ONLINE_WINDOW = 180
 
 
+def _bots():
+    """The running bot director, or None.
+
+    A bot's presence lives in the director's memory rather than in its
+    ``last_seen`` column: a hundred thousand bots touching a column every
+    couple of minutes would be the busiest thing the database ever did.
+    The column is written when a bot logs in and when it logs out, which is
+    exactly what "last seen" means for somebody who is not online.
+    """
+    try:
+        from ..bots import director
+    except Exception:
+        return None
+    return director.running()
+
+
 def is_online(user: Dict[str, Any]) -> bool:
+    if user.get("is_bot"):
+        director = _bots()
+        if director is not None:
+            return director.bot_online(int(user["id"]))
     return (_now() - int(user.get("last_seen") or 0)) < ONLINE_WINDOW
+
+
+def live_seen(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Give online bots a fresh last-seen, the way an active person has."""
+    director = _bots()
+    if director is None:
+        return rows
+    now = _now()
+    for row in rows:
+        if row.get("is_bot") and director.bot_online(int(row["id"])):
+            row["last_seen"] = max(int(row.get("last_seen") or 0),
+                                   now - (int(row["id"]) * 37) % 90)
+    return rows
 
 
 def presence_label(user: Dict[str, Any]) -> str:
@@ -208,7 +241,7 @@ def search(term: str, limit: int = 40,
     else:
         rows = db.query("SELECT * FROM users ORDER BY %s DESC, id DESC"
                         " LIMIT ?" % column, (limit,))
-    return db.rows_to_dicts(rows)
+    return live_seen(db.rows_to_dicts(rows))
 
 
 def suggest(term: str, limit: int = 8,
@@ -218,23 +251,50 @@ def suggest(term: str, limit: int = 8,
     if not term:
         return []
     rows = db.query(
-        "SELECT id, username, last_seen FROM users"
+        "SELECT id, username, last_seen, is_bot FROM users"
         " WHERE username_lower LIKE ? AND id<>?"
         " ORDER BY (username_lower LIKE ?) DESC, last_seen DESC LIMIT ?",
         ("%" + term + "%", exclude_id, term + "%", limit))
-    return db.rows_to_dicts(rows)
+    out = live_seen(db.rows_to_dicts(rows))
+    for row in out:
+        row.pop("is_bot", None)
+    return out
 
 
 def recent(limit: int = 12) -> List[Dict[str, Any]]:
-    return db.rows_to_dicts(db.query(
-        "SELECT * FROM users ORDER BY created_at DESC LIMIT ?", (limit,)))
+    return live_seen(db.rows_to_dicts(db.query(
+        "SELECT * FROM users ORDER BY created_at DESC LIMIT ?", (limit,))))
 
 
 def online_users(limit: int = 30) -> List[Dict[str, Any]]:
+    """Who is online: people first (most recently active), then bots."""
     cutoff = _now() - ONLINE_WINDOW
-    return db.rows_to_dicts(db.query(
-        "SELECT * FROM users WHERE last_seen > ? ORDER BY last_seen DESC LIMIT ?",
-        (cutoff, limit)))
+    people = db.rows_to_dicts(db.query(
+        "SELECT * FROM users WHERE last_seen > ? AND is_bot=0"
+        " ORDER BY last_seen DESC LIMIT ?", (cutoff, limit)))
+    director = _bots()
+    if director is None or len(people) >= limit:
+        return people[:limit]
+    ids = director.online_sample(limit - len(people))
+    if not ids:
+        return people
+    marks = ",".join("?" * len(ids))
+    bots = live_seen(db.rows_to_dicts(db.query(
+        "SELECT * FROM users WHERE id IN (%s)" % marks, ids)))
+    order = {uid: index for index, uid in enumerate(ids)}
+    bots.sort(key=lambda row: order.get(int(row["id"]), 0))
+    merged = people + bots
+    merged.sort(key=lambda row: -int(row.get("last_seen") or 0))
+    return merged[:limit]
+
+
+def online_count() -> int:
+    """People online plus bots online, without listing any of them."""
+    cutoff = _now() - ONLINE_WINDOW
+    people = int(db.scalar("SELECT COUNT(*) FROM users WHERE last_seen > ?"
+                           " AND is_bot=0", (cutoff,)))
+    director = _bots()
+    return people + (director.online if director is not None else 0)
 
 
 def count_users() -> int:
@@ -242,7 +302,11 @@ def count_users() -> int:
 
 
 def public(user: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Strip everything that must never leave the server."""
+    """Strip everything that must never leave the server.
+
+    ``is_bot`` never leaves either: to everybody but an administrator a bot
+    is just another player.
+    """
     if not user:
         return None
     return {

@@ -130,6 +130,10 @@ def summary(user_id: int) -> Dict[str, int]:
 
 
 def global_stats() -> Dict[str, int]:
+    return dict(db.cached("inventory.stats", 10.0, _global_stats))
+
+
+def _global_stats() -> Dict[str, int]:
     return {
         "copies": int(db.scalar("SELECT COUNT(*) FROM inventory")),
         "unusuals": int(db.scalar(

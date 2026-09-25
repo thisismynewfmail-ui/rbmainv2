@@ -191,6 +191,8 @@ class FortressTeam2(GameInstance):
             for player in self.players.values():
                 self.host.report_round(self, player,
                                        won=player.team == winner)
+            if self.bots is not None:
+                self.bots.on_round_end(winner)
 
     def tick(self) -> None:
         super().tick()
@@ -220,6 +222,8 @@ class FortressTeam2(GameInstance):
                         "state": self.full_state()})
         self.broadcast({"t": "teams",
                         "map": {p.pid: p.team for p in self.players.values()}})
+        if self.bots is not None:
+            self.bots.on_round_start()
 
     def reset_cart(self) -> None:
         self.cart_distance = 0.0
@@ -247,3 +251,5 @@ class FortressTeam2(GameInstance):
         self.broadcast({"t": "round_start", "round": self.round_number,
                         "state": self.full_state(), "new_match": True})
         self.system_message("New match! %s attacks first." % self.attackers.upper())
+        if self.bots is not None:
+            self.bots.on_round_start()

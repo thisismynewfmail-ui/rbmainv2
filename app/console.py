@@ -63,6 +63,7 @@ SPARK = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588" if _GLYPHS else "_.-~
 SPIN = ("\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f"
         if _GLYPHS else "|/-\\")
 METER_ON = "\u2588" if _GLYPHS else "#"
+METER_BOT = "\u2593" if _GLYPHS else "="
 METER_OFF = "\u2591" if _GLYPHS else "."
 UP_ARROW = "\u25b2" if _GLYPHS else "+"
 DOWN_ARROW = "\u25bc" if _GLYPHS else "-"
@@ -79,6 +80,7 @@ def cyan(t: str) -> str: return _c("36", t)
 def green(t: str) -> str: return _c("32", t)
 def yellow(t: str) -> str: return _c("33", t)
 def red(t: str) -> str: return _c("31", t)
+def magenta(t: str) -> str: return _c("35", t)
 
 
 def term_size() -> Tuple[int, int]:
@@ -146,6 +148,33 @@ def bar(value: float, total: float, width: int) -> str:
     else:
         filled = int(round(min(1.0, value / total) * width))
     return METER_ON * filled + METER_OFF * (width - filled)
+
+
+def split_bar(people: float, bots: float, total: float, width: int) -> str:
+    """A meter with two fills: real players first (solid), then bots
+    (shaded), then the empty rest -- so a glance tells a world full of
+    people from a world full of bots."""
+    width = max(4, width)
+    if total <= 0:
+        return METER_OFF * width
+    solid = int(round(min(1.0, people / total) * width))
+    if people > 0 and solid == 0:
+        solid = 1
+    shaded = int(round(min(1.0, (people + bots) / total) * width)) - solid
+    if bots > 0 and shaded <= 0 and solid < width:
+        shaded = 1
+    shaded = max(0, min(width - solid, shaded))
+    return METER_ON * solid + METER_BOT * shaded + METER_OFF * (width - solid - shaded)
+
+
+def short(value: float) -> str:
+    """1234 -> 1.2k, for the tight columns."""
+    value = int(value)
+    if value < 10000:
+        return "{:,}".format(value)
+    if value < 1000000:
+        return "%.1fk" % (value / 1000.0)
+    return "%.1fM" % (value / 1000000.0)
 
 
 def spark(values: List[float], width: int) -> str:
@@ -315,18 +344,36 @@ class Dashboard:
             from .models import economy, inventory
             money = economy.totals()
             catalogue = inventory.global_stats().get("catalogue", 0)
-            market = db.scalar("SELECT COUNT(*) FROM inventory"
-                               " WHERE source='market'")
-            pending = db.scalar("SELECT COUNT(*) FROM friendships"
-                                " WHERE status='pending'")
-            follows = db.scalar("SELECT COUNT(*) FROM follows")
+            market = db.cached("console.market", 12.0, lambda: db.scalar(
+                "SELECT COUNT(*) FROM inventory WHERE source='market'"))
+            pending = db.cached("console.pending", 12.0, lambda: db.scalar(
+                "SELECT COUNT(*) FROM friendships WHERE status='pending'"))
+            follows = db.cached("console.follows", 12.0, lambda: db.scalar(
+                "SELECT COUNT(*) FROM follows"))
         except Exception:
             pass
         try:
             from .models import users
-            online = len(users.online_users(500))
+            online_people = db.cached("console.online", 3.0, lambda: int(db.scalar(
+                "SELECT COUNT(*) FROM users WHERE last_seen > ? AND is_bot=0",
+                (int(time.time()) - users.ONLINE_WINDOW,))))
         except Exception:
-            online = 0
+            online_people = 0
+        bots: Dict[str, Any] = {}
+        try:
+            from .bots import director as bot_director
+            from .bots import llm as bot_llm
+            running = bot_director.running()
+            if running is not None:
+                bots = running.stats()
+                snap = bot_llm.client().snapshot()
+                bots["llm_ok"] = snap["available"] and snap["info"].get("reachable")
+                bots["llm_min"] = snap["per_minute"]
+                bots["llm_queue"] = sum(snap["queue"].values())
+                bots["llm_on"] = snap["enabled"]
+        except Exception:
+            bots = {}
+        online = online_people + int(bots.get("online", 0) or 0)
 
         world_rows = []
         try:
@@ -340,7 +387,10 @@ class Dashboard:
                     "id": world["id"],
                     "name": world["name"],
                     "players": status["players"],
+                    "humans": int(status.get("humans", status["players"]) or 0),
+                    "bots": int(status.get("bots", 0) or 0),
                     "instances": status["instances"],
+                    "live": int(status.get("live_instances", status["instances"]) or 0),
                     "capacity": world["max_players"],
                     "online": status["online"],
                     "tick_ms": status.get("tick_ms", 0),
@@ -374,6 +424,9 @@ class Dashboard:
             "accounts": stats.get("users", 0),
             "new_today": stats.get("new_users_today", 0),
             "online": online,
+            "online_people": online_people,
+            "online_bots": int(bots.get("online", 0) or 0),
+            "bots": bots,
             "visits": stats.get("visits", 0),
             "items": stats.get("items_owned", 0),
             "unusuals": stats.get("unusuals", 0),
@@ -392,6 +445,8 @@ class Dashboard:
             "hosts": hosts,
             "db_bytes": db_bytes,
             "in_game": sum(w["players"] for w in world_rows),
+            "in_game_people": sum(w["humans"] for w in world_rows),
+            "in_game_bots": sum(w["bots"] for w in world_rows),
         }
         # Feed the sparklines.  Twenty-four samples is two minutes at the
         # four second refresh -- long enough to show a shape, short enough to
@@ -525,12 +580,40 @@ class Dashboard:
         if data["new_today"]:
             people += dim(" (+%s%s)" % (_num(data["new_today"]),
                                         "" if narrow else " today"))
+        # people and bots side by side: "3+1.2k" reads as three real players
+        # and twelve hundred bots, the bots always in the second colour
+        if data.get("bots", {}).get("total"):
+            on_site = "%s%s %s" % (green(str(data["online_people"])),
+                                   magenta("+" + short(data["online_bots"])),
+                                   "on" if narrow else "on site")
+            in_game = "%s%s %s" % (cyan(str(data["in_game_people"])),
+                                   magenta("+" + short(data["in_game_bots"])),
+                                   "in" if narrow else "in game")
+        else:
+            on_site = "%s on site" % green(str(data["online"]))
+            in_game = "%s in game" % cyan(str(data["in_game"]))
         people = self._join(
-            people,
-            "%s on site" % green(str(data["online"])),
-            "%s in game" % cyan(str(data["in_game"])),
+            people, on_site, in_game,
             self._trend("in_game", trend) if trend else "")
         rows.append(self._pair("people", people, width))
+        bots = data.get("bots") or {}
+        if bots.get("total"):
+            llm = ""
+            if bots.get("llm_on"):
+                llm = (green("llm") if bots.get("llm_ok") else red("llm down")) + \
+                    dim(" %d/min q%d" % (bots.get("llm_min", 0), bots.get("llm_queue", 0)))
+            asleep = sum(w.get("sleeping_instances", 0) for w in (bots.get("worlds") or {}).values())
+            line = self._join(
+                magenta("%s bots" % short(bots["total"])),
+                "%s online" % short(bots.get("online", 0)),
+                "" if narrow else dim("(want %s)" % short(bots.get("target_online", 0))),
+                "%s in worlds" % short(bots.get("playing", 0)),
+                "" if narrow else dim("%s asleep" % short(asleep)),
+                llm,
+                "" if width < 70 else dim("%.1fms" % float(bots.get("tick_ms", 0))))
+            if not bots.get("enabled", True):
+                line = self._join(line, yellow("paused"))
+            rows.append(self._pair("bots", line, width))
 
         site = self._join(
             "%s visits" % _num(data["visits"]), self._delta(data, "visits"),
@@ -583,17 +666,41 @@ class Dashboard:
         name_w = 16 if width >= 62 else 11
         meter_w = 10 if width >= 72 else (6 if width >= 56 else 0)
         out: List[str] = []
+        any_bots = any(row.get("bots") for row in rows)
         for index, row in enumerate(rows):
-            meter = (bar(row["players"], max(1, row["capacity"]), meter_w) + " "
-                     if meter_w else "")
-            state = green("up") if row["online"] else red("DOWN")
-            body = "%-*s %s%s/%-3s %si %sms %s" % (
-                name_w, row["name"][:name_w], meter,
-                row["players"], row["capacity"], row["instances"],
-                int(row["tick_ms"]), state)
+            humans = int(row.get("humans", row["players"]))
+            bots = int(row.get("bots", 0))
+            if not any_bots:
+                meter = (bar(row["players"], max(1, row["capacity"]), meter_w) + " "
+                         if meter_w else "")
+                state = green("up") if row["online"] else red("DOWN")
+                body = "%-*s %s%s/%-3s %si %sms %s" % (
+                    name_w, row["name"][:name_w], meter,
+                    row["players"], row["capacity"], row["instances"],
+                    int(row["tick_ms"]), state)
+            else:
+                # real players (solid, first number) and bots (shaded, the
+                # "+N" after it) against the room every instance has
+                room = max(1, row["capacity"] * max(1, row["instances"]))
+                meter = (split_bar(humans, bots, room, meter_w) + " "
+                         if meter_w else "")
+                state = green("up") if row["online"] else red("DOWN")
+                count = "%s%s/%s" % (cyan(str(humans)) if humans else "0",
+                                     magenta("+" + short(bots)) if bots else "",
+                                     short(room) if room > row["capacity"] else row["capacity"])
+                pad = max(0, 12 - visible_len(count))
+                instances = "%si" % short(row["instances"])
+                if row.get("live") and row["live"] != row["instances"]:
+                    instances += dim("/%dlive" % row["live"])
+                body = "%-*s %s%s%s %s %sms %s" % (
+                    name_w, row["name"][:name_w], meter, count, " " * pad,
+                    instances, int(row["tick_ms"]), state)
             if width >= 78:
                 body += dim("  %s visits" % _num(row.get("visits", 0)))
             out.append(self._pair("worlds" if index == 0 else "", body, width))
+        if any_bots and width >= 64:
+            out.append(self._pair("", dim("%s people  %s bots  %s free   people+bots/room"
+                                          % (METER_ON, METER_BOT, METER_OFF)), width))
         return out
 
     def _host_line(self, data: Dict[str, Any], width: int) -> List[str]:

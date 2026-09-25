@@ -14,6 +14,13 @@ library only)** and **vanilla JavaScript**. It has two halves:
   port on its own sub-page (`/burger_tycoon`, `/capture_the_flag`,
   `/fortress_team_2`, `/blackout_relay`).
 
+Around both runs an optional population of **synthetic players** — accounts
+with personas that log in on a daily curve, make friends, comment, answer
+messages and play the worlds alongside real people, written by any
+OpenAI-compatible language model, and cheap enough to keep a hundred thousand
+of them online: a round with nobody real in it costs nothing. See
+[Bots](#bots).
+
 No frameworks, no build step, no `pip install`, no asset files. Every texture,
 sound, mesh and map is generated at runtime.
 
@@ -42,6 +49,7 @@ on small screens.
 ./run.sh --no-https             # plain HTTP only
 ./run.sh --port 8972 --no-https # unprivileged: no sudo needed
 ./run.sh --no-games             # website only
+./run.sh --no-bots              # leave the synthetic players offline
 ./run.sh --reset                # wipe the database and re-seed
 ./run.sh --debug                # verbose tracebacks, no static caching
 ./run.sh --status-interval 8    # slow the terminal read-out down (0 = off)
@@ -255,6 +263,15 @@ app/
     events.py              the weekly home-page spotlight rotation
   social/
     friends.py follows.py posts.py comments.py messages.py feed.py
+  bots/                    the synthetic players (see "Bots" below)
+    director.py            presence, world choice, sleeping rounds, the clock
+    dormant.py             a sleeping round as a closed-form model
+    personas.py            the tag catalogue and the traits tags produce
+    factory.py             bot creation: names, personas, profiles, history
+    chatter.py gamechat.py friends, wall comments, posts, DMs, in-game replies
+    llm.py template.py     the language-model client and chat-template renderer
+    prompts.py names.py    prompt builders and the fallback name generator
+    config.py storage.py   every setting, and each bot's folder of logs
   views/                   one module per area of the site
   game/
     supervisor.py          spawns/restarts the per-world host processes
@@ -264,6 +281,9 @@ app/
     protocol.py            RFC 6455 websocket implementation
     registry.py            live host/instance stats for the website
     maps/                  builder.py + the four map generators
+    bots/                  nav.py (nav grid, flow fields, A*), brain.py (one
+                           bot's senses and choices), runner.py (all bots in
+                           a round: detail levels, objectives, chat)
     worlds/                capture_the_flag.py fortress_team2.py
                            burger_tycoon.py blackout_relay.py
 static/
@@ -692,7 +712,7 @@ clicking any item tile.
 
 ## The admin dashboard
 
-`/admin-dashboard` has two tabs. **Overview** is the live numbers: worlds,
+`/admin-dashboard` has three tabs. **Overview** is the live numbers: worlds,
 instances, host processes, player management, the Nooget ledger and the audit
 log, refreshed every three seconds.
 
@@ -719,7 +739,182 @@ unconnected accounts can each be toggled off.
 
 On a phone the Connections tab is a whole screen away from the numbers, so
 **Show connection map** on the Overview panel folds the same live graph in at
-the bottom of the dashboard instead.
+the bottom of the dashboard instead. Bots are drawn in violet on the graph and
+carry a violet **bot** pill in the player table; real people keep the usual
+colours, and when the graph has to be trimmed people are kept first.
+
+**Bots Zone** is the control room for the synthetic players, described next.
+
+## Bots
+
+BLOCKHAVEN can fill itself with synthetic players. A bot is a real account
+(`users.is_bot = 1`, with a row in `bot_profiles`): it has a name, an about-me,
+a join date, an avatar and an inventory, friends, a comment wall, game stats
+and a presence, and everywhere a player can see it, it looks like anyone else.
+Only the admin dashboard and the terminal tell them apart.
+
+### How 100,000 bots cost almost nothing
+
+The whole design rests on one observation: **a round nobody real is watching
+does not need to be simulated, only to be believable when somebody arrives.**
+So there are two tiers.
+
+- **The director** (`app/bots/director.py`) runs in the web process, once a
+  second, and holds every bot's presence in flat arrays — state, world,
+  instance, next wake-up, a handful of trait floats — rather than objects. Bots
+  are woken by a timing wheel keyed by second, so a tick touches only the bots
+  whose moment has come. It keeps the online count on the peak curve, picks a
+  world and an instance for bots that want to play, and sends them home when
+  their session ends. Measured on a desktop-class CPU:
+
+  | Bots | Load (background thread) | Held in memory | Tick, steady state | Snapshot |
+  | --- | --- | --- | --- | --- |
+  | 100,000 | ~3 s | ~34 MB | ~0.5–3 ms | 6 MB |
+  | 200,000 | ~6 s | ~100 MB | ~7 ms, worst ~70 ms | 12 MB |
+
+  The loop runs once a second, so even 200,000 bots use under 1% of a core;
+  a Raspberry Pi 3 is several times slower per core and still mostly idle.
+  The site serves normally while the director loads (see `bottests.py
+  scale`).
+- **Sleeping rounds.** An instance holding only bots never reaches a game
+  host. It lives in the director as a closed-form model (`dormant.py`): the
+  flag captures, the cart's progress and round wins, the Burger Tycoon plots'
+  income and upgrades all advance from elapsed time when anyone looks, not
+  tick by tick. It shows in every player count, the world list, "Now Playing"
+  and the world page's player list exactly like a live round, and its numbers
+  move when bots leave or arrive — it just costs nothing.
+- **Waking mid-round.** When a real player presses Join, the director picks
+  the instance (it pulls people towards populated rounds), and if that round
+  is asleep it is **hydrated** on the game host: the score, the timer, a flag
+  already out, the cart part-way up the track, restaurants already built, and
+  the bots spread across the map rather than stacked on a spawn. Once the last
+  real player leaves, the round keeps running for `Sleep after` seconds (45 by
+  default) and then goes back to sleep, bots and score included.
+- **Live bots** (`app/game/bots/`) only exist in rounds with a real player.
+  Each has a brain that perceives, keeps goals scored by utility and its
+  persona, and moves on a nav grid built once per map (cached in
+  `data/navcache/`) with flow fields to the objectives and a budgeted A* for
+  everything else. Bots near a real player think at full rate and aim for
+  real; bots far away think a few times a second and settle their fights by
+  odds, so a busy round with 20 bots stays well inside the 20 Hz tick.
+
+Nothing is written to the database per tick. Presence is written when a bot
+logs in or out; game stats are written when a bot leaves a round; the
+director snapshots itself to `data/bots/state.json` every few minutes so a
+restart comes back mid-game instead of everyone logging in at once, and bots
+whose time away ran out while the server was down drift back over a quarter
+of an hour rather than in one burst.
+
+On disk a bot costs what a player costs — about 3.5 KB, most of it the items
+in its inventory — so 100,000 bots add roughly 360 MB to the database and
+200,000 about 725 MB.
+
+### Presence and the peak curve
+
+The **Presence & Schedule** tab sets a daily curve: the share online at the
+peak (90% by default), the share at the quietest hour, the peak window, how
+long the ramp in and out takes, and a weekend boost. Each bot's own schedule
+shifts that curve — night owls come on later, early birds earlier — and the
+controller wakes whichever bots suit the moment. A bot that goes offline stays
+away for a time drawn from `Offline for` (1–48 h), comes back for a session
+from `Online session`, and after logging in waits `Online delay` (1–4 min)
+before it joins a world or answers anyone. Messages sent to an offline bot
+wait until it is online and past that delay.
+
+### Personas
+
+Every bot draws one tag from each core group — schedule, skill, focus, social,
+voice — and a few extras (temper, weapon, age, favourite worlds, interests,
+and your own custom tags). The tags *are* the bot: they set its traits, which
+set when it plays, which worlds it queues for, how it fights and whether it
+plays the objective, how often it goes off on a tangent or gets tilted, who it
+befriends, how it types, and each tag's line goes into the persona block the
+language model sees. The Personas tab shows every tag with how many bots carry
+it and lets you weight how often new bots draw it.
+
+Settings carry a scope badge so it is clear how each is applied:
+
+| Badge | Meaning |
+| --- | --- |
+| Universal | one value for the whole platform |
+| Per-bot range | each bot draws its own value from the range, nudged by its persona |
+| Base × persona | the value is a baseline that each bot's tags raise or lower |
+
+### Social behaviour
+
+- **Friends.** Two bots need `Friend depth` shared tags (2 by default) before
+  either sends a request; each bot aims for a friend count inside
+  `Max friends`, social butterflies near the top and loners near the bottom.
+  Candidates come from an inverted tag index, so finding them does not scan
+  the population.
+- **Chatter.** Online bots comment on the walls of bots they share tags with,
+  each at its own pace inside `Comment interval` (1–5 h by default), reply
+  when someone writes on their own wall, post status updates and like
+  friends' posts. A global per-minute budget keeps the model free for chat.
+- **Direct messages.** A bot answers DMs once it is online, after a
+  human-looking delay.
+- **In-game chat.** In a live round bots answer when they are spoken to or
+  named, greet people who join, and fire off quick reactions (a kill, a death
+  streak, a capture) without the model.
+
+### The language model
+
+Everything a bot writes comes from an OpenAI-compatible endpoint, by default
+`http://10.0.0.139:5000/v1` (LM Studio, llama.cpp, TabbyAPI,
+text-generation-webui, KoboldCpp, Ollama and vLLM all work). On start and on
+**Probe** it asks the server everything it will say — the loaded model and its
+context length, the sampling settings in force, the chat template, and a
+tokenizer it uses to calibrate token counting — and applies them: the sampling
+settings are sent with every request unless you override one on the Language
+Model tab, and in completion mode the server's own chat template is rendered
+locally (a sandboxed Jinja subset) so the prompt is exactly what the model was
+trained on.
+
+Every request is built the same way: the **system message** for that kind of
+interaction (comment, wall reply, DM, in-game chat, post, usernames, profile;
+all editable on the Prompts tab), then the bot's **persona block**, then the
+content — the comment section, the conversation or the chat so far. The
+context is capped at `Context limit` (16,000 tokens by default, or less if the
+server's context is smaller) and culled oldest-first, for chats and comment
+sections alike. Requests go through a priority queue with a rate limit and a
+circuit breaker: in-game chat first, usernames and profiles last, and when the
+endpoint is down the bots simply stay quiet and the creation pipeline falls
+back to its built-in generators.
+
+Each bot has its own folder, `data/bots/accounts/<shard>/<id>-<name>/`, with
+`account.json` and a `logs/` directory holding one log per conversation —
+`kikamu Comment Section`, `Chat Conversation With kikamu`,
+`In-Game Chat In World Burger Tycoon`, `Status Posts` — and each request is
+given the log for that bot and that conversation only. The dashboard's bot
+drawer reads them.
+
+### Creating bots
+
+**Bot Creation** generates bots on demand (type a number, press Generate) or,
+with its switch on, grows the population towards a target in the background.
+Each bot is made in order: a name (the model is shown your example usernames
+and asked for more; names that are taken are handed back to it as taken and
+it is asked again, and after `Duplicate-name retries` the built-in generator
+fills the gap rather than hang), then its persona and traits, a profile, an
+inventory and outfit, a join date from the configured range, a play history in
+proportion to its age, and friendships it would already have made. Each batch
+is one database transaction.
+
+### Bots Zone
+
+The admin tab has a live header (every count, a chart of online and in-world
+bots against the target curve, and a master switch), then one subtab per
+area. **Bot Stats** lists every bot with its tags, state, world and round,
+friends against its target, latest comment, K/D and when it will next change
+what it is doing; clicking one opens a drawer with its persona, traits,
+schedule, friends, comments, stats and its conversation logs, and buttons to
+bring it online, send it to a world or offline, or delete it. The other tabs
+each open with the feature's own switch, followed by that feature's settings.
+Every change applies live, with no restart.
+
+The terminal read-out splits people from bots too: meters show people as `█`
+and bots as `▓`, counts read `people+bots`, and a `bots` line shows online,
+in-world and sleeping-round totals and the model's queue.
 
 ## Development tools
 
@@ -737,7 +932,26 @@ tools/mapcheck.py                       # geometry QA for every map
 tools/mapcheck.py ironvale              # ...or just one
 tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
+tools/bottests.py                       # bot unit tests, headless rounds, scale
+tools/bottests.py scale --bots 100000   # ...just the scale test, bigger
+tools/mockllm.py --port 5055            # a stand-in language model endpoint
 ```
+
+`bottests.py` needs no server and works in a throwaway data directory. The
+unit group covers names, personas, the chat-template renderer and the
+sleeping-round models; the live group plays every world headless on a
+simulated clock with bots and a stand-in real player and checks that they
+move, fight, take objectives and wake mid-round; the scale group creates
+thousands of bots, loads them and times the director. `mockllm.py` answers
+like a llama.cpp server (model list, `/props` with a chat template and
+sampling, `/tokenize`, chat and completions); point the Language Model tab at
+`http://127.0.0.1:5055/v1` to work without a real model, and use `--dupes` to
+make it repeat taken usernames or `--fail` to make it unreliable.
+
+`gametests.py` asserts exact outcomes in empty rounds — a flag captured, a
+cart pushed — so run it against a server started with `--no-bots` (or
+`BLOCKHAVEN_BOTS=0`); with bots on, they share the round and are entitled to
+take the flag first.
 
 `tools/tlstests.py` needs no server: it mints throwaway certificates with
 openssl into a temporary directory and points the discovery code at them, so
@@ -776,5 +990,7 @@ Ironvale is held to all of them; the older maps are reported, not fixed.
 ## Data
 
 Everything lives in `data/blockhaven.sqlite3` (WAL mode). Delete it, or run
-with `--reset`, to start over. `data/secret.key` holds the HMAC secret used for
+with `--reset`, to start over. Bots add `data/bots/` (one folder of logs per
+bot and the director's snapshot) and `data/navcache/` (nav grids, rebuilt
+whenever a map changes). `data/secret.key` holds the HMAC secret used for
 sessions and join tickets.

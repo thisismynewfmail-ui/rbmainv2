@@ -51,10 +51,11 @@
 
   Site.ago = function (timestamp) {
     var delta = Math.max(0, Math.floor(Date.now() / 1000) - timestamp);
-    if (delta < 60) return delta + ' seconds ago';
-    if (delta < 3600) return Math.floor(delta / 60) + ' minutes ago';
-    if (delta < 86400) return Math.floor(delta / 3600) + ' hours ago';
-    return Math.floor(delta / 86400) + ' days ago';
+    function unit(n, word) { return n + ' ' + word + (n === 1 ? '' : 's') + ' ago'; }
+    if (delta < 60) return unit(delta, 'second');
+    if (delta < 3600) return unit(Math.floor(delta / 60), 'minute');
+    if (delta < 86400) return unit(Math.floor(delta / 3600), 'hour');
+    return unit(Math.floor(delta / 86400), 'day');
   };
 
   Site.number = function (value) {

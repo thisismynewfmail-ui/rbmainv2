@@ -54,6 +54,9 @@
           {% if not status.instance_list %}
           <tr><td colspan="5" class="muted">Nobody is playing right now. Press Load to open the first instance.</td></tr>
           {% endif %}
+          {% if status.instances_hidden %}
+          <tr><td colspan="5" class="muted tiny">+ {{ fmt_num(status.instances_hidden) }} more instance{{ '' if status.instances_hidden == 1 else 's' }} &mdash; Load puts you in the best one.</td></tr>
+          {% endif %}
         </table>
         </div>
       </div>
@@ -87,6 +90,7 @@
         </div>
         {% endfor %}
         {% if not players %}<p class="muted tiny">Nobody in game.</p>{% endif %}
+        {% if status.players > len(players) %}<p class="muted tiny">&hellip;and {{ fmt_num(status.players - len(players)) }} more.</p>{% endif %}
       </div>
     </div>
 

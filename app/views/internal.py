@@ -62,17 +62,19 @@ def heartbeat(req: Request):
     world_id = str(payload.get("world", ""))
     if worlds.get(world_id) is None:
         return R.json_response({"ok": False, "error": "unknown world"}, 400)
-    previous = game_registry.world_status(world_id)["players"]
+    before = game_registry.raw(world_id) or {}
+    previous = _humans(before)
     game_registry.heartbeat(world_id, payload)
-    players = int(payload.get("players", 0))
-    if players:
-        worlds.note_peak(world_id, players)
-    if players != previous:
+    humans = _humans(payload)
+    status = game_registry.world_status(world_id)
+    if status["players"]:
+        worlds.note_peak(world_id, int(status["players"]))
+    if humans != previous:
         from .. import console
         world = worlds.get(world_id)
         console.note("%s: %d player%s (%+d)"
-                     % (world["name"] if world else world_id, players,
-                        "" if players == 1 else "s", players - previous))
+                     % (world["name"] if world else world_id, humans,
+                        "" if humans == 1 else "s", humans - previous))
     for report in payload.get("reports", []) or []:
         try:
             _apply_report(world_id, report)
@@ -80,7 +82,28 @@ def heartbeat(req: Request):
             if config.DEBUG:
                 import traceback
                 traceback.print_exc()
-    return R.json_response({"ok": True, "at": int(time.time())})
+    reply: Dict[str, Any] = {"ok": True, "at": int(time.time())}
+    # the bot director answers too: bots arriving and leaving live rounds,
+    # rounds that have gone to sleep, and the settings the host plays with
+    from ..bots import director as bot_director
+    director = bot_director.running()
+    if director is not None:
+        try:
+            reply.update(director.on_heartbeat(world_id, payload))
+            from ..bots import config as bot_config
+            if int(payload.get("cfg_v", -1)) != bot_config.version():
+                reply["cfg"] = bot_config.ingame_section()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+    return R.json_response(reply)
+
+
+def _humans(payload: Dict[str, Any]) -> int:
+    total = 0
+    for inst in payload.get("instances", []) or []:
+        total += int(inst.get("count", 0)) - int(inst.get("bots", 0) or 0)
+    return total
 
 
 def _apply_report(world_id: str, report: Dict[str, Any]) -> None:
