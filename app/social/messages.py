@@ -38,7 +38,24 @@ def send(sender_id: int, recipient_name: str, subject: str, body: str,
         "reply_to) VALUES(?,?,?,?,?,?)",
         (sender_id, int(recipient["id"]), subject, body, int(time.time()),
          reply_to))
+    if recipient.get("is_bot"):
+        _tell_bot(int(recipient["id"]), sender_id, body)
     return int(cur.lastrowid)
+
+
+def _tell_bot(bot_id: int, sender_id: int, body: str) -> None:
+    """A message to a bot: it answers once it is online and has settled in."""
+    try:
+        from ..bots import director
+        running = director.running()
+        if running is None or running.chatter is None or running.is_bot(sender_id):
+            return
+        from ..models import users
+        sender = users.get_by_id(sender_id)
+        if sender is not None:
+            running.chatter.on_dm(bot_id, sender_id, sender["username"], body)
+    except Exception:
+        pass
 
 
 def inbox(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .. import config, db
 from ..game import registry as game_registry
@@ -35,6 +35,9 @@ def _live_payload() -> Dict[str, Any]:
         world_rows.append({
             "id": world["id"], "name": world["name"],
             "players": status["players"], "instances": status["instances"],
+            "humans": status.get("humans", status["players"]),
+            "bots": status.get("bots", 0),
+            "live_instances": status.get("live_instances", status["instances"]),
             "capacity": world["max_players"], "online": status["online"],
             "visits": stats["visits"], "rating": stats["rating"],
             "tick_ms": status.get("tick_ms", 0),
@@ -47,7 +50,7 @@ def _live_payload() -> Dict[str, Any]:
         "worlds": world_rows,
         "site": snapshot,
         "money": money,
-        "online_users": len(users.online_users(200)),
+        "online_users": users.online_count(),
         "in_game": game_registry.total_players(),
         "hosts": SUPERVISOR.status() if SUPERVISOR else [],
         # NOTE: not called "items" -- that name collides with dict.items in templates
@@ -85,67 +88,113 @@ def dashboard(req: Request):
 NETWORK_LIMIT = 220
 
 
+def _degrees() -> Dict[int, int]:
+    """Accepted-friendship count per account.
+
+    A whole-table aggregate: instant on a small site, and with a large bot
+    population the friendships table runs to millions of rows, so it is
+    remembered for a while rather than recounted on every refresh of the map.
+    """
+    def compute() -> Dict[int, int]:
+        out: Dict[int, int] = {}
+        for row in db.query(
+                "SELECT uid, COUNT(*) AS n FROM (SELECT user_low AS uid FROM friendships"
+                " WHERE status='accepted' UNION ALL SELECT user_high FROM friendships"
+                " WHERE status='accepted') GROUP BY uid"):
+            out[int(row["uid"])] = int(row["n"])
+        return out
+    total = users.count_users()
+    return db.cached("admin.degrees", 2.5 if total < 5000 else 45.0, compute)
+
+
 def _network_payload() -> Dict[str, Any]:
     """Nodes and edges for the animated connection map.
 
     Everything is derived from the same tables the site itself reads, so the
     graph is a view of live state rather than a second copy of it.  The node
-    list is capped -- the busiest accounts first -- so a large instance still
-    renders something a browser can draw at sixty frames a second.
+    list is capped -- real people first, then the busiest accounts -- so a
+    platform carrying a hundred thousand bots still renders something a
+    browser can draw at sixty frames a second, and only the edges between the
+    accounts on the map are read.
     """
+    degree = _degrees()
     people = db.rows_to_dicts(db.query(
-        "SELECT id, username, created_at, last_seen, is_admin, is_banned"
-        " FROM users"))
-    friend_rows = db.rows_to_dicts(db.query(
-        "SELECT user_low, user_high, status FROM friendships"))
-    follow_rows = db.rows_to_dicts(db.query(
-        "SELECT follower_id, followee_id FROM follows"))
-
-    degree: Dict[int, int] = {}
-    for row in friend_rows:
-        if row["status"] != "accepted":
-            continue
-        degree[int(row["user_low"])] = degree.get(int(row["user_low"]), 0) + 1
-        degree[int(row["user_high"])] = degree.get(int(row["user_high"]), 0) + 1
-
-    in_game = {}
-    for world in worlds.all_worlds():
-        for player in game_registry.players_in(world["id"]):
-            in_game[int(player.get("user_id", 0))] = world["name"]
-
-    # busiest first, then newest -- a lone brand new account still gets in
+        "SELECT id, username, created_at, last_seen, is_admin, is_banned, is_bot"
+        " FROM users WHERE is_bot=0"))
     people.sort(key=lambda u: (-degree.get(int(u["id"]), 0),
                                -int(u["created_at"] or 0)))
     people = people[:NETWORK_LIMIT]
+    room = NETWORK_LIMIT - len(people)
+    if room > 0:
+        bot_ids = [uid for uid, _n in sorted(
+            ((uid, n) for uid, n in degree.items()), key=lambda p: -p[1])]
+        if bot_ids:
+            human_ids = {int(u["id"]) for u in people}
+            wanted = [uid for uid in bot_ids if uid not in human_ids][:room * 2]
+            for start in range(0, len(wanted), 400):
+                chunk = wanted[start:start + 400]
+                marks = ",".join("?" * len(chunk))
+                people += db.rows_to_dicts(db.query(
+                    "SELECT id, username, created_at, last_seen, is_admin, is_banned,"
+                    " is_bot FROM users WHERE is_bot=1 AND id IN (%s)" % marks, chunk))
+            people.sort(key=lambda u: (u["is_bot"], -degree.get(int(u["id"]), 0)))
+            people = people[:NETWORK_LIMIT]
+        if len(people) < NETWORK_LIMIT:
+            have = {int(u["id"]) for u in people}
+            for row in db.rows_to_dicts(db.query(
+                    "SELECT id, username, created_at, last_seen, is_admin, is_banned,"
+                    " is_bot FROM users WHERE is_bot=1 ORDER BY id DESC LIMIT ?",
+                    (NETWORK_LIMIT,))):
+                if int(row["id"]) not in have and len(people) < NETWORK_LIMIT:
+                    people.append(row)
     keep = {int(u["id"]) for u in people}
+    users.live_seen(people)
+
+    in_game = {}
+    from ..bots import director as bot_director
+    director = bot_director.running()
+    for world in worlds.all_worlds():
+        for player in game_registry.players_in(world["id"], 400):
+            in_game[int(player.get("user_id", 0))] = world["name"]
+    names_by_world = {w["id"]: w["name"] for w in worlds.all_worlds()}
 
     nodes = []
     for row in people:
         uid = int(row["id"])
+        playing = in_game.get(uid, "")
+        if not playing and row["is_bot"] and director is not None:
+            playing = names_by_world.get(director.bot_world(uid) or "", "")
         nodes.append({
             "id": uid,
             "name": row["username"],
             "degree": degree.get(uid, 0),
             "admin": bool(row["is_admin"]),
             "banned": bool(row["is_banned"]),
+            "bot": bool(row["is_bot"]),
             "online": users.is_online(row),
-            "playing": in_game.get(uid, ""),
+            "playing": playing,
             "joined": int(row["created_at"] or 0),
             "last_seen": int(row["last_seen"] or 0),
         })
 
+    ids = sorted(keep)
     edges = []
+    friend_rows: List[Dict[str, Any]] = []
+    follow_rows: List[Dict[str, Any]] = []
+    if ids:
+        marks = ",".join("?" * len(ids))
+        friend_rows = db.rows_to_dicts(db.query(
+            "SELECT user_low, user_high, status FROM friendships WHERE user_low IN (%s)"
+            " AND user_high IN (%s)" % (marks, marks), ids + ids))
+        follow_rows = db.rows_to_dicts(db.query(
+            "SELECT follower_id, followee_id FROM follows WHERE follower_id IN (%s)"
+            " AND followee_id IN (%s)" % (marks, marks), ids + ids))
     for row in friend_rows:
-        a, b = int(row["user_low"]), int(row["user_high"])
-        if a in keep and b in keep:
-            edges.append({"a": a, "b": b,
-                          "kind": "friend" if row["status"] == "accepted"
-                                  else "pending"})
+        edges.append({"a": int(row["user_low"]), "b": int(row["user_high"]),
+                      "kind": "friend" if row["status"] == "accepted" else "pending"})
     seen = {(e["a"], e["b"]) for e in edges}
     for row in follow_rows:
         a, b = int(row["follower_id"]), int(row["followee_id"])
-        if a not in keep or b not in keep:
-            continue
         pair = (a, b) if a < b else (b, a)
         if pair in seen:
             continue
@@ -160,6 +209,7 @@ def _network_payload() -> Dict[str, Any]:
         "truncated": max(0, users.count_users() - len(nodes)),
         "summary": {
             "people": len(nodes),
+            "bots": sum(1 for n in nodes if n["bot"]),
             "friendships": sum(1 for e in edges if e["kind"] == "friend"),
             "pending": sum(1 for e in edges if e["kind"] == "pending"),
             "follows": sum(1 for e in edges if e["kind"] == "follow"),
@@ -189,7 +239,9 @@ def admin_user(req: Request):
     if target is None:
         return api_error("No such player.", 404)
     uid = int(target["id"])
-    return api_ok(user=users.public(target),
+    public = users.public(target)
+    public["is_bot"] = bool(target.get("is_bot"))
+    return api_ok(user=public,
                   credits=economy.balance(uid),
                   inventory=inventory.list_for_user(uid),
                   ledger=economy.history(uid, 20),

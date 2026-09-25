@@ -37,6 +37,12 @@
           '?instance=' + inst.id + '">Join</a></td></tr>';
       });
     }
+    if (info.instances_hidden) {
+      html += '<tr><td colspan="' + (wide ? 5 : 4) + '" class="muted tiny">+ ' +
+        info.instances_hidden.toLocaleString() + ' more instance' +
+        (info.instances_hidden === 1 ? '' : 's') +
+        ' &mdash; Load puts you in the best one.</td></tr>';
+    }
     table.innerHTML = '';
     table.appendChild(head);
     table.insertAdjacentHTML('beforeend', html);

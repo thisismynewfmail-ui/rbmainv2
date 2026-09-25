@@ -127,7 +127,7 @@ class Player:
                  "vote", "extra", "last_damage_from", "last_damage_at",
                  "seq", "corrections", "ping", "streak", "last_seen_alive",
                  "last_message",
-                 "coins", "plot", "session_key", "flags", "admin")
+                 "coins", "plot", "session_key", "flags", "admin", "brain")
 
     def __init__(self, pid: int, user_id: int, username: str,
                  avatar: Dict[str, Any], ws, admin: bool = False):
@@ -186,6 +186,10 @@ class Player:
         self.coins = 0
         self.plot: Optional[int] = None
         self.flags: Dict[str, Any] = {}
+        # A synthetic player's decision maker (app/game/bots/brain.py); None
+        # for every person.  Everything else about a bot is an ordinary
+        # Player going through the ordinary paths.
+        self.brain = None
 
     # ------------------------------------------------------------- weapons
     def held_slot(self) -> int:
@@ -307,6 +311,11 @@ class GameInstance:
         self.events: List[Dict[str, Any]] = []
         self.chat_log: List[Dict[str, Any]] = []
         self.last_broadcast_state = 0.0
+        # The bots in this round, if any (app/game/bots/runner.py).  Created
+        # on the first bot; an instance nobody synthetic has joined never
+        # pays for it.
+        self.bots = None
+        self.sleep_at = 0.0
         self.setup()
 
     # ------------------------------------------------------------ lifecycle
@@ -547,6 +556,34 @@ class GameInstance:
                            exclude=pid)
             self.on_player_ready(player)
             self.system_message("%s joined the server." % username)
+            if self.bots is not None:
+                self.bots.on_human_join(player)
+            return player
+
+    def add_bot(self, user_id: int, username: str, avatar: Dict[str, Any],
+                team: str = "", quiet: bool = False) -> Player:
+        """Seat a synthetic player.
+
+        The same path a person takes -- a team, a spawn, the world's own join
+        rules (a tycoon plot, say) -- minus the socket.  ``quiet`` is for
+        waking a sleeping round: its bots were already in the round, so
+        nobody is told they just joined.
+        """
+        from .bots.runner import BotRunner
+        with self.lock:
+            if self.bots is None:
+                self.bots = BotRunner(self)
+            pid = self.next_pid
+            self.next_pid += 1
+            player = Player(pid, user_id, username, avatar, None, False)
+            player.team = team if team in self.team_names() else self.pick_team(player)
+            self.players[pid] = player
+            self.spawn_player(player)
+            self.on_player_join(player)
+            if not quiet:
+                self.broadcast({"t": "join", "player": player.public()},
+                               exclude=pid)
+                self.system_message("%s joined the server." % username)
             return player
 
     def drop_user(self, user_id: int, reason: str = "",
@@ -583,6 +620,8 @@ class GameInstance:
             if player is None:
                 return
             player.connected = False
+            if self.bots is not None:
+                self.bots.forget(pid)
             self.on_player_leave(player)
             self.flush_player_stats(player, final=True)
             self.broadcast({"t": "leave", "id": pid})
@@ -1023,6 +1062,8 @@ class GameInstance:
             attacker.send({"t": "dealt", "a": round(amount, 1),
                            "hs": headshot, "target": victim.pid,
                            "hp": max(0, int(victim.health))})
+            if victim.brain is not None and attacker is not victim:
+                victim.brain.hurt_by(attacker)
         if victim.health <= 0:
             self.kill(victim, attacker, weapon_name, headshot)
 
@@ -1053,6 +1094,8 @@ class GameInstance:
         victim.send({"t": "died", "in": self.respawn_seconds,
                      "by": killer.username if killer else weapon_name})
         self.on_kill(killer, victim, weapon_name)
+        if self.bots is not None:
+            self.bots.on_kill(killer, victim, weapon_name)
 
     # ------------------------------------------------------------------ chat
     def handle_chat(self, player: Player, message: Dict[str, Any]) -> None:
@@ -1080,6 +1123,12 @@ class GameInstance:
             self.chat_log.append(entry)
             del self.chat_log[:-120]
             self.broadcast(entry)
+        if self.bots is not None and player.brain is None and not team_only:
+            # somebody real said something: let the bots hear it promptly
+            self.bots.wants_report = True
+            wake = getattr(self.host, "wake_heartbeat", None)
+            if wake is not None:
+                wake()
 
     # ------------------------------------------------------------- vote/round
     def handle_vote(self, player: Player, message: Dict[str, Any]) -> None:
@@ -1156,6 +1205,8 @@ class GameInstance:
             if player.team == winner:
                 player.score += 50
             self.host.report_round(self, player, won=player.team == winner)
+        if self.bots is not None:
+            self.bots.on_round_end(winner)
 
     def scoreboard(self) -> List[Dict[str, Any]]:
         rows = [{"id": p.pid, "name": p.username, "uid": p.user_id,
@@ -1177,6 +1228,8 @@ class GameInstance:
         self.broadcast({"t": "round_start", "round": self.round_number,
                         "state": self.full_state()})
         self.system_message("Round %d -- go!" % self.round_number)
+        if self.bots is not None:
+            self.bots.on_round_start()
 
     # ------------------------------------------------------------------ tick
     def full_state(self) -> Dict[str, Any]:
@@ -1311,6 +1364,8 @@ class GameInstance:
                         (moment - player.joined_at) >= VISIT_SECONDS:
                     player.visit_recorded = True
                     self.host.report_visit(self, player)
+            if self.bots is not None:
+                self.bots.tick(TICK_DT)
             self.drop_silent(moment)
             self.step_projectiles(TICK_DT)
             self.on_tick(TICK_DT)
@@ -1351,9 +1406,11 @@ class GameInstance:
         return {
             "id": self.instance_id,
             "players": [{"user_id": p.user_id, "name": p.username,
-                         "team": p.team, "score": p.score, "kills": p.kills}
+                         "team": p.team, "score": p.score, "kills": p.kills,
+                         "bot": p.brain is not None}
                         for p in self.players.values()],
             "count": len(self.players),
+            "bots": sum(1 for p in self.players.values() if p.brain is not None),
             "max": self.max_players,
             "phase": self.phase,
             "round": self.round_number,

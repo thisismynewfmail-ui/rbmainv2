@@ -41,6 +41,9 @@
             {% if not row.status.instance_list %}
             <tr><td colspan="4" class="muted">No instance running yet &mdash; pressing Load starts one.</td></tr>
             {% endif %}
+            {% if row.status.instances_hidden %}
+            <tr><td colspan="4" class="muted tiny">+ {{ fmt_num(row.status.instances_hidden) }} more instance{{ '' if row.status.instances_hidden == 1 else 's' }} &mdash; Load puts you in the best one.</td></tr>
+            {% endif %}
           </table>
         </div>
       </div>

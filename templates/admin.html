@@ -9,6 +9,7 @@
     <div class="tabs" id="admin-tabs">
       <a data-admin-tab="overview" class="on">Overview</a>
       <a data-admin-tab="network">Connections</a>
+      <a data-admin-tab="bots" class="bz-tab"><span class="bz-tab-dot" id="bz-tab-dot"></span>Bots Zone</a>
     </div>
   </div>
   <div class="panel-body">
@@ -78,7 +79,8 @@
           {% for u in user_rows %}
           <tr data-user-row="{{ u.username }}">
             <td><a href="/profile/{{ u.username }}">{{ u.username }}</a>
-                {% if u.is_admin %}<span class="pill red">admin</span>{% endif %}</td>
+                {% if u.is_admin %}<span class="pill red">admin</span>{% endif %}
+                {% if u.is_bot %}<span class="pill bot">bot</span>{% endif %}</td>
             <td class="credits">{{ fmt_num(u.credits) }}</td>
             <td class="muted">{{ fmt_date(u.created_at) }}</td>
             <td class="muted">{{ ago(u.last_seen) }}</td>
@@ -187,6 +189,7 @@
           <span><i style="background:#f0b429"></i> in a world</span>
           <span><i style="background:#6aa9e0"></i> registered</span>
           <span><i style="background:#8c93a1"></i> no connections</span>
+          <span><i class="k-bot"></i> bot account <small>(ring = online / in a world)</small></span>
           <hr>
           <span><u class="e-friend"></u> friends</span>
           <span><u class="e-pending"></u> request pending</span>
@@ -206,6 +209,59 @@
   </div>
 </div>
 
+<!-- ============================================================ Bots Zone
+     The control room for synthetic players.  The page is drawn by
+     static/js/ui/bots_admin.js from /api/admin/bots/*: the settings forms
+     come from the schema in app/bots/config.py, so a setting added there
+     appears here with nothing else to do. -->
+<div data-admin-panel="bots" class="hidden">
+  <div class="bz" id="bz">
+    <div class="panel bz-hero">
+      <div class="panel-head purple">
+        <span>Bots Zone</span>
+        <span class="head-links"><span id="bz-live">connecting&hellip;</span>
+          <span class="dot on" id="bz-live-dot"></span></span>
+      </div>
+      <div class="panel-body">
+        <div class="bz-hero-row">
+          <div class="bz-master">
+            <button class="switch big" id="bz-master" type="button" role="switch"
+                    aria-checked="false" aria-label="Bot system"><i></i></button>
+            <div>
+              <b>Bot system</b>
+              <div class="tiny muted" id="bz-master-note">Loading&hellip;</div>
+            </div>
+          </div>
+          <div class="bz-kpis" id="bz-kpis"></div>
+        </div>
+        <div class="bz-chart-wrap">
+          <canvas class="bz-chart" id="bz-spark" height="90"></canvas>
+          <div class="bz-chart-key tiny">
+            <span><i style="background:var(--bz-online)"></i> online</span>
+            <span><i style="background:var(--bz-playing)"></i> in worlds</span>
+            <span><i class="dash"></i> target</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bz-layout">
+      <nav class="bz-nav" id="bz-nav" aria-label="Bots Zone sections"></nav>
+      <div class="bz-main" id="bz-main">
+        <div class="panel"><div class="panel-body muted">Loading the Bots Zone&hellip;</div></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="bz-drawer hidden" id="bz-drawer" aria-label="Bot details">
+    <div class="bz-drawer-head">
+      <b id="bz-drawer-title">Bot</b>
+      <button class="btn small" type="button" data-bz="close-drawer">Close</button>
+    </div>
+    <div class="bz-drawer-body" id="bz-drawer-body"></div>
+  </aside>
+</div>
+
 <div id="admin-modal" class="hidden" style="position:fixed;inset:0;background:rgba(8,16,26,.7);z-index:900;display:flex;align-items:center;justify-content:center">
   <div class="panel" style="width:640px;max-height:86vh;overflow:auto;margin:0">
     <div class="panel-head" id="am-title">Player</div>
@@ -214,4 +270,5 @@
   </div>
 </div>
 {% set page_script = "/static/js/ui/admin.js" %}
+{% set extra_scripts = ["/static/js/ui/bots_admin.js"] %}
 {% include "partials/foot.html" %}

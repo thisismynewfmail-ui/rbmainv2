@@ -132,6 +132,7 @@ def context(req: Request, **extra: Any) -> Dict[str, Any]:
     ctx: Dict[str, Any] = {
         "page_title": "Home",
         "page_script": "",
+        "extra_scripts": [],
         "search_term": req.query.get("q", ""),
         "ticker": site_ticker(),
         "user": user,

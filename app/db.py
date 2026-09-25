@@ -252,6 +252,39 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Synthetic players.  The account itself is an ordinary ``users`` row (so a
+-- bot has a profile, an inventory, friends and a wall like anybody else) and
+-- carries ``users.is_bot = 1``; everything that only a bot has lives here.
+CREATE TABLE IF NOT EXISTS bot_profiles (
+    user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    tags        TEXT NOT NULL DEFAULT '',
+    traits      TEXT NOT NULL DEFAULT '{}',
+    voice       TEXT NOT NULL DEFAULT '',
+    generator   TEXT NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL DEFAULT 0
+);
+
+-- Indexes the platform only needs once it carries a lot of accounts.  Every
+-- one of them turns a whole-table scan on a page view into a lookup.
+CREATE INDEX IF NOT EXISTS idx_friend_high ON friendships(user_high);
+-- Partial: it can only ever be chosen for the pending-request scan, so it
+-- never tempts the planner away from the per-user indexes on other queries.
+CREATE INDEX IF NOT EXISTS idx_friend_pending ON friendships(id) WHERE status='pending';
+CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee_id);
+CREATE INDEX IF NOT EXISTS idx_users_seen ON users(last_seen);
+CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_game_stats_world ON game_stats(world_id, score);
+CREATE INDEX IF NOT EXISTS idx_pcomments_author ON profile_comments(author_id);
+CREATE INDEX IF NOT EXISTS idx_visits_user ON world_visits(user_id);
+"""
+
+# Run after the column migrations, because they name columns that an older
+# database only gains in ``_migrate``.
+POST_MIGRATION = """
+CREATE INDEX IF NOT EXISTS idx_users_bot ON users(is_bot);
+DROP INDEX IF EXISTS idx_friend_status;
+DROP INDEX IF EXISTS idx_friend_requester;
 """
 
 
@@ -285,6 +318,10 @@ MIGRATIONS = [
     # that it has been shown belongs to the session rather than the account:
     # signing out and back in issues a new session row and the banner returns.
     ("sessions", "spotlight_seen", "INTEGER NOT NULL DEFAULT 0"),
+    # Synthetic players (see app/bots).  A bot is an ordinary account with
+    # this flag set, so every page treats it exactly like a person while the
+    # admin dashboard can still tell the two apart.
+    ("users", "is_bot", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 
@@ -309,6 +346,7 @@ def init_db() -> None:
     with _write_lock:
         conn.executescript(SCHEMA)
         _migrate(conn)
+        conn.executescript(POST_MIGRATION)
 
 
 def query(sql: str, params: Iterable[Any] = ()) -> List[sqlite3.Row]:
@@ -380,6 +418,29 @@ def row_to_dict(row: Optional[sqlite3.Row]) -> Optional[AttrDict]:
 
 def rows_to_dicts(rows: Iterable[sqlite3.Row]) -> List[AttrDict]:
     return [AttrDict(r) for r in rows]
+
+
+_memo: Dict[str, Any] = {}
+_memo_lock = threading.Lock()
+
+
+def cached(key: str, ttl: float, compute):
+    """``compute()``, remembered for ``ttl`` seconds.
+
+    For the whole-table figures the dashboard and the terminal read every
+    few seconds (counts over the friendships, the inventory, the ledger).
+    With a large bot population those tables run to millions of rows, and a
+    number that is a few seconds old is exactly as useful as one that is not.
+    """
+    now = time.time()
+    with _memo_lock:
+        hit = _memo.get(key)
+        if hit is not None and now - hit[0] < ttl:
+            return hit[1]
+    value = compute()
+    with _memo_lock:
+        _memo[key] = (now, value)
+    return value
 
 
 def get_meta(key: str, default: Optional[str] = None) -> Optional[str]:

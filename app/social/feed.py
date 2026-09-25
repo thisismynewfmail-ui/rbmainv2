@@ -61,6 +61,10 @@ def recent_activity(limit: int = 18) -> List[Dict[str, Any]]:
 
 
 def stats_snapshot() -> Dict[str, int]:
+    return dict(db.cached("feed.stats", 10.0, _stats_snapshot))
+
+
+def _stats_snapshot() -> Dict[str, int]:
     now = int(time.time())
     day = now - 86400
     return {

@@ -46,7 +46,7 @@ def world_detail(req: Request, world_id: str = ""):
                   favourite=worlds.is_favourite(world_id, viewer) if viewer else False,
                   vote=worlds.user_vote(world_id, viewer) if viewer else 0,
                   leaderboard=worlds.leaderboard(world_id, 10),
-                  players=game_registry.players_in(world_id),
+                  players=game_registry.players_in(world_id, 60),
                   recent_visits=db.rows_to_dicts(db.query(
                       "SELECT v.created_at, u.username FROM world_visits v"
                       " JOIN users u ON u.id=v.user_id WHERE v.world_id=?"
@@ -117,6 +117,21 @@ def join_ticket(req: Request):
         "admin": bool(req.user["is_admin"]),
     }, config.GAME_TICKET_TTL)
     instance = str(data.get("instance", "") or "")
+    # Where to seat them.  With bots about, the director picks: another
+    # real player's round first, then a sleeping bot round (woken now,
+    # mid-game, before the socket opens), then a fresh one.
+    from ..bots import director as bot_director
+    director = bot_director.running()
+    if director is not None:
+        try:
+            chosen = director.place_human(world_id, int(instance) if instance.isdigit()
+                                          else None, uid)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            chosen = None
+        if chosen:
+            instance = str(int(chosen))
     ws_path = "/ws/game/%s?ticket=%s" % (world_id, ticket)
     if instance.isdigit():
         ws_path += "&instance=%s" % instance
@@ -165,6 +180,7 @@ def worlds_status(req: Request):
                 {"id": i["id"], "count": i["count"], "max": i["max"],
                  "phase": i.get("phase", ""), "round": i.get("round", 1)}
                 for i in status.get("instance_list", [])],
+            "instances_hidden": status.get("instances_hidden", 0),
         }
     return api_ok(worlds=payload, total=game_registry.total_players())
 

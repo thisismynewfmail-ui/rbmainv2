@@ -73,22 +73,63 @@ class GameHost:
         self.report_lock = threading.Lock()
         self.running = True
         self.connections = 0
+        # --- bots ------------------------------------------------------
+        # The settings the web server's Bots Zone pushes down (heartbeat
+        # replies carry them), the walkable graph of this map (built on a
+        # background thread the first time a bot needs it), sleeping rounds
+        # waiting to be handed back, and bots that left on their own.
+        self.bot_cfg: Dict[str, Any] = {}
+        self.bot_cfg_version = -1
+        self.sleepers: List[Dict[str, Any]] = []
+        self.bots_left: List[Dict[str, Any]] = []
+        self.chat_reports: List[Dict[str, Any]] = []
+        self._beat = threading.Event()
+        self._last_early_beat = 0.0
+        self.nav = None
+        try:
+            from app.game.bots import nav as nav_module
+            colliders = GameInstance._build_colliders(self.map)
+            self.nav = nav_module.for_map(self.world_id, self.map, colliders)
+        except Exception:
+            if config.DEBUG:
+                traceback.print_exc()
         self.ensure_instance()
 
     # ------------------------------------------------------------ instances
-    def ensure_instance(self) -> GameInstance:
+    def ensure_instance(self, inst_id: Optional[int] = None) -> GameInstance:
         with self.lock:
-            instance = self.cls(self, self.world, self.next_instance_id, self.map)
-            self.next_instance_id += 1
+            if inst_id is None or self.find_instance(inst_id) is not None:
+                inst_id = self.next_instance_id
+                while self.find_instance(inst_id) is not None:
+                    inst_id += 1
+            instance = self.cls(self, self.world, inst_id, self.map)
+            self.next_instance_id = max(self.next_instance_id, inst_id + 1)
             self.instances.append(instance)
             return instance
+
+    def find_instance(self, inst_id: int) -> Optional[GameInstance]:
+        for instance in self.instances:
+            if instance.instance_id == inst_id:
+                return instance
+        return None
 
     def pick_instance(self, prefer: Optional[int] = None) -> GameInstance:
         with self.lock:
             if prefer:
-                for instance in self.instances:
-                    if instance.instance_id == prefer and not instance.is_full():
+                instance = self.find_instance(prefer)
+                if instance is not None:
+                    if not instance.is_full():
                         return instance
+                    # full, but some of it is bots: one of them heads off
+                    if instance.bots is not None and instance.bots.brains:
+                        brain = next(iter(instance.bots.brains.values()))
+                        self.bots_left.append({"uid": brain.uid,
+                                               "inst": instance.instance_id})
+                        instance.bots.remove(brain.uid, say_bye=False)
+                        return instance
+                else:
+                    # the web server chose this number for a fresh round
+                    return self.ensure_instance(prefer)
             for instance in self.instances:
                 if not instance.is_full():
                     return instance
@@ -103,6 +144,8 @@ class GameHost:
                 if instance.is_empty() and len(keep) + 1 < len(self.instances):
                     continue
                 keep.append(instance)
+            if not keep:
+                keep = self.instances[:1]
             if len(keep) != len(self.instances):
                 self.instances = keep or self.instances[:1]
 
@@ -125,6 +168,7 @@ class GameHost:
     def tick_loop(self) -> None:
         next_tick = time.monotonic()
         cull_at = time.monotonic() + 30.0
+        sleep_check = time.monotonic() + 1.0
         while self.running:
             started = time.monotonic()
             with self.lock:
@@ -135,6 +179,9 @@ class GameHost:
                 except Exception:
                     traceback.print_exc()
             self.tick_ms = (time.monotonic() - started) * 1000.0
+            if time.monotonic() > sleep_check:
+                sleep_check = time.monotonic() + 1.0
+                self.check_sleepers()
             if time.monotonic() > cull_at:
                 cull_at = time.monotonic() + 30.0
                 self.cull_instances()
@@ -154,10 +201,15 @@ class GameHost:
 
     def report_player(self, instance: GameInstance, player,
                       final: bool = False) -> None:
+        kills, deaths, score = player.kills, player.deaths, player.score
+        if player.brain is not None:
+            # a woken bot arrived with a score line the director has already
+            # booked: only what it did in this live stretch is new
+            kills, deaths, score = player.brain.stats_delta()
         self.queue_report({
             "kind": "stats", "world": self.world_id,
-            "user_id": player.user_id, "kills": player.kills,
-            "deaths": player.deaths, "score": player.score,
+            "user_id": player.user_id, "kills": kills,
+            "deaths": deaths, "score": score,
             "playtime": int(player.playtime), "final": bool(final),
         })
 
@@ -172,19 +224,37 @@ class GameHost:
 
     def heartbeat_loop(self) -> None:
         while self.running:
-            time.sleep(2.5)
+            self._beat.wait(2.5)
+            self._beat.clear()
             try:
                 self.send_heartbeat()
             except Exception:
                 if config.DEBUG:
                     traceback.print_exc()
 
+    def wake_heartbeat(self) -> None:
+        """Send the next heartbeat now (a person spoke to a bot, say), but
+        never more than a few times a second."""
+        moment = time.monotonic()
+        if moment - self._last_early_beat > 0.4:
+            self._last_early_beat = moment
+            self._beat.set()
+
     def send_heartbeat(self) -> None:
         with self.lock:
             instances = [i.describe() for i in self.instances]
+            chat = []
+            for instance in self.instances:
+                if instance.bots is not None:
+                    with instance.lock:
+                        report = instance.bots.chat_report()
+                    if report:
+                        chat.append(report)
         with self.report_lock:
             reports = self.reports
             self.reports = []
+            sleepers, self.sleepers = self.sleepers, []
+            left, self.bots_left = self.bots_left, []
         payload = {
             "world": self.world_id,
             "players": sum(i["count"] for i in instances),
@@ -193,6 +263,13 @@ class GameHost:
             "tick_ms": round(self.tick_ms, 2),
             "pid": os.getpid(),
             "reports": reports,
+            "dormant": sleepers,
+            "left": left,
+            "chat": chat,
+            "cfg_v": self.bot_cfg_version,
+            "nav": {"ready": bool(self.nav and self.nav.ready),
+                    "nodes": self.nav.size if self.nav and self.nav.ready else 0,
+                    "ms": round(self.nav.build_ms, 1) if self.nav else 0},
         }
         body = json.dumps(payload).encode()
         signature = security.service_signature(body)
@@ -204,12 +281,134 @@ class GameHost:
                 "X-Service-Signature": signature,
             })
             response = conn.getresponse()
-            response.read()
+            answer = response.read()
             conn.close()
         except Exception:
             with self.report_lock:
                 # keep the reports so the next beat can retry them
                 self.reports = reports + self.reports
+                self.sleepers = sleepers + self.sleepers
+                self.bots_left = left + self.bots_left
+            return
+        try:
+            reply = json.loads(answer.decode("utf-8") or "{}")
+        except ValueError:
+            return
+        self.apply_reply(reply)
+
+    # ------------------------------------------------------------------ bots
+    def apply_reply(self, reply: Dict[str, Any]) -> None:
+        """What the web server sent back with a heartbeat: settings, the
+        instance numbers it has reserved, and bots arriving and leaving."""
+        if isinstance(reply.get("cfg"), dict):
+            self.bot_cfg = reply["cfg"]
+            self.bot_cfg_version = int(reply["cfg"].get("v", -1))
+        reserve = int(reply.get("reserve", 0) or 0)
+        if reserve:
+            with self.lock:
+                self.next_instance_id = max(self.next_instance_id, reserve)
+        for op in reply.get("ops", []) or []:
+            try:
+                self.apply_op(op)
+            except Exception:
+                if config.DEBUG:
+                    traceback.print_exc()
+
+    def apply_op(self, op: Dict[str, Any]) -> None:
+        kind = op.get("op")
+        with self.lock:
+            instance = self.find_instance(int(op.get("inst", 0) or 0))
+        if kind == "join":
+            spec = op.get("bot") or {}
+            if instance is None or instance.is_full():
+                self.bots_left.append({"uid": int(spec.get("uid", 0)),
+                                       "inst": int(op.get("inst", 0) or 0)})
+                return
+            with instance.lock:
+                if instance.bots is None:
+                    from app.game.bots.runner import BotRunner
+                    instance.bots = BotRunner(instance)
+                instance.bots.add(spec, quiet=False)
+        elif kind == "leave":
+            uid = int(op.get("uid", 0) or 0)
+            targets = [instance] if instance is not None else list(self.instances)
+            for target in targets:
+                if target is not None and target.bots is not None:
+                    with target.lock:
+                        if target.bots.remove(uid, op.get("reason", "")):
+                            break
+        elif kind == "chat":
+            if instance is not None and instance.bots is not None:
+                with instance.lock:
+                    instance.bots.say_for(int(op.get("uid", 0) or 0),
+                                          str(op.get("text", ""))[:150],
+                                          float(op.get("delay", 1.0) or 1.0))
+
+    def check_sleepers(self) -> None:
+        """Put rounds with bots and nobody real in them to sleep.
+
+        After the grace period the round's state is handed to the web
+        server's director, which carries on with it in closed form; the
+        instance is dropped here and stops costing anything at all.
+        """
+        grace = float(self.bot_cfg.get("worlds_sleep_grace_seconds", 45) or 45)
+        moment = time.monotonic()
+        with self.lock:
+            instances = list(self.instances)
+        for instance in instances:
+            runner = instance.bots
+            if runner is None or not runner.brains:
+                instance.sleep_at = 0.0
+                continue
+            humans = sum(1 for p in instance.players.values() if p.brain is None)
+            if humans:
+                instance.sleep_at = 0.0
+                continue
+            if not instance.sleep_at:
+                instance.sleep_at = moment + grace
+                continue
+            if moment < instance.sleep_at:
+                continue
+            with instance.lock:
+                snapshot = runner.sleep_snapshot()
+                for brain in list(runner.brains.values()):
+                    brain.p.playtime = time.monotonic() - brain.p.joined_at
+                    self.report_player(instance, brain.p, final=True)
+                instance.players.clear()
+                runner.brains.clear()
+            with self.lock:
+                if instance in self.instances:
+                    self.instances.remove(instance)
+                if not self.instances:
+                    self.ensure_instance()
+            with self.report_lock:
+                self.sleepers.append(snapshot)
+            self.wake_heartbeat()
+
+    def hydrate(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Wake a sleeping round, mid-flight, with its bots in it."""
+        inst_id = int(message.get("inst", 0) or 0)
+        if inst_id <= 0:
+            return {"ok": False, "error": "no instance number"}
+        if isinstance(message.get("config"), dict):
+            self.bot_cfg = message["config"]
+            self.bot_cfg_version = int(message["config"].get("v", -1))
+        with self.lock:
+            existing = self.find_instance(inst_id)
+            if existing is not None and existing.players:
+                return {"ok": False, "error": "instance %d is already running" % inst_id}
+            if existing is not None:
+                self.instances.remove(existing)
+            instance = self.cls(self, self.world, inst_id, self.map)
+            self.next_instance_id = max(self.next_instance_id, inst_id + 1)
+            self.instances.append(instance)
+        if self.nav is not None and not self.nav.ready:
+            self.nav.build_async()
+        from app.game.bots.runner import BotRunner
+        with instance.lock:
+            instance.bots = BotRunner(instance)
+            instance.bots.wake(message.get("state") or {}, message.get("bots") or [])
+        return {"ok": True, "inst": inst_id, "bots": len(instance.bots.brains)}
 
     # ---------------------------------------------------------- connections
     def handle_socket(self, sock: socket.socket, address) -> None:
@@ -304,7 +503,7 @@ class GameHost:
         except ValueError:
             length = 0
         body = b""
-        remaining = min(max(0, length), 64 * 1024)
+        remaining = min(max(0, length), 4 * 1024 * 1024)
         while remaining > 0:
             chunk = rfile.read(remaining)
             if not chunk:
@@ -322,6 +521,23 @@ class GameHost:
                 dropped = self.drop_user(int(message.get("user_id", 0) or 0),
                                          str(message.get("reason", "")))
                 status, payload = "200 OK", {"ok": True, "dropped": dropped}
+            elif action == "hydrate":
+                try:
+                    payload = self.hydrate(message)
+                except Exception as exc:
+                    traceback.print_exc()
+                    payload = {"ok": False, "error": str(exc)}
+                status = "200 OK"
+            elif action == "bot_chat":
+                with self.lock:
+                    instance = self.find_instance(int(message.get("inst", 0) or 0))
+                done = False
+                if instance is not None and instance.bots is not None:
+                    with instance.lock:
+                        done = instance.bots.say_for(int(message.get("uid", 0) or 0),
+                                                     str(message.get("text", ""))[:150],
+                                                     float(message.get("delay", 1.0) or 1.0))
+                status, payload = "200 OK", {"ok": done}
             else:
                 status, payload = "400 Bad Request", {"ok": False}
         try:

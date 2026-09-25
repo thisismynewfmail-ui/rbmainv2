@@ -66,5 +66,6 @@
 <script src="{{ asset('/static/js/ui/thumbs.js') }}"></script>
 <script src="{{ asset('/static/js/ui/site.js') }}"></script>
 {% if page_script %}<script src="{{ asset(page_script) }}"></script>{% endif %}
+{% for extra in extra_scripts %}<script src="{{ asset(extra) }}"></script>{% endfor %}
 </body>
 </html>

@@ -72,6 +72,10 @@ def history(user_id: int, limit: int = 25) -> List[Dict[str, Any]]:
 
 
 def totals() -> Dict[str, int]:
+    return dict(db.cached("economy.totals", 10.0, _totals))
+
+
+def _totals() -> Dict[str, int]:
     return {
         "circulating": int(db.scalar("SELECT COALESCE(SUM(credits),0) FROM users")),
         "granted": int(db.scalar(

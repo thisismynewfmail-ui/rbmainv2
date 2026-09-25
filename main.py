@@ -136,6 +136,9 @@ def main(argv=None) -> int:
                              "are bound (e.g. --user $SUDO_USER)")
     parser.add_argument("--no-games", action="store_true",
                         help="serve the website without starting game hosts")
+    parser.add_argument("--no-bots", action="store_true",
+                        help="do not run the bot director (bots stay as "
+                             "they are, offline; also BLOCKHAVEN_BOTS=0)")
     parser.add_argument("--reset", action="store_true",
                         help="delete the database and start fresh")
     parser.add_argument("--debug", action="store_true")
@@ -267,6 +270,15 @@ def main(argv=None) -> int:
 
     bootstrap.seed()
 
+    # The bot director: synthetic players' presence, worlds and social
+    # lives.  It loads on its own thread, so a large population never holds
+    # up the first request.
+    bots = None
+    if not args.no_bots and os.environ.get("BLOCKHAVEN_BOTS", "1") not in ("0", "false", "no"):
+        from app.bots import director as bot_director
+        bots = bot_director.get()
+        bots.start()
+
     supervisor = None
     if not args.no_games:
         from app.game.supervisor import Supervisor
@@ -332,6 +344,8 @@ def main(argv=None) -> int:
         stopping.set()
         dashboard.stop()
         print("\n[main] shutting down...", flush=True)
+        if bots is not None:
+            bots.stop()
         for _name, _port, srv in servers:
             threading.Thread(target=srv.shutdown, daemon=True).start()
         if supervisor:

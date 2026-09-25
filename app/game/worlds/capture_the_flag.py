@@ -205,6 +205,8 @@ class CaptureTheFlag(GameInstance):
                     self.system_message("%s picked up the %s flag!"
                                         % (player.username, enemy_flag.team))
                     self.broadcast_flags()
+                    if self.bots is not None:
+                        self.bots.on_flag_taken(enemy_flag.team)
                     continue
             # return our own dropped flag by touching it
             if own_flag.state == "dropped" and \
@@ -239,6 +241,8 @@ class CaptureTheFlag(GameInstance):
         flag.pos = list(flag.home)
         self.push_event("flag_capture", team=player.team, by=player.username,
                         score=dict(self.captures))
+        if self.bots is not None:
+            self.bots.on_capture(player.team)
         self.system_message("%s CAPTURED the %s flag! (%s %d - %d %s)"
                             % (player.username, flag.team,
                                "RED", self.captures["red"],

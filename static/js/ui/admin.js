@@ -73,11 +73,18 @@
     playing: '#f0b429',
     online: '#37c26a',
     linked: '#6aa9e0',
-    alone: '#8c93a1'
+    alone: '#8c93a1',
+    bot: '#b37cf2',
+    botIdle: '#7d62a6'
   };
 
+  /* Bots are a colour of their own whatever they are doing, so the map never
+     leaves anybody guessing which accounts are people: violet, brighter while
+     the bot is online.  Where a bot is (online, in a world) is still shown,
+     by the pulsing ring every node gets. */
   function nodeColor(node) {
     if (node.admin) return NODE_COLORS.admin;
+    if (node.bot) return (node.online || node.playing) ? NODE_COLORS.bot : NODE_COLORS.botIdle;
     if (node.playing) return NODE_COLORS.playing;
     if (node.online) return NODE_COLORS.online;
     return node.degree ? NODE_COLORS.linked : NODE_COLORS.alone;
@@ -116,6 +123,7 @@
       node.name = row.name;
       node.degree = row.degree;
       node.admin = row.admin;
+      node.bot = row.bot;
       node.banned = row.banned;
       node.online = row.online;
       node.playing = row.playing;
@@ -429,7 +437,8 @@
     var summary = Net.summary || {};
     if (box) {
       box.innerHTML =
-        '<span><b>' + (summary.people || 0) + '</b> people</span>' +
+        '<span><b>' + (summary.people || 0) + '</b> accounts</span>' +
+        (summary.bots ? '<span><b>' + summary.bots + '</b> bots</span>' : '') +
         '<span><b>' + (summary.friendships || 0) + '</b> friendships</span>' +
         '<span><b>' + (summary.pending || 0) + '</b> pending</span>' +
         '<span><b>' + (summary.follows || 0) + '</b> follows</span>' +
@@ -460,6 +469,7 @@
       'aria-label="Close">&times;</button>' +
       '<b>' + esc(node.name) + '</b>' +
       (node.admin ? ' <span class="pill red">admin</span>' : '') +
+      (node.bot ? ' <span class="pill bot">bot</span>' : '') +
       (node.banned ? ' <span class="pill red">suspended</span>' : '') +
       '<div class="tiny muted">' +
       (node.playing ? 'in ' + esc(node.playing)
