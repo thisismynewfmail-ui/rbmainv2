@@ -250,6 +250,30 @@ class BotRunner:
                 break
 
     # =========================================================== objectives
+    def role_counts(self, team: str, besides: Optional[Brain] = None) -> Dict[str, int]:
+        counts: Dict[str, int] = {}
+        for brain in self.brains.values():
+            if brain is besides or brain.p.team != team:
+                continue
+            role = getattr(brain, "role", "")
+            if role:
+                counts[role] = counts.get(role, 0) + 1
+        return counts
+
+    def carries_our_flag(self, brain: Brain, other: Player) -> bool:
+        flags = getattr(self.instance, "flags", None) or {}
+        own = flags.get(brain.p.team)
+        return own is not None and own.carrier == other.pid
+
+    def urgent(self, brain: Brain) -> bool:
+        """True while nothing should distract this bot from the objective:
+        a flag carrier runs home, whatever mood it was in a moment ago."""
+        if self.mode != "captures":
+            return False
+        flags = getattr(self.instance, "flags", None) or {}
+        pid = brain.p.pid
+        return any(f.carrier == pid for team, f in flags.items() if team != brain.p.team)
+
     def objective(self, brain: Brain) -> None:
         try:
             if self.mode == "captures":
@@ -296,6 +320,8 @@ class BotRunner:
                 return
         if brain.role == "attack" or (brain.role == "roam" and self.rng.random() < 0.4):
             if enemy.state == "home":
+                if self._clear_first(brain, enemy.home):
+                    return
                 brain.go(enemy.home, "flag_" + theirs, field="flag_" + theirs, precise=True)
             else:
                 brain.go(enemy.pos, "dropped_" + theirs, precise=True)
@@ -316,6 +342,37 @@ class BotRunner:
             node = self.nav.random_node(self.rng, mid, 70)
             if node >= 0:
                 brain.go(self.nav.point(node), "mid%d" % node)
+
+    def _clear_first(self, brain: Brain, flag_home: List[float]) -> bool:
+        """Near a guarded flag, deal with the guards before grabbing it.
+
+        Walking onto a flag with two defenders on it is how a carrier dies a
+        second after the pickup, so an attacker who is outnumbered at the
+        flag -- or already hurt -- stops at the edge of the base and fights
+        from there, and goes for the flag once the room is clear.
+        """
+        p = brain.p
+        d = math.dist(p.pos, flag_home)
+        if d > 80 or d < 10:
+            return False
+        guards = [e for e in brain._enemies() if math.dist(e.pos, flag_home) < 42]
+        if not guards:
+            return False
+        allies = sum(1 for other in self.instance.players.values()
+                     if other is not p and other.alive and other.team == p.team
+                     and math.dist(other.pos, p.pos) < 45)
+        bold = brain.t("aggression", 0.5) * 0.4 + brain.skill * 0.3
+        if len(guards) <= allies and p.health >= 50 and self.rng.random() < 0.5 + bold:
+            return False
+        nearest = min(guards, key=lambda e: math.dist(e.pos, p.pos))
+        if brain.target is None:
+            brain.target = nearest.pid
+            brain.target_since = now()
+        if d < 55:
+            brain.waypoints = []          # hold the edge and trade from cover
+        else:
+            brain.go(flag_home, "flag_edge", field="flag_" + ("blue" if p.team == "red" else "red"))
+        return True
 
     def _payload(self, brain: Brain) -> None:
         inst = self.instance

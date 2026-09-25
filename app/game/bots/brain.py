@@ -133,6 +133,7 @@ class Brain:
         self.near = False
         # combat
         self.target: Optional[int] = None
+        self.burst = 0
         self.target_since = 0.0
         self.track = 0.0
         self.next_shot = 0.0
@@ -162,10 +163,22 @@ class Brain:
         mode = self.runner.mode
         roll = self.rng.random()
         if mode == "captures":
-            if roll < self.objective * 0.55:
-                return "attack"
-            if roll < self.objective * 0.55 + 0.25 + self.t("support", 0.2) * 0.3:
-                return "defend"
+            # persona first, then the team: a side with five people on its
+            # own flag and nobody going for theirs is not a game anyone plays
+            weights = {"attack": 0.12 + self.objective * 0.6,
+                       "defend": 0.1 + self.t("support", 0.2) * 0.45,
+                       "roam": 0.3 + self.t("explore", 0.2) * 0.2}
+            counts = self.runner.role_counts(self.p.team, self)
+            size = sum(counts.values()) + 1
+            if counts.get("defend", 0) >= max(1, round(size * 0.3)):
+                weights["defend"] *= 0.08
+            if counts.get("attack", 0) < max(1, round(size * 0.3)):
+                weights["attack"] *= 2.0
+            pick = roll * sum(weights.values())
+            for role, weight in weights.items():
+                pick -= weight
+                if pick <= 0:
+                    return role
             return "roam"
         if mode == "payload":
             return "cart" if roll < 0.35 + self.objective * 0.55 else "roam"
@@ -499,7 +512,7 @@ class Brain:
         best, best_d = None, 1e9
         checks = 2 if near else 0
         aggression = self.t("aggression", 0.5)
-        reach = 90 + aggression * 90
+        reach = 70 + aggression * 80
         if self.runner.mode == "endless":
             reach = min(45.0, reach * (0.25 + self.t("aggression", 0.5) * 0.3))
         for other in self._enemies():
@@ -509,8 +522,8 @@ class Brain:
             # a view cone, unless they are close or just shot us
             dx, dz = other.pos[0] - p.pos[0], other.pos[2] - p.pos[2]
             off = abs(_wrap(math.atan2(dx, dz) - p.yaw))
-            aware = off < 1.9 or d < 18 or other.pid == self.last_attacker and \
-                moment - self.last_hit_at < 3
+            aware = off < 1.35 + self.skill * 0.35 or d < 18 or \
+                other.pid == self.last_attacker and moment - self.last_hit_at < 3
             if not aware:
                 continue
             if d < best_d:
@@ -588,6 +601,12 @@ class Brain:
             self.goal_data["point"] = grid.point(node) if node >= 0 else None
 
     def _pursue(self, moment: float) -> None:
+        if self.runner.urgent(self):
+            # carrying the flag: every other plan waits
+            self.afk_until = 0.0
+            self.typing_until = min(self.typing_until, moment)
+            self.runner.objective(self)
+            return
         goal = self.goal
         if goal == "afk" or moment < self.afk_until:
             return
@@ -699,7 +718,13 @@ class Brain:
         if moment >= self.strafe_until:
             self.strafe = self.rng.choice((-1.0, 1.0)) if self.rng.random() < 0.3 + self.skill * 0.6 else 0.0
             self.strafe_until = moment + self.rng.uniform(0.4, 1.4)
-        if self._prefers_close() and distance > float(stats.get("range", 10)) * 0.6:
+        chase = self._prefers_close() and distance > float(stats.get("range", 10)) * 0.6 \
+            and not self.runner.urgent(self)
+        if chase and self.goal == "objective" and self.role in ("attack", "cart"):
+            # on the way somewhere: shoot on the move, only turn for someone
+            # right on top of us (or the one running off with our flag)
+            chase = distance < 22 or self.runner.carries_our_flag(self, tgt)
+        if chase:
             self.go(tgt.pos, "enemy%d" % tgt.pid)
         if near:
             self._aim_and_fire(moment, tgt, distance, stats, kind, interval)
@@ -733,9 +758,15 @@ class Brain:
         if kind not in ("melee",) and ammo <= 0:
             self.instance.handle_reload(p)
             return
-        # the error shrinks while tracking, grows when anyone moves
-        moving = math.hypot(tgt.vel[0], tgt.vel[2]) / WALK_SPEED
-        err = self.aim_error * (0.35 + 0.65 * math.exp(-self.track / 0.9)) * (1.0 + moving * 0.6)
+        # the error shrinks while tracking and grows with how fast the target
+        # crosses the view: somebody strafing at arm's length is hard to hit
+        # for anyone, somebody walking straight at you from afar is not
+        err = self.aim_error * (0.6 + 0.8 * math.exp(-self.track / 1.2))
+        dx, dz = tgt.pos[0] - p.pos[0], tgt.pos[2] - p.pos[2]
+        flat = math.hypot(dx, dz) or 1.0
+        across = abs(tgt.vel[0] * dz - tgt.vel[2] * dx) / flat
+        lag = 0.07 + (1.0 - self.skill) * 0.16
+        err += across / max(6.0, distance) * lag
         if self.airborne:
             err *= 1.8
         yaw = self.aim_yaw + self.rng.gauss(0, err)
@@ -747,6 +778,12 @@ class Brain:
         cadence = 60.0 / rpm
         if not stats.get("auto"):
             cadence *= 1.0 + (1.0 - self.skill) * self.rng.uniform(0.2, 1.1)
+        elif distance > 35:
+            # people fire bursts at range, not the whole magazine in one go
+            self.burst += 1
+            if self.burst >= 3 + int(self.skill * 4):
+                self.burst = 0
+                cadence += self.rng.uniform(0.25, 0.7)
         self.next_shot = moment + cadence
         if self.rng.random() < 0.06 + self.t("jumpy", 0.2) * 0.12:
             self.airborne = True

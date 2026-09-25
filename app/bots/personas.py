@@ -321,6 +321,11 @@ def all_tags() -> List[Dict[str, Any]]:
     return TAGS + [_custom[k] for k in sorted(_custom)]
 
 
+def tag_bits() -> Dict[str, int]:
+    """Tag id -> bit number, for code that builds masks in bulk."""
+    return _bits
+
+
 def mask_of(tags: Iterable[str]) -> int:
     mask = 0
     for tag in tags:

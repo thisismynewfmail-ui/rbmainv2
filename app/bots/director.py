@@ -132,7 +132,7 @@ class Director:
         self.traits: Dict[str, array] = {k: array("f") for k in TRAIT_ARRAYS}
         self.wpref: List[array] = [array("f") for _ in WORLD_IDS]
         self.tag_index: Dict[int, array] = {}
-        self.wheel: Dict[int, List[int]] = {}
+        self.wheel: Dict[int, array] = {}
         self.wheel_floor = _now()
         self.online = 0
         self.playing = 0
@@ -174,9 +174,14 @@ class Director:
 
     # ================================================================ wheel
     def _schedule(self, i: int, when: int) -> None:
-        when = int(when)
+        # never behind the wheel's hand: a slot it has passed is never read
+        when = max(int(when), self.wheel_floor)
         self.next_at[i] = when
-        self.wheel.setdefault(when, []).append(i)
+        bucket = self.wheel.get(when)
+        if bucket is None:
+            # 4 bytes a bot rather than a list of int objects
+            bucket = self.wheel[when] = array("I")
+        bucket.append(i)
 
     def _due(self, now: int, budget: int) -> List[int]:
         out: List[int] = []
@@ -196,26 +201,127 @@ class Director:
 
     # ================================================================ load
     def load(self) -> None:
-        """Read every bot out of the database into the arrays."""
+        """Read every bot out of the database into the arrays.
+
+        The rows are parsed column by column outside the lock -- a hundred
+        thousand bots take a couple of seconds to parse, and heartbeats and
+        page requests that ask the director something must not wait on it.
+        """
         started = time.time()
-        rows = db.query(
-            "SELECT u.id, u.last_seen, u.created_at, b.tags, b.traits"
+        counts = social.friend_counts()
+        now = _now()
+        # streamed straight off the cursor: the rows are never all in memory
+        rows = db.connect().execute(
+            "SELECT u.id, u.last_seen, b.tags, b.traits"
             " FROM users u JOIN bot_profiles b ON b.user_id=u.id"
             " WHERE u.is_bot=1 ORDER BY u.id")
-        counts = social.friend_counts() if rows else {}
+        columns = self._columns(rows, counts, now)
         with self.lock:
             self._reset_arrays()
-            now = _now()
-            for row in rows:
-                self._append(int(row["id"]), row["tags"], row["traits"],
-                             int(row["last_seen"] or 0), counts.get(int(row["id"]), 0),
-                             now, schedule=False)
+            self._install(columns)
             self.loaded = True
             restored = self._restore_snapshot(now)
             if not restored:
                 self._warm_start(now)
         self._note("loaded %d bots in %.1fs%s" % (self.n, time.time() - started,
                                                   " (restored)" if self.n and restored else ""))
+
+    def _columns(self, rows: Iterable[Any], counts: Dict[int, int], now: int) -> Dict[str, Any]:
+        """Parse database rows into ready-made arrays (no lock held)."""
+        order = {key: k for k, key in enumerate(personas.PACK_ORDER)}
+        base = personas.TRAIT_BASE
+        trait_keys = list(TRAIT_ARRAYS)
+        world_keys = ["w_" + wid for wid in WORLD_IDS]
+        picks = [(key, order.get(key), float(base.get(key, 0.5))) for key in trait_keys]
+        wpicks = [(order.get(key), 1.0) for key in world_keys]
+        # typed arrays from the start: no per-bot float or int objects
+        traits: Dict[str, array] = {k: array("f") for k in trait_keys}
+        wpref: List[array] = [array("f") for _ in WORLD_IDS]
+        uids = array("I")
+        since = array("I")
+        friends = array("H")
+        targets = array("H")
+        masks: List[int] = []
+        index: Dict[int, array] = {}
+        bits = personas.tag_bits()
+        lo, hi = bot_config.get("friends.max_friends") or [3, 45]
+        lo, hi = float(lo), float(hi)
+        last = -1
+        for row in rows:
+            uid = int(row[0])
+            if uid <= last:
+                continue
+            last = uid
+            i = len(uids)
+            uids.append(uid)
+            seen = int(row[1] or 0)
+            since.append(max(0, min(now, seen or now)))
+            friends.append(min(65000, counts.get(uid, 0)))
+            mask = 0
+            for tag in (row[2] or "").split(","):
+                bit = bits.get(tag)
+                if bit is not None and not mask >> bit & 1:
+                    mask |= 1 << bit
+                    ids = index.get(bit)
+                    if ids is None:
+                        ids = index[bit] = array("I")
+                    ids.append(i)
+            masks.append(mask)
+            text = row[3] or ""
+            if text.startswith("t1|"):
+                raw = text[3:].split(",")
+                size = len(raw)
+                for key, k, default in picks:
+                    value = default
+                    if k is not None and k < size:
+                        try:
+                            value = float(raw[k])
+                        except ValueError:
+                            pass
+                    traits[key].append(value)
+                for w, (k, default) in enumerate(wpicks):
+                    value = default
+                    if k is not None and k < size:
+                        try:
+                            value = float(raw[k])
+                        except ValueError:
+                            pass
+                    wpref[w].append(value)
+            else:
+                full = personas.unpack_traits(text)
+                for key, _, default in picks:
+                    traits[key].append(float(full.get(key, default)))
+                for w, key in enumerate(world_keys):
+                    wpref[w].append(float(full.get(key, 1.0)))
+            social_trait = max(0.0, min(1.0, traits["social"][-1]))
+            target = lo + (hi - lo) * social_trait ** 1.3
+            # a fixed wobble per bot, so the target is the same after every restart
+            wobble = 0.8 + 0.4 * ((uid * 2654435761) % 1000) / 999.0
+            targets.append(int(max(0, min(200, round(target * wobble)))))
+        n = len(uids)
+        return {
+            "n": n, "uids": uids, "since": since,
+            "friends": friends, "friend_target": targets,
+            "masks": masks, "traits": traits, "wpref": wpref, "tag_index": index,
+        }
+
+    def _install(self, c: Dict[str, Any]) -> None:
+        n = c["n"]
+        self.n = n
+        self.uids = c["uids"]
+        self.state = bytearray(n)                      # OFFLINE == 0
+        self.world = bytearray([NO_WORLD]) * n
+        self.inst = array("I", bytes(4 * n))
+        self.next_at = array("I", bytes(4 * n))
+        self.since = c["since"]
+        self.ready_at = array("I", bytes(4 * n))
+        self.session_end = array("I", bytes(4 * n))
+        self.friends = c["friends"]
+        self.friend_target = c["friend_target"]
+        self.masks = c["masks"]
+        self.traits = c["traits"]
+        self.wpref = c["wpref"]
+        self.tag_index = c["tag_index"]
 
     def _append(self, uid: int, tags_text: str, traits_text: str,
                 last_seen: int, friend_count: int, now: int,
@@ -1174,7 +1280,7 @@ class Director:
         now = int(t)
         with self.lock:
             want_online, want_playing = self.targets(now)
-            for i in self._due(now, 4000):
+            for i in self._due(now, 1500):
                 self._event(i, now, want_online, want_playing)
             if t - self._last["ctrl"] >= 5.0:
                 self._last["ctrl"] = t

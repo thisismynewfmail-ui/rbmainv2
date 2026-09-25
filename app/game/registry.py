@@ -109,7 +109,8 @@ def world_status(world_id: str) -> Dict[str, Any]:
         "instances_hidden": max(0, total_instances - min(LIST_LIMIT, len(listing))),
         "humans": live_players - live_bots,
         "bots": live_bots + sleeping_players,
-        "live_instances": len(live),
+        # rounds actually being played on a host (the idle one kept warm is not)
+        "live_instances": sum(1 for e in live if e.get("count")),
         "sleeping_instances": sleeping_count,
         "uptime": data.get("uptime", 0),
         "tick_ms": data.get("tick_ms", 0),

@@ -35,6 +35,10 @@ def _now() -> float:
     return time.time()
 
 
+def _norm(text: str) -> str:
+    return "".join(c for c in (text or "").lower() if c.isalnum())
+
+
 class Room:
     __slots__ = ("world", "inst", "lines", "events", "bots", "humans",
                  "sent", "logged", "last_speaker", "touched")
@@ -165,6 +169,12 @@ class Relay:
             text = prompts.tidy(text, "chat", card["name"],
                                 [l["who"] for l in snapshot.get("lines", [])])
             if not text:
+                return
+            # a person does not say the same line twice in a row: models do
+            said_before = {_norm(l["text"]) for l in snapshot.get("lines", [])[-24:]
+                           if l["who"] == card["name"]}
+            if _norm(text) in said_before:
+                self.stats["repeats"] = self.stats.get("repeats", 0) + 1
                 return
             typing = len(text) / max(1.0, float(bot_config.get("messages.typing_cps") or 7))
             delay = round(min(12.0, 0.6 + typing * self.rng.uniform(0.7, 1.2)), 2)

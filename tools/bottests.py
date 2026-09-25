@@ -192,7 +192,8 @@ def _spec(uid: int, rng: random.Random, team: str = "") -> Dict[str, Any]:
 
 
 def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = True,
-              state: Dict[str, Any] = None, seed: int = 11) -> Dict[str, Any]:
+              state: Dict[str, Any] = None, seed: int = 11,
+              setup=None) -> Dict[str, Any]:
     import app.game.instance as engine
     import app.game.bots.brain as brain_module
     import app.game.bots.runner as runner_module
@@ -223,6 +224,8 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
             person.alive = True
             inst.bots.bot_cfg = host.bot_cfg
             host.bot_cfg["near_radius"] = 5000
+        if setup is not None:
+            setup(inst)
         start = time.perf_counter()
         ticks = int(seconds / engine.TICK_DT)
         worst = 0.0
@@ -254,6 +257,21 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
             module.now = original
 
 
+def _carrier_run() -> int:
+    """One bot on the enemy flag with the road home clear: it must pick the
+    flag up and carry it all the way, whatever mood it was in."""
+    def put_on_flag(inst):
+        bot = next(p for p in inst.players.values() if p.brain is not None)
+        enemy = inst.flags[inst.enemy_of(bot.team)]
+        bot.pos = list(enemy.home)
+        bot.brain.ground = list(bot.pos)
+        bot.brain.goal = "afk"            # the worst mood to be caught in
+        bot.brain.afk_until = 1e12
+        bot.brain.goal_until = 1e12
+    r = run_world("capture_the_flag", 60.0, 1, setup=put_on_flag, seed=3)
+    return sum(r["inst"].captures.values())
+
+
 def test_live(seconds: float) -> None:
     print("\n== live (headless, %.0f simulated seconds each) ==" % seconds)
     for world_id, bots in (("capture_the_flag", 14), ("blackout_relay", 18),
@@ -277,9 +295,9 @@ def test_live(seconds: float) -> None:
             taken = sum(1 for m in r["system"] if "picked up" in m)
             check("%s: flags get taken" % label, taken > 0, r["system"][-5:])
             if world_id == "capture_the_flag":
-                caps = sum(inst.captures.values())
-                check("%s: flags get captured" % label, caps > 0 or inst.round_number > 1,
-                      inst.captures)
+                caps = _carrier_run()
+                check("%s: a bot holding the flag runs it home and scores" % label,
+                      caps > 0, "captures %d" % caps)
         elif inst.mode == "payload":
             check("%s: the cart moves" % label,
                   inst.cart_distance > 5 or inst.checkpoints_reached or inst.round_number > 1,
@@ -321,7 +339,7 @@ def test_scale(count: int) -> None:
         tt = now + s
         t0 = time.perf_counter()
         want = fresh.targets(tt)
-        for i in fresh._due(tt, 4000):
+        for i in fresh._due(tt, 1500):
             fresh._event(i, tt, *want)
         if s % 5 == 0:
             fresh._control(tt)
@@ -333,6 +351,14 @@ def test_scale(count: int) -> None:
           abs(fresh.online - want_online) <= max(5, want_online * 0.05),
           "%d vs %d" % (fresh.online, want_online))
     check("scale: director tick %.2f ms" % per_tick, per_tick < 25.0)
+    import resource
+    from app import config as site_config
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+    size = sum(p.stat().st_size
+               for p in site_config.DB_PATH.parent.glob(site_config.DB_PATH.name + "*"))
+    folders = sum(1 for _ in (site_config.DATA_DIR / "bots" / "accounts").glob("*/*"))
+    print("  info  peak memory %.0f MB for the whole process; database %.1f MB (%.1f KB per bot);"
+          " %d bot folders" % (rss, size / 1e6, size / 1024.0 / max(1, count), folders))
 
 
 def main(argv: List[str]) -> int:

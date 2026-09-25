@@ -67,6 +67,7 @@ class NavGrid:
         self.fields: Dict[str, array] = {}
         self._field_lock = threading.Lock()
         self._pending_fields: List[Tuple[str, int]] = []
+        self._field_busy = False     # one worker at a time, guarded by the lock
         parts = map_data.get("parts", [])
         xs = [p["p"][0] for p in parts] or [0.0]
         zs = [p["p"][2] for p in parts] or [0.0]
@@ -321,7 +322,8 @@ class NavGrid:
             if node < 0:
                 return None
             self._pending_fields.append((name, node))
-            if len(self._pending_fields) == 1:
+            if not self._field_busy:
+                self._field_busy = True
                 threading.Thread(target=self._field_worker, daemon=True,
                                  name="nav-field").start()
         return None
@@ -330,12 +332,15 @@ class NavGrid:
         while True:
             with self._field_lock:
                 if not self._pending_fields:
+                    # cleared under the same lock field() checks, so a request
+                    # that arrives now starts a fresh worker instead of waiting
+                    self._field_busy = False
                     return
                 name, node = self._pending_fields[0]
             dist = self._dijkstra(node)
             with self._field_lock:
                 self.fields[name] = dist
-                self._pending_fields.pop(0)
+                self._pending_fields = [p for p in self._pending_fields if p[0] != name]
             time.sleep(0.01)
 
     def _dijkstra(self, target: int) -> array:
