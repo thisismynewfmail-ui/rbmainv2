@@ -760,7 +760,7 @@ def test_chat() -> None:
 
 
 # ===================================================================== scale
-def _mock_llm(think: str = "", strict: bool = False, knows=()):
+def _mock_llm(think: str = "", strict: bool = False, knows=(), efforts=()):
     """The stand-in model server from tools/mockllm.py, on a free port."""
     import threading
     from http.server import ThreadingHTTPServer
@@ -768,7 +768,8 @@ def _mock_llm(think: str = "", strict: bool = False, knows=()):
     import mockllm
     mockllm.State.latency, mockllm.State.fail = 0.0, 0.0
     mockllm.State.think, mockllm.State.strict = think, strict
-    mockllm.State.knows = set(knows)
+    mockllm.State.knows, mockllm.State.efforts = set(knows), set(efforts)
+    mockllm.State.bodies = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), mockllm.Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
@@ -804,9 +805,10 @@ def test_llm() -> None:
     leaked = re.compile(r"player said|casual player|punctuation|analysis|think>|<\|", re.I)
 
     def run(think: str, mode: str, strict: bool = False, check_first: bool = True,
-            knows=(), **settings):
-        server = _mock_llm(think, strict, knows)
+            knows=(), efforts=(), **settings):
+        server = _mock_llm(think, strict, knows, efforts)
         try:
+            bot_config.reset("llm")             # each run starts from the defaults
             bot_config.save(dict({"llm.enabled": True, "llm.mode": mode, "llm.base_url":
                                   "http://127.0.0.1:%d/v1" % server.server_address[1]},
                                  **settings))
@@ -840,11 +842,12 @@ def test_llm() -> None:
                           for r in results), [r["max_tokens"] for r in results])
     client, results = run("separate", "chat", strict=True)
     check("reasoning: a strict server is asked again without the switch, and remembers",
-          len(client.learned.get("rejected") or ()) == 3 and all(r["text"] for r in results),
+          len(client.learned.get("rejected") or ()) == 4 and all(r["text"] for r in results),
           (client.learned, [r["text"] for r in results]))
     client, results = run("separate", "chat", strict=True, knows=["template_vars"])
     check("reasoning: a server that takes one name for the switch keeps getting it",
-          client.learned.get("rejected") == ["chat_template_kwargs", "enable_thinking"]
+          client.learned.get("rejected") == ["chat_template_kwargs", "enable_thinking",
+                                             "reasoning_effort"]
           and all(r["text"] and not r["thought"] and r["max_tokens"] == spec["max_tokens"]
                   for r in results), (client.learned, [r["max_tokens"] for r in results]))
     client, results = run("separate", "chat", strict=True, **{"llm.model": "qwen3-8b"})
@@ -869,6 +872,70 @@ def test_llm() -> None:
     check("stops: a newline stop is applied here, not by the server",
           client.stops("chat") == ["</s>"] and result["text"] == "hey there",
           (client.stops("chat"), result["text"]))
+
+    # ---- reasoning effort
+    import mockllm
+    bot_config.reset("llm")
+    for effort, scale in (("minimal", 0.25), ("low", 0.5), ("medium", 1), ("high", 2),
+                          ("xhigh", 4)):
+        client, results = run("separate", "chat", **{"llm.reasoning_effort": effort})
+        body = mockllm.State.bodies[-1]
+        wanted = {"enable_thinking": True, "thinking": True, "reasoning_effort": effort}
+        check("effort %s: sent as reasoning_effort and to the chat template" % effort,
+              body.get("reasoning_effort") == effort and body.get("enable_thinking") is True
+              and body.get("chat_template_kwargs") == wanted
+              and body.get("template_vars") == wanted,
+              {k: v for k, v in body.items() if k != "messages"})
+        check("effort %s: the model thinks, answers, and gets %d%% of the allowance"
+              % (effort, scale * 100),
+              all(r["text"] and r["thought"] for r in results)
+              and all(r["max_tokens"] == spec["max_tokens"] + int(1024 * scale)
+                      for r in results), [(r["text"], r["max_tokens"]) for r in results])
+    client, results = run("separate", "chat")
+    body = mockllm.State.bodies[-1]
+    check("effort off (the default): the model is asked not to think",
+          body.get("reasoning_effort") == "none" and body.get("enable_thinking") is False
+          and body["chat_template_kwargs"]["enable_thinking"] is False
+          and not any(r["thought"] for r in results),
+          ({k: v for k, v in body.items() if k != "messages"}, [r["thought"] for r in results]))
+    client, results = run("separate", "chat", **{"llm.reasoning_effort": "default"})
+    body = mockllm.State.bodies[-1]
+    check("effort model default: none of the fields is sent",
+          not any(k in body for k in llm.HINT_FIELDS) and all(r["text"] for r in results),
+          sorted(body))
+    server = _mock_llm("separate", efforts=("low", "medium", "high"))
+    try:
+        bot_config.save({"llm.enabled": True, "llm.mode": "chat", "llm.reasoning_effort": "none",
+                         "llm.base_url": "http://127.0.0.1:%d/v1" % server.server_address[1]})
+        client = llm.Client()
+        client.info = client._probe()
+        results = [client.complete(spec["messages"], spec["max_tokens"]) for _ in range(4)]
+        check("effort off on a server that only knows low/medium/high: only that field "
+              "is dropped, and the model still does not think",
+              client.learned.get("rejected") == ["reasoning_effort"]
+              and "chat_template_kwargs" in mockllm.State.bodies[-1]
+              and all(r["text"] and not r["thought"] for r in results),
+              (client.learned.get("rejected"), [r["thought"] for r in results]))
+        bot_config.save({"llm.reasoning_effort": "high"})
+        result = client.complete(spec["messages"], spec["max_tokens"])
+        check("effort high on the same server: sent again, and taken",
+              mockllm.State.bodies[-1].get("reasoning_effort") == "high"
+              and not client.learned.get("rejected") and result["text"] and result["thought"],
+              (client.learned.get("rejected"), mockllm.State.bodies[-1].get("reasoning_effort")))
+    finally:
+        server.shutdown()
+        server.server_close()
+    client, results = run("separate", "completion", **{"llm.reasoning_effort": "high"})
+    check("effort high in completion mode: the template is rendered to think",
+          client.template_vars()["reasoning_effort"] == "high"
+          and all(r["text"] and r["thought"] for r in results),
+          [(r["text"], r["thought"]) for r in results])
+    from app import db
+    for old, new in (("allow", "default"), ("off", "none")):
+        db.set_meta(bot_config.META_KEY, json.dumps({"llm.thinking": old}))
+        bot_config.save({})
+        check("effort: the old reasoning switch '%s' carries over as '%s'" % (old, new),
+              bot_config.get("llm.reasoning_effort") == new, bot_config.get("llm.reasoning_effort"))
     bot_config.reset("llm")
 
 
