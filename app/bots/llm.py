@@ -32,6 +32,21 @@ last -- behind a requests-per-minute budget and a concurrency limit.  Stale
 work (a chat reply to a round that has moved on) is dropped rather than
 answered late, and a server that keeps failing is backed off from instead of
 hammered.
+
+**Reasoning models.**  Models that "think" first (Qwen3, GLM, DeepSeek R1,
+gpt-oss and the like) spend the reply's token allowance on notes before the
+answer, so a 48-token chat line can be used up before a word of it is
+written.  Every request asks the server not to think, under each name the
+servers read it from (``chat_template_kwargs`` for llama.cpp, vLLM and
+SGLang, ``template_vars`` for TabbyAPI, ``enable_thinking`` for
+text-generation-webui, and the template variable itself in completion mode);
+a server that refuses the extra fields is asked again without them.  After
+each probe one small request finds out whether the model thinks anyway, and
+if it does -- or any reply turns out to be all notes -- the requests get a
+thinking allowance on top of their reply length.  Notes are always taken out
+of the answer: ``<think>`` blocks, a block the template opened itself (only
+``</think>`` appears), a block the allowance cut off, the separate
+``reasoning_content`` field and gpt-oss's analysis channel.
 """
 from __future__ import annotations
 
@@ -75,6 +90,16 @@ SAMPLING_KEYS = ("temperature", "top_p", "top_k", "min_p", "typical_p",
 ALIASES = {"repetition_penalty": "repeat_penalty", "rep_pen": "repeat_penalty",
            "penalty_repeat": "repeat_penalty", "typical": "typical_p",
            "tfs": "tfs_z", "num_ctx": "n_ctx", "rep_pen_range": "repeat_last_n"}
+
+# Asks a hybrid reasoning model to answer straight away: Qwen3 and GLM read
+# enable_thinking, DeepSeek V3.1 and Granite read thinking, gpt-oss reads the
+# effort.  A template that does not use a variable simply ignores it.
+NO_THINK_VARS = {"enable_thinking": False, "thinking": False, "reasoning_effort": "low"}
+HINT_FIELDS = ("chat_template_kwargs", "template_vars", "enable_thinking")
+
+# gpt-oss's harmony format: special tokens that sit inside one turn and so
+# must never end a completion
+HARMONY_INNER = {"<|start|>", "<|message|>", "<|channel|>", "<|constrain|>", "<|end|>"}
 
 SPECIAL_TOKEN_RE = re.compile(
     r"<\|[A-Za-z0-9_\-]{1,40}\|>|</s>|<(?:start|end)_of_turn>|\[/INST\]|"
@@ -120,6 +145,8 @@ class Client:
         self.minute: List[float] = []
         self._probe_lock = threading.Lock()
         self._settings_seen = None
+        # what this session has found out about the loaded model
+        self.learned: Dict[str, Any] = {}
 
     # ================================================================ http
     def _endpoint(self) -> Tuple[str, str, str]:
@@ -183,9 +210,14 @@ class Client:
                 if info["reachable"]:
                     self.failures = 0
                     self.down_until = 0.0
-            return info
+                if force:
+                    self.learned = {}      # the endpoint or model may have changed
         finally:
             self._probe_lock.release()
+        if info["reachable"]:
+            threading.Thread(target=self.check_thinking, daemon=True,
+                             name="bots-llm-check").start()
+        return info
 
     def _probe(self) -> Dict[str, Any]:
         base, root, _key = self._endpoint()
@@ -436,24 +468,160 @@ class Client:
         return out
 
     def stops(self, mode: str) -> List[str]:
+        """Stop strings for the server.  Whitespace-only ones ("\\n") are kept
+        back and applied here instead (:meth:`local_stops`): a reply that
+        starts with a newline would otherwise end before its first word."""
         out = [s for s in (self.info.get("stop") or []) if s]
         out += list(bot_config.get("llm.stop") or [])
         if mode == "completion":
             if self.info.get("eos"):
                 out.append(self.info["eos"])
-            for token in SPECIAL_TOKEN_RE.findall(self.info.get("template") or ""):
-                out.append(token)
+            template = self.info.get("template") or ""
+            harmony = "<|channel|>" in template
+            for token in SPECIAL_TOKEN_RE.findall(template):
+                if not (harmony and token in HARMONY_INNER):
+                    out.append(token)
         seen, clean = set(), []
         for stop in out:
-            if stop and stop not in seen:
+            if stop and stop.strip() and stop not in seen:
                 seen.add(stop)
                 clean.append(stop)
         return clean[:16]
 
+    def local_stops(self) -> List[str]:
+        out = [s for s in (self.info.get("stop") or []) if s]
+        out += list(bot_config.get("llm.stop") or [])
+        return [s for s in out if s and not s.strip()]
+
+    # ========================================================= reasoning
+    def _learned(self) -> Dict[str, Any]:
+        model = str(bot_config.get("llm.model") or self.info.get("model") or "")
+        with self.lock:
+            if self.learned.get("model") != model:
+                self.learned = {"model": model, "thinks": False, "opens": False,
+                                "rejected": [], "checked": "", "since": int(_now())}
+            return self.learned
+
+    def _thinking_off(self) -> bool:
+        return (bot_config.get("llm.thinking") or "off") == "off"
+
+    def _hint_fields(self) -> Dict[str, Any]:
+        """The "do not think" switch, under every name a server reads it
+        from, less any this server has refused."""
+        if not self._thinking_off():
+            return {}
+        rejected = set(self._learned().get("rejected") or ())
+        fields = {"chat_template_kwargs": dict(NO_THINK_VARS),   # llama.cpp, vLLM, SGLang
+                  "template_vars": dict(NO_THINK_VARS),          # TabbyAPI
+                  "enable_thinking": False}                      # text-generation-webui
+        return {key: value for key, value in fields.items() if key not in rejected}
+
+    def allowance(self) -> int:
+        """Extra tokens for a model known to think before it answers."""
+        if not self._learned()["thinks"]:
+            return 0
+        return max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
+
+    def _soft_switch(self, messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """Qwen3's own switch, for servers that pass no template variables
+        (LM Studio): once the model is seen thinking, "/no_think" goes at
+        the end of the prompt."""
+        learned = self._learned()
+        name = learned["model"].lower()
+        if not self._thinking_off() or not learned["thinks"] or \
+                not re.search(r"qwen[-_ ]?3", name) or "thinking" in name:
+            return messages
+        out = [dict(m) for m in messages]
+        for message in reversed(out):
+            if message.get("role") == "user":
+                message["content"] = str(message.get("content") or "") + "\n/no_think"
+                break
+        return out
+
+    def check_thinking(self) -> None:
+        """One small request after a probe: does this model think first?
+
+        The answer decides whether requests carry a thinking allowance from
+        the start, and whether a reply cut off before any closing tag is
+        notes (a template that opens the block itself) or the answer."""
+        learned = self._learned()
+        if learned.get("checked") or not self.available():
+            return
+        learned["checked"] = "running"
+        messages = [{"role": "system", "content": "You are a player in an online "
+                     "game. Answer in a few words."},
+                    {"role": "user", "content": "Say hi to the other players."}]
+        started = _now()
+        spec = {"messages": messages}
+        try:
+            result = self.complete(messages, 32 + max(
+                512, int(bot_config.get("llm.reasoning_tokens") or 0)))
+        except Exception as exc:
+            learned["checked"] = ""
+            self._remember("test", spec, None, "thinking check: %s" % exc, started)
+            return
+        learned["checked"] = "done"
+        self._remember("test", spec, result.get("text"), None, started, result)
+
     # ============================================================ requests
     def complete(self, messages: List[Dict[str, str]], max_tokens: int,
                  timeout: Optional[float] = None) -> Dict[str, Any]:
-        """One request, synchronously.  Returns {"text", "prompt_tokens", ...}."""
+        """One request, synchronously.
+
+        Returns {"text": the answer with any reasoning taken out, "raw",
+        "reasoning", "thought", "finish", "max_tokens", "prompt_tokens",
+        ...}.  A reply that is all notes because the model ran out of tokens
+        while thinking is asked again once, with the thinking allowance."""
+        extra = self.allowance()
+        result = self._request(messages, max_tokens + extra, timeout)
+        if not result["text"] and result["thought"] and not extra and \
+                result.get("finish") == "length":
+            extra = max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
+            if extra:
+                first_ms = int(result.get("ms") or 0)
+                result = self._request(messages, max_tokens + extra, timeout)
+                result["retried"] = True
+                result["ms"] = int(result.get("ms") or 0) + first_ms
+        return result
+
+    def _request(self, messages: List[Dict[str, str]], max_tokens: int,
+                 timeout: Optional[float] = None) -> Dict[str, Any]:
+        result = self._send_request(self._soft_switch(messages), max_tokens, timeout)
+        result["max_tokens"] = int(max_tokens)
+        self._settle(result)
+        return result
+
+    def _settle(self, result: Dict[str, Any]) -> None:
+        """Split the raw reply into answer and notes, and learn from it."""
+        raw = str(result.get("text") or "")
+        learned = self._learned()
+        answer, notes = raw, ""
+        if bot_config.get("llm.strip_reasoning"):
+            # a reply cut off before any closing tag, from a model whose
+            # template opens the block itself, is notes from start to end
+            opened = bool(result.get("opened")) or (
+                learned.get("opens") and result.get("finish") == "length"
+                and not _CLOSE_TAG.search(raw))
+            answer, notes = split_reasoning(raw, bool(opened))
+            if _CLOSE_TAG.search(raw) and not _OPEN_TAG.search(raw) \
+                    and not result.get("opened"):
+                learned["opens"] = True
+        answer = SPECIAL_TOKEN_RE.sub("", answer)
+        for stop in self.local_stops():
+            answer = answer.lstrip()
+            cut = answer.find(stop)
+            if cut >= 0:
+                answer = answer[:cut]
+        reasoning = str(result.get("reasoning") or "") + notes
+        result["raw"] = raw
+        result["text"] = answer.strip()
+        result["reasoning"] = reasoning
+        result["thought"] = bool(reasoning.strip()) or bool(result.get("reasoning_tokens"))
+        if result["thought"]:
+            learned["thinks"] = True
+
+    def _send_request(self, messages: List[Dict[str, str]], max_tokens: int,
+                      timeout: Optional[float] = None) -> Dict[str, Any]:
         base, _root, _key = self._endpoint()
         if not base:
             raise LLMError("no endpoint configured")
@@ -480,9 +648,26 @@ class Client:
         stops = self.stops("chat")
         if stops:
             body["stop"] = stops
+        hints = self._hint_fields()
+        body.update(hints)
         started = _now()
         status, payload = self._http("POST", base + "/chat/completions", body,
                                      timeout)
+        tries = 0
+        while hints and status in (400, 422) and not _mentions_roles(payload) and tries < 2:
+            # a strict server that will not take fields it does not know: drop
+            # the ones it names (all of them if it names none) and ask again
+            said = payload if isinstance(payload, str) else json.dumps(payload)
+            drop = [key for key in hints if key in said] or list(hints)
+            for key in drop:
+                body.pop(key, None)
+                hints.pop(key, None)
+            status, payload = self._http("POST", base + "/chat/completions", body,
+                                         timeout)
+            tries += 1
+            if status < 400:
+                learned = self._learned()
+                learned["rejected"] = sorted(set(learned.get("rejected") or ()) | set(drop))
         if status >= 400 and _mentions_roles(payload):
             # a template that refuses a system turn (Gemma, early Mistral):
             # fold it into the first user message and ask again
@@ -498,9 +683,16 @@ class Client:
         text = message.get("content")
         if text is None:
             text = choice.get("text") or ""
+        # llama.cpp, LM Studio, vLLM and Ollama put the notes in a field of
+        # their own; the answer is then empty until the thinking is done
+        reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
         usage = payload.get("usage") or {}
+        details = usage.get("completion_tokens_details") or {}
         return {"text": str(text), "prompt_tokens": usage.get("prompt_tokens"),
                 "completion_tokens": usage.get("completion_tokens"),
+                "reasoning": reasoning if isinstance(reasoning, str) else "",
+                "reasoning_tokens": details.get("reasoning_tokens")
+                if isinstance(details, dict) else None,
                 "ms": int((_now() - started) * 1000), "mode": "chat",
                 "finish": choice.get("finish_reason")}
 
@@ -508,14 +700,15 @@ class Client:
         source = self.info.get("template") or ""
         if not source:
             raise LLMError("completion mode needs a chat template from the server")
+        variables = dict(NO_THINK_VARS) if self._thinking_off() else {}
         try:
             prompt = chat_template.render_chat(
                 source, messages, True, self.info.get("bos") or "",
-                self.info.get("eos") or "")
+                self.info.get("eos") or "", **variables)
         except chat_template.RaisedError:
             prompt = chat_template.render_chat(
                 source, fold_system(messages), True,
-                self.info.get("bos") or "", self.info.get("eos") or "")
+                self.info.get("bos") or "", self.info.get("eos") or "", **variables)
         except chat_template.TemplateError as exc:
             raise LLMError("chat template failed: %s" % exc)
         body: Dict[str, Any] = {"prompt": prompt, "max_tokens": int(max_tokens),
@@ -538,7 +731,9 @@ class Client:
                 "prompt_tokens": usage.get("prompt_tokens"),
                 "completion_tokens": usage.get("completion_tokens"),
                 "ms": int((_now() - started) * 1000), "mode": "completion",
-                "finish": choice.get("finish_reason"), "prompt_chars": len(prompt)}
+                "finish": choice.get("finish_reason"), "prompt_chars": len(prompt),
+                # the template opened a think block: the reply starts mid-thought
+                "opened": bool(_OPENED_RE.search(prompt))}
 
     # =============================================================== queue
     def available(self) -> bool:
@@ -649,10 +844,10 @@ class Client:
             return
         self.failures = 0
         self._learn_ratio(spec, result)
-        text = clean_output(result.get("text") or "")
+        text = result.get("text") or ""
         self._stat(job.kind, "ok", (_now() - started) * 1000.0,
                    int(result.get("completion_tokens") or 0))
-        self._remember(job.kind, spec, text, None, started)
+        self._remember(job.kind, spec, text, None, started, result)
         _safe_call(job.done, text, None)
 
     def _learn_ratio(self, spec: Dict[str, Any], result: Dict[str, Any]) -> None:
@@ -684,13 +879,20 @@ class Client:
                 while self.minute and self.minute[0] < cutoff:
                     self.minute.pop(0)
 
-    def _remember(self, kind, spec, text, error, started) -> None:
+    def _remember(self, kind, spec, text, error, started, result=None) -> None:
+        result = result or {}
         with self.lock:
             prompt = spec["messages"][-1].get("content", "") if spec.get("messages") else ""
             self.recent.append({"kind": kind, "at": int(started),
                                 "ms": int((_now() - started) * 1000),
                                 "prompt": prompt[-240:], "reply": (text or "")[:240],
-                                "error": (error or "")[:240]})
+                                "error": (error or "")[:240],
+                                "finish": str(result.get("finish") or ""),
+                                "tokens": result.get("completion_tokens"),
+                                "limit": result.get("max_tokens"),
+                                "thought": len(result.get("reasoning") or ""),
+                                "retried": bool(result.get("retried")),
+                                "note": "" if error else explain(text or "", result)})
             del self.recent[:-30]
 
     def snapshot(self) -> Dict[str, Any]:
@@ -711,10 +913,21 @@ class Client:
                 "per_minute": len(self.minute),
                 "stats": {k: dict(v) for k, v in self.stats.items()},
                 "recent": list(self.recent[-12:]),
+                "reasoning": self._reasoning_status(),
                 "context_limit": self.context_limit(),
                 "sampling": self.sampling(),
                 "labels": KIND_LABELS,
             }
+
+    def _reasoning_status(self) -> Dict[str, Any]:
+        learned = dict(self.learned)
+        return {"thinks": bool(learned.get("thinks")), "opens": bool(learned.get("opens")),
+                "hints": len(learned.get("rejected") or ()) < len(HINT_FIELDS),
+                "rejected": list(learned.get("rejected") or ()),
+                "checked": learned.get("checked", ""),
+                "allowance": max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
+                if learned.get("thinks") else 0,
+                "mode": bot_config.get("llm.thinking") or "off"}
 
     def template_text(self) -> str:
         return self.info.get("template") or ""
@@ -764,20 +977,87 @@ def fold_system(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return merged
 
 
-_THINK_RE = re.compile(r"<think>.*?</think>|<thinking>.*?</thinking>|"
-                       r"<\|channel\|>analysis.*?<\|end\|>", re.S | re.I)
+_OPEN_TAG = re.compile(r"<(?:think|thinking|reasoning)>", re.I)
+_OPENED_RE = re.compile(r"<(?:think|thinking|reasoning)>\s*$", re.I)
+_CLOSE_TAG = re.compile(r"</(?:think|thinking|reasoning)>", re.I)
+_HARMONY_FINAL = re.compile(r"<\|channel\|>\s*final\s*(?:<\|constrain\|>[^<]*)?"
+                            r"<\|message\|>", re.I)
+# harmony with its special tokens dropped by the server: "analysisWe need
+# to...assistantfinalhey all"
+_HARMONY_BARE = re.compile(r"\s*analysis(?=[A-Z])")
 
 
-def clean_output(text: str) -> str:
+def split_reasoning(raw: str, opened: bool = False) -> Tuple[str, str]:
+    """Separate a raw reply into (answer, notes).
+
+    ``opened`` says the prompt itself ended inside a think block (templates
+    that make the model think put ``<think>`` in the generation prompt), so
+    the reply starts mid-thought.  A block that never closes -- the token
+    allowance ran out -- is notes to the end, and there is no answer."""
+    text = raw or ""
+    notes: List[str] = []
+    if "<|channel|>" in text:
+        final = None
+        for final in _HARMONY_FINAL.finditer(text):
+            pass
+        if final is None:
+            return "", text               # still in the analysis channel
+        notes.append(text[:final.start()])
+        text = text[final.end():]
+    elif _HARMONY_BARE.match(text):
+        cut = text.lower().rfind("assistantfinal")
+        if cut < 0:
+            return "", text
+        notes.append(text[:cut])
+        text = text[cut + len("assistantfinal"):]
+    if opened and not _OPEN_TAG.match(text.lstrip()):
+        text = "<think>" + text
+    while True:
+        close = _CLOSE_TAG.search(text)
+        if close is None:
+            break
+        start = 0                          # no opening tag: the template opened it
+        for found in _OPEN_TAG.finditer(text, 0, close.start()):
+            start = found.start()
+        notes.append(text[start:close.end()])
+        text = text[:start] + text[close.end():]
+    unfinished = _OPEN_TAG.search(text)
+    if unfinished is not None:
+        notes.append(text[unfinished.start():])
+        text = text[:unfinished.start()]
+    return text, "".join(notes)
+
+
+def clean_output(text: str, opened: bool = False) -> str:
     text = text or ""
     if bot_config.get("llm.strip_reasoning"):
-        text = _THINK_RE.sub("", text)
-        if "</think>" in text:
-            text = text.split("</think>", 1)[1]
-        if text.lstrip().lower().startswith("<think>"):
-            text = ""
+        text, _notes = split_reasoning(text, opened)
     text = SPECIAL_TOKEN_RE.sub("", text)
     return text.strip()
+
+
+def explain(text: str, result: Dict[str, Any]) -> str:
+    """Why a reply came out the way it did, for the Recent requests list."""
+    if not result:
+        return ""
+    limit = int(result.get("max_tokens") or 0)
+    finish = str(result.get("finish") or "")
+    if text:
+        if result.get("retried"):
+            return "thought past the reply length; answered on a retry with %d tokens" % limit
+        return "thought first" if result.get("thought") else ""
+    if result.get("thought") and finish == "length":
+        return "the model spent all %d tokens thinking%s" % (
+            limit, ", even on a retry" if result.get("retried") else
+            " (raise the thinking allowance)" if not result.get("retried") and limit else "")
+    if result.get("thought"):
+        return "the model only thought and wrote no answer"
+    if finish == "length":
+        return "cut off at %d tokens before any text" % limit
+    raw = " ".join(str(result.get("raw") or "").split())
+    if raw:
+        return "nothing left once cleaned up: %s" % raw[:80]
+    return "the model ended its turn without writing anything (finish: %s)" % (finish or "?")
 
 
 _client: Optional[Client] = None

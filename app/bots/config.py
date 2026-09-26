@@ -651,6 +651,18 @@ FIELDS: List[Field] = [
       "Added to the stop strings the server reports.", rows=3),
     F("llm.strip_reasoning", "Strip reasoning", "bool", True, "llm",
       "Remove <think> blocks that reasoning models put before an answer."),
+    F("llm.thinking", "Reasoning models", "select", "off", "llm",
+      "Models that think before they answer (Qwen3, GLM, DeepSeek, gpt-oss) "
+      "spend the reply length on their notes: a 48-token chat line can be "
+      "gone before its first word. Off asks the server to skip the thinking "
+      "(a server that will not pass it on is asked without it). Either way "
+      "the notes never reach a player.",
+      options=[["off", "Ask the model not to think (fast replies)"],
+               ["allow", "Let the model think first"]]),
+    F("llm.reasoning_tokens", "Thinking allowance", "int", 1024, "llm",
+      "Added to every reply length once the model is seen thinking anyway, "
+      "and used to ask again when a reply was all notes. 0 turns it off.",
+      0, 32768, 64, "tokens"),
 
     # ------------------------------------------------------------- prompts
     F("prompts.comment", "Comment sections", "textarea", PROMPT_COMMENT,

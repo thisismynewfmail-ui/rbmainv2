@@ -1261,6 +1261,21 @@
       '<div class="bz-feed" id="bz-llm-recent"></div></div></div>';
   }
 
+  /* What the model does before it answers, as far as this session knows. */
+  function reasoningText(r) {
+    if (r.checked === 'running') return '<span class="muted">checking…</span>';
+    if (r.thinks) {
+      return '<span class="bz-warn">thinks before answering</span> <span class="tiny muted">(' +
+        (r.allowance ? '+' + num(r.allowance) + ' tokens per reply' : 'no allowance: replies may come back empty') +
+        (r.mode === 'off' && !r.hints ? '; the server would not take the switch' : '') + ')</span>';
+    }
+    if (r.checked === 'done') {
+      return '<span class="bz-ok">answers straight away</span>' +
+        (r.mode === 'off' ? ' <span class="tiny muted">(asked not to think)</span>' : '');
+    }
+    return '<span class="muted">not checked yet</span>';
+  }
+
   function drawLLMStatus() {
     var box = el('bz-llm-status');
     if (!box || !BZ.overview) return;
@@ -1276,7 +1291,8 @@
       ['Last probe', ago(info.probed_at)],
       ['Status', llm.available ? '<span class="bz-ok">accepting work</span>' :
         '<span class="bz-bad">' + (llm.enabled ? 'backing off (' + llm.down_for + 's)' : 'switched off') + '</span>'],
-      ['Throughput', (llm.per_minute || 0) + ' requests in the last minute, ' + (llm.active || 0) + ' running']
+      ['Throughput', (llm.per_minute || 0) + ' requests in the last minute, ' + (llm.active || 0) + ' running'],
+      ['Thinking', reasoningText(llm.reasoning || {})]
     ];
     var html = '<div class="bz-status">' + cells.map(function (c) {
       return '<dl class="cell"><dt>' + c[0] + '</dt><dd>' + c[1] + '</dd></dl>';
@@ -1306,8 +1322,13 @@
     if (recent) {
       var rows = (llm.recent || []).slice().reverse();
       recent.innerHTML = rows.length ? rows.map(function (r) {
-        return '<div class="row"><span class="t">' + r.ms + ' ms • ' + ago(r.at) + '</span><span class="k">' + esc(r.kind) +
-          '</span>' + (r.error ? '<span class="bz-bad">' + esc(r.error) + '</span>' : esc(r.reply || '(empty)')) + '</div>';
+        var detail = [r.limit ? (r.tokens != null ? num(r.tokens) + '/' : '') + num(r.limit) + ' tokens' : '',
+                      r.finish ? 'finish: ' + r.finish : ''].filter(Boolean).join(' • ');
+        return '<div class="row' + (!r.error && !r.reply ? ' empty' : '') + '" title="' + esc(detail) + '">' +
+          '<span class="t">' + r.ms + ' ms • ' + ago(r.at) + '</span><span class="k">' + esc(r.kind) + '</span>' +
+          (r.error ? '<span class="bz-bad">' + esc(r.error) + '</span>'
+                   : (r.reply ? esc(r.reply) : '<span class="bz-bad">(empty)</span>')) +
+          (r.note ? ' <span class="bz-why">— ' + esc(r.note) + '</span>' : '') + '</div>';
       }).join('') : '<span class="muted tiny">No requests yet.</span>';
     }
   }
@@ -1452,9 +1473,14 @@
         Site.post('/api/admin/bots/llm/test', { prompt: el('bz-test-prompt').value,
                                                  system: el('bz-test-system').value }).then(function (res) {
           if (!res.ok) { out.innerHTML = '<div class="notice bad">' + esc(res.error) + '</div>'; return; }
-          out.innerHTML = '<div class="notice info">' + esc(res.text || '(empty)') + '</div><div class="tiny muted">' +
+          out.innerHTML = '<div class="notice ' + (res.text ? 'info' : 'bad') + '">' + esc(res.text || '(empty)') +
+            (res.note ? '<div class="tiny">' + esc(res.note) + '</div>' : '') + '</div><div class="tiny muted">' +
             res.ms + ' ms • ' + esc(res.mode) + ' mode' + (res.prompt_tokens ? ' • ' + res.prompt_tokens +
-            ' prompt tokens, ' + res.completion_tokens + ' generated' : '') + '</div>';
+            ' prompt tokens, ' + res.completion_tokens + ' generated' : '') +
+            (res.max_tokens ? ' of ' + res.max_tokens + ' allowed' : '') + (res.finish ? ' • finish: ' + esc(res.finish) : '') +
+            '</div>' + (res.reasoning ? '<details class="tiny"><summary>The model’s notes before answering (' +
+            num(res.reasoning.length) + ' characters, never shown to players)</summary><div class="bz-code">' +
+            esc(res.reasoning) + '</div></details>' : '');
         });
       }
     });

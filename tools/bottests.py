@@ -32,6 +32,7 @@ import json
 import math
 import os
 import random
+import re
 import sys
 import tempfile
 import time
@@ -432,6 +433,10 @@ class _StubLLM:
         self.prompts: List[Dict[str, Any]] = []
         self.reply = reply
         self.up = up
+        self.busy = False        # up, but the queue is full
+
+    def available(self) -> bool:
+        return self.up
 
     def context_limit(self) -> int:
         return 16000
@@ -440,7 +445,7 @@ class _StubLLM:
         return len(text or "") // 4 + 1
 
     def submit(self, kind, priority, build, done, ttl=600.0, bot=0) -> bool:
-        if not self.up:
+        if not self.up or self.busy:
             return False
         request = build()
         self.prompts.append({"kind": kind, "bot": bot, "request": request})
@@ -739,6 +744,14 @@ def test_chat() -> None:
             {"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}]))
         check("relay: with the model down a stolen flag still gets a stock line",
               sent and all(isinstance(s_[1], str) and s_[1] for s_ in sent), sent)
+        # only busy: the moment goes unanswered rather than to a stock line
+        fake.up, fake.busy = True, True
+        relay.rooms.clear()
+        sent.clear()
+        relay.on_report("capture_the_flag", dict(base, lines=[], speech=[
+            {"kind": "flag_take", "team": "red", "by": "Fox", "by_team": "blue"}]))
+        check("relay: a model that is only busy gets no stock lines", not sent, sent)
+        fake.busy = False
     finally:
         llm.client = real_client
         bot_config.reset("modifiers")
@@ -747,6 +760,118 @@ def test_chat() -> None:
 
 
 # ===================================================================== scale
+def _mock_llm(think: str = "", strict: bool = False, knows=()):
+    """The stand-in model server from tools/mockllm.py, on a free port."""
+    import threading
+    from http.server import ThreadingHTTPServer
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import mockllm
+    mockllm.State.latency, mockllm.State.fail = 0.0, 0.0
+    mockllm.State.think, mockllm.State.strict = think, strict
+    mockllm.State.knows = set(knows)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), mockllm.Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def test_llm() -> None:
+    print("\n== llm: reasoning models ==")
+    from app import bootstrap
+    with contextlib.redirect_stdout(io.StringIO()):
+        bootstrap.seed()
+    from app.bots import config as bot_config, llm, prompts
+    split = llm.split_reasoning
+    check("reasoning: a closed think block is taken out",
+          split("<think>who is this</think>\n\nhey all") == ("\n\nhey all", "<think>who is this</think>"))
+    check("reasoning: a block the template opened ends at the closing tag",
+          split("so the player said hi</think>hey")[0] == "hey")
+    check("reasoning: a block cut off before it closed leaves no answer",
+          split("<think>so the player said")[0] == "" and split("so the player", True)[0] == "")
+    check("reasoning: gpt-oss channels, finished and unfinished",
+          split("<|channel|>analysis<|message|>We need hi<|end|><|start|>assistant<|channel|>final"
+                "<|message|>hi all")[0] == "hi all"
+          and split("<|channel|>analysis<|message|>We need to")[0] == "")
+    check("reasoning: gpt-oss with its tokens dropped by the server",
+          split("analysisWe need to greet.assistantfinalhey guys")[0] == "hey guys"
+          and split("analysisWe need to greet")[0] == "")
+    check("reasoning: an ordinary line is left alone",
+          split("analysis of this map: go left")[0] == "analysis of this map: go left"
+          and split("lol ok")[0] == "lol ok")
+
+    card = {"name": "Tamu", "tags": [], "traits": {}, "blurb": ""}
+    spec = prompts.chat(card, "Capture The Flag", "red",
+                        [{"who": "Bob", "text": "hey all", "kind": "chat"}], [], "Bob")
+    leaked = re.compile(r"player said|casual player|punctuation|analysis|think>|<\|", re.I)
+
+    def run(think: str, mode: str, strict: bool = False, check_first: bool = True,
+            knows=(), **settings):
+        server = _mock_llm(think, strict, knows)
+        try:
+            bot_config.save(dict({"llm.enabled": True, "llm.mode": mode, "llm.base_url":
+                                  "http://127.0.0.1:%d/v1" % server.server_address[1]},
+                                 **settings))
+            client = llm.Client()
+            if check_first:
+                client.probe(True)
+                for _ in range(100):
+                    if client.learned.get("checked") in ("done", ""):
+                        break
+                    time.sleep(0.05)
+            else:
+                client.info = client._probe()
+                client._learned()["checked"] = "done"
+            results = [client.complete(spec["messages"], spec["max_tokens"]) for _ in range(6)]
+            return client, results
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    for think in ("", "separate", "inline", "forced", "forced-inline", "harmony"):
+        for mode in ("chat", "completion"):
+            client, results = run(think, mode)
+            texts = [r["text"] for r in results]
+            check("reasoning: %s model, %s mode: every chat line has an answer and no notes"
+                  % (think or "plain", mode),
+                  all(texts) and not any(leaked.search(t) for t in texts), texts)
+            if think in ("", "separate", "inline"):
+                check("reasoning: %s model, %s mode: asked not to think, so no allowance"
+                      % (think or "plain", mode),
+                      all(r["max_tokens"] == spec["max_tokens"] and not r["thought"]
+                          for r in results), [r["max_tokens"] for r in results])
+    client, results = run("separate", "chat", strict=True)
+    check("reasoning: a strict server is asked again without the switch, and remembers",
+          len(client.learned.get("rejected") or ()) == 3 and all(r["text"] for r in results),
+          (client.learned, [r["text"] for r in results]))
+    client, results = run("separate", "chat", strict=True, knows=["template_vars"])
+    check("reasoning: a server that takes one name for the switch keeps getting it",
+          client.learned.get("rejected") == ["chat_template_kwargs", "enable_thinking"]
+          and all(r["text"] and not r["thought"] and r["max_tokens"] == spec["max_tokens"]
+                  for r in results), (client.learned, [r["max_tokens"] for r in results]))
+    client, results = run("separate", "chat", strict=True, **{"llm.model": "qwen3-8b"})
+    check("reasoning: Qwen3 is switched off with /no_think where the server cannot",
+          all(r["text"] and not r["thought"] for r in results[1:]),
+          [(r["text"], r["thought"]) for r in results])
+    client, results = run("forced", "chat", check_first=False)
+    check("reasoning: a reply that was all notes is asked again with the allowance",
+          results[0].get("retried") and results[0]["text"]
+          and results[0]["max_tokens"] == spec["max_tokens"] + 1024, results[0])
+    check("reasoning: after that every request carries the allowance",
+          all(not r.get("retried") and r["max_tokens"] == spec["max_tokens"] + 1024
+              for r in results[1:]), [r["max_tokens"] for r in results])
+    client, results = run("forced", "chat", check_first=False, **{"llm.reasoning_tokens": 0})
+    check("reasoning: with no allowance the request list says why the line is empty",
+          not results[0]["text"] and "thinking" in llm.explain("", results[0]),
+          llm.explain("", results[0]))
+    client = llm.Client()
+    client.info["stop"] = ["\n", "</s>"]          # e.g. from Ollama's parameters
+    result = {"text": "\nhey there\nsecond line", "finish": "stop"}
+    client._settle(result)
+    check("stops: a newline stop is applied here, not by the server",
+          client.stops("chat") == ["</s>"] and result["text"] == "hey there",
+          (client.stops("chat"), result["text"]))
+    bot_config.reset("llm")
+
+
 def test_profiles() -> None:
     print("\n== profiles ==")
     from app import bootstrap, db
@@ -870,7 +995,7 @@ def test_scale(count: int) -> None:
 def main(argv: List[str]) -> int:
     global VERBOSE
     parser = argparse.ArgumentParser()
-    parser.add_argument("groups", nargs="*", default=["unit", "chat", "live", "profiles", "scale"])
+    parser.add_argument("groups", nargs="*", default=["unit", "llm", "chat", "live", "profiles", "scale"])
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--bots", type=int, default=20000)
     parser.add_argument("--seconds", type=float, default=150.0)
@@ -879,6 +1004,8 @@ def main(argv: List[str]) -> int:
     isolate()
     if "unit" in args.groups:
         test_unit()
+    if "llm" in args.groups:
+        test_llm()
     if "chat" in args.groups:
         test_chat()
     if "live" in args.groups:

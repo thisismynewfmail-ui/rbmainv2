@@ -480,10 +480,14 @@ class Relay:
             self._deliver(room, uid, card, text, extra_delay, snapshot.get("lines", []),
                           to, team_chat)
 
-        if llm.client().submit("chat", llm.P_CHAT, build, done, ttl=25.0, bot=uid):
+        client = llm.client()
+        if client.submit("chat", llm.P_CHAT, build, done, ttl=25.0, bot=uid):
             return
-        # the model is down or swamped: an event still gets a stock reaction
-        if event is not None and bot_config.get("speech.canned_fallback"):
+        # the model is switched off or down: an event still gets a stock
+        # reaction.  A model that is only busy leaves this one unanswered, the
+        # way a player misses a moment, rather than fill the chat with stock lines
+        if event is not None and bot_config.get("speech.canned_fallback") \
+                and not client.available():
             line = speech.canned(event, relation, self.rng)
             if line:
                 self.stats["canned"] += 1
