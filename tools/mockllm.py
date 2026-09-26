@@ -14,6 +14,25 @@ a JSON array of usernames, a JSON array of profiles, or a short line of chat.
 other and with the seeded accounts), which is how the "that name is taken,
 give me another" loop gets exercised.  Point the Bots Zone's endpoint at
 http://127.0.0.1:5000/v1 to use it.
+
+``--think`` makes it behave like a reasoning model, which writes its notes
+before the answer and spends ``max_tokens`` on them too:
+
+    separate       hybrid (Qwen3, GLM): notes in ``reasoning_content`` the way
+                   LM Studio and llama.cpp return them; skipped when asked not
+                   to think (``chat_template_kwargs`` / ``template_vars`` /
+                   ``enable_thinking``, or a template that closes the block)
+    inline         hybrid, notes in the reply as ``<think>...</think>``
+    forced         cannot be turned off (R1 distills, gpt-oss), notes in
+                   ``reasoning_content``
+    forced-inline  cannot be turned off and the template opens the block, so
+                   the reply is ``notes</think>answer`` with no opening tag
+    harmony        gpt-oss without a reasoning parser: ``<|channel|>analysis``
+                   ... ``<|channel|>final<|message|>answer``
+
+``--strict`` refuses requests carrying fields it does not know (HTTP 422),
+the way a strict OpenAI-compatible server would; ``--knows FIELD`` teaches
+it one more (``--strict --knows template_vars`` is TabbyAPI-like).
 """
 from __future__ import annotations
 
@@ -29,6 +48,24 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 CHATML = ("{% for message in messages %}{{'<|im_start|>' + message['role'] + "
           "'\\n' + message['content'] + '<|im_end|>' + '\\n'}}{% endfor %}"
           "{% if add_generation_prompt %}{{ '<|im_start|>assistant\\n' }}{% endif %}")
+# Qwen3's switch: a template that closes the think block when told not to think
+CHATML_THINK = CHATML.replace(
+    "{{ '<|im_start|>assistant\\n' }}{% endif %}",
+    "{{ '<|im_start|>assistant\\n' }}{% if enable_thinking is defined and "
+    "enable_thinking is false %}{{ '<think>\\n\\n</think>\\n\\n' }}{% endif %}{% endif %}")
+# DeepSeek-R1 style: the template itself opens the block
+CHATML_FORCED = CHATML.replace("{{ '<|im_start|>assistant\\n' }}",
+                               "{{ '<|im_start|>assistant\\n<think>\\n' }}")
+KNOWN_FIELDS = {"model", "messages", "prompt", "max_tokens", "stream", "stop",
+                "temperature", "top_p", "top_k", "min_p", "repeat_penalty",
+                "repeat_last_n", "presence_penalty", "frequency_penalty", "n",
+                "seed"}
+NOTES = ["Okay, so the player said something and I should answer in character.",
+         "Let me think about what a casual player would type here.",
+         "The chat is fast so it should be short, lowercase maybe.",
+         "I should not repeat what the others already said in the round.",
+         "Maybe something about the flag or the score, or just a joke.",
+         "Keep it natural, no punctuation at the end, one line only."]
 
 TAKEN = ["builderman_x", "RetroKid2007", "BlockSmith", "NoobSlayer99",
          "PixelPatty", "CartPusher", "FlagRunner", "GrillMaster"]
@@ -68,6 +105,9 @@ class State:
     latency = 0.0
     dupes = 0.0
     fail = 0.0
+    think = ""
+    strict = False
+    knows: set = set()
     requests = 0
     lock = threading.Lock()
 
@@ -99,6 +139,43 @@ def reply_for(messages, rng: random.Random) -> str:
     return "ok"
 
 
+def _asked_not_to_think(body, chat: bool) -> bool:
+    if not chat:
+        # completion mode: the template closed the block itself
+        return (body.get("prompt") or "").rstrip().endswith("</think>")
+    for key in ("chat_template_kwargs", "template_vars"):
+        values = body.get(key)
+        if isinstance(values, dict) and values.get("enable_thinking") is False:
+            return True
+    if body.get("enable_thinking") is False:
+        return True
+    return any("/no_think" in str(m.get("content", "")) for m in body.get("messages") or [])
+
+
+def think(body, chat: bool, answer: str, limit: int, rng: random.Random):
+    """(content, reasoning, finish) with ``limit`` tokens (4 characters each)."""
+    mode = State.think
+    if not mode or (mode in ("separate", "inline") and _asked_not_to_think(body, chat)):
+        if len(answer) // 4 > limit:
+            return answer[:limit * 4], "", "length"
+        return answer, "", "stop"
+    notes = " ".join(rng.choice(NOTES) for _ in range(rng.randint(4, 9)))
+    budget = limit * 4
+    if mode == "harmony":
+        full = ("<|channel|>analysis<|message|>" + notes + "<|end|><|start|>assistant"
+                "<|channel|>final<|message|>" + answer)
+        return (full[:budget], "", "length") if len(full) > budget else (full, "", "stop")
+    if mode in ("separate", "forced") and chat:
+        if len(notes) >= budget:
+            return "", notes[:budget], "length"
+        left = budget - len(notes)
+        return (answer[:left], notes, "length") if len(answer) > left else (answer, notes, "stop")
+    opened = mode == "forced-inline" or (not chat and (body.get("prompt") or "")
+                                          .rstrip().endswith("<think>"))
+    full = ("" if opened else "<think>") + notes + "</think>\n\n" + answer
+    return (full[:budget], "", "length") if len(full) > budget else (full, "", "stop")
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -128,6 +205,8 @@ class Handler(BaseHTTPRequestHandler):
                 {"id": "mock-model-7b", "object": "model", "owned_by": "mock",
                  "meta": {"n_ctx_train": 32768}}]})
         if path == "/props":
+            template = {"separate": CHATML_THINK, "inline": CHATML_THINK,
+                        "forced-inline": CHATML_FORCED}.get(State.think, CHATML)
             return self._send(200, {
                 "default_generation_settings": {
                     "n_ctx": 16384,
@@ -135,7 +214,7 @@ class Handler(BaseHTTPRequestHandler):
                                "min_p": 0.05, "repeat_penalty": 1.1,
                                "repeat_last_n": 64, "presence_penalty": 0.0,
                                "frequency_penalty": 0.0, "stop": []}},
-                "total_slots": 1, "chat_template": CHATML,
+                "total_slots": 1, "chat_template": template,
                 "bos_token": "", "eos_token": "<|im_end|>",
                 "model_path": "/models/mock-model-7b.gguf"})
         return self._send(404, {"error": "not found"})
@@ -153,8 +232,15 @@ class Handler(BaseHTTPRequestHandler):
                 time.sleep(State.latency * random.uniform(0.5, 1.5))
             if random.random() < State.fail:
                 return self._send(500, {"error": "mock failure"})
+            if State.strict:
+                unknown = sorted(set(body) - KNOWN_FIELDS - State.knows)
+                if unknown:
+                    return self._send(422, {"detail": [{"loc": ["body", k], "msg":
+                                                        "extra fields not permitted"}
+                                                       for k in unknown]})
             rng = random.Random()
-            if path.endswith("chat/completions"):
+            chat = path.endswith("chat/completions")
+            if chat:
                 messages = body.get("messages") or []
                 prompt_chars = sum(len(m.get("content", "")) for m in messages)
             else:
@@ -165,15 +251,21 @@ class Handler(BaseHTTPRequestHandler):
                                          prompt, re.S):
                     messages.append({"role": match.group(1),
                                      "content": match.group(2)})
-            text = reply_for(messages, rng)
+            answer = reply_for(messages, rng)
+            limit = int(body.get("max_tokens") or 0) or 10 ** 6
+            content, reasoning, finish = think(body, chat, answer, limit, rng)
+            used = (len(content) + len(reasoning)) // 4
             usage = {"prompt_tokens": prompt_chars // 4,
-                     "completion_tokens": max(1, len(text) // 4)}
-            if path.endswith("chat/completions"):
-                return self._send(200, {"choices": [{"index": 0, "message": {
-                    "role": "assistant", "content": text},
-                    "finish_reason": "stop"}], "usage": usage})
-            return self._send(200, {"choices": [{"index": 0, "text": text,
-                                                 "finish_reason": "stop"}],
+                     "completion_tokens": max(1, used)}
+            if chat:
+                message = {"role": "assistant", "content": content}
+                if reasoning:
+                    message["reasoning_content"] = reasoning
+                return self._send(200, {"choices": [{"index": 0, "message": message,
+                                                     "finish_reason": finish}],
+                                        "usage": usage})
+            return self._send(200, {"choices": [{"index": 0, "text": content,
+                                                 "finish_reason": finish}],
                                     "usage": usage})
         return self._send(404, {"error": "not found"})
 
@@ -185,8 +277,13 @@ def main(argv=None) -> int:
     parser.add_argument("--latency", type=float, default=0.15)
     parser.add_argument("--dupes", type=float, default=0.0)
     parser.add_argument("--fail", type=float, default=0.0)
+    parser.add_argument("--think", default="", choices=["", "separate", "inline", "forced",
+                                                         "forced-inline", "harmony"])
+    parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--knows", action="append", default=[])
     args = parser.parse_args(argv)
     State.latency, State.dupes, State.fail = args.latency, args.dupes, args.fail
+    State.think, State.strict, State.knows = args.think, args.strict, set(args.knows)
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print("mock LLM on http://%s:%d/v1" % (args.host, args.port), flush=True)
     try:

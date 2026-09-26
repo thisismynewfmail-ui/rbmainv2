@@ -2200,6 +2200,8 @@ table.bz-table tr:hover td { background: var(--bz-bot-soft); }
 .bz-nav button.child { margin-left: 14px; width: calc(100% - 14px); font-size: 11px; padding-top: 4px;
   padding-bottom: 4px; }
 .bz-family { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#bz-llm-recent .bz-why { color: var(--ink-soft); font-size: 10px; }
+.bz-warn { color: var(--warn-ink); font-weight: bold; }
 table.bz-mod-table { width: 100%; }
 table.bz-mod-table td, table.bz-mod-table th { font-size: 11px; vertical-align: top; }
 .bz-meter.wide { width: 70px; display: block; }

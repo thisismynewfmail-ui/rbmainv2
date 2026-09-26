@@ -938,8 +938,9 @@ cooldown in that round, several notifications about one moment (the flag is
 taken *and* the team is locked down) get one reaction, and the round stays
 "buzzing" for a while afterwards -- bots are likelier to answer each other and
 the players, so an event turns into a conversation. When the language model
-is down, events fall back to short stock lines ("they have our flag", "nice
-cap").
+is switched off or down, events fall back to short stock lines ("they have
+our flag", "nice cap"); when it is only busy, the moment goes unanswered
+instead, as it would for a player who missed it.
 
 ### The language model
 
@@ -964,6 +965,28 @@ sections alike. Requests go through a priority queue with a rate limit and a
 circuit breaker: in-game chat first, usernames and profiles last, and when the
 endpoint is down the bots simply stay quiet and the creation pipeline falls
 back to its built-in generators.
+
+**Reasoning models.** Models that think before they answer (Qwen3, GLM,
+DeepSeek R1, gpt-oss and the like) spend a reply's token allowance on their
+notes first, so a 48-token chat line can be used up before its first word and
+come back empty. With `Reasoning models` set to *Ask the model not to think*
+(the default), every request carries the switch under each name the servers
+read it from -- `chat_template_kwargs` (llama.cpp, vLLM, SGLang),
+`template_vars` (TabbyAPI), `enable_thinking` (text-generation-webui), the
+template variable itself in completion mode -- and a Qwen3 model that is
+seen thinking anyway (LM Studio passes none of them) also gets its own
+`/no_think`. A strict server that refuses a
+field is asked again without it and not sent it again. After every probe one
+small request checks whether the model thinks anyway; if it does (or any
+reply turns out to be all notes, which is then asked again at once), every
+request gets the `Thinking allowance` (1,024 tokens) on top of its reply
+length. The notes never reach a player: `<think>` blocks, blocks the template
+opened itself, blocks cut off before they closed, the separate
+`reasoning_content` field and gpt-oss's analysis channel are all taken out.
+The Language Model tab shows what the model does under **Thinking**, and
+**Recent requests** says why any reply came back empty (all 48 tokens spent
+thinking, cut off before any text, the model ending its turn at once) --
+hover a row for its token count and finish reason.
 
 Each bot has its own folder, `data/bots/accounts/<shard>/<id>-<name>/`, with
 `account.json` and a `logs/` directory holding one log per conversation —
@@ -1052,11 +1075,16 @@ rescuing from the void, that ledge jumps land on the ledge, that bots vote
 after a round with staggered delays, and that a round with no real player
 stands still; the profiles group checks the profile-setting chances and that
 created bots carry them; the scale group creates thousands of bots, loads
-them and times the director. `mockllm.py` answers
-like a llama.cpp server (model list, `/props` with a chat template and
-sampling, `/tokenize`, chat and completions); point the Language Model tab at
-`http://127.0.0.1:5055/v1` to work without a real model, and use `--dupes` to
-make it repeat taken usernames or `--fail` to make it unreliable.
+them and times the director; the llm group runs the model client against the
+stand-in server playing every kind of reasoning model, in chat and completion
+mode, and checks that each chat line has an answer and none of the notes.
+`mockllm.py` answers like a llama.cpp server (model list, `/props` with a
+chat template and sampling, `/tokenize`, chat and completions); point the
+Language Model tab at `http://127.0.0.1:5055/v1` to work without a real
+model, use `--dupes` to make it repeat taken usernames or `--fail` to make it
+unreliable, `--think separate|inline|forced|forced-inline|harmony` to make it
+behave like a reasoning model, and `--strict` to make it refuse fields it does
+not know.
 
 `gametests.py` asserts exact outcomes in empty rounds — a flag captured, a
 cart pushed — so run it against a server started with `--no-bots` (or

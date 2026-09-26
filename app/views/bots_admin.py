@@ -426,8 +426,11 @@ def llm_test(req: Request):
                                        timeout=float(bot_config.get("llm.timeout_seconds") or 90))
     except Exception as exc:
         return api_error("The model did not answer: %s" % exc)
-    return api_ok(text=llm.clean_output(result.get("text", "")), raw=result.get("text", ""),
+    return api_ok(text=result.get("text", ""), raw=result.get("raw", ""),
+                  reasoning=(result.get("reasoning") or "")[:4000],
                   ms=int((time.time() - started) * 1000), mode=result.get("mode"),
+                  finish=result.get("finish"), max_tokens=result.get("max_tokens"),
+                  note=llm.explain(result.get("text", ""), result),
                   prompt_tokens=result.get("prompt_tokens"),
                   completion_tokens=result.get("completion_tokens"))
 
