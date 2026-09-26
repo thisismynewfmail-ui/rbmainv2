@@ -81,9 +81,12 @@ def cull(lines: Sequence[str], budget: int, keep_last: int = 1) -> List[str]:
 
 
 def _line(entry: Dict[str, Any]) -> str:
-    who = entry.get("who") or "?"
     text = " ".join(str(entry.get("text") or "").split())
-    tag = entry.get("tag")
+    kind = entry.get("kind")
+    if kind == "event":
+        return "* " + text                  # something the round announced
+    who = entry.get("who") or "?"
+    tag = entry.get("tag") or ("team chat" if kind == "team" else "")
     return "%s%s: %s" % (who, " (%s)" % tag if tag else "", text)
 
 
@@ -222,14 +225,24 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
 def chat(card: Dict[str, Any], world: str, team: str,
          log: List[Dict[str, Any]], happening: List[str],
          addressed_by: str = "", state: Optional[Dict[str, Any]] = None,
-         me: Optional[Dict[str, Any]] = None, event: str = "") -> Dict[str, Any]:
+         me: Optional[Dict[str, Any]] = None, event: str = "",
+         team_chat: bool = False, own: bool = False,
+         roster: Optional[List[Any]] = None) -> Dict[str, Any]:
     max_tokens = int(bot_config.get("llm.max_tokens_chat") or 48)
     system = _fmt(bot_config.get("prompts.chat"), world=world) + "\n\n" + \
         persona_block(card)
     if team and (state or {}).get("mode") != "endless":
         system += "\nYou are on the %s team this round." % team
     context = game_context(state or {}, me or {}, team)
-    header = "Recent chat in the round, oldest first:"
+    if roster:
+        endless = (state or {}).get("mode") == "endless"
+        names = ["%s%s" % (name, "" if endless or not side else
+                           " (your team)" if side == team else " (other team)")
+                 for name, side in roster[:24] if name]
+        if names:
+            context.append("Also in this server: " + ", ".join(names) + ".")
+    header = ("This round's chat so far, oldest first (lines starting with * are "
+              "what the game announced):")
     ending = []
     if context:
         ending.append("What you can see on your screen right now (background only; "
@@ -241,9 +254,17 @@ def chat(card: Dict[str, Any], world: str, team: str,
         ending.append("Just now: " + event)
         ending.append("React in chat the way a player would at this moment, or (skip) "
                       "if you would not bother:")
+    elif own:
+        ending.append("Nobody is waiting on you. If you feel like it, say something in "
+                      "chat the way a player does mid-round -- to someone in the server, "
+                      "about how it is going, a joke, a question, carrying on an earlier "
+                      "thread -- without repeating yourself. Your message, or (skip):")
     else:
         if addressed_by:
-            ending.append("%s is talking to you." % addressed_by)
+            ending.append("%s is talking to you%s." % (
+                addressed_by, " on team chat" if team_chat else ""))
+        elif team_chat:
+            ending.append("That was on team chat; only your team sees your answer.")
         ending.append("Your next chat message, or (skip):")
     tail = "\n\n" + "\n\n".join(ending)
     budget = _budget(system + header + tail, max_tokens)

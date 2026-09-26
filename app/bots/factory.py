@@ -35,7 +35,7 @@ import traceback
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from .. import db
-from ..models import catalog
+from ..models import catalog, users
 from . import config as bot_config
 from . import llm, names, personas, prompts, social, storage
 
@@ -530,6 +530,44 @@ def _choose_items(traits: Dict[str, float], tags: Sequence[str],
     return list(dict.fromkeys(wanted))[:max(count, 0) + 2]
 
 
+def _pick_share(shares: Any, rng: random.Random, fallback: str) -> str:
+    """One option from a {option: percent} table (see ``profiles.*``)."""
+    if not isinstance(shares, dict):
+        return fallback
+    total = sum(max(0.0, float(v or 0)) for v in shares.values())
+    if total <= 0:
+        return fallback
+    roll = rng.random() * total
+    for option, weight in shares.items():
+        roll -= max(0.0, float(weight or 0))
+        if roll < 0:
+            return option
+    return fallback
+
+
+def profile_settings(rng: random.Random) -> Tuple[Dict[str, str], str, Dict[str, Any]]:
+    """The privacy, theme and preferences a new bot starts with.
+
+    Each setting is dealt on its own from the chances on the Profile Settings
+    subtab.  Only the ones that differ from the site default are stored, the
+    same as an account whose owner changed just those in the editor.
+    """
+    if not bot_config.get("profiles.vary"):
+        return {}, "auto", {}
+    privacy: Dict[str, str] = {}
+    for key, default in users.PRIVACY_FIELDS.items():
+        pick = _pick_share(bot_config.get("profiles." + key), rng, default)
+        if pick in users.VISIBILITIES and pick != default:
+            privacy[key] = pick
+    theme = _pick_share(bot_config.get("profiles.theme"), rng, "auto")
+    if theme not in users.THEMES:
+        theme = "auto"
+    prefs: Dict[str, Any] = {}
+    if _pick_share(bot_config.get("profiles.messenger"), rng, "on") == "off":
+        prefs["messenger"] = False
+    return privacy, theme, prefs
+
+
 def _colors(traits: Dict[str, float], rng: random.Random) -> Dict[str, str]:
     skin = rng.choice(SKIN)
     torso = rng.choice(PALETTE)
@@ -604,7 +642,6 @@ def _design(reserved: List[str], rng: random.Random, now: int,
     if end <= start:
         start = end - 86400
     female = float(bot_config.get("creation.female_share") or 45) / 100.0
-    public = float(bot_config.get("creation.public_server_share") or 40) / 100.0
     c_lo, c_hi = bot_config.get("creation.credits") or [150, 14000]
     unusual = float(bot_config.get("creation.unusual_chance") or 0)
     off_window = bot_config.get("presence.offline_hours") or [1, 48]
@@ -621,6 +658,7 @@ def _design(reserved: List[str], rng: random.Random, now: int,
             # the rest drifted away for a while and are coming back
             recency = rng.random() ** 2.2
             last_seen = int(max(joined, now - (now - joined) * recency * 0.3))
+        privacy, theme, prefs = profile_settings(rng)
         wealth = traits.get("wealth", 0.5)
         credits = int(float(c_lo) + (float(c_hi) - float(c_lo)) * min(1.0, rng.random() ** 1.6 * (0.5 + wealth)))
         cards.append({
@@ -630,8 +668,7 @@ def _design(reserved: List[str], rng: random.Random, now: int,
             "colors": _colors(traits, rng),
             "items": _choose_items(traits, tags, rng),
             "unusual": unusual,
-            "privacy": {"server": "public"} if rng.random() < public else {},
-            "theme": rng.choice(["auto", "auto", "dark", "light"]),
+            "privacy": privacy, "theme": theme, "prefs": prefs,
             "history": _history(joined, traits, rng, now)
             if bot_config.get("creation.seed_stats") else {},
         })
@@ -673,11 +710,12 @@ def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
                 "INSERT OR IGNORE INTO users(username, username_lower, password_hash,"
                 " created_at, last_seen, last_login, credits, is_admin, blurb,"
                 " location, place_visits, theme, privacy, pinned, prefs, controls,"
-                " is_bot) VALUES(?,?,?,?,?,?,?,0,?,?,?,?,?,'[]','{}','{}',1)",
+                " is_bot) VALUES(?,?,?,?,?,?,?,0,?,?,?,?,?,'[]',?,'{}',1)",
                 (card["name"], card["name"].lower(), BOT_PASSWORD_HASH,
                  card["joined"], card["last_seen"], card["last_seen"],
                  card["credits"], card["blurb"], card["location"], place_visits,
-                 card["theme"], json.dumps(card["privacy"])))
+                 card["theme"], json.dumps(card["privacy"]),
+                 json.dumps(card.get("prefs") or {})))
             if not cur.rowcount:
                 continue          # somebody registered that name meanwhile
             uid = int(cur.lastrowid)

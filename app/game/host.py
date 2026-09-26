@@ -342,7 +342,8 @@ class GameHost:
                 with instance.lock:
                     instance.bots.say_for(int(op.get("uid", 0) or 0),
                                           str(op.get("text", ""))[:150],
-                                          float(op.get("delay", 1.0) or 1.0))
+                                          float(op.get("delay", 1.0) or 1.0),
+                                          bool(op.get("team")))
 
     def check_sleepers(self) -> None:
         """Put rounds with bots and nobody real in them to sleep.
@@ -351,7 +352,7 @@ class GameHost:
         server's director, which carries on with it in closed form; the
         instance is dropped here and stops costing anything at all.
         """
-        grace = float(self.bot_cfg.get("worlds_sleep_grace_seconds", 45) or 45)
+        grace = float(self.bot_cfg.get("worlds_sleep_grace_seconds", 30) or 30)
         moment = time.monotonic()
         with self.lock:
             instances = list(self.instances)
@@ -536,7 +537,8 @@ class GameHost:
                     with instance.lock:
                         done = instance.bots.say_for(int(message.get("uid", 0) or 0),
                                                      str(message.get("text", ""))[:150],
-                                                     float(message.get("delay", 1.0) or 1.0))
+                                                     float(message.get("delay", 1.0) or 1.0),
+                                                     bool(message.get("team")))
                 status, payload = "200 OK", {"ok": done}
             else:
                 status, payload = "400 Bad Request", {"ok": False}
