@@ -32,7 +32,9 @@ before the answer and spends ``max_tokens`` on them too:
 
 ``--strict`` refuses requests carrying fields it does not know (HTTP 422),
 the way a strict OpenAI-compatible server would; ``--knows FIELD`` teaches
-it one more (``--strict --knows template_vars`` is TabbyAPI-like).
+it one more (``--strict --knows template_vars`` is TabbyAPI-like), and
+``--efforts low,medium,high`` refuses any other ``reasoning_effort`` the way
+vLLM does.  A thinking model's notes grow with the effort it is given.
 """
 from __future__ import annotations
 
@@ -108,6 +110,8 @@ class State:
     think = ""
     strict = False
     knows: set = set()
+    efforts: set = set()
+    bodies: list = []          # the last requests, for tests
     requests = 0
     lock = threading.Lock()
 
@@ -147,7 +151,7 @@ def _asked_not_to_think(body, chat: bool) -> bool:
         values = body.get(key)
         if isinstance(values, dict) and values.get("enable_thinking") is False:
             return True
-    if body.get("enable_thinking") is False:
+    if body.get("enable_thinking") is False or body.get("reasoning_effort") == "none":
         return True
     return any("/no_think" in str(m.get("content", "")) for m in body.get("messages") or [])
 
@@ -159,7 +163,10 @@ def think(body, chat: bool, answer: str, limit: int, rng: random.Random):
         if len(answer) // 4 > limit:
             return answer[:limit * 4], "", "length"
         return answer, "", "stop"
-    notes = " ".join(rng.choice(NOTES) for _ in range(rng.randint(4, 9)))
+    effort = body.get("reasoning_effort") or (body.get("chat_template_kwargs") or {}).get(
+        "reasoning_effort") or "medium"
+    scale = {"minimal": 0.25, "low": 0.5, "medium": 1, "high": 2, "xhigh": 4}.get(effort, 1)
+    notes = " ".join(rng.choice(NOTES) for _ in range(max(1, int(rng.randint(4, 9) * scale))))
     budget = limit * 4
     if mode == "harmony":
         full = ("<|channel|>analysis<|message|>" + notes + "<|end|><|start|>assistant"
@@ -232,6 +239,15 @@ class Handler(BaseHTTPRequestHandler):
                 time.sleep(State.latency * random.uniform(0.5, 1.5))
             if random.random() < State.fail:
                 return self._send(500, {"error": "mock failure"})
+            with State.lock:
+                State.bodies.append(body)
+                del State.bodies[:-20]
+            effort = body.get("reasoning_effort")
+            if State.efforts and effort is not None and effort not in State.efforts:
+                return self._send(400, {"detail": [{"loc": ["body", "reasoning_effort"],
+                                                    "msg": "Input should be %s" % ", ".join(
+                                                        sorted(State.efforts)),
+                                                    "input": effort}]})
             if State.strict:
                 unknown = sorted(set(body) - KNOWN_FIELDS - State.knows)
                 if unknown:
@@ -281,9 +297,11 @@ def main(argv=None) -> int:
                                                          "forced-inline", "harmony"])
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--knows", action="append", default=[])
+    parser.add_argument("--efforts", default="")
     args = parser.parse_args(argv)
     State.latency, State.dupes, State.fail = args.latency, args.dupes, args.fail
     State.think, State.strict, State.knows = args.think, args.strict, set(args.knows)
+    State.efforts = {e for e in args.efforts.split(",") if e}
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print("mock LLM on http://%s:%d/v1" % (args.host, args.port), flush=True)
     try:

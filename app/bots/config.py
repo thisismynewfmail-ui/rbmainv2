@@ -112,6 +112,18 @@ Favourite worlds: {worlds}
 Joined BLOCKHAVEN: {joined}
 About me: {blurb}"""
 
+# Reasoning effort: (value, label, how much of the thinking allowance it gets).
+# "none" asks the model not to think; "default" sends nothing at all.
+REASONING_EFFORTS = [
+    ("none", "Off: answer straight away (fastest)", 1.0),
+    ("minimal", "Minimal", 0.25),
+    ("low", "Low", 0.5),
+    ("medium", "Medium", 1.0),
+    ("high", "High", 2.0),
+    ("xhigh", "Extra high", 4.0),
+    ("default", "Model default (send nothing)", 1.0),
+]
+
 # Sections drawn in the dashboard as a submenu of another one.
 SUBSECTIONS = {"profiles": "ingame"}
 
@@ -651,17 +663,20 @@ FIELDS: List[Field] = [
       "Added to the stop strings the server reports.", rows=3),
     F("llm.strip_reasoning", "Strip reasoning", "bool", True, "llm",
       "Remove <think> blocks that reasoning models put before an answer."),
-    F("llm.thinking", "Reasoning models", "select", "off", "llm",
-      "Models that think before they answer (Qwen3, GLM, DeepSeek, gpt-oss) "
-      "spend the reply length on their notes: a 48-token chat line can be "
-      "gone before its first word. Off asks the server to skip the thinking "
-      "(a server that will not pass it on is asked without it). Either way "
-      "the notes never reach a player.",
-      options=[["off", "Ask the model not to think (fast replies)"],
-               ["allow", "Let the model think first"]]),
+    F("llm.reasoning_effort", "Reasoning effort", "select", "none", "llm",
+      "How hard a reasoning model (Qwen3 and later, GLM, DeepSeek, gpt-oss) "
+      "thinks before every reply. Sent as the standard reasoning_effort field "
+      "and as the chat-template variables llama.cpp, vLLM, SGLang, TabbyAPI "
+      "and text-generation-webui pass to the model; a server that refuses one "
+      "of them is asked again without it. Off asks the model not to think at "
+      "all, which keeps in-game chat fast; higher efforts answer slower and "
+      "need the thinking allowance below. The notes never reach a player.",
+      options=[[e, label] for e, label, _scale in REASONING_EFFORTS]),
     F("llm.reasoning_tokens", "Thinking allowance", "int", 1024, "llm",
-      "Added to every reply length once the model is seen thinking anyway, "
-      "and used to ask again when a reply was all notes. 0 turns it off.",
+      "Room for the model's notes on top of every reply length, for a model "
+      "asked to think or seen thinking anyway; scaled by the effort (Minimal "
+      "a quarter, Low half, High double, Extra high four times). Also used to "
+      "ask again when a reply was all notes. 0 turns it off.",
       0, 32768, 64, "tokens"),
 
     # ------------------------------------------------------------- prompts
@@ -813,11 +828,18 @@ def _shares(field: Field, value: Any) -> Dict[str, int]:
     return out
 
 
+def _share_to_server(value: Any) -> Dict[str, Any]:
+    share = max(0.0, min(100.0, float(value)))
+    return {"public": share, "friends": 100 - share, "private": 0}
+
+
 # Settings that were renamed: old key -> (new key, convert old value)
 _LEGACY = {
-    "creation.public_server_share": (
-        "profiles.server",
-        lambda v: {"public": v, "friends": 100 - v, "private": 0}),
+    "creation.public_server_share": ("profiles.server", _share_to_server),
+    # the on/off switch the effort replaced: off = no thinking, allow = the
+    # model's own default
+    "llm.thinking": ("llm.reasoning_effort",
+                     lambda v: "default" if v == "allow" else "none"),
 }
 
 
@@ -834,7 +856,7 @@ def _stored() -> Dict[str, Any]:
             value = data.pop(old)
             if new not in data:
                 try:
-                    data[new] = convert(max(0.0, min(100.0, float(value))))
+                    data[new] = convert(value)
                 except (TypeError, ValueError):
                     pass
     return data

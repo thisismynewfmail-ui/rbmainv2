@@ -966,27 +966,37 @@ circuit breaker: in-game chat first, usernames and profiles last, and when the
 endpoint is down the bots simply stay quiet and the creation pipeline falls
 back to its built-in generators.
 
-**Reasoning models.** Models that think before they answer (Qwen3, GLM,
-DeepSeek R1, gpt-oss and the like) spend a reply's token allowance on their
-notes first, so a 48-token chat line can be used up before its first word and
-come back empty. With `Reasoning models` set to *Ask the model not to think*
-(the default), every request carries the switch under each name the servers
-read it from -- `chat_template_kwargs` (llama.cpp, vLLM, SGLang),
-`template_vars` (TabbyAPI), `enable_thinking` (text-generation-webui), the
-template variable itself in completion mode -- and a Qwen3 model that is
-seen thinking anyway (LM Studio passes none of them) also gets its own
-`/no_think`. A strict server that refuses a
-field is asked again without it and not sent it again. After every probe one
-small request checks whether the model thinks anyway; if it does (or any
-reply turns out to be all notes, which is then asked again at once), every
-request gets the `Thinking allowance` (1,024 tokens) on top of its reply
-length. The notes never reach a player: `<think>` blocks, blocks the template
-opened itself, blocks cut off before they closed, the separate
-`reasoning_content` field and gpt-oss's analysis channel are all taken out.
-The Language Model tab shows what the model does under **Thinking**, and
-**Recent requests** says why any reply came back empty (all 48 tokens spent
-thinking, cut off before any text, the model ending its turn at once) --
-hover a row for its token count and finish reason.
+**Reasoning models.** Models that think before they answer (Qwen3 and its
+successors, GLM, DeepSeek R1, gpt-oss and the like) spend a reply's token
+allowance on their notes first. `Reasoning effort` on the Language Model tab
+sets how hard they think for every request: *Off* (the default -- in-game
+chat stays fast), *Minimal*, *Low*, *Medium*, *High*, *Extra high*, or
+*Model default* (nothing is sent). The effort goes out the standard way, as
+the OpenAI `reasoning_effort` field (vLLM, SGLang, LM Studio, Ollama,
+llama.cpp, text-generation-webui), and also as the chat template's own
+variables, which reach the model through `chat_template_kwargs` (llama.cpp,
+vLLM, SGLang) or `template_vars` (TabbyAPI), or are rendered straight into
+the prompt in completion mode: `reasoning_effort` for models that read an
+effort, `enable_thinking` for Qwen3 and GLM, `thinking` for DeepSeek V3.1 and
+Granite. *Off* sends `reasoning_effort: none` and turns those switches off
+(gpt-oss cannot stop thinking, so its template gets *low*), and a Qwen3 model
+that is seen thinking anyway (LM Studio passes no template variables) also
+gets its own `/no_think`. A server that refuses a field or a value -- vLLM
+only takes low, medium and high -- is asked again without it and not sent it
+again until the effort changes.
+
+A model asked to think gets the `Thinking allowance` (1,024 tokens) on top of
+every reply length, scaled by the effort: a quarter at Minimal, half at Low,
+double at High, four times at Extra high. After every probe one small
+request checks whether the model thinks even when asked not to; if it does
+(or any reply turns out to be all notes, which is then asked again at once),
+it gets the allowance too. The notes never reach a player: `<think>` blocks,
+blocks the template opened itself, blocks cut off before they closed, the
+separate `reasoning_content` field and gpt-oss's analysis channel are all
+taken out. The Language Model tab shows the effort and what the model does
+under **Thinking**, and **Recent requests** says why any reply came back
+empty (all its tokens spent thinking, cut off before any text, the model
+ending its turn at once) -- hover a row for its token count and finish reason.
 
 Each bot has its own folder, `data/bots/accounts/<shard>/<id>-<name>/`, with
 `account.json` and a `logs/` directory holding one log per conversation —
@@ -1077,14 +1087,16 @@ stands still; the profiles group checks the profile-setting chances and that
 created bots carry them; the scale group creates thousands of bots, loads
 them and times the director; the llm group runs the model client against the
 stand-in server playing every kind of reasoning model, in chat and completion
-mode, and checks that each chat line has an answer and none of the notes.
+mode, and checks that each chat line has an answer and none of the notes,
+and that every reasoning effort reaches the server under each of its names.
 `mockllm.py` answers like a llama.cpp server (model list, `/props` with a
 chat template and sampling, `/tokenize`, chat and completions); point the
 Language Model tab at `http://127.0.0.1:5055/v1` to work without a real
 model, use `--dupes` to make it repeat taken usernames or `--fail` to make it
 unreliable, `--think separate|inline|forced|forced-inline|harmony` to make it
-behave like a reasoning model, and `--strict` to make it refuse fields it does
-not know.
+behave like a reasoning model, `--strict` to make it refuse fields it does
+not know, and `--efforts low,medium,high` to make it refuse other efforts the
+way vLLM does.
 
 `gametests.py` asserts exact outcomes in empty rounds — a flag captured, a
 cart pushed — so run it against a server started with `--no-bots` (or

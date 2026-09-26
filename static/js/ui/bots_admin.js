@@ -1263,17 +1263,22 @@
 
   /* What the model does before it answers, as far as this session knows. */
   function reasoningText(r) {
-    if (r.checked === 'running') return '<span class="muted">checking…</span>';
-    if (r.thinks) {
-      return '<span class="bz-warn">thinks before answering</span> <span class="tiny muted">(' +
+    var effort = fieldOf('llm.reasoning_effort');
+    var label = ((effort.options || []).filter(function (o) { return o[0] === r.effort; })[0] || [r.effort, r.effort])[1];
+    var head = '<span class="tiny muted">Effort: ' + esc(String(label || '?').split(':')[0]) + '</span><br>';
+    var refused = (r.rejected || []).length ? '; the server refused ' + (r.rejected || []).map(esc).join(', ') : '';
+    if (r.checked === 'running') return head + '<span class="muted">checking…</span>';
+    if (r.thinks || (r.effort !== 'none' && r.effort !== 'default')) {
+      return head + '<span class="bz-warn">' + (r.thinks ? 'thinks before answering' : 'asked to think') +
+        '</span> <span class="tiny muted">(' +
         (r.allowance ? '+' + num(r.allowance) + ' tokens per reply' : 'no allowance: replies may come back empty') +
-        (r.mode === 'off' && !r.hints ? '; the server would not take the switch' : '') + ')</span>';
+        refused + ')</span>';
     }
     if (r.checked === 'done') {
-      return '<span class="bz-ok">answers straight away</span>' +
-        (r.mode === 'off' ? ' <span class="tiny muted">(asked not to think)</span>' : '');
+      return head + '<span class="bz-ok">answers straight away</span>' +
+        (r.effort === 'none' ? ' <span class="tiny muted">(asked not to think' + refused + ')</span>' : '');
     }
-    return '<span class="muted">not checked yet</span>';
+    return head + '<span class="muted">not checked yet</span>';
   }
 
   function drawLLMStatus() {

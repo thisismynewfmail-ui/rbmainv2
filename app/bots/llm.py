@@ -36,14 +36,17 @@ hammered.
 **Reasoning models.**  Models that "think" first (Qwen3, GLM, DeepSeek R1,
 gpt-oss and the like) spend the reply's token allowance on notes before the
 answer, so a 48-token chat line can be used up before a word of it is
-written.  Every request asks the server not to think, under each name the
-servers read it from (``chat_template_kwargs`` for llama.cpp, vLLM and
-SGLang, ``template_vars`` for TabbyAPI, ``enable_thinking`` for
-text-generation-webui, and the template variable itself in completion mode);
-a server that refuses the extra fields is asked again without them.  After
-each probe one small request finds out whether the model thinks anyway, and
-if it does -- or any reply turns out to be all notes -- the requests get a
-thinking allowance on top of their reply length.  Notes are always taken out
+written.  The Reasoning effort setting (off by default, then minimal to
+extra high, or the model's own default) goes out with every request under
+each name the servers read it from: the OpenAI ``reasoning_effort`` field,
+``chat_template_kwargs`` (llama.cpp, vLLM, SGLang), ``template_vars``
+(TabbyAPI), ``enable_thinking`` (text-generation-webui) and the template
+variables themselves in completion mode.  A server that refuses a field, or
+a value (vLLM only takes low, medium and high), is asked again without it.
+A model asked to think gets a thinking allowance, scaled by the effort, on
+top of its reply length; after each probe one small request finds out
+whether the model thinks anyway when asked not to, and if it does -- or any
+reply turns out to be all notes -- it gets the allowance too.  Notes are always taken out
 of the answer: ``<think>`` blocks, a block the template opened itself (only
 ``</think>`` appears), a block the allowance cut off, the separate
 ``reasoning_content`` field and gpt-oss's analysis channel.
@@ -91,11 +94,16 @@ ALIASES = {"repetition_penalty": "repeat_penalty", "rep_pen": "repeat_penalty",
            "penalty_repeat": "repeat_penalty", "typical": "typical_p",
            "tfs": "tfs_z", "num_ctx": "n_ctx", "rep_pen_range": "repeat_last_n"}
 
-# Asks a hybrid reasoning model to answer straight away: Qwen3 and GLM read
-# enable_thinking, DeepSeek V3.1 and Granite read thinking, gpt-oss reads the
-# effort.  A template that does not use a variable simply ignores it.
-NO_THINK_VARS = {"enable_thinking": False, "thinking": False, "reasoning_effort": "low"}
-HINT_FIELDS = ("chat_template_kwargs", "template_vars", "enable_thinking")
+# The reasoning effort reaches the model two ways: the OpenAI field
+# ``reasoning_effort`` (vLLM, SGLang, LM Studio, Ollama, llama.cpp,
+# text-generation-webui), and the chat template's own variables, which a
+# server passes through as ``chat_template_kwargs`` (llama.cpp, vLLM, SGLang)
+# or ``template_vars`` (TabbyAPI).  Qwen3 and GLM read enable_thinking,
+# DeepSeek V3.1 and Granite read thinking, gpt-oss and newer models read
+# reasoning_effort; a template that does not use a variable ignores it.
+HINT_FIELDS = ("reasoning_effort", "chat_template_kwargs", "template_vars",
+               "enable_thinking")
+EFFORT_SCALE = {effort: scale for effort, _label, scale in bot_config.REASONING_EFFORTS}
 
 # gpt-oss's harmony format: special tokens that sit inside one turn and so
 # must never end a completion
@@ -496,31 +504,59 @@ class Client:
     # ========================================================= reasoning
     def _learned(self) -> Dict[str, Any]:
         model = str(bot_config.get("llm.model") or self.info.get("model") or "")
+        effort = self.effort()
         with self.lock:
             if self.learned.get("model") != model:
                 self.learned = {"model": model, "thinks": False, "opens": False,
-                                "rejected": [], "checked": "", "since": int(_now())}
+                                "rejected": [], "checked": "", "since": int(_now()),
+                                "effort": effort}
+            elif self.learned.get("effort") != effort:
+                # a field refused for one effort may be fine for another
+                self.learned["rejected"] = []
+                self.learned["effort"] = effort
             return self.learned
 
+    def effort(self) -> str:
+        value = bot_config.get("llm.reasoning_effort") or "none"
+        return value if value in EFFORT_SCALE else "none"
+
     def _thinking_off(self) -> bool:
-        return (bot_config.get("llm.thinking") or "off") == "off"
+        return self.effort() == "none"
+
+    def template_vars(self) -> Dict[str, Any]:
+        """The chat template's variables for the chosen effort."""
+        effort = self.effort()
+        if effort == "default":
+            return {}
+        if effort == "none":
+            # gpt-oss cannot stop thinking altogether: low is the least it does
+            return {"enable_thinking": False, "thinking": False, "reasoning_effort": "low"}
+        return {"enable_thinking": True, "thinking": True, "reasoning_effort": effort}
 
     def _hint_fields(self) -> Dict[str, Any]:
-        """The "do not think" switch, under every name a server reads it
-        from, less any this server has refused."""
-        if not self._thinking_off():
+        """The effort, under every name a server reads it from, less any this
+        server has refused."""
+        variables = self.template_vars()
+        if not variables:
             return {}
+        effort = self.effort()
         rejected = set(self._learned().get("rejected") or ())
-        fields = {"chat_template_kwargs": dict(NO_THINK_VARS),   # llama.cpp, vLLM, SGLang
-                  "template_vars": dict(NO_THINK_VARS),          # TabbyAPI
-                  "enable_thinking": False}                      # text-generation-webui
+        fields = {"reasoning_effort": effort,                     # the OpenAI field
+                  "chat_template_kwargs": dict(variables),        # llama.cpp, vLLM, SGLang
+                  "template_vars": dict(variables),               # TabbyAPI
+                  "enable_thinking": effort != "none"}            # text-generation-webui
         return {key: value for key, value in fields.items() if key not in rejected}
 
+    def allowance_tokens(self) -> int:
+        """The thinking allowance, scaled by the effort."""
+        base = max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
+        return int(round(base * EFFORT_SCALE.get(self.effort(), 1.0)))
+
     def allowance(self) -> int:
-        """Extra tokens for a model known to think before it answers."""
-        if not self._learned()["thinks"]:
+        """Extra tokens for a model asked to think, or seen thinking anyway."""
+        if self.effort() in ("none", "default") and not self._learned()["thinks"]:
             return 0
-        return max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
+        return self.allowance_tokens()
 
     def _soft_switch(self, messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """Qwen3's own switch, for servers that pass no template variables
@@ -554,8 +590,7 @@ class Client:
         started = _now()
         spec = {"messages": messages}
         try:
-            result = self.complete(messages, 32 + max(
-                512, int(bot_config.get("llm.reasoning_tokens") or 0)))
+            result = self.complete(messages, 32 + max(512, self.allowance_tokens()))
         except Exception as exc:
             learned["checked"] = ""
             self._remember("test", spec, None, "thinking check: %s" % exc, started)
@@ -576,7 +611,7 @@ class Client:
         result = self._request(messages, max_tokens + extra, timeout)
         if not result["text"] and result["thought"] and not extra and \
                 result.get("finish") == "length":
-            extra = max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
+            extra = self.allowance_tokens()
             if extra:
                 first_ms = int(result.get("ms") or 0)
                 result = self._request(messages, max_tokens + extra, timeout)
@@ -655,10 +690,10 @@ class Client:
                                      timeout)
         tries = 0
         while hints and status in (400, 422) and not _mentions_roles(payload) and tries < 2:
-            # a strict server that will not take fields it does not know: drop
-            # the ones it names (all of them if it names none) and ask again
-            said = payload if isinstance(payload, str) else json.dumps(payload)
-            drop = [key for key in hints if key in said] or list(hints)
+            # a strict server that will not take a field, or not this value
+            # (vLLM only knows low, medium and high): drop the ones it names
+            # (all of them if it names none) and ask again
+            drop = _refused(payload, list(hints))
             for key in drop:
                 body.pop(key, None)
                 hints.pop(key, None)
@@ -700,7 +735,7 @@ class Client:
         source = self.info.get("template") or ""
         if not source:
             raise LLMError("completion mode needs a chat template from the server")
-        variables = dict(NO_THINK_VARS) if self._thinking_off() else {}
+        variables = self.template_vars()
         try:
             prompt = chat_template.render_chat(
                 source, messages, True, self.info.get("bos") or "",
@@ -925,9 +960,8 @@ class Client:
                 "hints": len(learned.get("rejected") or ()) < len(HINT_FIELDS),
                 "rejected": list(learned.get("rejected") or ()),
                 "checked": learned.get("checked", ""),
-                "allowance": max(0, int(bot_config.get("llm.reasoning_tokens") or 0))
-                if learned.get("thinks") else 0,
-                "mode": bot_config.get("llm.thinking") or "off"}
+                "allowance": self.allowance(),
+                "effort": self.effort()}
 
     def template_text(self) -> str:
         return self.info.get("template") or ""
@@ -950,6 +984,23 @@ def _safe_call(func, *args) -> None:
     except Exception:
         import traceback
         traceback.print_exc()
+
+
+def _refused(payload: Any, keys: List[str]) -> List[str]:
+    """Which of ``keys`` an error names; all of them if it names none."""
+    named = set()
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    if isinstance(detail, list):
+        # FastAPI / pydantic: [{"loc": ["body", "reasoning_effort"], ...}]
+        for item in detail:
+            loc = item.get("loc") if isinstance(item, dict) else None
+            if isinstance(loc, (list, tuple)):
+                named.update(str(part) for part in loc)
+        found = [key for key in keys if key in named]
+        if found:
+            return found
+    said = payload if isinstance(payload, str) else json.dumps(payload)
+    return [key for key in keys if key in said] or list(keys)
 
 
 def _mentions_roles(payload: Any) -> bool:
