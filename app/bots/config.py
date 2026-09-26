@@ -112,6 +112,34 @@ Favourite worlds: {worlds}
 Joined BLOCKHAVEN: {joined}
 About me: {blurb}"""
 
+# Sections drawn in the dashboard as a submenu of another one.
+SUBSECTIONS = {"profiles": "ingame"}
+
+# The profile settings a new bot is dealt, one weighted draw per setting.
+# The keys under "privacy" are the site's own privacy fields
+# (``users.PRIVACY_FIELDS``); theme and messenger are the two account
+# switches on the settings page.
+VISIBILITY_OPTIONS = [["public", "Everyone"], ["friends", "Friends only"],
+                      ["private", "Only me"]]
+PROFILE_PRIVACY = [
+    # key, label, help, default shares
+    ("friends_list", "Friends list", "Who can see the bot's friends list.",
+     {"public": 80, "friends": 14, "private": 6}),
+    ("inventory", "Inventory", "Who can see the bot's inventory (pinned items "
+     "always show).", {"public": 72, "friends": 18, "private": 10}),
+    ("stats", "Deaths and K/D", "Who can see the bot's kills, deaths and K/D.",
+     {"public": 84, "friends": 10, "private": 6}),
+    ("server", "Server they are playing on", "Who can see which world and "
+     "server the bot is in (the site default is friends only).",
+     {"public": 40, "friends": 55, "private": 5}),
+    ("online", "Online status", "Who can see when the bot is online.",
+     {"public": 82, "friends": 12, "private": 6}),
+    ("wall", "Profile comments", "Who can leave comments on the bot's profile. "
+     "Other bots respect it too.", {"public": 86, "friends": 11, "private": 3}),
+]
+THEME_OPTIONS = [["auto", "Match the device"], ["dark", "Dark"], ["light", "Light"]]
+MESSENGER_OPTIONS = [["on", "Shown"], ["off", "Hidden"]]
+
 
 # ------------------------------------------------------------------ schema
 class Field:
@@ -142,6 +170,7 @@ SECTIONS = [
     ("presence", "Presence & Schedule", "When bots are online, and for how long."),
     ("worlds", "Joining Worlds", "How bots pick a world and an instance, and how empty instances sleep."),
     ("ingame", "In-Game Behaviour", "How bots play when a real player is in the round."),
+    ("profiles", "Profile Settings", "The privacy and account settings each new bot starts with."),
     ("friends", "Friends", "Bots adding and confirming friends."),
     ("chatter", "Chatter", "Profile comments, posts and likes between associated bots."),
     ("messages", "DMs & Chat", "Private messages and in-game chat."),
@@ -213,10 +242,6 @@ FIELDS: List[Field] = [
       "creation", "The site rate is 0.005 (0.5%).", 0, 1, 0.001),
     F("creation.female_share", "Female build share", "pct", 45, "creation",
       "", 0, 100, 1, "%"),
-    F("creation.public_server_share", "Show their server publicly", "pct", 40,
-      "creation", "Share of bots whose privacy lets anyone see the world "
-      "they are in (the rest show it to friends, like the site default).",
-      0, 100, 1, "%"),
     F("creation.seed_friendships", "Arrive with friends", "bool", True,
       "creation", "Older accounts are created with friendships they would "
       "already have made, back-dated, with associated bots."),
@@ -296,10 +321,12 @@ FIELDS: List[Field] = [
     F("worlds.max_live_bots", "Bots per live instance", "int", 20, "worlds",
       "Most bots allowed in an instance a real player is in -- the ones that "
       "actually run on the game host.", 0, 24, 1, "bots"),
-    F("worlds.sleep_grace_seconds", "Sleep after", "int", 45, "worlds",
-      "Once the last real player leaves, the instance keeps running this long "
-      "and then goes to sleep: its bots stay in the player counts, it stops "
-      "costing anything.", 5, 900, 5, "s"),
+    F("worlds.sleep_grace_seconds", "Sleep after", "int", 30, "worlds",
+      "Once the last real player leaves, the bots there stop where they stand "
+      "(nobody is watching, so they cost next to nothing) and after this long "
+      "the instance goes to sleep: its bots stay in the player counts and the "
+      "round carries on in closed form. Someone back before then finds the "
+      "round as they left it.", 5, 900, 5, "s"),
     F("worlds.progress_on_wake", "Wake mid-round", "bool", True, "worlds",
       "A sleeping instance a player walks into is mid-round: scores, "
       "captures, cart progress and restaurants already built, bots spread "
@@ -342,6 +369,17 @@ FIELDS: List[Field] = [
     F("ingame.anything_floor", "Anything can happen", "pct", 3, "ingame",
       "Every bot, however focused, keeps at least this chance of doing any "
       "behaviour it has.", 0, 50, 0.5, "%"),
+    F("ingame.vote", "Vote after a round", "pct", 85, "ingame",
+      "Chance a bot bothers to vote when the end-of-round shuffle vote opens "
+      "(more sociable personas more often).", 0, 100, 1, "%", scope="base"),
+    F("ingame.vote_yes", "Vote to shuffle", "pct", 45, "ingame",
+      "Base chance a voting bot says yes; the team that just lost leans yes, "
+      "the winners lean no, chaotic personas like a shake-up.", 0, 100, 1, "%",
+      scope="base"),
+    F("ingame.vote_delay", "Time before voting", "range", [2, 12], "ingame",
+      "Each bot clicks this long after the vote opens, so the votes trickle in "
+      "(slower for AFK-prone and newer players).", 0, 29, 0.5, "s",
+      scope="per-bot"),
     F("ingame.greet", "Say hello", "pct", 35, "ingame",
       "Chance a bot greets a real player who joins.", 0, 100, 1, "%",
       scope="base"),
@@ -353,6 +391,24 @@ FIELDS: List[Field] = [
       1, 20, 0.5, "Hz"),
     F("ingame.far_think_hz", "Think rate (far)", "float", 1.2, "ingame", "",
       0.1, 10, 0.1, "Hz"),
+
+    # ----------------------------------------------------------- profiles
+    F("profiles.vary", "Varied profile settings", "bool", True, "profiles",
+      "New bots are dealt their privacy and account settings from the "
+      "chances below, the way real players end up with a mix of them. Off: "
+      "every new bot keeps the site defaults. Bots that already exist keep "
+      "whatever they have.", toggle=True),
+    *[F("profiles." + key, label, "shares", dict(shares), "profiles", help,
+        0, 100, 1, "%", options=VISIBILITY_OPTIONS)
+      for key, label, help, shares in PROFILE_PRIVACY],
+    F("profiles.theme", "Site theme", "shares",
+      {"auto": 50, "dark": 32, "light": 18}, "profiles",
+      "The appearance setting on the bot's settings page.", 0, 100, 1, "%",
+      options=THEME_OPTIONS),
+    F("profiles.messenger", "Floating message bubble", "shares",
+      {"on": 88, "off": 12}, "profiles",
+      "The messenger switch on the bot's settings page.", 0, 100, 1, "%",
+      options=MESSENGER_OPTIONS),
 
     # ------------------------------------------------------------ friends
     F("friends.enabled", "Bots add friends", "bool", True, "friends",
@@ -435,8 +491,19 @@ FIELDS: List[Field] = [
     F("messages.chat_per_minute", "Chat budget per instance", "int", 8,
       "messages", "Most bot chat lines in one instance per minute.", 0, 120,
       1, "/min"),
-    F("messages.chat_context_lines", "Chat lines of context", "int", 30,
-      "messages", "", 2, 200, 1),
+    F("messages.chat_context_lines", "Chat lines of context", "int", 40,
+      "messages", "How much of the round's chat session a bot reads before it "
+      "types: chat, team chat and what the game announced, in order.", 2, 200, 1),
+    F("messages.own_lines", "Bots speak up on their own", "bool", True,
+      "messages", "While a real player is in the round, a bot now and then says "
+      "something nobody asked for: to someone in the server, about the round, a "
+      "joke -- so the chat is a conversation, not just answers."),
+    F("messages.own_lines_seconds", "Time between unprompted lines", "range",
+      [30, 90], "messages", "Per round; shorter while the round is buzzing after "
+      "an event, and never right on top of someone else's line.", 5, 900, 5, "s"),
+    F("messages.team_chat", "Team chat", "bool", True, "messages",
+      "Bots read their team's chat and answer it on team chat, where only the "
+      "team sees it."),
     F("messages.typing_cps", "Typing speed", "float", 7.0, "messages",
       "Characters a second; a reply appears after it would have been typed.",
       1, 40, 0.5, "chars/s"),
@@ -683,6 +750,8 @@ def clean(field: Field, value: Any) -> Any:
     if kind == "select":
         allowed = [o[0] for o in (field.options or [])]
         return value if value in allowed else field.default
+    if kind == "shares":
+        return _shares(field, value)
     if kind == "chances":
         if not isinstance(value, dict):
             return dict(field.default)
@@ -711,13 +780,52 @@ def clean(field: Field, value: Any) -> Any:
 
 
 # ------------------------------------------------------------------ storage
+def _shares(field: Field, value: Any) -> Dict[str, int]:
+    """Whole percentages for every option, adding up to exactly 100."""
+    options = [o[0] for o in (field.options or [])]
+    if not isinstance(value, dict):
+        return dict(field.default)
+    raw = {}
+    for key in options:
+        number = _num(field, value.get(key, 0))
+        raw[key] = max(0.0, number or 0.0)
+    total = sum(raw.values())
+    if total <= 0:
+        return dict(field.default)
+    exact = {k: raw[k] * 100.0 / total for k in options}
+    out = {k: int(exact[k]) for k in options}
+    # largest remainders take the points rounding left over
+    left = 100 - sum(out.values())
+    for key in sorted(options, key=lambda k: (-(exact[k] - out[k]), options.index(k)))[:left]:
+        out[key] += 1
+    return out
+
+
+# Settings that were renamed: old key -> (new key, convert old value)
+_LEGACY = {
+    "creation.public_server_share": (
+        "profiles.server",
+        lambda v: {"public": v, "friends": 100 - v, "private": 0}),
+}
+
+
 def _stored() -> Dict[str, Any]:
     raw = db.get_meta(META_KEY, "{}") or "{}"
     try:
         data = json.loads(raw)
     except (TypeError, ValueError):
         data = {}
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        return {}
+    for old, (new, convert) in _LEGACY.items():
+        if old in data:
+            value = data.pop(old)
+            if new not in data:
+                try:
+                    data[new] = convert(max(0.0, min(100.0, float(value))))
+                except (TypeError, ValueError):
+                    pass
+    return data
 
 
 def load() -> Dict[str, Any]:
@@ -811,7 +919,8 @@ def schema() -> Dict[str, Any]:
         elif field.options == "events":
             entry["options"] = speech_catalogue.options()
         fields.append(entry)
-    return {"sections": [{"id": s, "label": l, "blurb": b}
+    return {"sections": [{"id": s, "label": l, "blurb": b,
+                          "parent": SUBSECTIONS.get(s)}
                          for s, l, b in SECTIONS],
             "fields": fields}
 

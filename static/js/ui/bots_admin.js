@@ -15,7 +15,7 @@
   var ICONS = {
     stats: '▣', creation: '✚', personas: '☺', presence: '☼',
     worlds: '◉', ingame: '⌖', friends: '❤', chatter: '✎',
-    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦'
+    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦', profiles: '⚿'
   };
   var SCOPE_LABEL = { universal: 'Universal', 'per-bot': 'Per-bot range', base: 'Base × persona' };
   var SCOPE_HELP = {
@@ -365,8 +365,9 @@
     if (!nav || !BZ.schema) return;
     nav.innerHTML = BZ.schema.sections.map(function (sec) {
       var state = sectionOn(sec.id);
+      var cls = (BZ.sub === sec.id ? 'on' : '') + (sec.parent ? ' child' : '');
       return '<button type="button" data-bz-sub="' + sec.id + '" class="' +
-        (BZ.sub === sec.id ? 'on' : '') + '" title="' + esc(sec.blurb) + '">' +
+        cls.trim() + '" title="' + esc(sec.blurb) + '">' +
         '<span class="ico">' + (ICONS[sec.id] || '•') + '</span>' +
         '<span class="lbl">' + esc(sec.label) + '</span>' +
         '<span class="state ' + (state === null ? '' : (state ? 'on' : 'off')) + '"></span></button>';
@@ -384,16 +385,36 @@
     var html = '';
     var extra = {
       stats: statsPane, creation: creationPane, personas: personasPane, presence: presencePane,
-      worlds: worldsPane, ingame: null, friends: feedsPane, chatter: feedsPane,
+      worlds: worldsPane, ingame: null, profiles: profilesPane, friends: feedsPane, chatter: feedsPane,
       messages: feedsPane, llm: llmPane, prompts: promptsPane,
       modifiers: modifiersPane, speech: speechPane
     }[BZ.sub];
     html += '<div class="panel"><div class="panel-head purple"><span>' + (ICONS[BZ.sub] || '') + ' ' +
       esc(sec.label) + '</span><span class="head-links">' + esc(sec.blurb) + '</span></div>' +
-      '<div class="panel-body">' + featureCards(BZ.sub) + (extra ? extra() : '') + '</div></div>';
+      '<div class="panel-body">' + familyTabs() + featureCards(BZ.sub) + (extra ? extra() : '') + '</div></div>';
     if (BZ.sub !== 'stats') html += settingsPanel(BZ.sub);
     main.innerHTML = html;
     afterDraw();
+  }
+
+  /* A section with submenus (or a submenu) shows its family as tabs too. */
+  function familyTabs() {
+    var sections = BZ.schema.sections;
+    var mine = sectionInfo(BZ.sub);
+    var top = mine.parent || mine.id;
+    var family = sections.filter(function (s) { return s.id === top || s.parent === top; });
+    if (family.length < 2) return '';
+    return '<div class="bz-family">' + family.map(function (s) {
+      return '<button type="button" class="btn small' + (s.id === BZ.sub ? ' primary' : '') +
+        '" data-bz-sub="' + s.id + '">' + (ICONS[s.id] || '') + ' ' + esc(s.label) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function profilesPane() {
+    return '<p class="tiny">Every new bot is dealt each of these settings on its own, from the chances in ' +
+      'Settings below: an account can end up with a private inventory, a friends-only friends list and a dark ' +
+      'theme, like a person who changed just those. Its profile page, the market and other bots then treat it ' +
+      'exactly as they treat a person with the same settings.</p>';
   }
 
   function afterDraw() {
@@ -563,9 +584,11 @@
       ctl = chancesHtml(f, v || {});
     } else if (f.kind === 'weights') {
       ctl = weightsHtml(f, v || {});
+    } else if (f.kind === 'shares') {
+      ctl = sharesHtml(f, v || {});
     }
     if (f.kind !== 'range' && f.kind !== 'hours' && f.kind !== 'daterange' && f.kind !== 'weights' &&
-        f.kind !== 'chances') {
+        f.kind !== 'chances' && f.kind !== 'shares') {
       ctl = '<div class="bz-ctl">' + ctl + '</div>';
     }
     return '<div class="bz-field' + (wide ? ' wide' : '') + (Object.prototype.hasOwnProperty.call(BZ.dirty, f.key) ? ' dirty' : '') +
@@ -592,6 +615,52 @@
         '" data-event="' + esc(id) + '"><output>' + (pct ? pct + '%' : 'off') + '</output></div>';
     });
     return out + '</div>';
+  }
+
+  /* One slider per option; together they always add up to 100%. */
+  function sharesHtml(f, v) {
+    var options = f.options || [];
+    var bar = '<div class="bz-shares-bar" data-bz-sharebar="' + f.key + '">' + options.map(function (o, i) {
+      var pct = v[o[0]] || 0;
+      return '<i class="s' + i + '" style="width:' + pct + '%" title="' + esc(o[1]) + ' ' + pct + '%"></i>';
+    }).join('') + '</div>';
+    return '<div class="bz-shares">' + bar + options.map(function (o, i) {
+      var pct = v[o[0]] || 0;
+      return '<div class="bz-share"><span class="name"><b class="dot s' + i + '"></b>' + esc(o[1]) + '</span>' +
+        '<input type="range" min="0" max="100" step="1" value="' + pct + '" data-bz-share="' + f.key +
+        '" data-opt="' + esc(o[0]) + '"><output>' + pct + '%</output></div>';
+    }).join('') + '</div>';
+  }
+
+  /* Set one option and spread what is left over the others in proportion. */
+  function balanceShares(f, v, opt, pct) {
+    var keys = (f.options || []).map(function (o) { return o[0]; });
+    var out = {};
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    var others = keys.filter(function (k) { return k !== opt; });
+    var rest = 100 - pct;
+    var before = others.reduce(function (sum, k) { return sum + (v[k] || 0); }, 0);
+    out[opt] = pct;
+    var given = 0;
+    others.forEach(function (k, i) {
+      var share = before > 0 ? (v[k] || 0) / before : 1 / others.length;
+      var n = i === others.length - 1 ? rest - given : Math.round(rest * share);
+      n = Math.max(0, Math.min(rest - given, n));
+      out[k] = n;
+      given += n;
+    });
+    if (given < rest && others.length) out[others[0]] += rest - given;
+    return out;
+  }
+
+  function syncShares(key, v) {
+    var f = fieldOf(key);
+    (f.options || []).forEach(function (o, i) {
+      var input = document.querySelector('[data-bz-share="' + key + '"][data-opt="' + o[0] + '"]');
+      if (input) { input.value = v[o[0]] || 0; input.nextElementSibling.textContent = (v[o[0]] || 0) + '%'; }
+      var seg = document.querySelector('[data-bz-sharebar="' + key + '"] .s' + i);
+      if (seg) { seg.style.width = (v[o[0]] || 0) + '%'; seg.title = o[1] + ' ' + (v[o[0]] || 0) + '%'; }
+    });
   }
 
   function weightsHtml(f, v) {
@@ -1016,8 +1085,9 @@
       '</b><span class="muted tiny">newest first · click a bot to open it</span></div>' +
       '<div class="bz-feed tall" id="bz-feed-db"><span class="muted tiny">Loading…</span></div></div>' +
       '<div><div class="bz-feed-head"><b>Since the server started</b></div><div class="bz-status compact" id="bz-feed-stats"></div>' +
-      (BZ.sub === 'messages' ? '<div class="bz-feed-head" style="margin-top:10px"><b>In-game chat answered</b></div>' +
-        '<div class="bz-feed" id="bz-feed-chat"></div>' : '') + '</div></div>';
+      (BZ.sub === 'messages' ? '<div class="bz-feed-head" style="margin-top:10px"><b>Live rounds\' chat</b>' +
+        '<span class="muted tiny">one session per round, gone when its players leave</span></div>' +
+        '<div id="bz-feed-chat"></div>' : '') + '</div></div>';
   }
 
   function person(name, id, bot) {
@@ -1055,11 +1125,18 @@
     }
     var chat = el('bz-feed-chat');
     if (chat) {
-      var lines = (game.recent || []).slice().reverse();
-      chat.innerHTML = lines.length ? lines.map(function (r) {
-        return '<div class="row"><span class="t">' + ago(r.at) + '</span><span class="k">' + esc(r.world) + '</span><b>' +
-          esc(r.who) + '</b> <span class="muted">to</span> ' + esc(r.to) + '<div class="say">' + esc(r.text) + '</div></div>';
-      }).join('') : '<span class="muted tiny">No bot has answered anybody in a round yet.</span>';
+      var sessions = game.sessions || [];
+      chat.innerHTML = sessions.length ? sessions.map(function (room) {
+        return '<div class="bz-session"><div class="bz-session-head"><b>' + esc(room.world_name) + '</b> <span class="muted">#' +
+          room.inst + ' · ' + esc((room.people || []).join(', ')) + ' with ' + num(room.bots) + ' bots · ' +
+          num(room.lines) + ' lines · since ' + ago(room.since).replace(' ago', '') + '</span></div>' +
+          (room.tail || []).map(function (l) {
+            if (l.kind === 'event') return '<div class="bz-line event">* ' + esc(l.text) + '</div>';
+            return '<div class="bz-line' + (l.bot ? ' bot' : '') + (l.pending ? ' pending' : '') + '"><b>' + esc(l.who) +
+              '</b>' + (l.kind === 'team' ? ' <span class="muted">(team)</span>' : '') + ': ' + esc(l.text) +
+              (l.pending ? ' <span class="muted">typing…</span>' : '') + '</div>';
+          }).join('') + '</div>';
+      }).join('') : '<span class="muted tiny">No round has a real player in it right now.</span>';
     }
     var stats = el('bz-feed-stats');
     if (stats) {
@@ -1419,6 +1496,11 @@
         t.nextElementSibling.textContent = Number(t.value) ? t.value + '%' : 'off';
         t.parentNode.classList.toggle('off', !Number(t.value));
         markDirty(ckey, chances);
+      } else if (t.dataset.bzShare) {
+        var skey = t.dataset.bzShare;
+        var shares = balanceShares(fieldOf(skey), current(skey) || {}, t.dataset.opt, Number(t.value));
+        syncShares(skey, shares);
+        markDirty(skey, shares);
       } else if (t.dataset.bzWeight) {
         var wkey = t.dataset.bzWeight;
         var weights = JSON.parse(JSON.stringify(current(wkey) || {}));

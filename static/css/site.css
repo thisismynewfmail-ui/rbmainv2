@@ -2114,6 +2114,7 @@ table.bz-table tr:hover td { background: var(--bz-bot-soft); }
     -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .bz-nav::-webkit-scrollbar { display: none; }
   .bz-nav button { width: auto; flex: 0 0 auto; }
+  .bz-nav button.child { margin-left: 0; width: auto; }
   .bz-form { grid-template-columns: minmax(0, 1fr); }
   .bz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); flex-basis: 100%; }
   .bz-master { flex: 1 1 100%; }
@@ -2181,6 +2182,33 @@ table.bz-table tr:hover td { background: var(--bz-bot-soft); }
   color: var(--bz-bot); }
 .bz-chance.off .name, .bz-chance.off output { color: var(--ink-soft); font-weight: normal; }
 .bz-chance input[type=range] { width: 100%; accent-color: var(--bz-bot); }
+/* profile setting shares: options that always add up to 100% */
+.bz-shares { display: flex; flex-direction: column; gap: 2px; }
+.bz-shares-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 2px 0 4px;
+  background: var(--panel-alt); border: 1px solid var(--line-soft); }
+.bz-shares-bar i { display: block; height: 100%; transition: width .15s; }
+.bz-shares .s0 { background: var(--bz-online); }
+.bz-shares .s1 { background: var(--bz-target); }
+.bz-shares .s2 { background: var(--bz-offline); }
+.bz-share { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: center; }
+.bz-share .name { font-size: 11px; color: var(--ink-strong); min-width: 0; }
+.bz-share .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px;
+  vertical-align: 0; }
+.bz-share output { font-size: 11px; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums;
+  color: var(--bz-bot); }
+.bz-share input[type=range] { width: 100%; accent-color: var(--bz-bot); }
+.bz-nav button.child { margin-left: 14px; width: calc(100% - 14px); font-size: 11px; padding-top: 4px;
+  padding-bottom: 4px; }
+.bz-family { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 table.bz-mod-table { width: 100%; }
 table.bz-mod-table td, table.bz-mod-table th { font-size: 11px; vertical-align: top; }
 .bz-meter.wide { width: 70px; display: block; }
+
+/* live round chat sessions */
+.bz-session { border: 1px solid var(--line-soft); border-radius: 6px; background: var(--panel-alt);
+  padding: 6px 8px; margin-bottom: 6px; max-height: 280px; overflow: auto; }
+.bz-session-head { font-size: 11px; margin-bottom: 4px; }
+.bz-line { font-size: 11px; padding: 1px 0; overflow-wrap: anywhere; }
+.bz-line.bot b { color: var(--bz-bot); }
+.bz-line.event { color: var(--ink-soft); font-style: italic; }
+.bz-line.pending { opacity: .7; }

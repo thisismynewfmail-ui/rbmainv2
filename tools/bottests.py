@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import io
 import contextlib
+import json
 import math
 import os
 import random
@@ -292,6 +293,30 @@ def _inside_solid(inst, pos) -> bool:
     return False
 
 
+def _vote_run() -> Dict[str, Any]:
+    """End a round at once and watch the bots vote in the shuffle vote."""
+    import app.game.instance as engine
+    seen: Dict[str, Any] = {"opened": None, "times": []}
+
+    def end_now(inst):
+        inst.end_round("red", "test")
+        original = inst.broadcast_vote
+
+        def broadcast_vote():
+            votes = sum(1 for p in inst.players.values() if p.brain is not None and p.vote is not None)
+            if inst.vote_open and seen["opened"] is None:
+                seen["opened"] = engine.now()
+            if inst.vote_open and votes > len(seen["times"]):
+                seen["times"].extend([engine.now()] * (votes - len(seen["times"])))
+            original()
+        inst.broadcast_vote = broadcast_vote
+    r = run_world("capture_the_flag", 30.0, 12, setup=end_now, seed=5)
+    opened = seen["opened"] or 0.0
+    seen["delays"] = [round(t - opened, 1) for t in seen["times"]]
+    seen["bots"] = sum(1 for p in r["inst"].players.values() if p.brain is not None)
+    return seen
+
+
 def _carrier_run() -> int:
     """One bot on the enemy flag with the road home clear: it must pick the
     flag up and carry it all the way, whatever mood it was in."""
@@ -353,6 +378,18 @@ def test_live(seconds: float) -> None:
                   % (label, taken, r["at_flag"] // 20), taken > 0 or r["at_flag"] >= 40,
                   r["system"][-5:])
             if world_id == "capture_the_flag":
+                idle = run_world("capture_the_flag", 20.0, 14, watcher=False)
+                moved = sum(1 for b in idle["inst"].bots.brains.values() if b.waypoints)
+                check("%s: with nobody real in the round the bots hold still (%.2f ms/tick)"
+                      % (label, idle["ms_per_tick"]),
+                      idle["inst"].bots.idle_ticks > 300 and idle["kills"] == 0 and
+                      idle["ms_per_tick"] < r["ms_per_tick"], (idle["kills"], moved))
+                votes = _vote_run()
+                delays = votes["delays"]
+                check("%s: bots vote in the shuffle vote (%d of %d, after %s s)"
+                      % (label, len(delays), votes["bots"], delays),
+                      len(delays) >= votes["bots"] // 3 and min(delays or [0]) >= 1.5
+                      and max(delays or [0]) - min(delays or [0]) >= 2.0, delays)
                 caps = _carrier_run()
                 check("%s: a bot holding the flag runs it home and scores" % label,
                       caps > 0, "captures %d" % caps)
@@ -518,12 +555,39 @@ def test_chat() -> None:
           state)
     check("host: and the bot's own view (kills, job)", "kills" in me and "role" in me, me)
 
+    # ---- the host's side of the session
+    inst = r["inst"]
+    runner = inst.bots
+    runner._human_check = 0.0
+    runner.tick(0.05)
+    runner.wants_report = True
+    first = runner.chat_report() or {}
+    check("host: a session starts with the first real player",
+          bool(first.get("session")) and first.get("session") == runner.session, first)
+    got: List[str] = []
+    for n in range(300):
+        inst.chat_log.append({"t": "chat", "from": "watcher", "id": 1, "uid": 1, "team": "blue",
+                              "m": "line %d" % n, "kind": "all", "at": time.time() + n * 1e-4})
+        del inst.chat_log[:-120]
+        if n % 7 == 0:
+            got += [l["text"] for l in (runner.chat_report() or {}).get("lines", [])]
+    got += [l["text"] for l in (runner.chat_report() or {}).get("lines", [])]
+    check("host: every line reaches the bots, even once the round's log is full",
+          got == ["line %d" % n for n in range(300)], len(got))
+    for pid in [p.pid for p in inst.players.values() if p.brain is None]:
+        inst.remove_player(pid)
+    runner._human_check = 0.0
+    runner.tick(0.05)
+    last = runner.chat_report() or {}
+    check("host: the session ends when the last real player leaves",
+          last.get("ended") and last.get("session") == first.get("session"), last)
+
     # ---- the relay, end to end with the model stubbed out
     bots = {11: "ann", 12: "bob", 13: "cara"}
     stub = _StubDirector(bots)
     relay = gamechat.Relay(stub)
     sent: List[Any] = []
-    relay._send = lambda room, uid, text, delay: sent.append((uid, text, delay))
+    relay._send = lambda room, uid, text, delay, team=False: sent.append((uid, text, delay))
     fake = _StubLLM()
     real_client = llm.client
     llm.client = lambda: fake
@@ -594,6 +658,78 @@ def test_chat() -> None:
         check("bots: a real player speaking resets the limit",
               relay.rooms[("capture_the_flag", 4)].chain == 0)
 
+        # ---- one conversation per round: the session
+        bot_config.save({"speech.enabled": False, "messages.chat_reply_chance": 100,
+                         "modifiers.bots_talk": False, "messages.chat_per_minute": 100})
+        relay.rooms.clear()
+        sent.clear()
+        fake.prompts.clear()
+        line = lambda who, uid, text, bot=False, **kw: dict(
+            {"who": who, "uid": uid, "text": text, "team": "blue", "at": time.time(), "bot": bot}, **kw)
+        for attempt in range(6):            # a named bot answers 92% of the time
+            relay.rooms.clear()
+            relay.on_report("capture_the_flag", dict(base, session="s1", lines=[
+                line("Fox", 1, "ann you there?")], speech=[],
+                events=[{"at": time.time() - 1, "text": "Fox joined the server."}]))
+            room = relay.rooms[("capture_the_flag", 4)]
+            if any(l.get("bot") for l in room.lines):
+                break
+        kinds = [l.get("kind") for l in room.lines]
+        check("session: chat and what the game announced share one transcript, in order",
+              kinds[:2] == ["event", "chat"], kinds)
+        said = [l for l in room.lines if l.get("bot")]
+        check("session: a bot's answer is in the transcript before it has finished typing",
+              said and said[0].get("pending"), [dict(l) for l in room.lines])
+        count = len(room.lines)
+        relay.on_report("capture_the_flag", dict(base, session="s1", lines=[
+            line("ann", 11, said[0]["text"], bot=True, team="red")], speech=[]))
+        check("session: when the host shows the line it is not added a second time",
+              len(room.lines) == count and not room.lines[-1].get("pending"), len(room.lines))
+        fake.prompts.clear()
+        for attempt in range(6):            # a named bot answers 92% of the time
+            relay.on_report("capture_the_flag", dict(base, session="s1", lines=[
+                line("Fox", 1, "bob what about you")], speech=[]))
+            if fake.prompts:
+                break
+        text = " ".join(m["content"] for p in fake.prompts for m in p["request"]["messages"])
+        check("session: the next bot reads the whole conversation so far",
+              "ann you there?" in text and said[0]["text"] in text and "Fox joined" in text,
+              text[-900:])
+        relay.on_report("capture_the_flag", {"inst": 4, "session": "s1", "ended": True})
+        check("session: it ends when the last real player leaves",
+              ("capture_the_flag", 4) not in relay.rooms)
+        fake.prompts.clear()
+        relay.on_report("capture_the_flag", dict(base, session="s2", lines=[
+            line("Mia", 2, "hi")], speech=[]))
+        text = " ".join(m["content"] for p in fake.prompts for m in p["request"]["messages"])
+        check("session: the next group of players starts from nothing",
+              "ann you there?" not in text and "hi" in text, text[-200:])
+
+        # team chat: only the team sees it, and it is answered there
+        relay.rooms.clear()
+        sent_team: List[Any] = []
+        relay._send = lambda room, uid, text, delay, team=False: sent_team.append((uid, team))
+        relay.on_report("capture_the_flag", dict(base, session="s3", lines=[
+            line("Fox", 1, "someone cover me on the left", team_only=True)], speech=[]))
+        check("team chat: answered by a teammate, on team chat",
+              sent_team and all(uid == 12 and team for uid, team in sent_team), sent_team)
+        room = relay.rooms[("capture_the_flag", 4)]
+        check("team chat: the other team's bots cannot see it",
+              all(l.get("kind") != "team" for l in relay._visible(room, 11)))
+        relay._send = lambda room, uid, text, delay, team=False: sent.append((uid, text, delay))
+
+        # bots speak up on their own while people play
+        fake.prompts.clear()
+        sent.clear()
+        room.next_own = time.time() - 1
+        room.last_line_at = time.time() - 30
+        bot_config.save({"messages.own_lines": True})
+        relay.tick(time.time())
+        text = " ".join(m["content"] for p in fake.prompts for m in p["request"]["messages"])
+        check("session: bots say things nobody asked for, now and then",
+              len(sent) == 1 and "Nobody is waiting on you" in text, (sent, text[-200:]))
+        bot_config.save({"speech.enabled": True, "modifiers.bots_talk": True})
+
         # the model down: speech events still get a stock line
         bot_config.save({"speech.enabled": True, "speech.cooldown_seconds": 0})
         fake.up = False
@@ -611,6 +747,73 @@ def test_chat() -> None:
 
 
 # ===================================================================== scale
+def test_profiles() -> None:
+    print("\n== profiles ==")
+    from app import bootstrap, db
+    with contextlib.redirect_stdout(io.StringIO()):
+        bootstrap.seed()
+    from app.bots import config as bot_config, factory
+    from app.models import users
+    field = bot_config.FIELDS_BY_KEY["profiles.inventory"]
+    cleaned = bot_config.clean(field, {"public": 50, "friends": 50, "private": 50, "bogus": 9})
+    check("profiles: shares are cleaned to whole percents adding to 100",
+          sum(cleaned.values()) == 100 and set(cleaned) == {"public", "friends", "private"}
+          and max(cleaned.values()) - min(cleaned.values()) <= 1, cleaned)
+    check("profiles: an all-zero table falls back to the default",
+          bot_config.clean(field, {"public": 0, "friends": 0, "private": 0}) == field.default)
+    check("profiles: every privacy field has a setting",
+          all(("profiles." + k) in bot_config.FIELDS_BY_KEY for k in users.PRIVACY_FIELDS))
+    sections = {s["id"]: s for s in bot_config.schema()["sections"]}
+    check("profiles: shown as a submenu of In-Game Behaviour",
+          sections.get("profiles", {}).get("parent") == "ingame")
+    # the old single "public server" share carries over
+    db.set_meta(bot_config.META_KEY, json.dumps({"creation.public_server_share": 70}))
+    bot_config.save({})
+    check("profiles: the old public-server share carries over",
+          bot_config.get("profiles.server") == {"public": 70, "friends": 30, "private": 0},
+          bot_config.get("profiles.server"))
+    bot_config.reset("profiles")
+    check("profiles: reset returns the defaults",
+          bot_config.get("profiles.server") == bot_config.FIELDS_BY_KEY["profiles.server"].default)
+    bot_config.save({"profiles.inventory": {"public": 20, "friends": 30, "private": 50},
+                     "profiles.theme": {"auto": 0, "dark": 100, "light": 0},
+                     "profiles.messenger": {"on": 60, "off": 40}})
+    rng = random.Random(11)
+    draws = [factory.profile_settings(rng) for _ in range(6000)]
+    share = {v: sum(1 for p, _t, _m in draws
+                    if p.get("inventory", "public") == v) / 6000.0 * 100
+             for v in ("public", "friends", "private")}
+    check("profiles: inventory draws follow the chances",
+          abs(share["public"] - 20) < 3 and abs(share["friends"] - 30) < 3
+          and abs(share["private"] - 50) < 3, share)
+    check("profiles: a 100% theme is always dealt",
+          all(t == "dark" for _p, t, _m in draws))
+    off = sum(1 for _p, _t, m in draws if m.get("messenger") is False) / 60.0
+    check("profiles: messenger switch follows its chance", abs(off - 40) < 3, "%.1f%%" % off)
+    check("profiles: only settings that differ from the default are stored",
+          all(v != users.PRIVACY_FIELDS[k] for p, _t, _m in draws for k, v in p.items()))
+    bot_config.save({"llm.enabled": False, "creation.username_source": "procedural",
+                     "creation.profile_source": "procedural"})
+    made = factory.create_batch(300, random.Random(12), None)
+    rows = [dict(r) for r in db.query("SELECT * FROM users WHERE is_bot=1")]
+    private = sum(1 for r in rows if users.privacy_of(r)["inventory"] == "private")
+    hidden = sum(1 for r in rows if not users.prefs_of(r)["messenger"])
+    check("profiles: created bots carry the settings",
+          len(made) == 300 and len(rows) >= 300 and 0.35 < private / len(rows) < 0.65
+          and all(users.theme_of(r) == "dark" for r in rows) and 0.25 < hidden / len(rows) < 0.55,
+          "%d/%d private, %d hidden" % (private, len(rows), hidden))
+    owner = rows[0]
+    check("profiles: the site honours a bot's private inventory",
+          users.can_view(dict(owner, privacy=json.dumps({"inventory": "private"})),
+                         "inventory", 0, False) is False)
+    bot_config.save({"profiles.vary": False})
+    plain = [factory.profile_settings(rng) for _ in range(200)]
+    check("profiles: switched off, every bot keeps the site defaults",
+          all(p == {} and t == "auto" and m == {} for p, t, m in plain))
+    bot_config.reset("profiles")
+    db.execute("DELETE FROM users WHERE is_bot=1")
+
+
 def test_scale(count: int) -> None:
     print("\n== scale (%d bots) ==" % count)
     from app import bootstrap
@@ -667,7 +870,7 @@ def test_scale(count: int) -> None:
 def main(argv: List[str]) -> int:
     global VERBOSE
     parser = argparse.ArgumentParser()
-    parser.add_argument("groups", nargs="*", default=["unit", "chat", "live", "scale"])
+    parser.add_argument("groups", nargs="*", default=["unit", "chat", "live", "profiles", "scale"])
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--bots", type=int, default=20000)
     parser.add_argument("--seconds", type=float, default=150.0)
@@ -680,6 +883,8 @@ def main(argv: List[str]) -> int:
         test_chat()
     if "live" in args.groups:
         test_live(args.seconds)
+    if "profiles" in args.groups:
+        test_profiles()
     if "scale" in args.groups:
         test_scale(args.bots)
     print("\n%d passed, %d failed" % (len(PASSED), len(FAILED)))

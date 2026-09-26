@@ -1179,6 +1179,14 @@ class GameInstance:
                  "admin": player.admin}
         if team_only:
             self.broadcast(entry, team=player.team)
+            if self.bots is not None:
+                # the team's bots read team chat too
+                self.bots.on_team_chat(entry)
+                if player.brain is None:
+                    self.bots.wants_report = True
+                    wake = getattr(self.host, "wake_heartbeat", None)
+                    if wake is not None:
+                        wake()
         else:
             self.chat_log.append(entry)
             del self.chat_log[:-120]
@@ -1223,6 +1231,8 @@ class GameInstance:
             "Round over -- vote to shuffle the teams! (%ds)"
             % config.SHUFFLE_VOTE_SECONDS)
         self.broadcast_vote()
+        if self.bots is not None:
+            self.bots.on_vote_start(config.SHUFFLE_VOTE_SECONDS)
 
     def resolve_vote(self) -> None:
         from .. import config

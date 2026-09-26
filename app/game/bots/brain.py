@@ -59,6 +59,8 @@ QUICK = {
              "someone get the flag back", "carrier mid"],
     "round": ["gg", "gg wp", "ggs", "good game", "gg all", "gg everyone", "gg ez"],
     "leave": ["gtg", "bye", "cya", "brb", "gn", "bye guys"],
+    "vote_yes": ["shuffle", "shuffle pls", "yes shuffle", "scramble", "vote yes", "mix it up"],
+    "vote_no": ["no shuffle", "keep teams", "nah dont shuffle", "teams are fine", "vote no"],
     "build": ["nice", "big upgrade", "we're rich", "lets go", "one more"],
     "tilt": ["this is so unfair", "im done", "ok im trying now", "sweats everywhere",
              "cant win this"],

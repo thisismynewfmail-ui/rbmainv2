@@ -788,8 +788,11 @@ So there are two tiers.
   is asleep it is **hydrated** on the game host: the score, the timer, a flag
   already out, the cart part-way up the track, restaurants already built, and
   the bots spread across the map rather than stacked on a spawn. Once the last
-  real player leaves, the round keeps running for `Sleep after` seconds (45 by
-  default) and then goes back to sleep, bots and score included.
+  real player leaves, the bots in it stand still -- nobody is there to see
+  them, so they stop thinking, moving and fighting, and a round of bots costs
+  next to nothing on the game host -- and after `Sleep after` seconds (30 by
+  default) the round goes back to sleep, bots and score included. Either way
+  it keeps counting as a full, running instance everywhere players look.
 - **Live bots** (`app/game/bots/`) only exist in rounds with a real player.
   Each has a brain that perceives, keeps goals scored by utility and its
   persona, and moves on a nav grid built once per map (cached in
@@ -872,14 +875,32 @@ Settings carry a scope badge so it is clear how each is applied:
 - **Direct messages.** A bot answers DMs once it is online, after a
   human-looking delay -- shorter once the two of them are actually talking
   (see Dynamic Modifiers below).
-- **In-game chat.** In a live round bots answer when they are spoken to or
-  named, greet people who join, react to what happens in the round and to
-  each other, and fire off quick reactions (a kill, a death) without the
-  model. Every line they write has the round's state underneath it as
-  background -- the score, where both flags are and who has them, the cart's
-  progress and checkpoints, the clock, the restaurants, and the bot's own
-  team, job and kills -- which it may bring up or not, the way a player knows
-  the score without announcing it in every message.
+- **In-game chat.** Each live round has **one conversation**: a single
+  transcript per instance, shared by every bot in it, holding what everyone
+  said -- people and bots, in order -- with the kills, captures and other
+  announcements the round made in between. Every bot that speaks reads that
+  same transcript (the last `Chat lines of context`, 40 by default, within the
+  context limit), so a bot answering a question knows what the other bots
+  already said, and its own line goes into the transcript the moment it is
+  written, before it has finished "typing", so the next bot does not say the
+  same thing. The conversation starts when the first real player is in the
+  round and is thrown away when the last one leaves; the next visitor starts
+  a new one. Bots answer when they are spoken to or named, greet people who
+  join, react to what happens in the round and to each other, now and then
+  speak up on their own when the chat has gone quiet (`Bots speak up
+  on their own`, every 30--90 s), answer team chat in team chat (the other
+  team never sees it), and fire off quick reactions (a kill, a death)
+  without the model. Every line they write has the round's state underneath
+  it as background -- the score, where both flags are and who has them, the
+  cart's progress and checkpoints, the clock, the restaurants, and the bot's
+  own team, job and kills -- which it may bring up or not, the way a player
+  knows the score without announcing it in every message. The Messages tab
+  shows each live round's conversation as it happens.
+- **Votes.** When a round ends in a team-scramble vote, most bots vote
+  (`Vote after a round`, 85% × how social they are), each after its own pause
+  (`Time before voting`, 2--12 s, longer for AFK types and newer players): the
+  losing side leans towards a scramble and the winners against it, and now
+  and then one says so in chat.
 
 ### Dynamic Modifiers
 
@@ -951,6 +972,20 @@ Each bot has its own folder, `data/bots/accounts/<shard>/<id>-<name>/`, with
 given the log for that bot and that conversation only. The dashboard's bot
 drawer reads them.
 
+### Profile settings
+
+Each new bot is dealt its own privacy and account settings, the way real
+players end up with a mix: the **Profile Settings** submenu under In-Game
+Behaviour has one row for every privacy setting a profile has (friends list,
+inventory, deaths and K/D, the server they are on, online status, who may
+comment) with the chance of *Everyone*, *Friends only* and *Only me*, plus
+the site theme and the floating message bubble. The chances in a row always
+add up to 100%, and each setting is drawn on its own. The site then treats
+the bot exactly as it treats a person with the same settings -- its profile
+page, the market and other bots' comments all respect them. Bots that
+already exist keep what they have; switched off, new bots keep the site
+defaults.
+
 ### Creating bots
 
 **Bot Creation** generates bots on demand (type a number, press Generate) or,
@@ -1004,15 +1039,20 @@ tools/mockllm.py --port 5055            # a stand-in language model endpoint
 
 `bottests.py` needs no server and works in a throwaway data directory. The
 unit group covers names, personas, the chat-template renderer and the
-sleeping-round models; the chat group checks the Dynamic Modifiers (momentum
-and its decay, chat heat, the bot-to-bot limit), each speech event from both
-sides, the events and game state the host reports, and the chat relay end to
-end with the language model stubbed out; the live group plays every world
-headless on a simulated clock with bots and a stand-in real player and checks
-that they move, fight, take objectives and wake mid-round, that no bot is ever
-inside the map's geometry or needs rescuing from the void, and that ledge
-jumps land on the ledge; the scale group creates
-thousands of bots, loads them and times the director. `mockllm.py` answers
+sleeping-round models; the chat group checks the one conversation per round
+(lines past the host's own buffer, a bot's line in the transcript before it
+is sent, team chat, the conversation ending with the last player), the
+Dynamic Modifiers (momentum and its decay, chat heat, the bot-to-bot limit),
+each speech event from both sides, the events and game state the host
+reports, and the chat relay end to end with the language model stubbed out;
+the live group plays every world headless on a simulated clock with bots and
+a stand-in real player and checks that they move, fight, take objectives and
+wake mid-round, that no bot is ever inside the map's geometry or needs
+rescuing from the void, that ledge jumps land on the ledge, that bots vote
+after a round with staggered delays, and that a round with no real player
+stands still; the profiles group checks the profile-setting chances and that
+created bots carry them; the scale group creates thousands of bots, loads
+them and times the director. `mockllm.py` answers
 like a llama.cpp server (model list, `/props` with a chat template and
 sampling, `/tokenize`, chat and completions); point the Language Model tab at
 `http://127.0.0.1:5055/v1` to work without a real model, and use `--dupes` to

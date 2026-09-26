@@ -46,13 +46,20 @@ class BotRunner:
         self.chat_due: List[Any] = []
         self.quick_times: List[float] = []
         self.reported_chat = len(instance.chat_log)
-        self.events: List[str] = []
+        self.last_chat = instance.chat_log[-1] if instance.chat_log else None
+        self.team_lines: List[Dict[str, Any]] = []   # team chat, which the log leaves out
+        self.session = ""                           # this round's chat session
+        self.sessions_ended: List[str] = []
+        self.events: List[Dict[str, Any]] = []
         self.speech: List[Dict[str, Any]] = []      # speech events not yet reported
         self.carriers: Dict[str, Any] = {}          # flag team -> (name, team) carrying it
         self.streaks: Dict[int, int] = {}           # pid -> kills since last death
         self.said_time_low = False
         self.said_final = False
         self._clock_check = 0.0
+        self.votes_due: List[Any] = []              # (when, pid, yes)
+        self.idle_ticks = 0                         # ticks spent with nobody real here
+        self.last_winner = ""
         self.path_tokens = 0
         self.sleep_at = 0.0
         self.wants_report = False
@@ -109,8 +116,26 @@ class BotRunner:
         if moment - self._human_check > 0.5:
             self._human_check = moment
             self.humans = [p for p in inst.players.values() if p.brain is None]
+            if self.humans:
+                self._ensure_session()
+            elif self.session:
+                # the last person left: the round's conversation ends with them
+                self.sessions_ended.append(self.session)
+                self.session = ""
+                self.team_lines = []
+                self.wants_report = True
         if self.nav is not None and not self.nav.ready:
             self.nav.build_async()
+        if not self.humans:
+            # nobody real in the round: nobody to play for.  The bots hold
+            # still (kept "connected") until someone comes back or the host
+            # puts the round to sleep, so an all-bot round costs next to
+            # nothing even before it sleeps.
+            for brain in self.brains.values():
+                brain.p.last_message = moment
+                brain.p.last_input = moment
+            self.idle_ticks += 1
+            return
         self.path_tokens = min(3, self.path_tokens + 1)
         active = bool(self.cfg.get("system_enabled", True))
         radius = float(self.cfg.get("near_radius", 170) or 170)
@@ -135,6 +160,8 @@ class BotRunner:
                     traceback.print_exc()
         if self.chat_due:
             self._flush_chat(moment)
+        if self.votes_due:
+            self._cast_votes(moment)
         if self.humans and moment - self._clock_check >= 1.0:
             self._clock_check = moment
             self._check_clock()
@@ -147,7 +174,21 @@ class BotRunner:
         return 250
 
     # ================================================================ chat
-    def queue_chat(self, brain: Brain, text: str, delay: float, quick: bool = False) -> None:
+    def _ensure_session(self) -> None:
+        """A chat session starts when the first real player is in the round:
+        everything said or seen before that belongs to nobody."""
+        if self.session:
+            return
+        log = self.instance.chat_log
+        self.last_chat = log[-1] if log else None
+        self.reported_chat = len(log)
+        self.team_lines = []
+        self.events = []
+        self.session = "%d-%x-%04x" % (self.instance.instance_id, int(time.time() * 1000),
+                                       self.rng.randrange(0x10000))
+
+    def queue_chat(self, brain: Brain, text: str, delay: float, quick: bool = False,
+                   team: bool = False) -> None:
         moment = now()
         if quick:
             limit = min(4, int(self.cfg.get("messages_chat_per_minute", 8) or 8))
@@ -155,61 +196,105 @@ class BotRunner:
             if len(self.quick_times) >= limit:
                 return
             self.quick_times.append(moment)
-        self.chat_due.append((moment + max(0.0, delay), brain.p.pid, text))
+        self.chat_due.append((moment + max(0.0, delay), brain.p.pid, text, team))
         # people stop moving to type anything longer than a word or two
         if len(text) > 10:
             brain.typing_until = max(brain.typing_until, moment + min(6.0, delay))
 
-    def say_for(self, uid: int, text: str, delay: float) -> bool:
+    def say_for(self, uid: int, text: str, delay: float, team: bool = False) -> bool:
         for brain in self.brains.values():
             if brain.uid == uid:
-                self.queue_chat(brain, text, delay)
+                self.queue_chat(brain, text, delay, team=team)
                 return True
         return False
 
     def _flush_chat(self, moment: float) -> None:
         keep = []
-        for due, pid, text in self.chat_due:
+        for due, pid, text, team in self.chat_due:
             if due > moment:
-                keep.append((due, pid, text))
+                keep.append((due, pid, text, team))
                 continue
             player = self.instance.players.get(pid)
             if player is not None and self.humans:
-                self.instance.handle_chat(player, {"m": text})
+                self.instance.handle_chat(player, {"m": text, "team": bool(team and player.team)})
         self.chat_due = keep
 
     def note(self, text: str) -> None:
-        self.events.append(text[:120])
-        del self.events[:-20]
+        """Something that happened, for the round's chat log (in order, with
+        the time, so it sits between the lines it happened between)."""
+        self.events.append({"at": time.time(), "text": text[:120]})
+        del self.events[:-30]
+
+    def on_team_chat(self, entry: Dict[str, Any]) -> None:
+        """Team chat is not in the round's public log; the team's bots read it."""
+        if self.session:
+            self.team_lines.append(entry)
+            del self.team_lines[:-40]
+
+    def _fresh_chat(self) -> List[Dict[str, Any]]:
+        """The public chat entries not reported yet.
+
+        The round keeps its last 120 lines and trims from the front, so a
+        position in the list goes stale once a round gets talkative; the last
+        entry reported is found by identity instead (and, if it has been
+        trimmed away, by time).
+        """
+        log = self.instance.chat_log
+        last = self.last_chat
+        if last is None:
+            fresh = list(log)
+        else:
+            index = -1
+            for i in range(len(log) - 1, -1, -1):
+                if log[i] is last:
+                    index = i
+                    break
+            if index >= 0:
+                fresh = log[index + 1:]
+            else:
+                cutoff = float(last.get("at", 0) or 0)
+                fresh = [e for e in log if float(e.get("at", 0) or 0) > cutoff]
+        if log:
+            self.last_chat = log[-1]
+        self.reported_chat = len(log)
+        return fresh
 
     def chat_report(self) -> Optional[Dict[str, Any]]:
         """New chat lines and happenings, for the web server's chat relay."""
         inst = self.instance
         if not self.humans:
-            self.reported_chat = len(inst.chat_log)
+            self._fresh_chat()
+            if self.sessions_ended:
+                ended, self.sessions_ended = self.sessions_ended[-1], []
+                self.wants_report = False
+                return {"inst": inst.instance_id, "session": ended, "ended": True}
             return None
-        log = inst.chat_log
-        start = min(self.reported_chat, len(log))
-        # the log is trimmed from the front; if it shrank, start from the end
-        fresh = log[start:] if start <= len(log) else []
-        self.reported_chat = len(log)
+        self._ensure_session()
+        bot_uids = {b.uid for b in self.brains.values()}
         lines = []
-        for entry in fresh:
+        for entry in self._fresh_chat():
             if entry.get("kind") == "system":
-                self.note(entry.get("m", ""))
+                self.events.append({"at": float(entry.get("at", time.time()) or 0),
+                                    "text": str(entry.get("m", ""))[:120]})
                 continue
             uid = int(entry.get("uid", 0) or 0)
-            is_bot = any(b.uid == uid for b in self.brains.values())
             lines.append({"who": entry.get("from", ""), "uid": uid,
                           "text": entry.get("m", ""), "team": entry.get("team", ""),
-                          "at": entry.get("at", time.time()), "bot": is_bot})
-        if not lines and not self.wants_report:
+                          "at": entry.get("at", time.time()), "bot": uid in bot_uids})
+        team_lines, self.team_lines = self.team_lines, []
+        for entry in team_lines:
+            uid = int(entry.get("uid", 0) or 0)
+            lines.append({"who": entry.get("from", ""), "uid": uid, "team_only": True,
+                          "text": entry.get("m", ""), "team": entry.get("team", ""),
+                          "at": entry.get("at", time.time()), "bot": uid in bot_uids})
+        if not lines and not self.wants_report and not self.events:
             return None
         self.wants_report = False
-        events, self.events = self.events[-8:], []
+        events, self.events = self.events[-12:], []
         speech, self.speech = self.speech[-12:], []
         return {
-            "inst": inst.instance_id, "lines": lines, "events": events,
+            "inst": inst.instance_id, "session": self.session,
+            "lines": lines, "events": events,
             "speech": speech,
             "state": self.game_state(),
             "bots": [{"uid": b.uid, "name": b.p.username, "team": b.p.team,
@@ -373,7 +458,10 @@ class BotRunner:
             victim.brain.on_death(killer)
         if killer is not None and killer is not victim and killer.brain is not None:
             killer.brain.on_kill(victim)
-        if killer is not None and victim is not None and self.humans:
+        if killer is not None and victim is not None and self.humans and \
+                (killer.brain is None or victim.brain is None):
+            # kills a real player was part of: bot-on-bot kills would bury the
+            # conversation (sprees still come through as speech events)
             self.note("%s killed %s with %s" % (killer.username, victim.username, weapon))
         ended = self.streaks.pop(victim.pid, 0) if victim is not None else 0
         if killer is not None and killer is not victim:
@@ -388,6 +476,7 @@ class BotRunner:
 
     def on_human_join(self, player) -> None:
         self.humans = [p for p in self.instance.players.values() if p.brain is None]
+        self._ensure_session()
         self.sleep_at = 0.0
         greet = float(self.cfg.get("greet", 35) or 0) / 100.0
         if self._speech_on():
@@ -405,6 +494,7 @@ class BotRunner:
             bool(self.cfg.get("messages_ingame_chat", True))
 
     def on_round_end(self, winner: str, reason: str = "") -> None:
+        self.last_winner = winner or ""
         if self._speech_on():
             self.on_game_event("round_end", {
                 "winner": winner, "reason": reason,
@@ -428,6 +518,54 @@ class BotRunner:
         self.on_game_event("round_start", {
             "round": self.instance.round_number,
             "attackers": getattr(self.instance, "attackers", "")})
+
+    # ================================================================= votes
+    def on_vote_start(self, seconds: float) -> None:
+        """The end-of-round shuffle vote: each bot makes up its mind (or does
+        not bother) and clicks a few seconds in, not all at once."""
+        cfg = self.cfg
+        takes_part = float(cfg.get("vote", 85) or 0) / 100.0
+        lo, hi = cfg.get("vote_delay") or [2, 12]
+        lo, hi = float(lo), max(float(lo), float(hi))
+        base = float(cfg.get("vote_yes", 45) or 0) / 100.0
+        moment = now()
+        self.votes_due = []
+        for brain in self.brains.values():
+            if self.rng.random() >= takes_part * (0.7 + brain.t("social", 0.5) * 0.4):
+                continue
+            yes = base
+            if self.last_winner and brain.p.team:
+                # the side that just lost wants new teams; the winners do not
+                yes += -0.25 if brain.p.team == self.last_winner else 0.25
+            yes += (brain.t("chaos", 0.1) - 0.2) * 0.4
+            yes = max(0.05, min(0.95, yes))
+            when = moment + min(seconds - 1.0, self.rng.uniform(lo, hi) *
+                                (1.25 - brain.t("afk", 0.1) * 0.5 + (1.0 - brain.skill) * 0.2))
+            self.votes_due.append((when, brain.p.pid, self.rng.random() < yes))
+        self.votes_due.sort()
+
+    def _cast_votes(self, moment: float) -> None:
+        inst = self.instance
+        if not getattr(inst, "vote_open", False):
+            self.votes_due = []
+            return
+        keep = []
+        cast = False
+        for when, pid, yes in self.votes_due:
+            if when > moment:
+                keep.append((when, pid, yes))
+                continue
+            player = inst.players.get(pid)
+            if player is None or player.brain is None:
+                continue
+            player.vote = yes
+            cast = True
+            if self.humans and self.rng.random() < 0.08 + player.brain.t("chatty", 0.4) * 0.15:
+                player.brain.say("vote_yes" if yes else "vote_no", chance=1.0,
+                                 delay=self.rng.uniform(0.3, 1.5))
+        self.votes_due = keep
+        if cast:
+            inst.broadcast_vote()
 
     def on_capture(self, team: str) -> None:
         if self._speech_on():
