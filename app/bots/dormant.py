@@ -454,9 +454,12 @@ class Dormant:
 
     # ------------------------------------------------------------ describe
     def describe(self) -> Dict[str, Any]:
-        return {"id": self.id, "count": len(self.members), "max": self.max,
-                "phase": self.phase, "round": self.round, "dormant": True,
-                "humans": 0, "bots": len(self.members)}
+        out = {"id": self.id, "count": len(self.members), "max": self.max,
+               "phase": self.phase, "round": self.round, "dormant": True,
+               "humans": 0, "bots": len(self.members)}
+        if self.mode == "survival":
+            out["summary"] = "Wave %d" % max(1, self.wave)
+        return out
 
     def summary(self) -> str:
         if self.mode == "captures":

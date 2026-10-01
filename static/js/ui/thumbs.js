@@ -626,6 +626,8 @@
       parts.push({ t: 'sph', p: [-23, 0.5, 19], s: [4.6, 2, 3.8], c: '#6f757b' });
       parts.push({ t: 'sph', p: [24, 0.5, 20], s: [3.8, 1.8, 3.4], c: '#6f757b' });
       for (var q = built; q < parts.length; q++) parts[q].p[2] -= 2;
+    } else if (kind === 'lastlight' || kind.indexOf('ll_') === 0) {
+      lastLightScene(kind, parts, box, tree, lamp, windows);
     } else {
       box([-24, 1.2, 4], [40, 2.4, 34], '#cdd0d3', { st: 1 });
       box([-24, 8, -6], [30, 12, 16], '#c98b5e');
@@ -643,12 +645,235 @@
     return parts;
   }
 
+
+  /* ---- Last Light dioramas -------------------------------------------
+     The world card and the four places on the world page.  Each is a corner
+     of the real area at dusk or night, built from the same pieces the game
+     uses for the infected (engine/zombies.js), with a horde coming at a
+     handful of survivors -- the whole game in one look. */
+  var LL_SURVIVORS = [
+    { head: '#f5cd30', torso: '#c4281c', legs: '#1b2a35' },
+    { head: '#c98b5e', torso: '#2f5fa8', legs: '#3a3a3a' },
+    { head: '#f2d6b6', torso: '#4a5a34', legs: '#2f3a20' },
+    { head: '#8a5a3c', torso: '#e2621b', legs: '#24345a' }
+  ];
+  var LL_GUN = { data: { parts: [
+    { t: 'box', p: [0, 0, 0.55], s: [0.26, 0.3, 1.7], c: '#31363c' },
+    { t: 'box', p: [0, -0.3, -0.2], s: [0.22, 0.5, 0.4], c: '#22262b' }] } };
+
+  function llZombie(parts, kind, x, z, yaw, variant, area, anim, y) {
+    if (!global.Zombies) return;
+    var z0 = { kind: kind, variant: variant || 0, pos: [x, y || 0, z], yaw: yaw,
+               anim: anim || 0, flags: 0, seed: (x * 13 + z * 7) % 1, memory: null,
+               born: -9 };
+    global.Zombies.build(z0, area || 'town', 0.7 + (x + z) * 0.05, 0, 0, false, null)
+      .forEach(function (part) { parts.push(part); });
+  }
+
+  function llSurvivor(parts, x, z, yaw, look, y) {
+    var desc = { colors: { head: look.head, torso: look.torso, left_arm: look.head,
+                           right_arm: look.head, left_leg: look.legs, right_leg: look.legs,
+                           hips: look.legs }, items: {} };
+    Avatar.build(desc, { position: [x, y || 0, z], yaw: yaw, pitch: -0.05, time: 0.4,
+                         pose: Avatar.pose('idle', 0.4, 0, desc), holding: LL_GUN })
+      .forEach(function (part) { parts.push(part); });
+  }
+
+  /* A horde: commons strung out along a line, each a little off it. */
+  function llHorde(parts, count, x0, z0, x1, z1, yaw, area, seed) {
+    var r = seed || 1;
+    function rand() { r = (r * 9301 + 49297) % 233280; return r / 233280; }
+    for (var i = 0; i < count; i++) {
+      var f = count > 1 ? i / (count - 1) : 0.5;
+      llZombie(parts, rand() < 0.15 ? 'runner' : 'common',
+               x0 + (x1 - x0) * f + (rand() - 0.5) * 4,
+               z0 + (z1 - z0) * f + (rand() - 0.5) * 4,
+               yaw + (rand() - 0.5) * 0.6, (rand() * 8) | 0, area,
+               rand() < 0.4 ? 2 : 0);
+    }
+  }
+
+  function lastLightScene(kind, parts, box, tree, lamp, windows) {
+    var ground = parts[0];
+    function fire(x, y, z, size) {
+      parts.push({ t: 'cone', p: [x, y + size * 0.5, z], s: [size, size * 1.4, size], c: '#ff8a2a', m: 'neon' });
+      parts.push({ t: 'cone', p: [x, y + size * 0.4, z], s: [size * 0.6, size, size * 0.6], c: '#ffe08a', m: 'neon' });
+      parts.push({ t: 'sph', p: [x - 1, y + size * 2.6, z - 1], s: [size * 1.6, size, size * 1.6], c: '#4a4a4f', a: 0.7 });
+    }
+    function wreck(x, z, yaw, colour) {
+      var c = Math.cos(yaw), s = Math.sin(yaw);
+      function at(dx, dz) { return [x + dx * c + dz * s, z - dx * s + dz * c]; }
+      var p = at(0, 0);
+      parts.push({ t: 'rbox', p: [p[0], 1.6, p[1]], s: [4.6, 2.4, 9], c: colour, r: [0, yaw, 0.08] });
+      parts.push({ t: 'rbox', p: [p[0], 3.4, p[1]], s: [4.0, 1.6, 4.6], c: '#2a3038', r: [0, yaw, 0.08] });
+    }
+    function streetlight(x, z) {
+      parts.push({ t: 'cyl', p: [x, 5, z], s: [0.5, 10, 0.5], c: '#3e444b', m: 'metal' });
+      box([x, 10.2, z], [2.4, 0.6, 1.4], '#ffe6a0', { m: 'neon' });
+    }
+    if (kind === 'lastlight' || kind === 'll_town') {
+      ground.c = '#3f5a34';
+      ground.s = [110, 2, 64];
+      box([0, 0.15, 6], [110, 0.3, 14], '#3a3d42');              // Main Street
+      for (var d = -50; d <= 50; d += 9) box([d, 0.32, 6], [4, 0.06, 0.6], '#e8d070');
+      box([0, 0.25, -4], [110, 0.5, 6], '#9a9690');              // pavement
+      // the storefront row, lit from inside, one of them boarded up
+      var fronts = [['#8a3a2a', '#ffcf8a'], ['#5a6a7a', '#ffe6b0'], ['#7a5a3a', '#ffd79a'],
+                    ['#3f5a4a', '#ffcf8a']];
+      for (var f = 0; f < 4; f++) {
+        var fx = -36 + f * 15;
+        box([fx, 6, -14], [14, 12, 14], fronts[f][0], { st: 1 });
+        box([fx, 12.6, -14], [14.8, 1.2, 14.8], '#2f3236');
+        box([fx, 4, -6.9], [9, 4, 0.3], fronts[f][1], { m: 'neon' });
+        box([fx, 7.4, -6.6], [11, 0.8, 1.6], f % 2 ? '#c4281c' : '#2f5fa8');
+        if (f === 2) {
+          for (var b = 0; b < 3; b++) box([fx, 2.8 + b * 1.3, -6.7], [9.6, 0.5, 0.3], '#a8804a');
+        }
+      }
+      // the sheriff's roof: the team, sandbagged, and a flare burning
+      box([-36, 12.9, -10], [8, 1.2, 1.4], '#b8a070', { st: 1 });
+      llSurvivor(parts, -38.5, -12, 0.35, LL_SURVIVORS[0], 13.2);
+      llSurvivor(parts, -33.5, -12.5, 0.15, LL_SURVIVORS[1], 13.2);
+      parts.push({ t: 'sph', p: [-30, 14, -11], s: [1.2, 1.2, 1.2], c: '#ff4a3a', m: 'neon' });
+      if (kind === 'lastlight') {
+        // the church tower over the far end, its bell lit
+        box([30, 11, -18], [10, 22, 10], '#8a8478', { st: 1 });
+        parts.push({ t: 'cone', p: [30, 26, -18], s: [11, 8, 11], c: '#3a3f46' });
+        box([30, 18, -12.9], [3, 3, 0.4], '#ffd27a', { m: 'neon' });
+      } else {
+        box([30, 6, -14], [14, 12, 14], '#6a6058', { st: 1 });
+        box([30, 12.6, -14], [14.8, 1.2, 14.8], '#2f3236');
+        box([30, 18, -18], [6, 12, 6], '#8a8478');
+        box([30, 22, -14.9], [2.4, 2.4, 0.3], '#ffd27a', { m: 'neon' });
+      }
+      streetlight(-20, 0); streetlight(10, 0);
+      wreck(-10, 8, 0.4, '#c8a83a');
+      fire(-10, 3.6, 8, 3.2);
+      wreck(42, -1, -0.9, '#3a5a6a');
+      if (kind === 'lastlight') {
+        // the line the team is holding: sandbags across the near pavement
+        // and two of them behind it, facing the horde coming up the street
+        box([-1, 0.25, 17], [70, 0.5, 8], '#8a8680');
+        for (var sb = 0; sb < 5; sb++) {
+          parts.push({ t: 'rbox', p: [2, 0.9, 14.5 + sb * 1.9], s: [1.6, 1.3, 2.0], c: '#b8a070' });
+          parts.push({ t: 'rbox', p: [2, 2.1, 15.4 + sb * 1.9], s: [1.5, 1.1, 1.9], c: '#a8905a' });
+        }
+        llSurvivor(parts, -1.5, 16, 1.45, LL_SURVIVORS[2], 0.5);
+        llSurvivor(parts, -3.5, 20, 1.25, LL_SURVIVORS[3], 0.5);
+      }
+      box([-48, 1.4, 10], [3, 2.8, 10], '#b8a070', { st: 1 });  // the barricade
+      llHorde(parts, 11, 50, 14, 0, 4, -1.9, 'town', 3);
+      llHorde(parts, 5, 36, -2, 12, 0, -2.2, 'town', 9);
+      llZombie(parts, 'bloater', 26, 2, -1.9, 0, 'town', 0);
+      llZombie(parts, 'leaper', 14, 12, -2.0, 0, 'town', 3);
+      if (kind === 'lastlight') llZombie(parts, 'tank', 30, 6, -2.0, 0, 'town', 0);
+      tree(-52, 22, 0.9, '#2a4a2a'); tree(48, 24, 1.0, '#2a4a2a');
+    } else if (kind === 'll_hospital') {
+      ground.c = '#2f3a2f';
+      ground.s = [110, 2, 64];
+      box([0, 0.15, 10], [110, 0.3, 12], '#34373c');
+      box([-6, 13, -16], [60, 26, 18], '#d8dcd8', { st: 1 });
+      box([-6, 26.6, -16], [61, 1.2, 19], '#8a9094');
+      for (var row = 0; row < 4; row++) {
+        for (var col = 0; col < 8; col++) {
+          var lit = (row * 3 + col * 5) % 4 !== 0;
+          box([-30 + col * 7, 5 + row * 5.6, -6.8], [4, 2.6, 0.3], lit ? '#bfe8ff' : '#3a4048',
+              lit ? { m: 'neon' } : null);
+        }
+      }
+      box([-6, 22, -6.6], [8, 8, 0.3], '#f4f4f4');
+      box([-6, 22, -6.4], [6, 1.6, 0.2], '#d02020', { m: 'neon' });
+      box([-6, 22, -6.4], [1.6, 6, 0.2], '#d02020', { m: 'neon' });
+      parts.push({ t: 'cyl', p: [10, 27.4, -16], s: [12, 0.4, 12], c: '#4a5058' });
+      box([10, 27.7, -16], [6, 0.1, 1.2], '#f2d23a');
+      // the ER bay: ambulances, lights going
+      box([30, 4, -8], [18, 8, 14], '#c8ccd0', { st: 1 });
+      box([30, 8.6, -8], [19, 1.2, 15], '#8a9094');
+      box([26, 2.6, 2], [5, 4.4, 10], '#f4f4f4', { st: 1 });
+      box([26, 5.1, 2], [5.2, 0.6, 2], '#ff3a2a', { m: 'neon' });
+      box([33, 2.6, 4], [5, 4.4, 10], '#f4f4f4', { st: 1 });
+      box([33, 5.1, 4], [5.2, 0.6, 2], '#3a8aff', { m: 'neon' });
+      llSurvivor(parts, -36, 6, 0.6, LL_SURVIVORS[2]);
+      llSurvivor(parts, -40, 2, 0.9, LL_SURVIVORS[3]);
+      box([-42, 1.2, 8], [10, 2.4, 2], '#b8a070', { st: 1 });
+      llHorde(parts, 12, 48, 16, -10, 6, -2.0, 'hospital', 5);
+      llZombie(parts, 'spitter', 10, 2, -1.8, 0, 'hospital', 11);
+      llZombie(parts, 'screamer', 20, 14, -2.0, 0, 'hospital', 4);
+      streetlight(-16, 4); streetlight(16, 4);
+    } else if (kind === 'll_docks') {
+      ground.c = '#3a4248';
+      ground.s = [110, 2, 64];
+      box([0, -0.4, 16], [110, 1.2, 30], '#1f3a4a', { a: 0.85, m: 'glass' });   // the harbour
+      box([0, 0.3, -12], [110, 0.6, 26], '#5a5f66', { st: 1 });               // the quay
+      box([0, 0.5, 1.2], [110, 0.6, 0.6], '#f2d23a');
+      // the ship alongside, stacked with containers
+      box([10, 4, 24], [62, 8, 14], '#7a2a24', { st: 1 });
+      box([10, 8.6, 24], [62, 1.2, 14], '#3a3f46');
+      var cc = ['#c4281c', '#2f5fa8', '#e8a01a', '#3a7a3a', '#8a8f94', '#6a3a8a'];
+      for (var k = 0; k < 7; k++) {
+        box([-12 + k * 7.4, 11.3, 22], [7, 4.2, 6], cc[k % cc.length], { st: 1 });
+        if (k % 2) box([-12 + k * 7.4, 15.5, 22], [7, 4.2, 6], cc[(k + 2) % cc.length], { st: 1 });
+      }
+      box([36, 13, 24], [8, 10, 10], '#e8e8e2', { st: 1 });
+      box([36, 16, 18.9], [6, 2, 0.3], '#bfe8ff', { m: 'neon' });
+      // a quay crane and the yard behind
+      box([-30, 14, -6], [2, 28, 2], '#e8a01a');
+      box([-30, 28, 4], [2, 2, 26], '#e8a01a');
+      for (var c2 = 0; c2 < 4; c2++) {
+        box([-44 + c2 * 9, 4, -18], [8, 8, 16], cc[(c2 + 1) % cc.length], { st: 1 });
+      }
+      // the lighthouse out on the breakwater
+      parts.push({ t: 'cyl', p: [48, 10, 26], s: [4, 20, 4], c: '#e8e8e2' });
+      parts.push({ t: 'cyl', p: [48, 21, 26], s: [3, 2, 3], c: '#fff0a0', m: 'neon' });
+      llSurvivor(parts, -14, -10, 0.4, LL_SURVIVORS[1], 0.6);
+      llSurvivor(parts, -18, -6, 0.6, LL_SURVIVORS[0], 0.6);
+      llHorde(parts, 10, 46, -2, 0, -10, -1.9, 'docks', 7);
+      llZombie(parts, 'captain', 30, -14, -1.9, 0, 'docks', 0, 0.6);
+      llZombie(parts, 'brute', 20, -4, -1.9, 0, 'docks', 10, 0.6);
+    } else if (kind === 'll_camp') {
+      ground.c = '#3f5a2f';
+      ground.s = [110, 2, 64];
+      box([10, -0.4, 22], [90, 1.2, 22], '#2f5a6a', { a: 0.85, m: 'glass' });   // the lake
+      box([10, 0.15, 9], [90, 0.3, 4], '#c8b48a');                            // the beach
+      // the ranger station, porch lit, and cabins round a fire
+      box([-22, 5, -12], [22, 10, 14], '#7a5335', { st: 1 });
+      parts.push({ t: 'wedge', p: [-22, 12, -12], s: [24, 4, 16], c: '#3f5a3a' });
+      box([-22, 4, -4.8], [8, 4, 0.3], '#ffcf8a', { m: 'neon' });
+      box([16, 3.5, -16], [10, 7, 9], '#8a6040', { st: 1 });
+      box([32, 3.5, -12], [10, 7, 9], '#6a4a30', { st: 1 });
+      parts.push({ t: 'cyl', p: [24, 0.4, -4], s: [5, 0.8, 5], c: '#6a6460' });
+      parts.push({ t: 'cone', p: [24, 1.8, -4], s: [2.4, 2.4, 2.4], c: '#ff8a2a', m: 'neon' });
+      // the fire lookout, stilts and a lit cab
+      for (var t2 = 0; t2 < 4; t2++) {
+        box([-40 + (t2 % 2) * 6, 10, -18 + (t2 > 1 ? 6 : 0)], [0.8, 20, 0.8], '#5a3a22');
+      }
+      box([-37, 21, -15], [8, 4, 8], '#7a5335', { st: 1 });
+      box([-37, 21, -11], [6, 2, 0.3], '#ffcf8a', { m: 'neon' });
+      for (var p2 = 0; p2 < 9; p2++) {
+        var px = -52 + p2 * 13 + (p2 % 2) * 4;
+        parts.push({ t: 'cyl', p: [px, 2.5, -26 + (p2 % 3) * 3], s: [1, 5, 1], c: '#5a3a22' });
+        parts.push({ t: 'cone', p: [px, 9, -26 + (p2 % 3) * 3], s: [7, 12, 7], c: '#24402a' });
+      }
+      llSurvivor(parts, -20, -2, 0.5, LL_SURVIVORS[2]);
+      llSurvivor(parts, -14, 0, 0.3, LL_SURVIVORS[3]);
+      llHorde(parts, 10, 48, 4, 4, 6, -1.9, 'camp', 11);
+      llZombie(parts, 'burrower', 10, 0, -1.9, 0, 'camp', 0);
+      llZombie(parts, 'ronin', 22, 6, -2.0, 0, 'camp', 13);
+      llZombie(parts, 'hive', 34, 2, -1.9, 0, 'camp', 0);
+    }
+  }
+
   // Eye, look-at and field of view.  Every card is shot from the same angle
   // so the browser reads as one set; Ironvale is simply further away,
   // because it is a long map and the run between the two keeps is the thing
   // its picture is selling.
   var WORLD_CAMERAS = {
-    relay: [[49, 38, 69], [0, 5, -2], 42]
+    relay: [[49, 38, 69], [0, 5, -2], 42],
+    lastlight: [[16, 14, 46], [6, 6, -4], 46],
+    ll_town: [[34, 26, 62], [4, 6, -2], 44],
+    ll_hospital: [[30, 24, 64], [2, 9, -4], 46],
+    ll_docks: [[30, 30, -62], [4, 5, 4], 46],
+    ll_camp: [[34, 24, 60], [2, 5, -2], 44]
   };
   var DEFAULT_CAMERA = [[44, 34, 62], [0, 5, -2], 42];
 
@@ -656,7 +881,43 @@
     ctf: { top: '#7fb2e5', horizon: '#e8f0f8', sun: [0.35, 0.7, -0.25], clouds: 0.5, tint: '#ffffff' },
     payload: { top: '#e8b46a', horizon: '#f7e4bd', sun: [0.5, 0.55, 0.2], clouds: 0.7, tint: '#ffe9c4' },
     burger: { top: '#8fc4ef', horizon: '#ffeec4', sun: [0.3, 0.75, 0.4], clouds: 0.42, tint: '#fff6e0' },
-    relay: { top: '#22406f', horizon: '#9b86a0', sun: [0.2, 0.62, 0.76], clouds: 0.5, tint: '#ffc89a' }
+    relay: { top: '#22406f', horizon: '#9b86a0', sun: [0.2, 0.62, 0.76], clouds: 0.5, tint: '#ffc89a' },
+    lastlight: { top: '#2c2748', horizon: '#d9805a', sun: [0.62, 0.22, -0.55], clouds: 0.5, tint: '#ffb27a' },
+    ll_town: { top: '#2c2748', horizon: '#d9805a', sun: [0.62, 0.22, -0.55], clouds: 0.5, tint: '#ffb27a' },
+    ll_hospital: { top: '#0f1a2c', horizon: '#4a6478', sun: [-0.35, 0.55, 0.6], clouds: 0.45, tint: '#c8d8ff' },
+    ll_docks: { top: '#0a111d', horizon: '#3c4c5a', sun: [0.45, 0.45, -0.62], clouds: 0.6, tint: '#b8c8d8' },
+    ll_camp: { top: '#35366a', horizon: '#f0a060', sun: [-0.55, 0.16, 0.62], clouds: 0.38, tint: '#ffc080' }
+  };
+
+  /* A portrait of one of the infected, for the world page's bestiary. */
+  Thumbs.renderZombie = function (canvas, kind) {
+    var key = 'zombie:' + kind + ':' + canvas.width;
+    if (Thumbs.imageCache[key]) { blit(canvas, Thumbs.imageCache[key]); return; }
+    if (!global.Zombies) return;
+    var renderer = ensureRenderer();
+    if (!renderer) return;
+    var anim = { leaper: 3, screamer: 4, tank: 2, brute: 10, spitter: 11, ronin: 13,
+                 captain: 0, riot: 0 }[kind] || 0;
+    var z = { kind: kind, variant: kind === 'common' ? 0 : 1, pos: [0, 0, 0], yaw: 0,
+              anim: anim, flags: kind === 'bomber' ? 8 : 0, seed: 0.2, memory: null,
+              born: -9 };
+    var parts = global.Zombies.build(z, 'town', 0.9, 0, 0, false, null);
+    var previous = { w: renderer.canvas.width, h: renderer.canvas.height };
+    renderer.canvas.width = canvas.width;
+    renderer.canvas.height = canvas.height;
+    renderer.width = canvas.width; renderer.height = canvas.height;
+    renderer.aspect = canvas.width / canvas.height;
+    renderer.transparentBackground = false;
+    renderParts(parts, { sky: { top: '#1a1d24', horizon: '#4a3a3a', sun: [0.4, 0.7, 0.5],
+                                clouds: 0, tint: '#ffd8b0' },
+                         padding: 1.12, angle: -0.42, tilt: 0.12 });
+    Thumbs.imageCache[key] = snapshot(renderer.canvas);
+    blit(canvas, Thumbs.imageCache[key]);
+    renderer.transparentBackground = true;
+    renderer.canvas.width = previous.w;
+    renderer.canvas.height = previous.h;
+    renderer.width = previous.w; renderer.height = previous.h;
+    renderer.aspect = previous.w / previous.h;
   };
 
   Thumbs.renderWorld = function (canvas, kind, colors) {
@@ -1279,6 +1540,7 @@
     document.querySelectorAll('canvas.item-thumb[data-item]').forEach(schedule);
     document.querySelectorAll('canvas.avatar-thumb[data-user]').forEach(schedule);
     document.querySelectorAll('canvas.world-shot[data-world]').forEach(schedule);
+    document.querySelectorAll('canvas.zombie-shot[data-zombie]').forEach(schedule);
   }
 
   function paint(el) {
@@ -1294,6 +1556,8 @@
       Thumbs.renderAvatarFor(el, el.dataset.user);
     } else if (el.dataset.world) {
       Thumbs.renderWorld(el, el.dataset.world, null);
+    } else if (el.dataset.zombie) {
+      Thumbs.renderZombie(el, el.dataset.zombie);
     }
   }
 

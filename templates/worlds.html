@@ -34,7 +34,7 @@
             <tr>
               <td>#{{ inst.id }}</td>
               <td>{{ inst.count }}/{{ inst.max }}</td>
-              <td>{{ inst.phase }}</td>
+              <td>{{ inst.get('summary') or inst.phase }}</td>
               <td class="right"><a class="btn small go no-mobile" href="/{{ row.world.id }}?instance={{ inst.id }}">Join</a></td>
             </tr>
             {% endfor %}

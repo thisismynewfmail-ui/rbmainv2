@@ -155,8 +155,70 @@ WORLDS: List[Dict[str, Any]] = [
                       "lighthouse at the end of the breakwater."},
             {"id": "camp", "name": "Cedar Pines Camp",
              "blurb": "A lakeside summer camp in the last of the sunset: "
-                      "cabins, a mess hall, a fire lookout tower, a ridge "
-                      "with a footbridge, and an old mine in the hill."},
+                      "cabins round their fire pits, a mess hall with a "
+                      "dinner bell, a fire lookout tower, a boathouse on "
+                      "the lake and a terraced ridge with an old mine "
+                      "running under it."},
+        ],
+        # Know your enemy: the world page's bestiary, in the order they
+        # turn up.  ``kind`` is the infected kind (engine/zombies.js draws
+        # the portrait); ``wave`` is the first wave it can appear in.
+        "bestiary": [
+            {"kind": "common", "name": "Infected", "wave": 1,
+             "blurb": "Green, slow-witted and never alone. Two in the body "
+                      "or one in the head.",
+             "tip": "Back up while you shoot -- they hit harder in a crowd."},
+            {"kind": "runner", "name": "Runner", "wave": 3,
+             "blurb": "Fresh, fast and frantic: faster than you can walk.",
+             "tip": "Turn and fight; you will not outrun one."},
+            {"kind": "bloater", "name": "Bloater", "wave": 1,
+             "blurb": "Swollen with bile. Pops when it dies and soaks "
+                      "everyone close, and the horde comes for the smell.",
+             "tip": "Kill it at range, never in the middle of your team."},
+            {"kind": "spitter", "name": "Spitter", "wave": 1,
+             "blurb": "Lobs acid that pools and burns hotter the longer you "
+                      "stand in it.",
+             "tip": "Move out of the green. It cannot spit and run at once."},
+            {"kind": "leaper", "name": "Leaper", "wave": 2,
+             "blurb": "Pounces from a long way off and pins you to the floor, "
+                      "clawing.",
+             "tip": "Shoot or shove it off a pinned friend; mash E if it is you."},
+            {"kind": "bomber", "name": "Bomber", "wave": 2,
+             "blurb": "Wears a vest of dynamite and runs for the biggest "
+                      "group it can find.",
+             "tip": "A clean headshot defuses it. Anything else, it goes off."},
+            {"kind": "brute", "name": "Brute", "wave": 3,
+             "blurb": "One arm grown into a club. Charges in a straight line "
+                      "and knocks people flying.",
+             "tip": "Sidestep the charge -- it stuns itself on walls."},
+            {"kind": "screamer", "name": "Screamer", "wave": 3,
+             "blurb": "Hangs back and shrieks, calling more of them and "
+                      "driving the rest into a frenzy.",
+             "tip": "Kill it first. Every scream is another pack."},
+            {"kind": "riot", "name": "Riot", "wave": 4,
+             "blurb": "Riot gear and a shield: bullets from the front barely "
+                      "scratch it.",
+             "tip": "Flank it, or shove it with a melee hit to open it up."},
+            {"kind": "hive", "name": "Hive", "wave": 5,
+             "blurb": "A walking nest. When it dies it bursts into a swarm "
+                      "of fast, biting mites.",
+             "tip": "Shotguns and explosions clear the swarm."},
+            {"kind": "burrower", "name": "Burrower", "wave": 6,
+             "blurb": "A miner who digs under the ground and comes up "
+                      "beneath your feet.",
+             "tip": "Watch for the moving earth and keep moving."},
+            {"kind": "ronin", "name": "Ronin", "wave": 7,
+             "blurb": "Guards with his blade and turns bullets aside, then "
+                      "dashes in for a cut.",
+             "tip": "Hit him from the side, or when he is open after a slash."},
+            {"kind": "captain", "name": "Plague Captain", "wave": 8,
+             "blurb": "A drowned captain with a lantern of plague fire. "
+                      "Throws poison and raises the fallen.",
+             "tip": "Hunt him down before the dead get back up."},
+            {"kind": "tank", "name": "Tank", "wave": 5,
+             "blurb": "Every fifth wave. Throws chunks of road, slams the "
+                      "ground and punches people into next week.",
+             "tip": "Everybody shoots. Nobody stands next to it."},
         ],
     },
 ]
