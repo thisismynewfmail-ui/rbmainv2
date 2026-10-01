@@ -1332,6 +1332,13 @@ class LastLight(GameInstance):
         for player in self.survivors():
             extra = player.extra
             if extra.get("downed"):
+                helper = extra.get("revive")
+                if helper:
+                    # the one picking us up has gone, stopped, or moved on
+                    other = self.players.get(helper[0])
+                    mine = other.extra.get("revive") if other is not None else None
+                    if not mine or mine[0] != player.pid:
+                        extra.pop("revive", None)
                 player.health -= BLEED_PER_SECOND * dt
                 if player.health <= 0:
                     self.kill(player, None, "bleeding out")
