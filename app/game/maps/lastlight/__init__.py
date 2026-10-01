@@ -38,6 +38,10 @@ def build() -> Dict[str, Any]:
                 lobby.AMBIENT, "#3a3f46", fog=420.0)
     lobby.build(hold)
     holdout = hold.finish()
+    # the bunker is a hall and a range, not a square: its region is exactly
+    # the rooms, so nothing samples (or probes) the rock round them
+    holdout["rect"] = [lobby.HALL[0] - 2.0, lobby.RANGE[1] + 2.0,
+                       lobby.HALL[2] - 2.0, lobby.HALL[3] + 2.0]
 
     areas: List[Dict[str, Any]] = []
     for area_id, module, name, (ox, oz), ground, fog in AREAS:

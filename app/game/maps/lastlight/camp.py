@@ -254,9 +254,11 @@ def _ridge(b: Area, s: Surfaces, keep_out: List) -> None:
     for dz in (-2.0, 2.0):
         b.box([(TUNNEL[0] + TUNNEL[1]) / 2.0 - 4.0, 0.15, -40.0 + dz],
               [64.0, 0.3, 0.5], "#5a5f66", collide=False)
-    b.box([-224.0, 2.0, -40.0], [6.0, 3.2, 4.0], "#6a4a32",
+    # the ore cart, run off its rails against the chamber's back wall, so
+    # the tunnel and the chamber mouth are clear for everyone
+    b.box([-261.5, 2.0, -40.0], [4.0, 3.2, 6.0], "#6a4a32",
           material="metal")
-    b.box([-224.0, 0.5, -40.0], [5.0, 1.0, 3.0], "#2a2d31")
+    b.box([-261.5, 0.5, -40.0], [3.0, 1.0, 5.0], "#2a2d31")
     b.box([-213.5, 9.0, -40.0], [1.0, 2.0, 14.0], WOOD_DARK)
     wall_sign(b, -212.65, 10.0, -40.0, 10.0, 1.8,
               sign_decal("CEDAR No.2 MINE", "#5a3a22", "#e8d8a8", 10 / 1.8),
@@ -265,7 +267,7 @@ def _ridge(b: Area, s: Surfaces, keep_out: List) -> None:
     strip_light(b, -257.0, -40.0, 8.0, 20.0, "z", "#ffb03a")
     for z in (-54.0, -26.0):
         crate(b, -260.0, 0.0, z, 4.0, WOOD)
-    supply_ammo(b, -257.0, 0.0, -50.0, "x+")
+    supply_ammo(b, -261.0, 0.0, -46.5, "x+")
     barrel_spot(b, -254.0, 0.0, -28.0)
     barrel_spot(b, -200.0, 0.0, -44.0)
 
