@@ -190,6 +190,27 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
                 if state.get("target_wins") else ""))
         if state.get("setup_left"):
             lines.append("Setup: the gates open in %s." % _clock(state["setup_left"]))
+    elif mode == "survival":
+        lines.append("This is Last Light, a co-op zombie survival game: everyone in "
+                     "the server is on the same team against waves of infected.")
+        wave = int(state.get("wave") or 0)
+        where = state.get("area") or "the area"
+        if state.get("between_waves"):
+            lines.append("In %s, between waves: wave %d is done and wave %d is next." % (
+                where, wave, wave + 1) if wave else
+                "Just arrived in %s; wave 1 starts soon." % where)
+        else:
+            lines.append("In %s, fighting wave %d (%s infected left)%s." % (
+                where, wave, state.get("infected_left", "?"),
+                ", with a Tank on the loose" if state.get("tank") else ""))
+        if state.get("modifier"):
+            lines.append("This wave's twist: %s." % state["modifier"])
+        if state.get("survivors"):
+            lines.append("%s of %s survivors still alive%s." % (
+                state.get("survivors_alive", 0), state.get("survivors"),
+                (", %d downed" % state["downed"]) if state.get("downed") else ""))
+        if state.get("best_wave"):
+            lines.append("Best wave reached on this server: %s." % state["best_wave"])
     elif mode == "endless":
         if me.get("plot"):
             lines.append("Your restaurant: %s, %s upgrades built, %s coins in hand." % (
@@ -201,14 +222,20 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
                                                 r.get("built"), r.get("total"))
                 for r in best[:3]) + ".")
     left = _clock(state.get("time_left"))
-    if left and mode != "endless" and state.get("phase") == "active":
+    if left and mode not in ("endless", "survival") and state.get("phase") == "active":
         lines.append("Time left in the round: %s." % left)
     if state.get("players"):
         lines.append("%s players in this server." % state["players"])
     mine = []
     if me:
-        if me.get("alive") is False:
-            mine.append("you are dead and waiting to respawn")
+        if me.get("waiting"):
+            mine.append("you are in the bunker waiting to deploy with the next wave")
+        elif me.get("alive") is False:
+            mine.append("you are dead and waiting to respawn"
+                        if mode != "survival" else
+                        "you died and are watching until the next wave")
+        if me.get("downed"):
+            mine.append("you are downed and need a teammate to revive you")
         if mode != "endless" and ("kills" in me or "deaths" in me):
             mine.append("%s kills and %s deaths this round" % (me.get("kills", 0),
                                                               me.get("deaths", 0)))
@@ -231,11 +258,11 @@ def chat(card: Dict[str, Any], world: str, team: str,
     max_tokens = int(bot_config.get("llm.max_tokens_chat") or 48)
     system = _fmt(bot_config.get("prompts.chat"), world=world) + "\n\n" + \
         persona_block(card)
-    if team and (state or {}).get("mode") != "endless":
+    if team and (state or {}).get("mode") not in ("endless", "survival"):
         system += "\nYou are on the %s team this round." % team
     context = game_context(state or {}, me or {}, team)
     if roster:
-        endless = (state or {}).get("mode") == "endless"
+        endless = (state or {}).get("mode") in ("endless", "survival")
         names = ["%s%s" % (name, "" if endless or not side else
                            " (your team)" if side == team else " (other team)")
                  for name, side in roster[:24] if name]
