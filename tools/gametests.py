@@ -762,6 +762,70 @@ def test_hotbar() -> None:
             bot.stop()
 
 
+def test_survival() -> None:
+    """Last Light: one area's map, the safe room, a wave, and shooting it."""
+    print("\n== last light ==")
+    bots = spawn_bots("last_light", 2)
+    try:
+        first = bots[0]
+        pump(bots, 1.0)
+        markers = (first.map or {}).get("markers", {})
+        check("survival: the map is one area and the bunker, not all four",
+              markers.get("mode") == "survival" and bool(markers.get("area"))
+              and len(first.map.get("parts", [])) < 4000,
+              "%s, %d parts" % (markers.get("area"), len(first.map.get("parts", []))))
+        rect = markers.get("area_rect") or [0, 0, 0, 0]
+        lobby = markers.get("lobby_rect") or [0, 0, 0, 0]
+        def inside(pos, r):
+            return r[0] <= pos[0] <= r[1] and r[2] <= pos[2] <= r[3]
+        state = first.state
+        where = [("area" if inside(b.pos, rect) else
+                  "lobby" if inside(b.pos, lobby) else "nowhere") for b in bots]
+        check("survival: everybody starts in the area's safe room or the bunker",
+              "nowhere" not in where, str(where))
+        check("survival: the round reports its wave and area",
+              "wave" in state and bool(state.get("area_name")), json.dumps(state)[:160])
+        # hold still until the wave comes (the first breather is 30 seconds)
+        deadline = time.time() + 75
+        seen = None
+        while time.time() < deadline:
+            pump(bots, 0.5)
+            if first.zombies:
+                seen = [list(row) for row in first.zombies]
+                break
+        check("survival: a wave starts and the infected arrive", bool(seen),
+              json.dumps(first.state)[:160])
+        if not seen:
+            return
+        nearest = min(math.dist(b.pos, row[3:6]) for b in bots for row in seen)
+        check("survival: the infected spawn well away from the survivors",
+              nearest >= 40.0, "nearest %.1f" % nearest)
+        # wait for one to come close enough to shoot at, and shoot it
+        dealt_before = first.counts.get("dealt", 0)
+        deadline = time.time() + 75
+        while time.time() < deadline and first.counts.get("dealt", 0) == dealt_before:
+            pump(bots, 0.3)
+            rows = first.zombies or []
+            if not rows:
+                continue
+            row = min(rows, key=lambda r: math.dist(first.pos, r[3:6]))
+            if math.dist(first.pos, row[3:6]) > 24:     # in the room with us
+                continue
+            eye = [first.pos[0], first.pos[1] + 5.05, first.pos[2]]
+            aim = [row[3] - eye[0], row[4] + 3.0 - eye[1], row[5] - eye[2]]
+            length = math.sqrt(sum(v * v for v in aim)) or 1.0
+            first.fire_at([v / length for v in aim])
+        check("survival: shots land on the infected",
+              first.counts.get("dealt", 0) > dealt_before,
+              "dealt %d" % first.counts.get("dealt", 0))
+        check("survival: each survivor is told their own state",
+              all(b.counts.get("llme", 0) > 0 for b in bots),
+              [b.counts.get("llme", 0) for b in bots])
+    finally:
+        for bot in bots:
+            bot.stop()
+
+
 SCENARIOS = {
     "ctf": test_ctf,
     "relay": test_relay,
@@ -774,6 +838,7 @@ SCENARIOS = {
     "vote": test_vote,
     "instances": test_instances,
     "visits": test_visits,
+    "survival": test_survival,
 }
 
 

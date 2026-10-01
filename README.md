@@ -102,6 +102,7 @@ Basic Shotgun and a Basic Stick.
 | **Capture The Flag** | `/capture_the_flag` | First to 3 captures, then a shuffle vote | 16 |
 | **Fortress Team 2** | `/fortress_team_2` | Payload push, teams swap each round, first to 3 round wins | 24 |
 | **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
+| **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, four areas shuffled after every wipe | 24 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -170,6 +171,79 @@ more.
 Points go to the escort as well as the runner -- staying within thirty units
 of your own carrier pays, as does killing an attacker near your own flag.
 
+### Last Light
+Co-operative zombie survival for up to twenty-four. Everybody is on one team
+against the infected, wave after wave, in one of four places; a round ends
+when the last survivor falls, and the next round is somewhere else, starting
+again from wave one.
+
+**The places.** Each is a complete, walled-in map of its own -- about 560 by
+560 units -- with its own safe room (sixteen deploy pads, ammunition, a
+first-aid cabinet), several more supply points, fuel barrels and one
+noise-maker. They are built 2,400 units apart, nothing is drawn past 1,400,
+and a client is only ever sent the bunker and the one being played, so no
+area can be seen from another.
+
+* **Harrow Main Street** -- dusk in a small town: the sheriff's office (the
+  safe room, with a sandbagged roof), a bank with a roof stair, a diner, a
+  pharmacy, the Bijou theatre, back yards and houses you can go into, a
+  school and its gym, the square, a gas station, a rail yard of boxcars and
+  St. Jude's, whose bell is the lure.
+* **St. Agnes Medical** -- a hospital the army tried to quarantine: the
+  checkpoint camp (safe room), wards, an ER bay of ambulances (their sirens
+  are the lure), a four-level parking garage with a skybridge to the roof
+  helipad, a hedge maze, a construction site with scaffolding and a crane.
+* **Blackwater Docks** -- night and harbour fog: the harbourmaster's office
+  (safe room, with a balcony), a container yard, a gantry crane, a cargo ship
+  you can board (its horn is the lure), warehouses with mezzanines, a fish
+  market, a bar, a pier, the breakwater and its lighthouse, and water deep
+  enough to wade in -- the infected come out of it.
+* **Cedar Pines Camp** -- a summer camp at sunset: the ranger station (safe
+  room), a mess hall with a dinner bell (the lure), two circles of cabins, a
+  fire lookout tower, a boathouse and dock, a raft and an island in the lake,
+  and a terraced ridge with an old mine running under it.
+
+**Waves.** Each wave is paced to last about four minutes: its infected arrive
+in packs over most of it, from the area's own spawn points (the treeline,
+the graveyard, the water, the mine) -- out of every survivor's sight and at
+least seventy units away whenever the area allows it. A wave ends when the last of them dies, and
+twenty seconds later the next one starts. Every fifth wave brings a Tank (two
+from the fifteenth). From the third wave on a wave can come with a twist:
+*Rush Hour* (half of them run), *Horde Night* (half as many again, all at
+once), *Elite Wave* (more specials, tougher) or *Fog Bank*.
+
+**The infected.** Commons in whatever their area's people died in -- green
+skin, two dot eyes, an open O of a mouth -- with Runners among them from the
+third wave, and eleven specials: the **Bloater** (bursts into bile that
+draws the horde), **Spitter** (acid that burns hotter the longer you stand
+in it), **Leaper** (pounces and pins), **Bomber** (a dynamite vest; a clean
+headshot defuses it), **Brute** (charges, stuns itself on walls),
+**Screamer** (calls packs and enrages the rest), **Riot** (armoured from the
+front), **Hive** (bursts into a swarm of mites), **Burrower** (digs under you
+and comes up beneath), **Ronin** (turns bullets with his blade, then dashes
+in) and the **Plague Captain** (poison bolts, and he raises the fallen).
+Every one of them paths across the whole area -- one flow field from every
+survivor at once -- and climbs to anyone who tries to wait it out on a
+rooftop or a car.
+
+**Down, not dead.** A survivor brought to nothing goes down: still shooting,
+crawling, bleeding out over about a minute. Hold **E** on them for three
+seconds to pick them up. The third time in a life is death, and the dead
+watch the living over the shoulder (click to switch who) until the next wave
+begins, when everybody dead comes back in the safe room. Clearing a wave
+picks up everybody still down. A first-aid cabinet heals and resets your
+downs (three charges a wave each); ammunition crates refill everything, as
+often as you like; barrels come back every wave.
+
+**The holdout.** Anyone who joins while a wave is on waits in the bunker --
+practice dummies, a board of what is out there, monitors -- and deploys with
+the next wave (press **F** there to watch the survivors). Joining between
+waves deploys at once.
+
+**Anti-softlock.** An infected that no survivor has been able to see for
+four minutes is removed, and one stuck out of sight is moved; a wave that
+runs long hurries its stragglers on.
+
 ---
 
 ## Controls
@@ -183,7 +257,8 @@ of your own carrier pays, as does killing an attacker near your own flag.
 | Right mouse | Scope, or use the held item; anything else falls through to `E` |
 | `1`–`5` | Hotbar slots |
 | `R` | Reload |
-| `E` | Interact (tycoon buttons, machines, plot claiming) |
+| `E` | Interact (tycoon buttons, machines, plot claiming; in Last Light: revive, restock, first aid, the lure, and mash it to break a pin) |
+| `F` | Last Light, in the holdout: watch the survivors |
 | `G` | Toggle first / third person |
 | `Y` | Chat &nbsp;&nbsp; `U` Team chat |
 | `Tab` | Scoreboard |
@@ -1061,8 +1136,10 @@ tools/simclient.py --world capture_the_flag --bots 4 --seconds 20
 tools/gametests.py                      # full gameplay test suite
 BLOCKHAVEN_TLS=1 tools/gametests.py     # ...over HTTPS and wss://
 tools/gametests.py ctf combat tycoon    # or a subset
+tools/gametests.py survival             # Last Light: the area map, a wave, shooting it
 tools/mapcheck.py                       # geometry QA for every map
 tools/mapcheck.py ironvale              # ...or just one
+tools/mapcheck.py lastlight             # each Last Light area on its own, routes from its safe room
 tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
 tools/bottests.py                       # bot unit tests, headless rounds, scale
