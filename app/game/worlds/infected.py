@@ -550,7 +550,8 @@ class Horde:
         direct = False
         if target is not None and distance < 18.0:
             dy = target.pos[1] - z.pos[1]
-            if abs(dy) < 2.6 or (dy > 0 and distance < 7.0):
+            if (abs(dy) < 2.6 or (dy > 0 and distance < 7.0)) and \
+                    self._open_between(z, target, moment):
                 if nav is None or abs(dy) > 2.6 or \
                         nav.clear_line(z.pos, [target.pos[0], z.pos[1], target.pos[2]]):
                     goal = target.pos
@@ -593,6 +594,22 @@ class Horde:
         if z.anim != A_CLIMB or not z.hit_wall:
             z.anim = A_RUN if speed > 22.0 or z.kind in ("runner", "mite") else A_WALK
         self._progress(z, moment)
+
+    def _open_between(self, z: Zombie, target, moment: float) -> bool:
+        """Nothing solid between an infected and its target, at the knee and
+        at the chest.  The walkable-ground test alone cannot see a thin
+        wall -- a tent's canvas, a fence -- with floor on both sides of it,
+        and walking straight at somebody through one is how a crowd ends up
+        pressed against the outside of a safe room.  Checked a few times a
+        second, not every tick."""
+        cached = z.data.get("open")
+        if cached is not None and cached[0] == target.pid and moment < cached[1]:
+            return cached[2]
+        ok = all(self.world.line_of_sight(
+            [z.pos[0], z.pos[1] + h, z.pos[2]],
+            [target.pos[0], target.pos[1] + h, target.pos[2]]) for h in (1.2, 3.6))
+        z.data["open"] = (target.pid, moment + 0.3, ok)
+        return ok
 
     def _plan(self, z: Zombie, target, nav, moment: float) -> None:
         z.path_at = moment + self.rng.uniform(0.7, 1.2)
