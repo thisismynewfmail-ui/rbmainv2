@@ -106,6 +106,59 @@ WORLDS: List[Dict[str, Any]] = [
                      "Outpost lockdown", "Secret tunnels",
                      "Overtime + sudden death"],
     },
+    # Appended last on purpose: the bot director snapshots each bot's world
+    # as an index into this list, so a new world goes on the end.
+    {
+        "id": "last_light",
+        "name": "Last Light",
+        "genre": "Zombie Survival",
+        "creator": "BLOCKHAVEN",
+        "tagline": "Hold the line. Wave after wave. Until the last light goes out.",
+        "description": (
+            "Harrow County fell in a single night. You and up to twenty-three "
+            "others hold out against the infected, wave after wave, in one of "
+            "four places the outbreak reached first -- Harrow's main street, "
+            "St. Agnes Medical, the Blackwater docks or the Cedar Pines "
+            "campground. Every wave is bigger than the last; every fifth "
+            "brings a Tank. Eleven kinds of special infected hunt the slow, "
+            "the careless and the alone: Bloaters, Bombers, Leapers, Brutes, "
+            "Spitters, Screamers, Riot infected, the Plague Captain, Hives, "
+            "Ronin and Burrowers. Go down and a teammate can pick you up; die "
+            "and you watch the others until the next wave brings you back. "
+            "When the last survivor falls, the round ends -- and the next one "
+            "starts somewhere else."),
+        "max_players": 24,
+        "team_count": 1,
+        "mode": "survival",
+        "shuffle": False,
+        "round_label": "Survive the waves",
+        "colors": ["#5d8a4e", "#8a2a1c", "#e0a040"],
+        "thumb": "lastlight",
+        "features": ["24 players", "Endless waves", "Tank every 5th wave",
+                     "11 special infected", "4 shuffled locations",
+                     "Revive your team", "Spectate while dead"],
+        # The places a round can be played in, in shuffle order, for the
+        # world page's location gallery.  Each id is the map's own area id.
+        "areas": [
+            {"id": "town", "name": "Harrow Main Street",
+             "blurb": "Dusk on a small-town main street: the sheriff's "
+                      "office, a diner, a church whose bell carries for "
+                      "miles, a gas station that should not be shot at, "
+                      "back yards and a rail yard full of boxcars."},
+            {"id": "hospital", "name": "St. Agnes Medical",
+             "blurb": "A hospital the army tried to quarantine. Hold the "
+                      "checkpoint, fight up the four-storey parking garage, "
+                      "and listen for the ambulances."},
+            {"id": "docks", "name": "Blackwater Docks",
+             "blurb": "Night and harbour fog. Container mazes, a cargo ship "
+                      "you can board, warehouses with catwalks and a "
+                      "lighthouse at the end of the breakwater."},
+            {"id": "camp", "name": "Cedar Pines Camp",
+             "blurb": "A lakeside summer camp in the last of the sunset: "
+                      "cabins, a mess hall, a fire lookout tower, a ridge "
+                      "with a footbridge, and an old mine in the hill."},
+        ],
+    },
 ]
 
 WORLDS = [db.AttrDict(w) for w in WORLDS]

@@ -348,6 +348,19 @@ class BotRunner:
                 "pushing": int(cart.get("pushers", 0) or 0),
                 "blocked": bool(cart.get("blocked")),
             })
+        elif self.mode == "survival":
+            state.update({
+                "area": round_state.get("area_name"),
+                "wave": round_state.get("wave"),
+                "best_wave": round_state.get("best"),
+                "between_waves": round_state.get("wphase") == "setup",
+                "infected_left": round_state.get("zleft"),
+                "tank": bool(round_state.get("tank")),
+                "survivors_alive": round_state.get("alive"),
+                "survivors": round_state.get("field"),
+                "downed": len(round_state.get("downed") or []),
+                "modifier": round_state.get("modifier_name") or "",
+            })
         elif self.mode == "endless":
             plots = sorted(round_state.get("plots") or [], key=lambda p: -p.get("earned", 0))
             state["restaurants"] = [
@@ -366,6 +379,10 @@ class BotRunner:
                               "role": getattr(brain, "role", "")}
         if self.mode == "captures":
             me["carrying"] = self.urgent(brain)
+        if self.mode == "survival":
+            me["downed"] = bool(p.extra.get("downed"))
+            me["waiting"] = p.extra.get("ll_where") == "lobby"
+            me["revives"] = int((p.extra.get("ll") or {}).get("revives", 0))
         if self.mode == "endless":
             plot = getattr(self.instance, "plot_of", lambda _p: None)(p)
             if plot is not None:
@@ -463,6 +480,10 @@ class BotRunner:
             # kills a real player was part of: bot-on-bot kills would bury the
             # conversation (sprees still come through as speech events)
             self.note("%s killed %s with %s" % (killer.username, victim.username, weapon))
+        if getattr(killer, "npc", False):
+            # the infected keep no streaks and end none worth a word
+            self.streaks.pop(victim.pid, 0)
+            return
         ended = self.streaks.pop(victim.pid, 0) if victim is not None else 0
         if killer is not None and killer is not victim:
             count = self.streaks.get(killer.pid, 0) + 1
@@ -601,6 +622,8 @@ class BotRunner:
     def urgent(self, brain: Brain) -> bool:
         """True while nothing should distract this bot from the objective:
         a flag carrier runs home, whatever mood it was in a moment ago."""
+        if self.mode == "survival":
+            return True             # the team is the objective, every moment
         if self.mode != "captures":
             return False
         flags = getattr(self.instance, "flags", None) or {}
@@ -613,6 +636,8 @@ class BotRunner:
                 self._ctf(brain)
             elif self.mode == "payload":
                 self._payload(brain)
+            elif self.mode == "survival":
+                self._survival(brain)
             else:
                 self._tycoon(brain)
         except Exception:
@@ -793,6 +818,164 @@ class BotRunner:
             if node >= 0:
                 brain.go(self.nav.point(node), "mill%d" % node)
 
+    # ============================================================ survival
+    def _survival(self, brain: Brain) -> None:
+        """Last Light: stay with the team, and do what a good teammate does.
+
+        In order: struggle when pinned; shoot off whatever is pinning a
+        teammate; pick up the downed (unless something is right on top of
+        us); restock when the guns run dry; patch up at a cabinet when hurt;
+        ring the lure when the team is being swamped; and otherwise keep
+        close to the people -- the real ones first -- facing out."""
+        inst = self.instance
+        p = brain.p
+        rng = self.rng
+        moment = now()
+        where = p.extra.get("ll_where", "lobby")
+        if where != "field" or not p.alive:
+            p.extra.pop("using", None)
+            if where == "lobby" and not brain.waypoints and rng.random() < 0.15:
+                centre = (inst.lobby.get("centre") or [0, 0, 0])
+                node = self.nav.random_node(rng, centre, 40) if self.nav and                     self.nav.ready else -1
+                if node >= 0:
+                    brain.go(self.nav.point(node), "lobby%d" % node)
+            return
+        if p.extra.get("pinned_by"):
+            # mash the key: quicker for the steadier hands
+            if rng.random() < 0.45 + brain.skill * 0.4:
+                inst.use(p)
+            if rng.random() < 0.08:
+                brain.say("pinned", chance=0.6)
+            return
+        if p.extra.get("downed"):
+            p.extra.pop("using", None)
+            brain.waypoints = []
+            if not p.extra.get("said_down"):
+                p.extra["said_down"] = True
+                brain.say("downed", chance=0.7)
+            return
+        p.extra.pop("said_down", None)
+        team = [s for s in inst.survivors() if s is not p]
+        horde = inst.horde.zombies
+        # 1. somebody pinned: get over there, the pinner is the target
+        for mate in team:
+            pinner = horde.get(mate.extra.get("pinned_by", 0))
+            if pinner is None or math.dist(mate.pos, p.pos) > 110:
+                continue
+            brain.target = pinner.pid
+            if math.dist(mate.pos, p.pos) > 7:
+                brain.go(feet(mate), "save%d" % mate.pid)
+            else:
+                brain.waypoints = []
+            p.extra.pop("using", None)
+            return
+        # 2. a Tank close by: back off and keep shooting, never hug it
+        tank = min((z for z in horde.values() if z.kind == "tank"),
+                   key=lambda z: math.dist(z.pos, p.pos), default=None)
+        if tank is not None and math.dist(tank.pos, p.pos) < 20 and self.nav and \
+                self.nav.ready:
+            brain.target = tank.pid
+            dx, dz = p.pos[0] - tank.pos[0], p.pos[2] - tank.pos[2]
+            flat = math.hypot(dx, dz) or 1.0
+            away = [p.pos[0] + dx / flat * 22.0, p.pos[1], p.pos[2] + dz / flat * 22.0]
+            node = self.nav.nearest(away, 3)
+            if node >= 0:
+                brain.go(self.nav.point(node), "kite%d" % node)
+                return
+        # 3. somebody down: pick them up, unless it is suicide right now
+        downed = [m for m in team if m.extra.get("downed")]
+        if downed:
+            mate = min(downed, key=lambda m: math.dist(m.pos, p.pos))
+            d = math.dist(mate.pos, p.pos)
+            crowded = sum(1 for z in horde.values()
+                          if math.dist(z.pos, p.pos) < 7) >= 3 or any(
+                z.kind == "tank" and math.dist(z.pos, mate.pos) < 22
+                for z in horde.values())
+            others = [m for m in team if not m.extra.get("downed") and
+                      m.extra.get("revive") and m.extra["revive"][0] == mate.pid]
+            if d < 150 and not crowded and not others:
+                if d > 4.5:
+                    p.extra.pop("using", None)
+                    brain.go(feet(mate), "revive%d" % mate.pid)
+                else:
+                    brain.waypoints = []
+                    p.extra["using"] = True
+                return
+        p.extra.pop("using", None)
+        area = inst.area
+        # 4. out of ammunition: the nearest crate
+        guns = [(slot, p.weapon_stats(slot)) for slot in range(5)
+                if p.weapon(slot) and p.weapon_stats(slot).get("kind") in
+                ("hitscan", "projectile")]
+        if guns:
+            have = sum(p.ammo[s] + p.reserve[s] for s, _st in guns)
+            full = sum(int(st.get("mag", 0) or 0) + int(st.get("reserve", 0) or 0)
+                       for _s, st in guns) or 1
+            calm = inst.phase != "active" or not any(
+                math.dist(z.pos, p.pos) < 25 for z in horde.values())
+            if have / full < (0.5 if calm and inst.phase != "active" else 0.22):
+                if self._fetch(brain, area["points"].get("ammo", []), 220, "ammo"):
+                    return
+        # 5. hurt, or one more down from dead: a cabinet with something in it
+        if p.health < 45 or (p.extra.get("downs", 0) >= 1 and inst.phase != "active"):
+            cabinets = [pt for i, pt in enumerate(area["points"].get("med", []))
+                        if i < len(inst.med_charges) and inst.med_charges[i] > 0]
+            if self._fetch(brain, cabinets, 160, "med"):
+                return
+        # 6. swamped near the lure: ring it
+        lure = area.get("lure")
+        if lure and inst.phase == "active" and moment >= inst.lure_ready and                 math.dist(lure["p"], p.pos) < 60 and                 sum(1 for z in horde.values() if math.dist(z.pos, p.pos) < 50) >= 14                 and rng.random() < 0.25:
+            if math.dist(lure["p"], p.pos) < 6:
+                inst.use(p)
+            else:
+                brain.go(lure["p"], "lure", precise=True)
+            return
+        # 7. with the team: the people first
+        anchor = self._anchor(brain, team)
+        if anchor is None:
+            return
+        d = math.dist(anchor, p.pos)
+        spread = 10.0 + brain.t("explore", 0.2) * 10.0
+        if d > spread + 6:
+            brain.go(anchor, "team")
+        elif not brain.waypoints and rng.random() < 0.08 and self.nav and self.nav.ready:
+            node = self.nav.random_node(rng, anchor, spread)
+            if node >= 0:
+                brain.go(self.nav.point(node), "mill%d" % node)
+
+    def _fetch(self, brain: Brain, points, reach: float, key: str) -> bool:
+        p = brain.p
+        best, best_d = None, reach
+        for point in points:
+            d = math.dist(point["p"], p.pos)
+            if d < best_d:
+                best, best_d = point, d
+        if best is None:
+            return False
+        if best_d < 5.5:
+            brain.waypoints = []
+            self.instance.use(p)
+            return False
+        brain.go(best["p"], "%s%.0f" % (key, best["p"][0]), precise=True)
+        return True
+
+    def _anchor(self, brain: Brain, team) -> Optional[List[float]]:
+        """Where "with the team" is: the nearest real survivor standing, else
+        the middle of the standing team, else the safe room."""
+        p = brain.p
+        standing = [m for m in team if not m.extra.get("downed")]
+        people = [m for m in standing if m.brain is None]
+        if people:
+            return feet(min(people, key=lambda m: math.dist(m.pos, p.pos)))
+        if standing:
+            near = [m for m in standing if math.dist(m.pos, p.pos) < 160] or standing
+            cx = sum(m.pos[0] for m in near) / len(near)
+            cz = sum(m.pos[2] for m in near) / len(near)
+            pick = min(near, key=lambda m: math.hypot(m.pos[0] - cx, m.pos[2] - cz))
+            return feet(pick)
+        safe = self.instance.area.get("safe") or []
+        return list(safe[0]["p"]) if safe else None
+
     # ================================================================ wake
     def wake(self, state: Dict[str, Any], bots: List[Dict[str, Any]]) -> None:
         """Build a live round, mid-flight, from a sleeping one."""
@@ -830,6 +1013,10 @@ class BotRunner:
             inst.last_push = moment
         elif mode == "endless" and hasattr(inst, "plots"):
             self._wake_tycoon(state, by_uid)
+        elif mode == "survival" and hasattr(inst, "resume"):
+            inst.resume(state)
+            self._seed_chat(state, list(by_uid.values()))
+            return
         self._spread(by_uid, state)
         self._seed_chat(state, list(by_uid.values()))
 
@@ -969,11 +1156,16 @@ class BotRunner:
                     at += rng.uniform(10, 60)
         chatty = sorted(players, key=lambda p: -(p.brain.t("chatty", 0.4) if p.brain else 0))
         for p in chatty[:rng.randint(1, 3)]:
-            text = styled(rng.choice(["gg", "lol", "nice", "push", "who has the flag",
-                                      "anyone", "wait", "go go", "rip"]
-                                     if self.mode != "endless" else
-                                     ["nice restaurant", "lol", "how do i get money",
-                                      "we need the fryer", "almost arches"]), p.brain.traits, rng)
+            if self.mode == "endless":
+                options = ["nice restaurant", "lol", "how do i get money",
+                           "we need the fryer", "almost arches"]
+            elif self.mode == "survival":
+                options = ["stick together", "need ammo", "that tank lol", "gg wave",
+                           "who has meds", "stay near the bell", "rip", "nice save"]
+            else:
+                options = ["gg", "lol", "nice", "push", "who has the flag",
+                           "anyone", "wait", "go go", "rip"]
+            text = styled(rng.choice(options), p.brain.traits, rng)
             lines.append({"t": "chat", "from": p.username, "id": p.pid, "uid": p.user_id,
                           "team": p.team, "m": text, "kind": "all", "at": at,
                           "admin": False})
@@ -1000,6 +1192,8 @@ class BotRunner:
                          "checkpoints": inst.checkpoints_reached,
                          "round_wins": dict(inst.round_wins),
                          "time_left": max(0.0, inst.round_ends - moment)})
+        elif self.mode == "survival" and hasattr(inst, "sleep_state"):
+            live.update(inst.sleep_state())
         elif self.mode == "endless" and hasattr(inst, "plots"):
             plots = []
             for plot in inst.plots:

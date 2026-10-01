@@ -1065,7 +1065,7 @@ class Horde:
                         if flat < 11.0 and abs(s.pos[1] - z.pos[1]) < 4.0:
                             flat = flat or 1.0
                             self.world.infected_hits(
-                                z, s, z.dmg * 0.7, "Tank",
+                                z, s, z.dmg * 0.45, "Tank",
                                 knock=[dx / flat * 55.0, 40.0, dz / flat * 55.0])
                     self.world.zfx("slam", z)
                 z.state = "walk"
