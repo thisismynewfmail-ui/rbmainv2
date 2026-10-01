@@ -361,6 +361,25 @@ class GameInstance:
     def team_names(self) -> List[str]:
         return ["red", "blue"]
 
+    def map_payload(self, player: Optional["Player"] = None) -> Dict[str, Any]:
+        """The map a joining client is sent.
+
+        The whole map, normally.  A world built from several separate places
+        (Last Light keeps one per round) sends only the ones the player can
+        currently be in, so nobody downloads -- or draws -- geometry they will
+        never see this round.
+        """
+        return self.map
+
+    def entity(self, eid: Optional[int]):
+        """Whatever can be shot, by id: a player here, and in worlds with
+        creatures of their own (the infected in Last Light) those too.  The
+        bots resolve their targets through this, so a target that is not a
+        player is still something they can track, chase and fire at."""
+        if eid is None:
+            return None
+        return self.players.get(eid)
+
     # ------------------------------------------------------------- geometry
     @staticmethod
     def _build_colliders(map_data: Dict[str, Any]) -> List[Tuple[List[float], List[float]]]:
@@ -598,7 +617,7 @@ class GameInstance:
                     "team_count": self.world.get("team_count", 2),
                     "shuffle": self.world.get("shuffle", True),
                 },
-                "map": self.map,
+                "map": self.map_payload(player),
                 "players": [p.public() for p in self.players.values()],
                 "state": self.full_state(),
                 "tick_rate": TICK_RATE,

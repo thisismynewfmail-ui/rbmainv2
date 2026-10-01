@@ -76,6 +76,14 @@ class NavGrid:
         self.nx = int((max(xs) - self.x0) / spacing) + 3
         self.nz = int((max(zs) - self.z0) / spacing) + 3
         self.kill_y = float(map_data.get("kill_y", -60.0))
+        # A map made of separate places (Last Light keeps each round's area
+        # a long way from the others) names the rectangles worth sampling;
+        # the empty country between them is never walked, so it is never
+        # scanned either.  None means the whole bounding box, as before.
+        regions = (map_data.get("markers") or {}).get("nav_regions")
+        self.regions: Optional[List[Tuple[float, float, float, float]]] = None
+        if regions:
+            self.regions = [tuple(float(v) for v in r[:4]) for r in regions]
         self.px = array("f")
         self.py = array("f")
         self.pz = array("f")
@@ -92,6 +100,8 @@ class NavGrid:
     def key(self) -> str:
         digest = hashlib.sha1()
         digest.update(("%s|%s|%d" % (self.name, self.spacing, VERSION)).encode())
+        if self.regions:
+            digest.update(repr(self.regions).encode())
         for lo, hi in self.boxes:
             digest.update(("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f;" % (
                 lo[0], lo[1], lo[2], hi[0], hi[1], hi[2])).encode())
@@ -136,25 +146,24 @@ class NavGrid:
                             seen.add(index)
                             yield boxes[index]
 
-        for ix in range(self.nx):
+        for ix, iz in self._columns():
             x = self.x0 + ix * self.spacing
-            for iz in range(self.nz):
-                z = self.z0 + iz * self.spacing
-                overlap = [(lo[1], hi[1]) for lo, hi in near(x - hw, x + hw, z - hd, z + hd)
-                           if hi[0] > x - hw and lo[0] < x + hw and hi[2] > z - hd and lo[2] < z + hd]
-                if not overlap:
+            z = self.z0 + iz * self.spacing
+            overlap = [(lo[1], hi[1]) for lo, hi in near(x - hw, x + hw, z - hd, z + hd)
+                       if hi[0] > x - hw and lo[0] < x + hw and hi[2] > z - hd and lo[2] < z + hd]
+            if not overlap:
+                continue
+            tops = sorted({round(h, 2) for _l, h in overlap if self.kill_y < h < 220.0})
+            ids = []
+            for top in tops:
+                if any(h > top + 0.1 and l < top + height for l, h in overlap):
                     continue
-                tops = sorted({round(h, 2) for _l, h in overlap if self.kill_y < h < 220.0})
-                ids = []
-                for top in tops:
-                    if any(h > top + 0.1 and l < top + height for l, h in overlap):
-                        continue
-                    ids.append(len(px))
-                    px.append(x)
-                    py.append(top)
-                    pz.append(z)
-                if ids:
-                    cols[ix * self.nz + iz] = tuple(ids)
+                ids.append(len(px))
+                px.append(x)
+                py.append(top)
+                pz.append(z)
+            if ids:
+                cols[ix * self.nz + iz] = tuple(ids)
         self.cols = cols
 
         def blocked(xa, za, xb, zb, y0, y1) -> bool:
@@ -217,6 +226,34 @@ class NavGrid:
                             out[b].append((a, cost_ba))
         self._pack(out)
         self.build_ms = (time.time() - started) * 1000.0
+
+    def _columns(self):
+        """Every grid column to sample: all of them, or only those inside the
+        map's regions (each column once, even where two regions touch)."""
+        if not self.regions:
+            for ix in range(self.nx):
+                for iz in range(self.nz):
+                    yield ix, iz
+            return
+        seen = set()
+        for x0, x1, z0, z1 in self.regions:
+            ix0 = max(0, int(math.floor((x0 - self.x0) / self.spacing)))
+            ix1 = min(self.nx - 1, int(math.ceil((x1 - self.x0) / self.spacing)))
+            iz0 = max(0, int(math.floor((z0 - self.z0) / self.spacing)))
+            iz1 = min(self.nz - 1, int(math.ceil((z1 - self.z0) / self.spacing)))
+            for ix in range(ix0, ix1 + 1):
+                for iz in range(iz0, iz1 + 1):
+                    key = ix * self.nz + iz
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    yield ix, iz
+
+    def walkable(self, x: float, y: float, z: float) -> bool:
+        """Is there a node under (x, z) within a step of height ``y``?"""
+        ix, iz = self.column(x, z)
+        ids = self.cols.get(ix * self.nz + iz)
+        return bool(ids) and any(abs(self.py[n] - y) <= STEP_UP for n in ids)
 
     def _pack(self, out: List[List[Tuple[int, float]]]) -> None:
         n = len(out)
