@@ -15,7 +15,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 
 from app.game.instance import GameInstance, PLAYER_SIZE  # noqa: E402
-from app.game.maps import crossroads, payload, tycoon    # noqa: E402
+from app.game.maps import crossroads, lastlight, payload, tycoon  # noqa: E402
 
 PLAYER_W, PLAYER_H, PLAYER_D = 2.4, PLAYER_SIZE[1], 1.8
 FAILURES: List[str] = []
@@ -84,6 +84,12 @@ def main() -> int:
     check_map("crossroads", crossroads.build())
     check_map("dustworks", payload.build())
     check_map("patty plains", tycoon.build())
+    # Last Light: the bunker's pads, and every area's safe room
+    survival = lastlight.build()
+    spawns = dict(survival["spawns"])
+    for area in survival["markers"]["areas"]:
+        spawns[area["id"]] = area["safe"]
+    check_map("last light", dict(survival, spawns=spawns))
     print("\n%d failures" % len(FAILURES))
     return 1 if FAILURES else 0
 
