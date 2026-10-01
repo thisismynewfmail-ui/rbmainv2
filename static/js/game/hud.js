@@ -205,6 +205,29 @@
     rows = rows || this.client.state.scoreboard || [];
     var myId = this.client.myId;
     var tycoon = this.client.world.mode === 'endless';
+    if (this.client.world.mode === 'survival') {
+      // one team against the horde: who is up, and what they have done
+      var head = document.querySelector('#scoreboard thead tr');
+      if (head && !head.dataset.survival) {
+        head.dataset.survival = '1';
+        head.innerHTML = '<th>Player</th><th>Status</th><th>Kills</th><th>Specials</th>' +
+          '<th>Revives</th><th>Score</th>';
+      }
+      board.innerHTML = rows.map(function (row) {
+        var status = row.where === 'lobby' ? 'in the bunker' : (!row.alive ? 'dead'
+          : (row.downed ? 'DOWN' : 'alive'));
+        return '<tr class="' + (row.id === myId ? 'me' : '') + '">' +
+          '<td class="who" data-username="' + row.name + '">' + row.name + '</td>' +
+          '<td>' + status + '</td><td>' + row.kills + '</td><td>' + (row.specials || 0) +
+          '</td><td>' + (row.revives || 0) + '</td><td>' + row.score + '</td></tr>';
+      }).join('');
+      var heading = el('sb-title');
+      if (heading) {
+        heading.textContent = this.client.world.name + ' -- instance #' +
+          (this.client.state.instance || '?') + ' (' + rows.length + ' players)';
+      }
+      return;
+    }
     var html = rows.map(function (row) {
       var team = row.team === 'red' ? 'red' : (row.team === 'blue' ? 'blue' : '');
       return '<tr class="' + team + (row.id === myId ? ' me' : '') + '">' +
@@ -228,6 +251,11 @@
     var red = el('score-red'), blue = el('score-blue');
     var timer = el('obj-timer'), sub = el('obj-sub');
     var bar = el('cartbar');
+    if (mode === 'survival' && this.client.survival) {
+      if (bar) bar.style.display = 'none';
+      this.client.survival.updateObjective(state);
+      return;
+    }
     if (mode === 'captures') {
       var captures = state.captures || { red: 0, blue: 0 };
       if (red) red.textContent = captures.red;

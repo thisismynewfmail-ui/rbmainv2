@@ -30,7 +30,10 @@
 
   function allocate(name) {
     if (Textures.slots[name]) return Textures.slots[name];
-    var index = Textures.nextSlot++;
+    // a cell given back (a sign from an area no longer being played) is
+    // used again before the atlas grows into recycling live artwork
+    var index = (Textures.freeCells && Textures.freeCells.length) ? Textures.freeCells.pop()
+      : Textures.nextSlot++;
     // slot 0 is the plain white square every untextured part samples, so an
     // overflowing atlas recycles cells from 1 upwards rather than stamping
     // artwork over it.
@@ -595,6 +598,20 @@
     Textures.version++;
     return slot;
   }
+
+  /* Give back every sign's cell.  A world that swaps its whole map (Last
+     Light moves to a new area every round) calls this before building the
+     new one, so four areas' worth of signage never has to fit in the atlas
+     at once.  Whatever is still on screen asks for its sign again and gets
+     it repainted. */
+  Textures.freeCells = [];
+  Textures.dropSigns = function () {
+    Object.keys(Textures.slots).forEach(function (key) {
+      if (key.indexOf('decal:t~') !== 0) return;
+      Textures.freeCells.push(Textures.slots[key].index);
+      delete Textures.slots[key];
+    });
+  };
 
   Textures.decal = function (name) {
     if (!name) return null;

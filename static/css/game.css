@@ -406,3 +406,84 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
   }
   #game-root { display: none; }
 }
+
+/* ------------------------------------------------------------- Last Light */
+.kf .n-survivors { color: #ffd27a; }
+.kf .n-infected { color: #9ad86a; }
+.kf.mine .n-survivors, .kf.mine .n-infected { color: #2a1c00; }
+#score-mode .ll-wave { display: block; font-size: 20px; font-weight: bold; letter-spacing: .06em;
+  color: #ffd27a; text-shadow: 0 2px 6px #000; }
+#score-mode .ll-area { display: block; font-size: 11px; opacity: .8; letter-spacing: .08em;
+  text-transform: uppercase; }
+#ll-boss { position: absolute; top: 104px; left: 50%; transform: translateX(-50%); width: 420px;
+  display: none; text-align: center; }
+#ll-boss.on { display: block; }
+#ll-boss .ll-boss-name { font-size: 13px; font-weight: bold; letter-spacing: .3em; color: #ff8a6a;
+  text-shadow: 0 2px 6px #000; margin-bottom: 3px; }
+#ll-boss .ll-boss-bar { height: 12px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,138,106,.7);
+  border-radius: 6px; overflow: hidden; }
+#ll-boss .ll-boss-bar i { display: block; height: 100%; width: 100%;
+  background: linear-gradient(#ff7a4a, #a8241a); transition: width .25s; }
+#ll-team { position: absolute; left: 12px; top: 46px; width: 190px; }
+.ll-mate { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 11px;
+  background: rgba(10,14,20,.6); border-left: 3px solid #6fae55; padding: 2px 6px; border-radius: 3px; }
+.ll-mate.me { border-left-color: #ffd27a; }
+.ll-mate .n { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: bold; }
+.ll-mate .h { width: 54px; height: 5px; background: rgba(0,0,0,.6); border-radius: 3px; overflow: hidden; }
+.ll-mate .h i { display: block; height: 100%; background: #6fd86a; }
+.ll-mate .v { width: 38px; text-align: right; opacity: .85; }
+.ll-mate.down { border-left-color: #ff6a5a; animation: lldown 1s infinite; }
+.ll-mate.down .v { color: #ff8a7a; font-weight: bold; }
+.ll-mate.dead { opacity: .45; border-left-color: #555; }
+.ll-mate.wait { opacity: .6; border-left-color: #6a8ab0; }
+@keyframes lldown { 50% { background: rgba(120,20,14,.7); } }
+#ll-banner { position: absolute; left: 50%; top: 13.5%; transform: translateX(-50%) scale(.96);
+  text-align: center; opacity: 0; transition: opacity .35s, transform .35s; }
+#ll-banner.on { opacity: 1; transform: translateX(-50%) scale(1); }
+#ll-banner .t { font-size: 46px; font-weight: 900; letter-spacing: .12em; color: #f4e6c8;
+  text-shadow: 0 4px 18px #000, 0 0 30px rgba(255,140,60,.45); }
+#ll-banner .s { font-size: 15px; font-weight: bold; letter-spacing: .06em; opacity: .9;
+  text-shadow: 0 2px 6px #000; }
+#ll-banner.tank .t { color: #ff7a4a; }
+#ll-banner.clear .t { color: #9ade8f; }
+#ll-down, #ll-revive { position: absolute; left: 50%; top: 64%; transform: translateX(-50%);
+  text-align: center; display: none; width: 340px; }
+#ll-down.on, #ll-revive.on { display: block; }
+#ll-down .t { font-size: 26px; font-weight: 900; color: #ff6a5a; letter-spacing: .14em;
+  text-shadow: 0 3px 10px #000; }
+#ll-down .s, #ll-revive .s { font-size: 13px; font-weight: bold; text-shadow: 0 2px 6px #000;
+  margin: 3px 0 5px; }
+.ll-bar { height: 10px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.4);
+  border-radius: 5px; overflow: hidden; }
+.ll-bar i { display: block; height: 100%; width: 0; background: linear-gradient(#ff8a6a, #b8281a); }
+#ll-revive .ll-bar i { background: linear-gradient(#9ade8f, #2f8a3a); }
+#ll-watch { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
+  text-align: center; display: none; background: rgba(10,14,20,.7); border-radius: 5px;
+  padding: 8px 18px; border: 1px solid rgba(255,255,255,.25); }
+#ll-watch.on { display: block; }
+#ll-watch .t { font-size: 17px; font-weight: bold; color: #ffd27a; }
+#ll-watch .s { font-size: 12px; opacity: .85; margin-top: 2px; }
+#ll-vignette { position: absolute; inset: 0; opacity: 0; transition: opacity .4s;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(150,0,0,.55) 100%); }
+#ll-vignette.on { opacity: 1; animation: llpulse 1.4s infinite; }
+@keyframes llpulse { 50% { opacity: .65; } }
+#ll-bile { position: absolute; inset: 0; opacity: 0; transition: opacity .8s;
+  background: radial-gradient(ellipse at center, rgba(150,200,40,.06) 30%, rgba(90,140,20,.5) 100%); }
+#ll-bile.on { opacity: 1; }
+#ll-wipe { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(20,6,4,.72), rgba(0,0,0,.92)); }
+#ll-wipe.on { display: flex; }
+.ll-wipe-in { text-align: center; width: 620px; max-width: 92vw; }
+.ll-wipe-k { font-size: 13px; letter-spacing: .45em; color: #ff8a6a; font-weight: bold; }
+.ll-wipe-in h2 { font-size: 40px; margin: 6px 0 4px; color: #f4e6c8; letter-spacing: .06em;
+  text-shadow: 0 4px 18px #000; }
+.ll-wipe-s { font-size: 15px; margin-bottom: 12px; }
+.ll-wipe-s b { color: #ffd27a; }
+.ll-wipe-in table { width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 12px; }
+.ll-wipe-in th { font-size: 10px; opacity: .7; letter-spacing: .1em; text-transform: uppercase;
+  padding: 3px; }
+.ll-wipe-in td { padding: 3px; border-top: 1px solid rgba(255,255,255,.08); }
+.ll-wipe-in .n { text-align: left; }
+.ll-wipe-in tr.me td { color: #ffd27a; font-weight: bold; }
+.ll-wipe-next { font-size: 15px; }
+.ll-wipe-next b { color: #9ade8f; }

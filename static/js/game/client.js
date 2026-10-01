@@ -67,6 +67,9 @@
     this.respawnAt = 0;
     this.deadBy = '';
     this.extras = null;
+    // Last Light's zombies, spectating and survival HUD (game/survival.js)
+    this.survival = (this.world.mode === 'survival' && global.Survival)
+      ? new global.Survival(this) : null;
     this.fps = 60;
     this.lastFrame = performance.now();
     this.applySettings();
@@ -231,6 +234,11 @@
     document.addEventListener('mousedown', function (event) {
       if (self.paused || self.hud.chatOpen) return;
       if (document.pointerLockElement !== canvas) return;
+      if (self.survival && self.survival.isWatching()) {
+        // the dead (and the bunker's watchers) switch who they follow
+        self.survival.cycle(event.button === 2 ? -1 : 1);
+        return;
+      }
       if (event.button === 0) { self.firing = true; self.tryFire(); }
       // Right click is the secondary action: scope or use the held item if it
       // has one, otherwise it does exactly what E does.
@@ -271,7 +279,16 @@
       if (action === 'teamchat') { event.preventDefault(); self.hud.openChat(true); return; }
       if (action === 'camera') { event.preventDefault(); self.toggleCamera(); return; }
       if (action === 'reload') { self.net.send({ t: 'reload' }); return; }
-      if (action === 'interact') { self.interact(); return; }
+      if (action === 'interact') {
+        if (self.survival) { self.survival.useDown(event.repeat); return; }
+        self.interact();
+        return;
+      }
+      if (self.survival && event.code === 'KeyF' && !event.repeat &&
+          self.survival.inLobby() && self.local.alive) {
+        self.survival.lobbyWatch = !self.survival.lobbyWatch;
+        return;
+      }
       if (action && action.indexOf('slot') === 0) {
         self.selectSlot(parseInt(action.slice(4), 10) - 1);
         return;
@@ -283,6 +300,7 @@
     document.addEventListener('keyup', function (event) {
       var action = Settings.actionFor(event.code);
       if (action === 'scoreboard') { self.hud.toggleScoreboard(false); return; }
+      if (action === 'interact' && self.survival) { self.survival.useUp(); return; }
       if (action) self.keys[action] = false;
     });
 
@@ -628,6 +646,7 @@
       if (msg.kind !== 'system') self.audio.play('chat', { volume: 0.3 });
     });
     net.on('kill', function (msg) { self.onKill(msg); });
+    if (this.survival) this.survival.bind(net);
     net.on('dmg', function (msg) { self.onDamage(msg); });
     net.on('dealt', function (msg) {
       self.hud.hitmarker();
@@ -643,7 +662,7 @@
     net.on('died', function (msg) {
       self.local.alive = false;
       if (self.scoped) { self.scoped = false; self.hud.setScope(false); }
-      self.respawnAt = performance.now() / 1000 + msg.in;
+      self.respawnAt = performance.now() / 1000 + Math.max(0, msg.in);
       self.deadBy = msg.by;
       self.audio.play('die');
       self.hud.setHealth(0);
@@ -727,7 +746,8 @@
     });
     net.on('round_start', function (msg) {
       self.hud.hideEndCard();
-      self.hud.toast('Round ' + msg.round + ' -- go!', 'good', true);
+      // a survival round announces its new area with its own banner
+      if (!self.survival) self.hud.toast('Round ' + msg.round + ' -- go!', 'good', true);
       if (msg.state) self.onState(msg.state);
     });
     net.on('respawned', function (msg) {
@@ -844,6 +864,7 @@
     this.extras = new WorldExtras(this);
     this.staticParts = msg.map.parts;
     this.renderer.buildStatic(msg.map.parts);
+    if (this.survival) this.survival.onMap(msg.map);
     this.local.pos = msg.you.pos ? msg.you.pos.slice() : [0, 20, 0];
     if (typeof msg.you.yaw === 'number') this.local.yaw = msg.you.yaw;
     this.state = msg.state || {};
@@ -917,6 +938,7 @@
       player.slot = row[8];
       player.alive = !!row[9];
     }
+    if (this.survival) this.survival.onSnapshot(msg);
     var live = {};
     (msg.pr || []).forEach(function (row) {
       live[row[0]] = true;
@@ -931,6 +953,7 @@
   Client.prototype.onState = function (state) {
     if (!state) return;
     this.state = state;
+    if (this.survival) this.survival.onState(state);
     this.hud.updateObjective(state);
     if (this.hud.scoreboardOpen) this.hud.renderScoreboard(state.scoreboard);
     if (state.flags && this.extras) this.extras.setFlags(state.flags);
@@ -1090,6 +1113,7 @@
                        [player.pos[0] + 1.6, player.pos[1] + 5.4, player.pos[2] + 1.0]);
       if (hit !== null && hit < distance) distance = hit;
     });
+    if (this.survival) distance = this.survival.rayHit(origin, dir, distance);
     var end = [origin[0] + dir[0] * distance, origin[1] + dir[1] * distance,
                origin[2] + dir[2] * distance];
     this.tracers.push({ a: origin.slice(), b: end, t: 0 });
@@ -1135,6 +1159,10 @@
   Client.prototype.step = function (dt) {
     var local = this.local;
     if (!this.physics) return;
+    if (!local.alive && this.survival) {
+      this.hud.setRespawn(null);      // the dead watch until the next wave
+      return;
+    }
     if (!local.alive) {
       var remaining = this.respawnAt - performance.now() / 1000;
       this.hud.setRespawn(Math.max(0, remaining), this.deadBy);
@@ -1143,6 +1171,7 @@
     }
     var speed = this.constants.walk || 22;
     if (this.keys.sprint) speed *= 0.45;
+    if (this.survival) speed *= this.survival.moveScale();
     var forward = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0);
     var strafe = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
     // forward is (sin yaw, cos yaw); screen-right is forward x up, which is
@@ -1162,7 +1191,8 @@
       local.vel[0] *= friction;
       local.vel[2] *= friction;
     }
-    if (this.keys.jump && local.grounded) {
+    if (this.keys.jump && local.grounded &&
+        (!this.survival || this.survival.canJump())) {
       local.vel[1] = this.constants.jump || 34;
       local.grounded = false;
       this.audio.play('jump', { volume: 0.35 });
@@ -1213,6 +1243,10 @@
   };
 
   Client.prototype.cameraPosition = function () {
+    if (this.survival && this.survival.isWatching()) {
+      var watching = this.survival.camera();
+      if (watching) return watching;
+    }
     if (!this.thirdPerson) {
       // EYE_HEIGHT sits a little above the middle of the head; the chase
       // camera below deliberately keeps the older, lower pivot.
@@ -1220,6 +1254,7 @@
                  this.local.pos[2]];
       var sway = Math.sin(this.bob * 2) * 0.06;
       eye[1] += sway;
+      if (this.survival) eye[1] -= this.survival.eyeDrop();
       return { eye: eye, yaw: this.local.yaw, pitch: this.local.pitch };
     }
     var eye = [this.local.pos[0], this.local.pos[1] + Avatar.CHASE_PIVOT,
@@ -1275,6 +1310,7 @@
         pose: Avatar.smoothPose(player, player.anim, time + player.id, 0,
                                 player.avatar, dt)
       });
+      if (self.survival) parts = self.survival.layDown(parts, player);
       parts.forEach(function (part) { renderer.push(part); });
       self.drawShadow(player.pos);
       var hat = (player.avatar.items || {}).hat;
@@ -1308,14 +1344,19 @@
 
     // ---- own avatar
     var holdingSelf = this.currentWeapon();
+    var watching = this.survival && this.survival.isWatching();
     if (this.local.alive) {
-      if (this.thirdPerson) {
+      if (this.thirdPerson || watching) {
         var parts = Avatar.build(this.avatar, {
           position: this.local.pos, yaw: this.local.yaw, pitch: this.local.pitch,
           time: time, holding: holdingSelf,
           pose: Avatar.smoothPose(this.local, this.local.anim, time, 0,
                                   this.avatar, dt)
         });
+        if (this.survival && this.survival.me.downed) {
+          parts = this.survival.layDown(parts, { id: this.myId, pos: this.local.pos,
+                                                 yaw: this.local.yaw }, true);
+        }
         parts.forEach(function (part) { renderer.push(part); });
       } else {
         var viewParts = Avatar.viewModel(this.avatar, holdingSelf, {
@@ -1369,6 +1410,7 @@
     }
 
     if (this.extras) this.extras.draw(renderer, this.state, time, dt);
+    if (this.survival) this.survival.draw(renderer, dt);
     this.particles.update(dt);
     renderer.render();
     this.particles.draw(renderer);

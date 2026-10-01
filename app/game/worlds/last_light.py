@@ -260,7 +260,11 @@ class LastLight(GameInstance):
         area = self.area
         lines = ["Last Light -- %s. Stay together, revive each other, and make "
                  "every bullet count." % area["name"]]
-        if self.where(player) == "lobby":
+        if self.where(player) == "lobby" and self.phase == "wiped":
+            lines.append("The last stand just fell -- everybody moves to %s in a "
+                         "moment, you included." % self.areas[
+                             getattr(self, "_next_area_id", None) or self.area_id]["name"])
+        elif self.where(player) == "lobby":
             lines.append("A wave is under way: you deploy with everyone when "
                          "wave %d begins. Press F to watch the survivors."
                          % (self.wave + 1))
@@ -268,9 +272,9 @@ class LastLight(GameInstance):
             lines.append("Hold E to revive a downed teammate, restock at ammo "
                          "crates and patch up at first-aid cabinets.")
         if area.get("lure"):
+            name = area["lure"]["name"]
             lines.append("%s draws the horde -- use it to buy breathing room."
-                         % area["lure"]["name"][:1].upper()
-                         + area["lure"]["name"][1:])
+                         % (name[:1].upper() + name[1:]))
         for line in lines:
             player.send({"t": "chat", "kind": "system", "from": "", "id": 0,
                          "m": line, "at": time.time()})
