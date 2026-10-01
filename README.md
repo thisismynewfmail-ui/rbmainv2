@@ -242,7 +242,9 @@ waves deploys at once.
 
 **Anti-softlock.** An infected that no survivor has been able to see for
 four minutes is removed, and one stuck out of sight is moved; a wave that
-runs long hurries its stragglers on.
+runs long hurries its stragglers on and brings any that are stuck somewhere
+they can walk to the survivors from; and a wave still going after nine
+minutes ends, so nobody unreachable can hold the server in one wave.
 
 ---
 
