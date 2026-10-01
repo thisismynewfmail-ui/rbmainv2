@@ -519,8 +519,14 @@ class NavGrid:
                 return False
         return True
 
-    def smooth(self, start: Sequence[float], nodes: List[int], limit: int = 10) -> List[List[float]]:
-        """Grid path -> waypoints, skipping every node a straight line can."""
+    def smooth(self, start: Sequence[float], nodes: List[int], limit: int = 10,
+               los=None) -> List[List[float]]:
+        """Grid path -> waypoints, skipping every node a straight line can.
+
+        ``los(a, b)``, when given, must also agree a shortcut is open: the
+        walkable-ground test cannot see a wall thinner than the grid with
+        floor on both sides of it (a tent's canvas), and a path pulled
+        through one walks its follower into the wall."""
         points = [self.point(n) for n in nodes]
         if not points:
             return []
@@ -530,7 +536,9 @@ class NavGrid:
         while index < len(points):
             reach = index
             for j in range(min(len(points) - 1, index + limit), index, -1):
-                if abs(points[j][1] - anchor[1]) <= STEP_UP and self.clear_line(anchor, points[j]):
+                if abs(points[j][1] - anchor[1]) <= STEP_UP and \
+                        self.clear_line(anchor, points[j]) and \
+                        (los is None or los(anchor, points[j])):
                     reach = j
                     break
             out.append(points[reach])

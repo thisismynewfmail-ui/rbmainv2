@@ -485,7 +485,12 @@ class Brain:
                 return
             budget = self.runner.path_budget()
             nodes = grid.astar(start, goal, budget) or []
-        points = grid.smooth(p.pos, nodes, 12)
+        los = None
+        if self.runner.mode == "survival":
+            inst = self.instance
+            los = lambda a, b: inst.line_of_sight([a[0], a[1] + 1.2, a[2]],  # noqa: E731
+                                                  [b[0], b[1] + 1.2, b[2]])
+        points = grid.smooth(p.pos, nodes, 12, los=los)
         if not points:
             # no route found this time (a cheap search ran out of budget):
             # walk straight at it only if it is on this level, otherwise
@@ -824,6 +829,10 @@ class Brain:
                 continue
             if kind == "melee":
                 fit = 1.0 if distance < reach else 0.0
+                if self.runner.mode == "survival":
+                    # against a horde a stick is the last resort, not the
+                    # first: the guns stay out while they have anything in
+                    fit *= 0.15
             elif int(stats.get("pellets", 1) or 1) > 1:
                 fit = max(0.0, 1.0 - distance / 40.0)
             elif kind == "projectile":

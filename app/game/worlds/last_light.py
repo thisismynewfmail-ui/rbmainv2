@@ -50,6 +50,9 @@ WIPE_SECONDS = 12.0              # the end card before the move
 WAVE_TARGET = 240.0              # what a wave is tuned to last
 OVERDUE = 330.0                  # after this the stragglers hurry up
 UNSEEN_LIMIT = 240.0             # out of everybody's sight this long: gone
+WAVE_LIMIT = 540.0               # past this the stragglers fall back: no wave
+                                 # can be held up for ever by one that cannot
+                                 # get to anybody
 
 DOWNS_PER_LIFE = 2               # the third time is death
 BLEED_PER_SECOND = 1.6           # a downed survivor's 100 runs out in ~a minute
@@ -951,7 +954,9 @@ class LastLight(GameInstance):
         return max(1, len(self.field_players()))
 
     def _cap(self) -> int:
-        cap = min(56, 16 + 2 * self.wave + 2 * self._crowd())
+        # how many may be up at once: a trickle on the first waves, a flood
+        # by the tenth
+        cap = min(56, 10 + 3 * self.wave + 2 * self._crowd())
         if self.modifier == "horde":
             cap += 12
         return cap
@@ -976,7 +981,7 @@ class LastLight(GameInstance):
             tanks = 1 + (1 if w >= 15 else 0) + (1 if w >= 25 and n >= 6 else 0)
         # spread over most of the wave, so the last pack arrives with a
         # minute or so left of the four the wave is tuned to
-        window = min(230.0, 200.0 + 3.0 * w)
+        window = min(215.0, 185.0 + 3.0 * w)
         if self.modifier == "horde":
             window *= 0.75
         unlocked = [k for k in SPECIALS if UNLOCK.get(k, 99) <= w]
@@ -1275,6 +1280,11 @@ class LastLight(GameInstance):
                 self.kill_infected(z, None, quietly=True)
                 self.wave_kills += 1
                 continue
+            if self.wave_overdue() and z.data.get("stuck", 0) >= 6 and watchers:
+                # a long wave and this one is going nowhere: bring it to
+                # somewhere it can walk to the survivors from
+                if self._bring_closer(z, watchers):
+                    continue
             if z.data.get("stuck", 0) >= 4 and moment - z.last_seen > 10.0:
                 spots = self._spawn_spots()
                 if spots:
@@ -1282,6 +1292,43 @@ class LastLight(GameInstance):
                     z.waypoints = []
                     z.data["stuck"] = 0
                     z.boxes_at = [1e9, 1e9, 1e9]
+
+    def _bring_closer(self, z: Zombie, survivors: List[Player]) -> bool:
+        nav = self.horde.nav
+        if nav is None:
+            return False
+        target = min(survivors, key=lambda s: math.dist(s.pos, z.pos))
+        for _ in range(8):
+            node = nav.random_node(self.rng, target.pos, 40.0)
+            if node < 0:
+                continue
+            spot = nav.point(node)
+            if math.dist(spot, target.pos) < 18.0:
+                continue
+            eye = [target.pos[0], target.pos[1] + EYE_HEIGHT, target.pos[2]]
+            if self.line_of_sight(eye, [spot[0], spot[1] + 3.0, spot[2]]):
+                continue                    # never pop up in plain view
+            z.pos = list(spot)
+            z.waypoints = []
+            z.data["stuck"] = 0
+            z.boxes_at = [1e9, 1e9, 1e9]
+            return True
+        return False
+
+    def _wave_timeout(self, moment: float) -> None:
+        """The backstop: a wave that has run far past its time ends, so a
+        survivor somewhere the last few cannot reach never holds the server
+        in one wave for ever."""
+        if moment - self.wave_started < WAVE_LIMIT or not self.horde.zombies:
+            return
+        plan = self.plan or {}
+        plan["spawned"] = plan.get("commons", 0)
+        plan["specials"] = []
+        plan["tanks"] = []
+        for z in list(self.horde.zombies.values()):
+            self.kill_infected(z, None, quietly=True)
+            self.wave_kills += 1
+        self.system_message("The last of them slink back into the dark.")
 
     # ================================================================ tick
     def on_tick(self, dt: float) -> None:
@@ -1311,6 +1358,8 @@ class LastLight(GameInstance):
             self._run_plan(moment)
             if self.tick_count % 2 == 0:
                 self._sweep(moment)
+            if self.tick_count % 20 == 0:
+                self._wave_timeout(moment)
             if self.wave_left() == 0:
                 self.clear_wave()
         elif self.phase == "wiped":

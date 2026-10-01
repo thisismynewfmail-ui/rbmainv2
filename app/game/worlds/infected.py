@@ -42,9 +42,9 @@ ZID_BASE = 100000          # infected ids never collide with player ids
 # hp, speed, melee damage, melee reach, seconds between swings, score,
 # hit box (width, height, depth, head bottom), and what the kill feed calls it
 KINDS: Dict[str, Dict[str, Any]] = {
-    "common":   dict(hp=45, speed=19.5, dmg=6, reach=4.2, rate=1.05, score=1,
+    "common":   dict(hp=45, speed=19.5, dmg=5, reach=4.2, rate=1.05, score=1,
                      box=(3.0, 5.4, 2.0, 4.0), name="Infected"),
-    "runner":   dict(hp=34, speed=25.0, dmg=5, reach=4.2, rate=0.9, score=1,
+    "runner":   dict(hp=34, speed=25.0, dmg=4, reach=4.2, rate=0.9, score=1,
                      box=(3.0, 5.4, 2.0, 4.0), name="Runner"),
     "bloater":  dict(hp=60, speed=12.5, dmg=4, reach=4.6, rate=1.3, score=5,
                      box=(4.6, 5.8, 3.8, 4.6), name="Bloater", special=True),
@@ -595,6 +595,11 @@ class Horde:
             z.anim = A_RUN if speed > 22.0 or z.kind in ("runner", "mite") else A_WALK
         self._progress(z, moment)
 
+    def _walk_open(self, a: Sequence[float], b: Sequence[float]) -> bool:
+        """A straight walk from a to b meets nothing solid at knee height."""
+        return self.world.line_of_sight([a[0], a[1] + 1.2, a[2]],
+                                        [b[0], b[1] + 1.2, b[2]])
+
     def _open_between(self, z: Zombie, target, moment: float) -> bool:
         """Nothing solid between an infected and its target, at the knee and
         at the chest.  The walkable-ground test alone cannot see a thin
@@ -628,7 +633,7 @@ class Horde:
             goal = nav.nearest(target.pos, 3)
             nodes = nav.astar(node, goal, 600) or []
         if nodes:
-            z.waypoints = nav.smooth(z.pos, nodes, 10)[:4]
+            z.waypoints = nav.smooth(z.pos, nodes, 10, los=self._walk_open)[:4]
         elif target is not None:
             z.waypoints = [list(target.pos)]
         else:

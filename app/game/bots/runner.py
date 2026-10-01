@@ -857,6 +857,22 @@ class BotRunner:
         p.extra.pop("said_down", None)
         team = [s for s in inst.survivors() if s is not p]
         horde = inst.horde.zombies
+        # 0. standing in acid: out of it before anything else
+        for pool in inst.horde.pools:
+            px, py, pz = pool["p"]
+            dx, dz = p.pos[0] - px, p.pos[2] - pz
+            flat = math.hypot(dx, dz)
+            if flat < pool["r"] + 1.5 and abs(p.pos[1] - py) < 3.0:
+                flat = flat or 1.0
+                out = pool["r"] + 5.0
+                spot = [px + dx / flat * out, p.pos[1], pz + dz / flat * out]
+                if self.nav is not None and self.nav.ready:
+                    node = self.nav.nearest(spot, 2)
+                    if node >= 0:
+                        spot = self.nav.point(node)
+                brain.go(spot, "acid%.0f" % px, precise=True)
+                p.extra.pop("using", None)
+                return
         # 1. somebody pinned: get over there, the pinner is the target
         for mate in team:
             pinner = horde.get(mate.extra.get("pinned_by", 0))
@@ -913,7 +929,12 @@ class BotRunner:
                        for _s, st in guns) or 1
             calm = inst.phase != "active" or not any(
                 math.dist(z.pos, p.pos) < 25 for z in horde.values())
-            if have / full < (0.5 if calm and inst.phase != "active" else 0.22):
+            crate = min((math.dist(pt["p"], p.pos) for pt in area["points"].get("ammo", [])),
+                        default=1e9)
+            low = 0.5 if calm and inst.phase != "active" else 0.25
+            if crate < 45:
+                low = max(low, 0.45)          # one is right here: top up
+            if have / full < low:
                 if self._fetch(brain, area["points"].get("ammo", []), 220, "ammo"):
                     return
         # 5. hurt, or one more down from dead: a cabinet with something in it
