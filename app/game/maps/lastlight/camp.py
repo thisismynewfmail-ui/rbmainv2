@@ -64,7 +64,7 @@ CREEK = (-118.0, -106.0, -124.0, 150.0)
 BED = -4.0
 CREEK_BED = -2.0
 STATION = (-40.0, 40.0, 10.0, 60.0)
-MESS = (-170.0, -132.0 + 36.0, 40.0, 110.0)
+MESS = (-206.0, -132.0, 40.0, 110.0)
 
 
 def build(b: Area) -> None:
@@ -126,11 +126,8 @@ def _station(b: Area, s: Surfaces, keep_out: List) -> None:
     # log courses round the outside, the way a cabin is built
     for k in range(4):
         y = 1.6 + k * 2.8
-        for z in (z0 - 0.15,):
-            for a, c in ((x0, -8.0), (8.0, x1)):
-                if k == 0 or True:
-                    b.box([(a + c) / 2.0, y, z], [c - a, 0.5, 0.3], LOG_DARK,
-                          collide=k < 2)
+        for a, c in ((x0, -8.0), (8.0, x1)):
+            b.box([(a + c) / 2.0, y, z0 - 0.15], [c - a, 0.5, 0.3], LOG_DARK)
     # the porch and its roof
     slab(b, rect(-18.0, 18.0, z0 - 7.0, z0), 1.2, 1.2, WOOD_LIGHT)
     for x in (-17.0, 17.0):
@@ -169,50 +166,50 @@ def _mess(b: Area, s: Surfaces, keep_out: List) -> None:
     s.reserve(rect(x0, x1, z0 - 8.0, z1))
     keep_out.append(rect(x0 - 10.0, x1 + 10.0, z0 - 14.0, z1 + 10.0))
     building(b, MESS, 0.0, 16.0, LOG, roof_colour=ROOF, floor_colour="#8a6a4a",
-             doors={"z-": [(-140.0, -126.0, 12.0)], "x+": [(60.0, 72.0, 11.0)],
-                    "z+": [(-112.0, -102.0, 10.0)]},
-             windows={"z-": [(-164.0, -146.0, 4.0, 9.0), (-120.0, -102.0, 4.0, 9.0)],
+             doors={"z-": [(-176.0, -162.0, 12.0)], "x+": [(60.0, 72.0, 11.0)],
+                    "z+": [(-148.0, -138.0, 10.0)]},
+             windows={"z-": [(-200.0, -182.0, 4.0, 9.0), (-156.0, -138.0, 4.0, 9.0)],
                       "x-": [(52.0, 70.0, 4.0, 9.0), (82.0, 100.0, 4.0, 9.0)],
                       "x+": [(84.0, 100.0, 4.0, 9.0)]},
              glass=True, eave=1.6, lights=WARM)
-    for side, span in (("z-", (-140.0, -126.0)), ("x+", (60.0, 72.0)),
-                       ("z+", (-112.0, -102.0))):
+    for side, span in (("z-", (-176.0, -162.0)), ("x+", (60.0, 72.0)),
+                       ("z+", (-148.0, -138.0))):
         threshold(b, MESS, side, span)
     gable(b, MESS, 17.2, ROOF, "z", 4, 1.8, 0.0)
     # the long tables
-    for x in (-158.0, -146.0, -118.0, -106.0):
+    for x in (-194.0, -182.0, -154.0, -142.0):
         b.box([x, FLOOR + 1.8, 68.0], [4.0, 3.6, 34.0], WOOD_LIGHT, studs=True)
         for dx in (-3.6, 3.6):
             b.box([x + dx, FLOOR + 1.0, 68.0], [1.6, 2.0, 34.0], WOOD_DARK)
     # the kitchen counter at the back, and the stone fireplace on the west
-    b.box([-133.0, FLOOR + 2.2, 100.0], [44.0, 4.4, 4.0], "#a8adb2",
+    b.box([-169.0, FLOOR + 2.2, 100.0], [44.0, 4.4, 4.0], "#a8adb2",
           material="metal")
-    supply_ammo(b, -160.0, FLOOR, 102.0, "x+")
-    supply_med(b, -104.0, FLOOR, 46.0, "x-")
+    supply_ammo(b, -196.0, FLOOR, 102.0, "x+")
+    supply_med(b, -140.0, FLOOR, 46.0, "x-")
     b.box([x0 + 3.0, 6.0, 75.0], [4.0, 12.0, 16.0], "#8a8478")
     b.box([x0 + 3.0, 1.6, 75.0], [4.2, 3.0, 8.0], "#2a1a12", collide=False)
     b.box([x0 - 2.0, 15.0, 75.0], [6.0, 30.0, 8.0], "#8a8478")
     # the porch, and the dinner bell hung under its roof
-    slab(b, rect(-152.0, -114.0, z0 - 8.0, z0), 1.2, 1.2, WOOD_LIGHT)
-    for x in (-151.0, -115.0):
+    slab(b, rect(-188.0, -150.0, z0 - 8.0, z0), 1.2, 1.2, WOOD_LIGHT)
+    for x in (-187.0, -151.0):
         b.box([x, 1.2 + 4.95, z0 - 7.2], [1.2, 9.9, 1.2], LOG_DARK)
-    slab(b, rect(-153.0, -113.0, z0 - 8.0, z0), 11.7, 0.6, ROOF)
-    b.box([-133.0, 10.8, z0 - 4.0], [0.4, 0.6, 0.4], STEEL_DARK, collide=False)
-    b.box([-133.0, 9.4, z0 - 4.0], [3.2, 2.2, 0.4], "#c8a02a", material="metal",
+    slab(b, rect(-189.0, -149.0, z0 - 8.0, z0), 11.7, 0.6, ROOF)
+    b.box([-169.0, 10.8, z0 - 4.0], [0.4, 0.6, 0.4], STEEL_DARK, collide=False)
+    b.box([-169.0, 9.4, z0 - 4.0], [3.2, 2.2, 0.4], "#c8a02a", material="metal",
           collide=False)
-    b.set_lure(-133.0, 1.2, z0 - 3.0, "the dinner bell", "Ring the dinner bell",
-               "dinner", (-133.0, 0.0, z0 - 20.0))
-    wall_sign(b, -133.0, 13.6, z0 - 8.35, 26.0, 2.6,
+    b.set_lure(-169.0, 1.2, z0 - 3.0, "the dinner bell", "Ring the dinner bell",
+               "dinner", (-169.0, 0.0, z0 - 20.0))
+    wall_sign(b, -169.0, 13.6, z0 - 8.35, 26.0, 2.6,
               sign_decal("CEDAR PINES MESS HALL", "#5a3a22", "#f2e2a8", 10.0),
               "z-", "#5a3a22")
-    b.box([-133.0, 12.75, z0 - 8.35], [1.0, 1.0, 0.7], "#5a3a22")
+    b.box([-169.0, 12.75, z0 - 8.35], [1.0, 1.0, 0.7], "#5a3a22")
     # propane tanks round the back
-    for x in (-160.0, -150.0):
+    for x in (-196.0, -186.0):
         b.cyl([x, 2.0, z1 + 5.0], [4.0, 4.0, 8.0], "#e8e8e8", material="metal",
               r=[math.pi / 2.0, 0, 0], collide=False)
         b.box([x, 2.0, z1 + 5.0], [3.4, 4.0, 7.0], "#e8e8e8", alpha=0.0)
-    barrel_spot(b, -168.0, 0.0, z1 + 8.0)
-    barrel_spot(b, -98.0, 0.0, z1 + 6.0)
+    barrel_spot(b, -204.0, 0.0, z1 + 8.0)
+    barrel_spot(b, -134.0, 0.0, z1 + 6.0)
 
 
 # ================================================================= ridge
@@ -244,7 +241,7 @@ def _ridge(b: Area, s: Surfaces, keep_out: List) -> None:
     b.cyl([-232.0, top + 1.6, -36.0], [1.0, 3.2, 1.0], STEEL_DARK)
     b.box([-232.0, top + 3.6, -36.0], [2.4, 0.8, 1.2], STEEL_DARK)
     b.cyl([-258.0, top + 9.0, -30.0], [0.6, 18.0, 0.6], "#d8d8d0")
-    b.box([-255.0, top + 16.4, -30.0], [5.0, 3.0, 0.2], "#2f6b3a", collide=False)
+    b.box([-255.3, top + 16.4, -30.0], [5.0, 3.0, 0.2], "#2f6b3a", collide=False)
     supply_ammo(b, -250.0, top, -70.0, "z+")
     # the cutting and the mine: timber sets, lanterns, a cart on its rails
     for x in (-246.0, -236.0, -226.0, -216.0):
@@ -257,11 +254,11 @@ def _ridge(b: Area, s: Surfaces, keep_out: List) -> None:
     for dz in (-2.0, 2.0):
         b.box([(TUNNEL[0] + TUNNEL[1]) / 2.0 - 4.0, 0.15, -40.0 + dz],
               [64.0, 0.3, 0.5], "#5a5f66", collide=False)
-    b.box([-224.0, 2.0, -40.0], [6.0, 3.2, 4.0], RUST if False else "#6a4a32",
+    b.box([-224.0, 2.0, -40.0], [6.0, 3.2, 4.0], "#6a4a32",
           material="metal")
     b.box([-224.0, 0.5, -40.0], [5.0, 1.0, 3.0], "#2a2d31")
-    b.box([-214.0, 9.0, -40.0], [1.0, 2.0, 14.0], WOOD_DARK)
-    wall_sign(b, -213.15, 10.0, -40.0, 10.0, 1.8,
+    b.box([-213.5, 9.0, -40.0], [1.0, 2.0, 14.0], WOOD_DARK)
+    wall_sign(b, -212.65, 10.0, -40.0, 10.0, 1.8,
               sign_decal("CEDAR No.2 MINE", "#5a3a22", "#e8d8a8", 10 / 1.8),
               "x+", "#5a3a22")
     strip_light(b, -238.0, -40.0, 8.0, 20.0, "x", "#ffb03a")
@@ -355,7 +352,7 @@ def _shore(b: Area, s: Surfaces, keep_out: List, rng: random.Random) -> None:
     for x in (-80.0, -20.0, 40.0, 120.0):
         lamp_post(b, x, -112.0, 10.0, colour=LOG_DARK, light=WARM)
     # the creek: two footbridges and the banks either side of them
-    for z in (-40.0, 80.0):
+    for z in (-40.0, 66.0):
         slab(b, rect(-124.0, -100.0, z - 5.0, z + 5.0), 1.6, 1.0, WOOD_LIGHT,
              studs=True)
         for x0, x1 in ((-124.0, -118.0), (-106.0, -100.0)):
@@ -469,7 +466,7 @@ def _trails(b: Area, s: Surfaces) -> None:
     """Dirt paths joining the places people walk between."""
     for area in (rect(-6.0, 6.0, -112.0, 3.0),       # station to the beach
                  rect(-96.0, -40.0, 30.0, 40.0),     # station to the mess
-                 rect(-100.0, -94.0, -40.0, 30.0),   # mess to the creek
+                 rect(-100.0, -94.0, -40.0, 71.0),   # the creek-side path
                  rect(40.0, 100.0, 30.0, 40.0),      # station to the car park
                  rect(-6.0, 6.0, 60.0, 196.0),       # station to the north
                  rect(-150.0, 144.0, 192.0, 202.0),  # between the two circles
