@@ -15,7 +15,7 @@
   var ICONS = {
     stats: '▣', creation: '✚', personas: '☺', presence: '☼',
     worlds: '◉', ingame: '⌖', friends: '❤', chatter: '✎',
-    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦', profiles: '⚿'
+    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦', profiles: '⚿', survival: '☣'
   };
   var SCOPE_LABEL = { universal: 'Universal', 'per-bot': 'Per-bot range', base: 'Base × persona' };
   var SCOPE_HELP = {
@@ -275,6 +275,7 @@
     if (BZ.sub === 'worlds') { drawWorldTable(); }
     if (BZ.sub === 'modifiers') { drawModifiers(); }
     if (BZ.sub === 'speech') { drawSpeech(); }
+    if (BZ.sub === 'survival') { drawSurvival(); }
   }
 
   /* The presence curve: the share of bots the director keeps online over
@@ -385,7 +386,7 @@
     var html = '';
     var extra = {
       stats: statsPane, creation: creationPane, personas: personasPane, presence: presencePane,
-      worlds: worldsPane, ingame: null, profiles: profilesPane, friends: feedsPane, chatter: feedsPane,
+      worlds: worldsPane, ingame: null, profiles: profilesPane, survival: survivalPane, friends: feedsPane, chatter: feedsPane,
       messages: feedsPane, llm: llmPane, prompts: promptsPane,
       modifiers: modifiersPane, speech: speechPane
     }[BZ.sub];
@@ -410,6 +411,55 @@
     }).join('') + '</div>';
   }
 
+  /* Last Light: how the persona plays the survival map, and the squads live now. */
+  var SURVIVAL_TIES = [
+    ['Loner, Shy', 'Go off alone far more; never tag along with real players.'],
+    ['Social butterfly, Friendly, Newbie', 'Join squads and real players; newbies trail behind and sometimes get lost.'],
+    ['Team player, Wholesome', 'Tight squads, revive from further away, cover whoever is reviving.'],
+    ['Explorer, Chaotic, Kid', 'Wander the rail yard, the maze or the island between waves, hop about, ring the bell for fun.'],
+    ['Sniper main, Veteran', 'Head for the high ground: roofs, decks, the lookout tower.'],
+    ['Fragger, Shotgun rusher, Melee maniac', 'Up front in the squad, roam the streets and hunt the last infected.'],
+    ['Zombie survivor', 'Knows the crates, calls regroups, rings the lure when the team is swamped.'],
+    ['Chatty, Trash talker, Caps yeller', 'Call out specials and talk about the round more (in their own typing style).']
+  ];
+
+  function survivalPane() {
+    return '<p class="bz-intro">In Last Light every bot plays on its own terms: squads form, merge for a wave or a Tank and ' +
+      'split again, some tag along with a real player for a while, some wander off alone, and each area\'s places are ' +
+      'known for what people do there (roofs to hold, streets to hang about in, the graveyard and the waterline to stay ' +
+      'clear of in a wave). The general In-Game Behaviour dials apply here too: skill, tangents, AFK moments and the ' +
+      '"anything can happen" floor.</p>' +
+      '<div class="bz-grid2"><div><div class="bz-feed-head"><b>What the persona does here</b></div>' +
+      '<table class="bz-mod-table"><tbody>' + SURVIVAL_TIES.map(function (r) {
+        return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div><div class="bz-feed-head"><b>Live squads</b></div><div class="bz-feed" id="bz-ll-live"></div></div></div>';
+  }
+
+  function drawSurvival() {
+    var box = el('bz-ll-live');
+    if (!box || !BZ.overview) return;
+    var rounds = ((BZ.overview.gamechat || {}).survival) || [];
+    if (!rounds.length) {
+      box.innerHTML = '<span class="muted tiny">No Last Light round has a real player in it right now.</span>';
+      return;
+    }
+    box.innerHTML = rounds.map(function (r) {
+      return '<div class="bz-session"><div class="bz-session-head"><b>' + esc(r.area || 'Last Light') + ' #' + r.inst +
+        '</b> <span class="muted tiny">wave ' + (r.wave || 0) + (r.between ? ' (between waves)' : '') +
+        (r.people.length ? ' • with ' + r.people.map(esc).join(', ') : '') + '</span></div>' +
+        (r.squads || []).map(function (q) {
+          return '<div class="bz-line"><b>' + q.members.map(esc).join(', ') + '</b>' +
+            (q.person ? ' <span class="pill tiny-pill">with ' + esc(q.person) + '</span>' : '') +
+            ' <span class="muted">' + esc(q.doing) + (q.where ? ' • ' + esc(q.where) : '') + '</span></div>';
+        }).join('') +
+        (r.solo || []).map(function (o) {
+          return '<div class="bz-line"><b>' + esc(o.name) + '</b> <span class="pill tiny-pill">solo</span> ' +
+            '<span class="muted">' + esc(o.doing) + (o.where ? ' • ' + esc(o.where) : '') + '</span></div>';
+        }).join('') + '</div>';
+    }).join('');
+  }
+
   function profilesPane() {
     return '<p class="tiny">Every new bot is dealt each of these settings on its own, from the chances in ' +
       'Settings below: an account can end up with a private inventory, a friends-only friends list and a dark ' +
@@ -426,6 +476,7 @@
     if (BZ.sub === 'friends' || BZ.sub === 'chatter' || BZ.sub === 'messages') { drawFeeds(); }
     if (BZ.sub === 'modifiers') { drawModifiers(); }
     if (BZ.sub === 'speech') { drawSpeech(); }
+    if (BZ.sub === 'survival') { drawSurvival(); }
     syncBands();
   }
 

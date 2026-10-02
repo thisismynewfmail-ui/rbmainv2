@@ -118,6 +118,30 @@ KINDS: List[Kind] = [
          "Somebody sets off the area's bell, siren or horn."),
     Kind("wipe", "Wiped", "survival", 50,
          "Everybody is dead: the round is over."),
+    Kind("special", "Special spotted", "survival", 30,
+         "Somebody sees a special infected (a Bomber, a Spitter...) and where."),
+    Kind("swarmed", "Swarmed", "survival", 30,
+         "Eight or more infected are on one survivor."),
+    Kind("last_stand", "Last one standing", "survival", 60,
+         "Everybody else is down or dead: one survivor left on their feet."),
+    Kind("few_left", "Last few infected", "survival", 20,
+         "The wave is down to its last three; time to hunt them."),
+    Kind("record", "New best wave", "survival", 45,
+         "The team clears a wave further than this server has got before."),
+    Kind("split", "Going solo", "survival", 15,
+         "Somebody wanders off on their own to look round."),
+    Kind("regroup", "Regroup", "survival", 20,
+         "The team is scattered and somebody calls everyone together."),
+    Kind("high_ground", "High ground", "survival", 15,
+         "A squad takes a roof, a deck or a tower to hold."),
+    Kind("ammo_low", "Out of ammo", "survival", 15,
+         "Somebody runs dry mid-wave and goes for a crate."),
+    Kind("clutch", "Clutch revive", "survival", 45,
+         "A revive under heavy fire, or by one of the last ones standing."),
+    Kind("barrel", "Barrel blast", "survival", 30,
+         "A fuel barrel takes out a pack of infected at once."),
+    Kind("biled", "Covered in bile", "survival", 25,
+         "A Bloater bursts on somebody and the horde comes for them."),
 ]
 KINDS_BY_ID: Dict[str, Kind] = {k.id: k for k in KINDS}
 DEFAULT_CHANCES: Dict[str, int] = {k.id: k.chance for k in KINDS}
@@ -294,7 +318,24 @@ def describe(event: Dict[str, Any], name: str, team: str) -> Tuple[str, str]:
 
 
 SURVIVAL_KINDS = ("area", "wave_start", "wave_clear", "tank", "tank_down",
-                  "downed", "revived", "pinned", "save", "lure", "wipe")
+                  "downed", "revived", "pinned", "save", "lure", "wipe",
+                  "special", "swarmed", "last_stand", "few_left", "record", "split",
+                  "regroup", "high_ground", "ammo_low", "clutch", "barrel", "biled")
+
+# what each special does, so a bot can say something that makes sense
+SPECIAL_HINTS = {
+    "Bloater": "it bursts into bile that draws the horde, so shoot it from range",
+    "Bomber": "it wears a dynamite vest; a clean headshot defuses it",
+    "Leaper": "it pounces on people and pins them",
+    "Brute": "it charges and knocks people over",
+    "Spitter": "it spits acid pools you must not stand in",
+    "Screamer": "it calls in more infected and enrages the rest",
+    "Riot": "it is armoured from the front, shoot it from behind",
+    "Plague Captain": "it fires poison bolts and raises the dead",
+    "Hive": "it bursts into a swarm of mites",
+    "Burrower": "it digs under you and comes up beneath",
+    "Ronin": "it deflects bullets with a blade, then dashes in",
+}
 
 
 def _survival(kind: str, event: Dict[str, Any], name: str, me: bool) -> Tuple[str, str]:
@@ -345,6 +386,67 @@ def _survival(kind: str, event: Dict[str, Any], name: str, me: bool) -> Tuple[st
     if kind == "wipe":
         return ("Everybody died: your team held %s for %d waves. A new area is next."
                 % (what or "the area", n), "victim")
+    where = str(event.get("where") or "")
+    near = (" near %s" % where) if where else ""
+    place = (" near %s" % what) if what else ""
+    if kind == "special":
+        hint = SPECIAL_HINTS.get(what, "")
+        hint = (" (%s)" % hint) if hint else ""
+        if me:
+            return ("You just spotted a %s%s%s." % (what or "special infected", near, hint),
+                    "actor")
+        return ("%s just called out a %s%s%s." % (by, what or "special infected", near, hint),
+                "victim")
+    if kind == "swarmed":
+        if me:
+            return ("You are getting swarmed by the horde%s." % place, "victim")
+        return ("Your teammate %s is getting swarmed by the horde%s." % (by, place), "victim")
+    if kind == "last_stand":
+        if me:
+            return ("Everybody else is down or dead: you are the LAST one standing%s." % place,
+                    "victim")
+        return ("%s is the last survivor still standing%s; everyone else is down or dead."
+                % (by, place), "victim")
+    if kind == "few_left":
+        return ("Only %d infected left in this wave; time to hunt the stragglers." % max(1, n),
+                "ally")
+    if kind == "record":
+        return ("Your team just cleared wave %d, the furthest anyone has got on this server."
+                % n, "ally")
+    if kind == "split":
+        towards = (" towards %s" % what) if what else ""
+        if me:
+            return ("You just went off on your own to look round%s." % towards, "actor")
+        return ("%s just wandered off on their own%s." % (by, towards), "neutral")
+    if kind == "regroup":
+        if me:
+            return ("You told everyone to regroup with you%s." % place, "actor")
+        return ("%s is calling everyone to regroup%s." % (by, place), "ally")
+    if kind == "high_ground":
+        if me:
+            return ("Your squad just took the high ground: %s." % (what or "a roof"), "actor")
+        return ("%s's squad is holding the high ground: %s." % (by, what or "a roof"), "ally")
+    if kind == "ammo_low":
+        if me:
+            return ("You are nearly out of ammo mid-wave and heading for a crate%s." % place,
+                    "victim")
+        return ("%s is out of ammo mid-wave%s." % (by, place), "neutral")
+    if kind == "clutch":
+        if me:
+            return ("You just clutch-revived %s with the horde all over you." % what, "actor")
+        if what == name:
+            return ("%s just clutch-revived you under heavy fire." % by, "ally")
+        return ("%s just pulled off a clutch revive on %s under heavy fire." % (by, what), "ally")
+    if kind == "barrel":
+        if me:
+            return ("You blew up a fuel barrel and took out %d infected at once." % n, "actor")
+        return ("A fuel barrel%s just blew up %d infected at once."
+                % ((" shot by %s" % by) if by else "", n), "ally")
+    if kind == "biled":
+        if me:
+            return ("You just got covered in Bloater bile: every infected is coming for you.",
+                    "victim")
+        return ("%s just got covered in bile and the horde is going for them." % by, "victim")
     return ("", "neutral")
 
 
@@ -369,6 +471,10 @@ def importance(event: Dict[str, Any]) -> float:
         return max(0.5, min(2.0, 0.4 + int(event.get("n", 1) or 1) * 0.12))
     if kind == "wipe":
         return max(0.8, min(2.0, 0.6 + int(event.get("n", 1) or 1) * 0.1))
+    if kind == "barrel":
+        return max(0.8, min(2.0, 0.5 + int(event.get("n", 3) or 3) * 0.12))
+    if kind == "record":
+        return max(1.0, min(2.0, 0.6 + int(event.get("n", 1) or 1) * 0.08))
     return 1.0
 
 
@@ -421,6 +527,23 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("save", "ally"): ["nice save", "ty", "clutch"],
     ("lure", "ally"): ["nice bell", "go go while theyre distracted", "smart"],
     ("wipe", "victim"): ["gg", "so close", "next time", "gg all", "rip"],
+    ("special", "actor"): ["special here", "watch out", "got a special"],
+    ("special", "victim"): ["where", "on it", "i see it", "focus it"],
+    ("swarmed", "victim"): ["theyre all over me", "help", "too many", "need help here"],
+    ("last_stand", "victim"): ["its all on me", "clutch time", "dont die", "its up to you"],
+    ("few_left", "ally"): ["few left", "hunt them", "where are the last ones"],
+    ("record", "ally"): ["new record", "lets gooo", "furthest weve been", "ez"],
+    ("split", "actor"): ["brb scouting", "going for a look"],
+    ("split", "neutral"): ["where u going", "dont die lol", "lone wolf"],
+    ("regroup", "ally"): ["omw", "coming", "on my way"],
+    ("high_ground", "ally"): ["nice spot", "omw up", "coming up"],
+    ("high_ground", "actor"): ["get up here", "up top"],
+    ("ammo_low", "victim"): ["need ammo", "reloading", "cover me"],
+    ("clutch", "ally"): ["clutch", "huge", "what a save", "ty"],
+    ("clutch", "actor"): ["np", "got you", "that was close"],
+    ("barrel", "ally"): ["boom", "nice barrel", "lmao", "big boom"],
+    ("barrel", "actor"): ["boom", "lol", "kaboom"],
+    ("biled", "victim"): ["run", "get away from him", "cover him", "ew"],
 }
 
 

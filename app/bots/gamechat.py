@@ -634,9 +634,21 @@ class Relay:
                               "kind": l.get("kind", "chat"), "bot": bool(l.get("bot")),
                               "pending": bool(l.get("pending"))}
                              for l in list(room.lines)[-14:]]})
+            survival = []
+            for room in self.rooms.values():
+                teams = (room.state or {}).get("teams")
+                if not teams:
+                    continue
+                survival.append({"inst": room.inst, "area": teams.get("area", ""),
+                                 "wave": (room.state or {}).get("wave", 0),
+                                 "between": bool((room.state or {}).get("between_waves")),
+                                 "people": sorted(room.humans.values()),
+                                 "squads": teams.get("squads") or [],
+                                 "solo": teams.get("solo") or []})
             return {"rooms": len(self.rooms), "stats": dict(self.stats),
                     "recent": list(self.recent), "heat": heat,
-                    "events": list(self.event_log)[-25:], "sessions": sessions}
+                    "events": list(self.event_log)[-25:], "sessions": sessions,
+                    "survival": survival}
 
 
 def _styled(line: str, card: Dict[str, Any], rng: random.Random) -> str:

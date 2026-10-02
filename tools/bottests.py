@@ -213,9 +213,11 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
     import app.game.worlds.blackout_relay as relay_module
     import app.game.worlds.last_light as survival_module
     import app.game.worlds.infected as infected_module
+    import app.game.bots.survival as mind_module
     clock = Clock()
     patched = [engine, brain_module, runner_module, ctf_module, payload_module,
-               tycoon_module, relay_module, survival_module, infected_module]
+               tycoon_module, relay_module, survival_module, infected_module,
+               mind_module]
     originals = [(m, m.now) for m in patched if hasattr(m, "now")]
     for module, _orig in originals:
         module.now = clock
@@ -414,12 +416,39 @@ def test_live(seconds: float) -> None:
 
 
 def _survival_run(seconds: float) -> None:
-    """Last Light: a squad of bots holds a wave, with the infected spawning
-    where they should and the bots keeping together."""
+    """Last Light: the bots play a few waves on their own -- squads, lone
+    wolves, places visited -- with the infected spawning where they should."""
     spawned: List[float] = []
     apart: List[float] = []
+    looks = {"squads": 0, "own": 0, "samples": 0, "solo": 0}
+    places: Dict[str, set] = {}
+
+    def watch(inst):
+        orig_tick = inst.on_tick
+        count = {"n": 0}
+
+        def on_tick(dt):
+            orig_tick(dt)
+            count["n"] += 1
+            if count["n"] % 100 or inst.bots is None or inst.bots.survival is None:
+                return
+            plan = inst.bots.survival
+            looks["samples"] += 1
+            sizes = [len(q.members) for q in plan.squads.values()]
+            if any(size >= 2 for size in sizes):
+                looks["squads"] += 1
+            if any(q.person is None and len(q.members) >= 2 for q in plan.squads.values()):
+                looks["own"] += 1
+            looks["solo"] += sum(1 for b in inst.bots.brains.values()
+                                 if b.mind is not None and b.mind.solo)
+            for b in inst.bots.brains.values():
+                name = plan.intel().name_of(b.p.pos)
+                if name:
+                    places.setdefault(b.p.username, set()).add(name)
+        inst.on_tick = on_tick
 
     def setup(inst):
+        watch(inst)
         horde = inst.horde
         original = horde.spawn
 
@@ -431,7 +460,7 @@ def _survival_run(seconds: float) -> None:
             return original(kind, pos, hp, dmg, wave, variant, rise)
         horde.spawn = spawn
 
-    r = run_world("last_light", seconds, 8, setup=setup)
+    r = run_world("last_light", seconds, 12, setup=setup)
     inst = r["inst"]
     label = "last_light"
     for brain in inst.bots.brains.values():
@@ -457,6 +486,110 @@ def _survival_run(seconds: float) -> None:
           "%d frames" % r["inside"])
     check("%s: tick cost stays low" % label, r["ms_per_tick"] < 12.0,
           "%.2f ms" % r["ms_per_tick"])
+    samples = max(1, looks["samples"])
+    check("%s: bots team up into squads (%d of %d looks)" % (label, looks["squads"], samples),
+          looks["squads"] >= samples * 0.6, looks)
+    check("%s: squads play on their own, not only round the real player" % label,
+          looks["own"] >= samples * 0.5, looks)
+    visited = sorted(len(v) for v in places.values())
+    check("%s: bots get about the area (places per bot %s)" % (label, visited),
+          visited and visited[len(visited) // 2] >= 3, visited)
+    check("%s: no bot needs rescuing from the void, nobody stuck" % label,
+          r["rescues"] == 0 and r["stuck"] <= 1, (r["rescues"], r["stuck"]))
+    _survival_units()
+
+
+def _survival_units() -> None:
+    """The survival mind's parts: personas, attention, settings, the bunker."""
+    from app.game.bots import survival
+    label = "last_light"
+    rng = random.Random(4)
+
+    class FakeBrain:
+        def __init__(self, tags, traits):
+            self.tags = tags
+            self.traits = traits
+            self.rng = random.Random(1)
+            self.skill = 0.5
+            self.objective = 0.6
+
+        def t(self, key, default=0.5):
+            return self.traits.get(key, default)
+    from app.bots import personas
+    loner_tags = ["loner", "explorer", "average", "night_owl", "lowercase_typer"]
+    social_tags = ["social_butterfly", "support", "average", "night_owl", "lowercase_typer"]
+    loner = survival.Profile(FakeBrain(loner_tags, personas.derive_traits(loner_tags, rng)), {})
+    social = survival.Profile(FakeBrain(social_tags, personas.derive_traits(social_tags, rng)), {})
+    check("%s: loners go solo more, social bots stick with people and pick them up"
+          % label, loner.lone > social.lone * 3 and social.people > loner.people and
+          social.reach > loner.reach and loner.roam > social.roam,
+          (loner.lone, social.lone, loner.people, social.people))
+    off = survival.Profile(FakeBrain(loner_tags, personas.derive_traits(loner_tags, rng)),
+                           {"survival_solo": 0})
+    check("%s: the Lone wolves setting scales going solo" % label, off.lone <= 0.01, off.lone)
+
+    from app.bots import speech
+    missing = []
+    for kind in speech.SURVIVAL_KINDS:
+        event = {"kind": kind, "by": "Fox", "what": "Bomber", "where": "the diner", "n": 4}
+        text, relation = speech.describe(event, "Kit", "survivors")
+        own, own_rel = speech.describe(event, "Fox", "survivors")
+        canned = [key for key in speech.CANNED if key[0] == kind]
+        if not text or not own or not canned or not speech.applies(kind, "last_light"):
+            missing.append(kind)
+    check("%s: every survival speech event reads from both sides and has stock lines"
+          % label, not missing, missing)
+
+    # a dead player's camera: the bots near whoever they watch run at full detail
+    seen: Dict[str, Any] = {}
+
+    def spectate(inst):
+        orig = inst.on_tick
+        count = {"n": 0}
+
+        def on_tick(dt):
+            orig(dt)
+            count["n"] += 1
+            if count["n"] == 60:
+                person = next(p for p in inst.players.values() if p.brain is None)
+                target = max(inst.bots.brains.values(), key=lambda b: b.p.pid).p
+                person.alive = False
+                inst.on_action(person, {"k": "watch", "id": target.pid})
+                seen["target"] = target
+            if count["n"] == 100:
+                plan = inst.bots.survival
+                seen["attention"] = [list(a) for a in plan.attention]
+                seen["at"] = list(seen["target"].pos)
+        inst.on_tick = on_tick
+    run_world("last_light", 6.0, 6, setup=spectate)
+    att = seen.get("attention") or []
+    check("%s: a spectator's camera brings the bots they watch to full detail" % label,
+          any(math.dist(a, seen.get("at", [1e9] * 3)) < 30 for a in att), att)
+
+    # squads off: everybody plays on their own
+    def no_squads(inst):
+        inst.host.bot_cfg["survival_squads"] = False
+    r = run_world("last_light", 40.0, 8, setup=no_squads)
+    check("%s: with Squads off nobody forms one" % label,
+          not r["inst"].bots.survival.squads, len(r["inst"].bots.survival.squads))
+
+    # a bot waiting in the holdout puts rounds into the dummies
+    shots: List[int] = []
+
+    def holdout(inst):
+        orig_fire = inst.handle_fire
+
+        def fire(player, message):
+            if player.brain is not None and player.extra.get("ll_where") == "lobby":
+                shots.append(player.pid)
+            return orig_fire(player, message)
+        inst.handle_fire = fire
+        for brain in inst.bots.brains.values():
+            brain.skill = 0.9
+            inst.to_lobby(brain.p)
+    run_world("last_light", 20.0, 3, setup=holdout)
+    check("%s: bots waiting in the bunker practise on the dummies (%d shots)"
+          % (label, len(shots)), len(shots) > 3, len(shots))
 
 
 # ====================================================================== chat
