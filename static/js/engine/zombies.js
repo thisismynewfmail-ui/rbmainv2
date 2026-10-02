@@ -203,9 +203,14 @@
             pants: pants('#3a4a6a', { length: 0.7 }) }
   };
 
+  /* A miner's pick: the handle runs out of the fist (z), and the head
+     crosses it at the far end (y), each half sweeping back a little
+     towards the hand, so the two points meet at the haft. */
   var PICKAXE = { data: { parts: [
     { t: 'cyl', p: [0, 0, 0.9], s: [0.18, 2.2, 0.18], c: '#6a4a2a', r: [1.5708, 0, 0] },
-    { t: 'box', p: [0, 0.4, 1.95], s: [0.2, 0.25, 1.6], c: '#8a8f94', r: [0, 0, 0] }] } };
+    { t: 'box', p: [0, 0.46, 1.9], s: [0.2, 0.95, 0.28], c: '#8a8f94', r: [-0.22, 0, 0], m: 'metal' },
+    { t: 'box', p: [0, -0.46, 1.9], s: [0.2, 0.95, 0.28], c: '#8a8f94', r: [0.22, 0, 0], m: 'metal' },
+    { t: 'box', p: [0, 0, 1.98], s: [0.26, 0.34, 0.34], c: '#5a5f64', m: 'metal' }] } };
   var KATANA = { data: { parts: [
     { t: 'box', p: [0, 0, 0.4], s: [0.16, 0.2, 0.8], c: '#1a1a1a' },
     { t: 'box', p: [0, 0, 2.1], s: [0.06, 0.18, 2.8], c: '#d8dde2', m: 'metal' }] } };
@@ -373,9 +378,12 @@
       var side = i < 3 ? 1 : -1;
       var along = (i % 3 - 1) * 0.5;
       var leg = local([pos[0], y - 0.3, pos[2]], yaw, side * 0.95, 0, along);
-      var wiggle = deathAge ? 0 : Math.sin(time * 30 + i) * 0.4;
+      var wiggle = deathAge ? 0 : Math.sin(time * 30 + i) * 0.25;
+      // a positive roll lifts a part's +x end, so each leg is rolled the
+      // way that puts its outer end -- the foot -- down on the ground and
+      // its inner end up into the body
       out.push({ t: 'box', p: leg, s: [0.9, 0.12, 0.12], c: '#1a1a1a',
-                 r: [0, yaw, side * (0.7 + wiggle)] });
+                 r: [0, yaw, -side * (0.6 + wiggle)] });
     }
     return out;
   }

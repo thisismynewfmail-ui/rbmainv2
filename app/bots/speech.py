@@ -97,7 +97,8 @@ KINDS: List[Kind] = [
     Kind("tycoon_complete", "Restaurant finished", "tycoon", 55,
          "A restaurant gets its last upgrade."),
     Kind("area", "New area", "survival", 20,
-         "Everybody moves to a new place and the waves start again."),
+         "A round starts: another go at the same place, or (after three wipes "
+         "there) the server shuffles everybody somewhere new."),
     Kind("wave_start", "Wave incoming", "survival", 12,
          "A wave of infected begins (and any twist it comes with)."),
     Kind("wave_clear", "Wave cleared", "survival", 20,
@@ -117,7 +118,8 @@ KINDS: List[Kind] = [
     Kind("lure", "Lure rung", "survival", 25,
          "Somebody sets off the area's bell, siren or horn."),
     Kind("wipe", "Wiped", "survival", 50,
-         "Everybody is dead: the round is over."),
+         "Everybody is dead: the round is over (the third at one place shuffles "
+         "the map)."),
     Kind("special", "Special spotted", "survival", 30,
          "Somebody sees a special infected (a Bomber, a Spitter...) and where."),
     Kind("swarmed", "Swarmed", "survival", 30,
@@ -344,8 +346,11 @@ def _survival(kind: str, event: Dict[str, Any], name: str, me: bool) -> Tuple[st
     what = str(event.get("what") or "")
     n = int(event.get("n", 0) or 0)
     if kind == "area":
-        return ("Everybody just moved to %s; the waves start again from one."
-                % (what or "a new area"), "neutral")
+        if event.get("retry"):
+            return ("Your team is running %s back: attempt %d of 3 there, from wave "
+                    "one." % (what or "the area", max(2, n)), "ally")
+        return ("The server just shuffled everybody to %s; the waves start again "
+                "from one." % (what or "a new area"), "neutral")
     if kind == "wave_start":
         twist = (" It is a %s." % what) if what else ""
         if event.get("tank"):
@@ -384,8 +389,14 @@ def _survival(kind: str, event: Dict[str, Any], name: str, me: bool) -> Tuple[st
             return ("You rang %s to draw the horde away." % what, "actor")
         return ("%s rang %s and the horde is heading for it." % (by, what), "ally")
     if kind == "wipe":
-        return ("Everybody died: your team held %s for %d waves. A new area is next."
-                % (what or "the area", n), "victim")
+        held = "Everybody died: your team held %s for %d waves." % (what or "the area", n)
+        left = int(event.get("left", 0) or 0)
+        if left > 0:
+            return ("%s You get %d more %s there before the server shuffles the map."
+                    % (held, left, "try" if left == 1 else "tries"), "victim")
+        nxt = str(event.get("next") or "")
+        return ("%s That was the third wipe there, so the server shuffles to %s."
+                % (held, nxt or "a new area"), "victim")
     where = str(event.get("where") or "")
     near = (" near %s" % where) if where else ""
     place = (" near %s" % what) if what else ""
@@ -514,7 +525,10 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("streak_ended", "actor"): ["got him", "streak over", "ez"],
     ("streak_ended", "victim"): ["bruh", "lag", "was on a roll"],
     ("player_joined", "neutral"): ["hi", "hey", "yo", "welcome", "o/", "sup"],
-    ("area", "neutral"): ["new map lets go", "ooh this one", "stick together", "find the ammo"],
+    ("area", "neutral"): ["new map lets go", "ooh this one", "stick together", "find the ammo",
+                          "finally a new map", "ok fresh start"],
+    ("area", "ally"): ["run it back", "again", "we got this one", "this time fr",
+                       "dont split up this time", "ok focus"],
     ("wave_start", "ally"): ["here they come", "stack up", "reload", "stay together"],
     ("wave_clear", "ally"): ["nice", "wave clear", "get ammo", "heal up", "ez"],
     ("tank", "victim"): ["TANK", "tank!!", "everyone on the tank", "run", "oh no"],
@@ -526,7 +540,8 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("pinned", "victim"): ["HELP", "get it off", "shoot it", "leaper!!"],
     ("save", "ally"): ["nice save", "ty", "clutch"],
     ("lure", "ally"): ["nice bell", "go go while theyre distracted", "smart"],
-    ("wipe", "victim"): ["gg", "so close", "next time", "gg all", "rip"],
+    ("wipe", "victim"): ["gg", "so close", "next time", "gg all", "rip", "one more",
+                         "again again"],
     ("special", "actor"): ["special here", "watch out", "got a special"],
     ("special", "victim"): ["where", "on it", "i see it", "focus it"],
     ("swarmed", "victim"): ["theyre all over me", "help", "too many", "need help here"],

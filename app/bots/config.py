@@ -408,18 +408,19 @@ FIELDS: List[Field] = [
 
     # ----------------------------------------------------------- survival
     F("survival.squads", "Squads", "bool", True, "survival",
-      "Bots team up into small squads that move, hold, restock and revive "
-      "together, form and split as the round goes, and sometimes tag along "
-      "with a real player. Off: every bot plays on its own.", toggle=True),
+      "Bots team up into squads of two or three that move, hold, restock and "
+      "revive together, form and split as the round goes, and sometimes tag "
+      "along with a real player. Off: every bot plays on its own.", toggle=True),
     F("survival.callouts", "Callouts", "bool", True, "survival",
       "Bots call out the specials they see, with where (\"bomber by the "
       "diner\"). Quick lines, so Quick reactions must be on too; the language "
       "model's own reactions come from the Special spotted speech event.",
       toggle=True),
-    F("survival.squad_size", "Squad size", "range", [2, 4], "survival",
-      "How big a group each bot likes; sociable personas sit at the top. A "
-      "big moment (a wave, a Tank) can stack two squads past it for a while.",
-      2, 8, 1, "bots", scope="per-bot"),
+    F("survival.squad_size", "Squad size", "range", [2, 3], "survival",
+      "How big a group each bot likes; sociable personas sit at the top. "
+      "Never more than three (a real player counts as one of them): "
+      "nobody plays in a stack of six.",
+      2, 3, 1, "bots", scope="per-bot"),
     F("survival.solo", "Lone wolves", "pct", 14, "survival",
       "Chance a bot without a squad goes it alone for a while; loners, "
       "explorers and speedrunners far more, team players and newbies less.",
@@ -433,6 +434,17 @@ FIELDS: List[Field] = [
       "and newbies most, loners never. Nobody follows a person for ever, and "
       "somebody standing still is boring company.", 0, 100, 1, "%",
       scope="base"),
+    F("survival.spread", "Spread over the map", "pct", 70, "survival",
+      "How hard squads keep away from each other and from the safe room, "
+      "head out each their own way, and go where nobody has been for a "
+      "while -- so the whole area gets used, not just the spawn and a few "
+      "landmarks.", 0, 100, 1, "%", scope="base"),
+    F("survival.variety", "Behaviour variety", "pct", 60, "survival",
+      "How much bots mix up their breathers -- wandering the streets, "
+      "patrolling an edge, searching buildings, climbing about, keeping "
+      "watch, stocking up, taking a breather, messing about, going to see "
+      "what that bang was -- by their personas; low keeps them to hanging "
+      "out and exploring.", 0, 100, 1, "%", scope="base"),
     F("survival.roam", "Explore between waves", "pct", 30, "survival",
       "How much bots wander the area's places in the breathers (the rail "
       "yard, the hedge maze, the island); explorers and kids most.", 0, 100,
@@ -452,8 +464,9 @@ FIELDS: List[Field] = [
       "further, and real players are picked up first.", 20, 600, 10, "units",
       scope="base"),
     F("survival.regroup", "Regroup for big moments", "bool", True, "survival",
-      "When a wave starts or the team is scattered, somebody calls a regroup "
-      "and lone wolves mostly come back for the fight."),
+      "When a Tank shows up or half the team is down, somebody calls a "
+      "regroup and the squads spread wide close in (each still its own "
+      "squad); lone wolves mostly come back for each wave."),
     F("survival.avoid_spawns", "Keep clear of spawns in a wave", "bool", True,
       "survival", "During a wave squads do not hold the graveyard, the maze, "
       "the waterline or the mine; explorers still go there between waves."),

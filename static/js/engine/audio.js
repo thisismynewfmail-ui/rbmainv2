@@ -301,6 +301,79 @@
       case 'zkill':
         this.noise({ freq: 700, freqEnd: 150, dur: 0.18, gain: 0.12 * vol });
         break;
+      // ------------------------------------- Last Light: arriving somewhere
+      case 'whoosh':
+        this.noise({ filter: 'bandpass', freq: 300, freqEnd: 2600, dur: 0.55, gain: 0.22 * vol });
+        break;
+      case 'slam':
+        this.tone({ type: 'sine', freq: 95, freqEnd: 32, dur: 0.55, gain: 0.34 * vol });
+        this.noise({ freq: 900, freqEnd: 70, dur: 0.4, gain: 0.3 * vol });
+        break;
+      case 'thunk':
+        // a wooden sign coming up short on its chains
+        this.tone({ type: 'triangle', freq: 160, freqEnd: 70, dur: 0.25, gain: 0.26 * vol });
+        this.noise({ filter: 'bandpass', freq: 500, freqEnd: 200, dur: 0.18, gain: 0.2 * vol });
+        this.tone({ type: 'triangle', freq: 1900, freqEnd: 1500, dur: 0.2, gain: 0.05 * vol });
+        break;
+      case 'power':
+        // a big switch thrown, then mains hum
+        this.noise({ filter: 'bandpass', freq: 2200, dur: 0.05, gain: 0.25 * vol });
+        this.tone({ type: 'sawtooth', freq: 60, dur: 1.2, gain: 0.07 * vol });
+        this.tone({ type: 'square', freq: 120, dur: 0.9, gain: 0.03 * vol });
+        break;
+      case 'buzz':
+        // a tube light catching
+        for (var zz = 0; zz < 4; zz++) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'sawtooth', freq: 118, dur: 0.07, gain: 0.08 * vol });
+            self.noise({ filter: 'highpass', freq: 3000, dur: 0.05, gain: 0.05 * vol });
+          }; }(this), zz * 90 + Math.random() * 40);
+        }
+        break;
+      case 'tick':
+        this.tone({ type: 'square', freq: 2300, dur: 0.025, gain: 0.07 * vol });
+        break;
+      case 'land':
+        this.tone({ type: 'sine', freq: 110, freqEnd: 45, dur: 0.5, gain: 0.3 * vol });
+        [660, 990, 1320].forEach(function (f, k) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'triangle', freq: f, dur: 0.6, gain: 0.1 * vol });
+          }; }(this), 60 + k * 70);
+        }, this);
+        break;
+      case 'crow':
+        for (var cc = 0; cc < 2; cc++) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'sawtooth', freq: 640, freqEnd: 420, dur: 0.2, gain: 0.07 * vol });
+            self.noise({ filter: 'bandpass', freq: 1500, freqEnd: 900, dur: 0.18, gain: 0.08 * vol });
+          }; }(this), cc * 260);
+        }
+        break;
+      case 'beep':
+        this.tone({ type: 'sine', freq: 1046, dur: 0.12, gain: 0.1 * vol });
+        break;
+      case 'flatline':
+        this.tone({ type: 'sine', freq: 1046, dur: 1.6, gain: 0.07 * vol });
+        break;
+      case 'loon':
+        // the lake at dusk: one long rising wail
+        this.tone({ type: 'sine', freq: 520, freqEnd: 820, dur: 0.7, gain: 0.08 * vol });
+        setTimeout(function (self) { return function () {
+          self.tone({ type: 'sine', freq: 820, freqEnd: 700, dur: 1.3, gain: 0.08 * vol });
+          self.tone({ type: 'sine', freq: 1640, freqEnd: 1400, dur: 1.1, gain: 0.015 * vol });
+        }; }(this), 650);
+        break;
+      case 'scratch':
+        for (var sc = 0; sc < 3; sc++) {
+          setTimeout(function (self) { return function () {
+            self.noise({ filter: 'bandpass', freq: 3200, freqEnd: 1100, dur: 0.12, gain: 0.16 * vol });
+          }; }(this), sc * 55);
+        }
+        break;
+      case 'splash':
+        this.noise({ freq: 1600, freqEnd: 200, dur: 0.6, gain: 0.16 * vol });
+        this.noise({ filter: 'bandpass', freq: 700, freqEnd: 300, dur: 0.4, gain: 0.1 * vol });
+        break;
       default:
         break;
     }

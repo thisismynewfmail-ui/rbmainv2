@@ -3,8 +3,9 @@
 Each area is a complete, walled-in map of its own, built at the origin by
 its module and placed far from the others, so no two are ever in sight of
 each other (they are 4800 units apart; nothing draws past 1400).  Only one
-is played at a time: a round is fought in one until everybody is dead, and
-the next round is somewhere else.  The holdout bunker, where people wait
+is played at a time: a round is fought in one until everybody is dead; a
+place gets three rounds, and after the third wipe there the server shuffles
+to another.  The holdout bunker, where people wait
 for the next wave, sits on its own at the centre.
 
 The parts of every area live in one list, and each area records the run of

@@ -420,8 +420,11 @@ def _survival_run(seconds: float) -> None:
     wolves, places visited -- with the infected spawning where they should."""
     spawned: List[float] = []
     apart: List[float] = []
-    looks = {"squads": 0, "own": 0, "samples": 0, "solo": 0}
+    looks = {"squads": 0, "own": 0, "samples": 0, "solo": 0, "biggest": 0}
     places: Dict[str, set] = {}
+    at_spawn: List[float] = []
+    cells: set = set()
+    kinds: set = set()
 
     def watch(inst):
         orig_tick = inst.on_tick
@@ -430,9 +433,14 @@ def _survival_run(seconds: float) -> None:
         def on_tick(dt):
             orig_tick(dt)
             count["n"] += 1
-            if count["n"] % 100 or inst.bots is None or inst.bots.survival is None:
+            if count["n"] % 20 or inst.bots is None or inst.bots.survival is None:
                 return
             plan = inst.bots.survival
+            for b in inst.bots.brains.values():
+                if plan._standing(b.p):
+                    cells.add(plan.intel().cell_of(b.p.pos))
+            if count["n"] % 100:
+                return
             looks["samples"] += 1
             sizes = [len(q.members) for q in plan.squads.values()]
             if any(size >= 2 for size in sizes):
@@ -441,10 +449,24 @@ def _survival_run(seconds: float) -> None:
                 looks["own"] += 1
             looks["solo"] += sum(1 for b in inst.bots.brains.values()
                                  if b.mind is not None and b.mind.solo)
+            looks["biggest"] = max([looks["biggest"]] + [
+                len(q.members) + (1 if q.person is not None else 0)
+                for q in plan.squads.values()])
+            intel = plan.intel()
+            standing = [b for b in inst.bots.brains.values()
+                        if plan._standing(b.p)]
+            if standing:
+                at_spawn.append(sum(1 for b in standing if math.hypot(
+                    b.p.pos[0] - intel.safe[0], b.p.pos[2] - intel.safe[2]) < 45)
+                    / float(len(standing)))
             for b in inst.bots.brains.values():
-                name = plan.intel().name_of(b.p.pos)
+                name = intel.name_of(b.p.pos)
                 if name:
                     places.setdefault(b.p.username, set()).add(name)
+                act = b.mind.act if b.mind is not None and b.mind.squad is None else (
+                    b.mind.squad.act if b.mind is not None else None)
+                if act is not None:
+                    kinds.add(act.kind)
         inst.on_tick = on_tick
 
     def setup(inst):
@@ -494,6 +516,15 @@ def _survival_run(seconds: float) -> None:
     visited = sorted(len(v) for v in places.values())
     check("%s: bots get about the area (places per bot %s)" % (label, visited),
           visited and visited[len(visited) // 2] >= 3, visited)
+    check("%s: no squad is ever more than three (largest %d)" % (label, looks["biggest"]),
+          2 <= looks["biggest"] <= 3, looks["biggest"])
+    share = sum(at_spawn) / max(1, len(at_spawn))
+    check("%s: nobody hangs about the spawn (%.0f%% of bots by the safe room)"
+          % (label, share * 100), share < 0.3, share)
+    check("%s: the whole map gets used (%d cells walked)" % (label, len(cells)),
+          len(cells) >= 90, len(cells))
+    check("%s: bots do all sorts, not just hold and hang out (%d kinds: %s)"
+          % (label, len(kinds), ", ".join(sorted(kinds))), len(kinds) >= 8, sorted(kinds))
     check("%s: no bot needs rescuing from the void, nobody stuck" % label,
           r["rescues"] == 0 and r["stuck"] <= 1, (r["rescues"], r["stuck"]))
     _survival_units()
@@ -527,6 +558,13 @@ def _survival_units() -> None:
     off = survival.Profile(FakeBrain(loner_tags, personas.derive_traits(loner_tags, rng)),
                            {"survival_solo": 0})
     check("%s: the Lone wolves setting scales going solo" % label, off.lone <= 0.01, off.lone)
+    big = survival.Profile(FakeBrain(social_tags, personas.derive_traits(social_tags, rng)),
+                           {"survival_squad_size": [6, 8]})
+    from app.bots import config as bot_config
+    field = next(f for f in bot_config.FIELDS if f.key == "survival.squad_size")
+    check("%s: a squad is never more than three, whatever the setting says" % label,
+          big.size <= 3 and bot_config.clean(field, [2, 8]) == [2, 3],
+          (big.size, bot_config.clean(field, [2, 8])))
 
     from app.bots import speech
     missing = []
