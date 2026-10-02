@@ -73,22 +73,53 @@
     this.pools = [];
   };
 
-  /* A new area: the whole static world is replaced in place. */
+  /* A round starts.  Somewhere new (the third wipe shuffled the server): the
+     whole static world is replaced in place and the place gets its arrival
+     sequence.  Another go at the same place: the world stays as it is, the
+     horde is gone and the lights come back on. */
   Survival.prototype.onArea = function (msg) {
     var client = this.client;
-    var map = msg.map;
-    client.map = map;
-    client.physics = new Physics(map, client.constants);
-    client.renderer.setSky(map.sky);
-    client.renderer.setAmbient(map.ambient);
-    if (Textures.dropSigns) Textures.dropSigns();
-    client.staticParts = map.parts;
-    client.rebuildStatic();
-    this.onMap(map);
-    this.banner(msg.name || 'A new area', 'Round ' + (msg.round || 1) + ' -- get ready',
-                'area');
-    client.audio.play('alarm', { volume: 0.4 });
+    var tries = msg.tries || 3, attempt = msg.attempt || 1;
     this.hideWipe();
+    if (msg.map) {
+      var map = msg.map;
+      client.map = map;
+      client.physics = new Physics(map, client.constants);
+      client.renderer.setSky(map.sky);
+      client.renderer.setAmbient(map.ambient);
+      if (Textures.dropSigns) Textures.dropSigns();
+      client.staticParts = map.parts;
+      client.rebuildStatic();
+      this.onMap(map);
+    } else {
+      this.zombies = {};
+      this.dying = [];
+      this.shots = {};
+      this.pools = [];
+    }
+    var name = msg.name || 'A new area';
+    var Intro = global.AreaIntro;
+    if (msg.intro && Intro && Intro.has(msg.area) &&
+        Intro.play(msg.area, { name: name, round: msg.round || 1, attempt: attempt,
+                               tries: tries }, client.audio)) {
+      return;
+    }
+    this.flicker();
+    this.banner(name, 'Round ' + (msg.round || 1) + ' -- ' + (attempt > 1
+      ? 'attempt ' + attempt + ' of ' + tries : tries + ' tries to hold it') + ' -- get ready',
+      attempt > 1 ? 'area retry' : 'area',
+      Intro ? Intro.lamps(attempt - 1, tries, false) : '');
+    client.audio.play('alarm', { volume: 0.4 });
+  };
+
+  /* The lights stutter back on: another go at the same place. */
+  Survival.prototype.flicker = function () {
+    var node = el('ll-flicker');
+    if (!node) return;
+    node.classList.remove('on');
+    void node.offsetWidth;
+    node.classList.add('on');
+    this.client.audio.play('power', { volume: 0.35 });
   };
 
   // ------------------------------------------------------------ messages
@@ -205,6 +236,7 @@
 
   Survival.prototype.onWipe = function (msg) {
     var client = this.client;
+    var esc = client.hud.escape.bind(client.hud);
     client.audio.play('die');
     var rows = (msg.rows || []).map(function (r, i) {
       return '<tr' + (r.id === client.myId ? ' class="me"' : '') + '><td>' + (i + 1) +
@@ -214,18 +246,47 @@
     }).join('');
     var card = el('ll-wipe');
     if (!card) return;
+    var Intro = global.AreaIntro;
+    var tries = msg.tries || 3, losses = Math.min(msg.losses || 1, tries);
+    var shuffle = !!msg.shuffle;
+    var more = tries - losses;
+    // the lamps: one goes out for every wipe here; the last one shuffles
+    var count = shuffle
+      ? 'That is <b>' + losses + ' wipes</b> at ' + esc(msg.area) + ' -- the server shuffles'
+      : 'Attempt ' + losses + ' of ' + tries + ' down -- <b>' + more + '</b> more ' +
+        (more === 1 ? 'try' : 'tries') + ' here before the server shuffles';
+    var next = shuffle
+      ? '<div id="ll-reel"></div><div class="ll-wipe-next ll-after" id="ll-wipe-after">' +
+        'Next stand: <b>' + esc(msg.next) + '</b> in <span id="ll-wipe-count">' +
+        Math.round(msg['in'] || 12) + '</span>s</div>'
+      : '<div class="ll-wipe-next">Run it back: <b>' + esc(msg.next) + '</b>, attempt ' +
+        (losses + 1) + ' of ' + tries + ' in <span id="ll-wipe-count">' +
+        Math.round(msg['in'] || 12) + '</span>s</div>';
     card.innerHTML =
       '<div class="ll-wipe-in"><div class="ll-wipe-k">THE LAST LIGHT WENT OUT</div>' +
-      '<h2>' + client.hud.escape(msg.area) + '</h2>' +
+      '<h2>' + esc(msg.area) + '</h2>' +
       '<div class="ll-wipe-s"><b>' + msg.survived + '</b> wave' +
       (msg.survived === 1 ? '' : 's') + ' survived &bull; <b>' + (msg.kills || 0) +
       '</b> infected killed &bull; ' + fmt(msg.time || 0) + '</div>' +
+      '<div class="ll-tries' + (shuffle ? ' last' : '') + '">' +
+      (Intro ? Intro.lamps(losses, tries, true) : '') +
+      '<span class="ll-tries-s">' + count + '</span></div>' +
       '<table><thead><tr><th></th><th class="n">Survivor</th><th>Kills</th>' +
       '<th>Specials</th><th>Revives</th><th>Damage</th></tr></thead><tbody>' + rows +
-      '</tbody></table><div class="ll-wipe-next">Next stand: <b>' +
-      client.hud.escape(msg.next) + '</b> in <span id="ll-wipe-count">' +
-      Math.round(msg['in'] || 12) + '</span>s</div></div>';
+      '</tbody></table>' + next + '</div>';
     card.classList.add('on');
+    if (this.reel) this.reel.stop();
+    this.reel = null;
+    if (shuffle && Intro) {
+      this.reel = Intro.reel(el('ll-reel'), msg.reel, msg.next_id, client.audio, 2300,
+                             function () {
+                               var after = el('ll-wipe-after');
+                               if (after) after.classList.add('on');
+                             });
+    } else if (shuffle) {
+      var after = el('ll-wipe-after');
+      if (after) after.classList.add('on');
+    }
     var left = Math.round(msg['in'] || 12);
     clearInterval(this.wipeTimer);
     this.wipeTimer = setInterval(function () {
@@ -238,6 +299,8 @@
 
   Survival.prototype.hideWipe = function () {
     clearInterval(this.wipeTimer);
+    if (this.reel) this.reel.stop();
+    this.reel = null;
     var card = el('ll-wipe');
     if (card) card.classList.remove('on');
   };
@@ -265,7 +328,7 @@
       if (msg.hs) client.hud.hitmarker();
     }
     if (z.kind === 'tank') {
-      this.banner('TANK DOWN', 'The big one is dead', 'clear');
+      this.banner('TANK DOWN', '', 'clear');
     }
   };
 
@@ -535,15 +598,26 @@
       return;
     }
     var pos = local.pos;
-    var best = null, bestD = 7;
+    var best = null, bestD = 7, taken = null, takenD = 7;
     var self = this;
+    var reviving = (this.lastState && this.lastState.reviving) || {};
     Object.keys(this.downedPlayers).forEach(function (id) {
       var player = client.players[id];
       if (!player || !player.alive) return;
       var d = Math.hypot(player.pos[0] - pos[0], player.pos[2] - pos[2]);
+      // somebody else is already picking them up: theirs until they stop
+      if (reviving[id]) {
+        if (d < takenD) { takenD = d; taken = player; }
+        return;
+      }
       if (d < bestD) { bestD = d; best = player; }
     });
     if (best) { hud.setPrompt('Hold <b>E</b> to revive <b>' + hud.escape(best.name) + '</b>'); return; }
+    if (taken) {
+      hud.setPrompt('<b>' + hud.escape(reviving[taken.id]) + '</b> is reviving <b>' +
+                    hud.escape(taken.name) + '</b> -- cover them');
+      return;
+    }
     var markers = this.markers;
     var lure = markers.lure;
     var state = this.lastState || {};
@@ -586,22 +660,23 @@
     root.innerHTML =
       '<div id="ll-boss"><div class="ll-boss-name">TANK</div><div class="ll-boss-bar"><i></i></div></div>' +
       '<div id="ll-team"></div>' +
-      '<div id="ll-banner"><div class="t"></div><div class="s"></div></div>' +
+      '<div id="ll-banner"><div class="t"></div><div class="s"></div><div class="x"></div></div>' +
       '<div id="ll-down"><div class="t">YOU ARE DOWN</div><div class="s"></div>' +
       '<div class="ll-bar"><i></i></div></div>' +
       '<div id="ll-revive"><div class="s"></div><div class="ll-bar"><i></i></div></div>' +
       '<div id="ll-watch"><div class="t"></div><div class="s"></div></div>' +
       '<div id="ll-vignette"></div><div id="ll-bile"></div>' +
-      '<div id="ll-wipe"></div>';
+      '<div id="ll-wipe"></div><div id="ll-flicker"></div>';
     var parent = document.querySelector('#game-root .hud') || document.body;
     parent.appendChild(root);
   };
 
-  Survival.prototype.banner = function (title, sub, kind) {
+  Survival.prototype.banner = function (title, sub, kind, extra) {
     var node = el('ll-banner');
     if (!node) return;
     node.querySelector('.t').textContent = title;
     node.querySelector('.s').textContent = sub || '';
+    node.querySelector('.x').innerHTML = extra || '';
     node.className = 'on ' + (kind || '');
     clearTimeout(this.bannerTimer);
     this.bannerTimer = setTimeout(function () { node.className = ''; }, 4200);

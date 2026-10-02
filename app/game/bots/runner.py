@@ -373,6 +373,8 @@ class BotRunner:
         elif self.mode == "survival":
             state.update({
                 "area": round_state.get("area_name"),
+                "attempt": round_state.get("attempt"),
+                "tries": round_state.get("tries"),
                 "wave": round_state.get("wave"),
                 "best_wave": round_state.get("best"),
                 "between_waves": round_state.get("wphase") == "setup",

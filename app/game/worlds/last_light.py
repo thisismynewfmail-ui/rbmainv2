@@ -55,6 +55,7 @@ WAVE_LIMIT = 540.0               # past this the stragglers fall back: no wave
                                  # get to anybody
 
 DOWNS_PER_LIFE = 2               # the third time is death
+LOSSES_PER_AREA = 3              # wipes in one place before the server moves on
 BLEED_PER_SECOND = 1.6           # a downed survivor's 100 runs out in ~a minute
 REVIVE_SECONDS = 3.2
 REVIVE_RANGE = 7.0
@@ -143,6 +144,7 @@ class LastLight(GameInstance):
         self.horde = Horde(self)
         self._payloads: Dict[str, Dict[str, Any]] = {}
         self.area_id = self.rng.choice(self.area_order)
+        self.area_losses = 0             # wipes in this area so far
         self.wave = 0
         self.best = 0                       # best wave reached on this server
         self.phase = "setup"
@@ -164,6 +166,9 @@ class LastLight(GameInstance):
         self.wipe_card: Dict[str, Any] = {}
         self.spawn_cache: Tuple[float, List[Dict[str, Any]]] = (0.0, [])
         self.next_pack = 0.0
+        self.fronts: List[Dict[str, Any]] = []   # the spawn spots a wave comes from
+        self.fronts_until = 0.0
+        self.front_i = 0
         self.paused = False
         self._me_tick = 0
         nav = getattr(self.host, "nav", None)
@@ -970,16 +975,16 @@ class LastLight(GameInstance):
         return max(1, len(self.field_players()))
 
     def _cap(self) -> int:
-        # how many may be up at once: a trickle on the first waves, a flood
+        # how many may be up at once: a crowd from the first wave, a flood
         # by the tenth
-        cap = min(56, 10 + 3 * self.wave + 2 * self._crowd())
+        cap = int(min(72, 16 + 4 * self.wave + 2.5 * self._crowd()))
         if self.modifier == "horde":
-            cap += 12
+            cap += 16
         return cap
 
     def _compose(self) -> Dict[str, Any]:
         w, n = self.wave, self._crowd()
-        commons = (8 + 5 * w + 3.5 * n)
+        commons = (14 + 8.0 * w + 5.0 * n)
         runners = 0.0 if w < 3 else min(0.3, 0.04 * (w - 2))
         specials = int(round(w * 0.6 + n * 0.35 - 0.4))
         specials = max(0, min(specials, 4 + w // 2, 12))
@@ -991,7 +996,7 @@ class LastLight(GameInstance):
             specials = max(0, specials - 1)
         elif self.modifier == "elite":
             specials += 2
-        commons = int(min(160, commons))
+        commons = int(min(220, commons))
         tanks = 0
         if w % 5 == 0:
             tanks = 1 + (1 if w >= 15 else 0) + (1 if w >= 25 and n >= 6 else 0)
@@ -1034,7 +1039,8 @@ class LastLight(GameInstance):
         self.wave_started = moment
         self.phase_until = moment + WAVE_TARGET
         self.wave_kills = 0
-        self.next_pack = moment + 4.0
+        self.next_pack = moment + 3.0
+        self.fronts = []
         self.med_charges = [MED_CHARGES] * len(self.med_charges)
         for barrel in self.barrels:
             if not barrel.alive:
@@ -1094,19 +1100,38 @@ class LastLight(GameInstance):
         rows.sort(key=lambda r: (-r["kills"] - r["specials"] * 4 - r["revives"] * 6,
                                  r["name"].lower()))
         survived = max(0, self.wave - 1)
-        nxt = self._next_area()
+        # three goes at a place; the third wipe shuffles the server somewhere
+        # else at random
+        self.area_losses += 1
+        shuffle = self.area_losses >= LOSSES_PER_AREA
+        nxt = self._next_area() if shuffle else self.area_id
         self.wipe_card = {"t": "zwipe", "wave": self.wave, "survived": survived,
-                          "area": self.area["name"], "next": self.areas[nxt]["name"],
+                          "area": self.area["name"], "area_id": self.area_id,
+                          "next": self.areas[nxt]["name"],
                           "next_id": nxt, "in": WIPE_SECONDS, "rows": rows[:24],
                           "kills": self.round_kills,
-                          "time": round(moment - self.round_started)}
+                          "time": round(moment - self.round_started),
+                          "losses": self.area_losses, "tries": LOSSES_PER_AREA,
+                          "shuffle": shuffle,
+                          "reel": [{"id": a, "name": self.areas[a]["name"]}
+                                   for a in self.area_order]}
         self._next_area_id = nxt
         self.broadcast(self.wipe_card)
-        self.system_message("Everybody is down. You held %s for %d wave%s."
-                            % (self.area["name"], survived, "" if survived == 1 else "s"))
+        held = "You held %s for %d wave%s." % (self.area["name"], survived,
+                                                "" if survived == 1 else "s")
+        if shuffle:
+            self.system_message("Everybody is down -- that is %d wipes at %s. %s The "
+                                "server shuffles to %s!" % (self.area_losses,
+                                                            self.area["name"], held,
+                                                            self.areas[nxt]["name"]))
+        else:
+            self.system_message("Everybody is down. %s Attempt %d of %d is next."
+                                % (held, self.area_losses + 1, LOSSES_PER_AREA))
         for player in self.players.values():
             self.host.report_round(self, player, won=survived >= 5)
-        self.push_event("wipe", n=survived, what=self.area["name"])
+        self.push_event("wipe", n=survived, what=self.area["name"],
+                        left=LOSSES_PER_AREA - self.area_losses if not shuffle else 0,
+                        next=self.areas[nxt]["name"])
         if self.bots is not None:
             self.bots.on_round_end("", "wipe")
 
@@ -1119,8 +1144,13 @@ class LastLight(GameInstance):
         """Everybody to a fresh area, wave one (or ``wave`` + 1) next."""
         moment = now()
         self.horde.clear()
+        previous = self.area_id
         self.area_id = area_id or getattr(self, "_next_area_id", None) or \
             self._next_area()
+        self._next_area_id = None
+        moved = self.area_id != previous or not self.round_number
+        if moved:
+            self.area_losses = 0
         self._arm_area()
         self.round_number += 1
         self.wave = wave
@@ -1131,8 +1161,13 @@ class LastLight(GameInstance):
         self.phase = "setup"
         self.phase_until = moment + setup
         self.projectiles.clear()
-        payload = {"t": "zarea", "map": self.map_payload(), "area": self.area_id,
-                   "name": self.area["name"], "round": self.round_number}
+        payload = {"t": "zarea", "area": self.area_id, "name": self.area["name"],
+                   "round": self.round_number, "attempt": self.area_losses + 1,
+                   "tries": LOSSES_PER_AREA, "intro": moved, "best": self.best}
+        if moved:
+            # a new place: the whole static world, and the arrival sequence;
+            # another go at the same place keeps the world the client has
+            payload["map"] = self.map_payload()
         for player in list(self.players.values()):
             stats = player.extra.get("ll")
             if stats is not None:
@@ -1144,9 +1179,16 @@ class LastLight(GameInstance):
             self.deploy(player)
         self.broadcast({"t": "round_start", "round": self.round_number,
                         "state": self.full_state()})
-        self.system_message("Round %d: %s. %d seconds to get ready."
-                            % (self.round_number, self.area["name"], int(setup)))
-        self.push_event("area", what=self.area["name"])
+        if moved:
+            self.system_message("Round %d: %s. %d seconds to get ready."
+                                % (self.round_number, self.area["name"], int(setup)))
+        else:
+            self.system_message("Round %d: %s again -- attempt %d of %d. %d seconds to "
+                                "get ready." % (self.round_number, self.area["name"],
+                                                self.area_losses + 1, LOSSES_PER_AREA,
+                                                int(setup)))
+        self.push_event("area", what=self.area["name"], n=self.area_losses + 1,
+                        retry=not moved)
         if self.bots is not None:
             self.bots.on_round_start()
 
@@ -1241,23 +1283,77 @@ class LastLight(GameInstance):
         left = plan["commons"] - plan["spawned"]
         if left <= 0 or moment < self.next_pack:
             return
-        self.next_pack = moment + 1.0
-        # packs keep to a schedule spread over the window, so a wave lasts
-        # its four minutes however fast the team kills
-        due = plan["commons"] * min(1.0, (elapsed + 8.0) / plan["window"])
-        if plan["spawned"] >= due:
-            return
+        # a steady stream, not packs: one to three at a time, every fraction
+        # of a second, each from the next of several fronts round the team,
+        # so the horde arrives from every side at once instead of in one
+        # clump.  The stream keeps to a schedule spread over the window, so
+        # a wave lasts its four minutes however fast the team kills.
+        self.next_pack = moment + self.rng.uniform(0.35, 0.8)
+        due = plan["commons"] * min(1.0, (elapsed + 10.0) / plan["window"])
         alive = self.horde.count(("common", "runner"))
-        room = self._cap() - alive
+        cap = self._cap()
+        if plan["spawned"] >= due:
+            # ahead of the schedule -- but a team that kills fast still has a
+            # crowd to face: the stream runs on (up to a third of the wave
+            # ahead) while fewer than nearly half the cap are up
+            floor = max(8, int(cap * 0.45))
+            if alive >= floor or plan["spawned"] - due >= plan["commons"] * 0.35:
+                return
+        room = cap - alive
         if room <= 0:
             return
-        size = min(left, room, self.rng.randint(4, 8) + self.wave // 3)
-        spots = self._spawn_spots()
-        spot = self.rng.choice(spots)
+        behind = due - plan["spawned"]
+        size = min(left, room, 1 + int(behind > 6) + int(behind > 14))
+        fronts = self._fronts(moment)
+        if not fronts:
+            return
         for _ in range(size):
+            spot = fronts[self.front_i % len(fronts)]
+            self.front_i += 1
             self._spawn_common(self._jitter(spot["p"]))
         plan["spawned"] += size
-        self.next_pack = moment + self.rng.uniform(3.0, 6.0)
+
+    def _fronts(self, moment: float) -> List[Dict[str, Any]]:
+        """The spawn spots a wave is coming from right now: as many as the
+        wave calls for, as far apart round the team as the area allows,
+        changed every half a minute or so (and the moment anybody walks up
+        to one)."""
+        survivors = self.standing() or self.survivors()
+        stale = moment >= self.fronts_until or not self.fronts or any(
+            math.dist(s.pos, f["p"]) < SPAWN_MIN * 0.8 for f in self.fronts
+            for s in survivors)
+        if not stale:
+            return self.fronts
+        spots = self._spawn_spots()
+        if not spots:
+            return []
+        want = min(len(spots), min(5, 3 + self.wave // 4) +
+                   (1 if self.modifier == "horde" else 0))
+        if survivors:
+            cx = sum(s.pos[0] for s in survivors) / len(survivors)
+            cz = sum(s.pos[2] for s in survivors) / len(survivors)
+        else:
+            cx, cz = self.area["centre"][0], self.area["centre"][2]
+
+        def bearing(spot) -> float:
+            return math.atan2(spot["p"][0] - cx, spot["p"][2] - cz)
+
+        def apart(a: float, b: float) -> float:
+            d = abs(a - b) % (2 * math.pi)
+            return min(d, 2 * math.pi - d)
+        chosen = [self.rng.choice(spots)]
+        while len(chosen) < want:
+            taken = [bearing(c) for c in chosen]
+            rest = [s for s in spots if s not in chosen]
+            if not rest:
+                break
+            best = max(rest, key=lambda s: min(apart(bearing(s), t) for t in taken)
+                       + self.rng.uniform(0.0, 0.35))
+            chosen.append(best)
+        self.fronts = chosen
+        self.fronts_until = moment + self.rng.uniform(18.0, 30.0)
+        self.front_i = self.rng.randrange(len(chosen))
+        return chosen
 
     def wave_left(self) -> int:
         plan = self.plan
@@ -1428,10 +1524,28 @@ class LastLight(GameInstance):
                 if not player.alive or self.where(player) == "lobby":
                     self._send_me(player)
 
+    def _revived_by(self, downed: Player) -> Optional[Player]:
+        """Whoever is picking ``downed`` up right now, if anybody is."""
+        helper = downed.extra.get("revive")
+        if not helper:
+            return None
+        other = self.players.get(helper[0])
+        mine = other.extra.get("revive") if other is not None else None
+        if other is None or not mine or mine[0] != downed.pid or \
+                not other.extra.get("using") or not other.alive:
+            return None
+        return other
+
     def _try_revive(self, player: Player, dt: float) -> None:
         best, best_d = None, REVIVE_RANGE
         for other in self.survivors():
             if other is player or not other.extra.get("downed"):
+                continue
+            # one pair of hands at a time: somebody already being picked up
+            # is theirs until they stop, and a second helper cannot take
+            # over (and reset) the revive
+            helper = self._revived_by(other)
+            if helper is not None and helper is not player:
                 continue
             d = math.hypot(other.pos[0] - player.pos[0], other.pos[2] - player.pos[2])
             if d < best_d and abs(other.pos[1] - player.pos[1]) < 4.0:
@@ -1483,6 +1597,8 @@ class LastLight(GameInstance):
         players = list(self.players.values())
         return {
             "area": self.area_id, "area_name": self.area["name"],
+            "attempt": min(self.area_losses + 1, LOSSES_PER_AREA),
+            "tries": LOSSES_PER_AREA,
             "wave": self.wave, "best": self.best, "wphase": self.phase,
             "phase_left": round(max(0.0, self.phase_until - moment), 1),
             "wave_time": round(moment - self.wave_started, 1)
@@ -1503,6 +1619,8 @@ class LastLight(GameInstance):
             "alive": sum(1 for p in players if self.where(p) == "field" and p.alive),
             "lobby": sum(1 for p in players if self.where(p) == "lobby"),
             "downed": [p.pid for p in players if p.extra.get("downed")],
+            "reviving": {str(p.pid): p.extra["revive"][2] for p in players
+                         if p.extra.get("downed") and p.extra.get("revive")},
             "pinned": [p.pid for p in players if p.extra.get("pinned_by")],
             "where": {p.pid: self.where(p) for p in players},
             "kills": self.round_kills,
@@ -1531,7 +1649,7 @@ class LastLight(GameInstance):
     # ======================================================== sleep / wake
     def sleep_state(self) -> Dict[str, Any]:
         return {"area": self.area_id, "wave": self.wave, "best": self.best,
-                "phase": self.phase}
+                "phase": self.phase, "losses": self.area_losses}
 
     def resume(self, state: Dict[str, Any]) -> None:
         """Pick a sleeping round back up: the same area, between waves."""
@@ -1542,3 +1660,6 @@ class LastLight(GameInstance):
         self.best = max(self.best, int(state.get("best", 0) or 0))
         self.round_number = max(0, self.round_number - 1)
         self.start_round(area, wave=wave, setup=BREATHER if wave else FIRST_SETUP)
+        # the wipes it had already taken there still count towards the shuffle
+        self.area_losses = min(LOSSES_PER_AREA - 1,
+                               max(0, int(state.get("losses", 0) or 0)))

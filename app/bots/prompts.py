@@ -212,6 +212,11 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
             lines.append("In %s, fighting wave %d (%s infected left)%s." % (
                 where, wave, state.get("infected_left", "?"),
                 ", with a Tank on the loose" if state.get("tank") else ""))
+        attempt, tries = int(state.get("attempt") or 0), int(state.get("tries") or 0)
+        if attempt and tries:
+            lines.append("Attempt %d of %d at %s: after the %s wipe here the server "
+                         "shuffles everybody to a random new area." % (
+                             attempt, tries, where, "third" if tries == 3 else "last"))
         if state.get("modifier"):
             lines.append("This wave's twist: %s." % state["modifier"])
         if state.get("survivors"):

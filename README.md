@@ -102,7 +102,7 @@ Basic Shotgun and a Basic Stick.
 | **Capture The Flag** | `/capture_the_flag` | First to 3 captures, then a shuffle vote | 16 |
 | **Fortress Team 2** | `/fortress_team_2` | Payload push, teams swap each round, first to 3 round wins | 24 |
 | **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
-| **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, four areas shuffled after every wipe | 24 |
+| **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -174,8 +174,18 @@ of your own carrier pays, as does killing an attacker near your own flag.
 ### Last Light
 Co-operative zombie survival for up to twenty-four. Everybody is on one team
 against the infected, wave after wave, in one of four places; a round ends
-when the last survivor falls, and the next round is somewhere else, starting
-again from wave one.
+when the last survivor falls, and the next round starts again from wave one.
+Each place gets three tries: the end card shows three lamps and one blows out
+per wipe, the next attempt starts with the lights stuttering back on, and the
+third wipe spins a reel of the areas that lands on the next one at random.
+Arriving somewhere new plays that place's own arrival sequence over the game
+(`static/js/game/area_intro.js`, about seven seconds, Space skips it): the
+church bell swinging and the streetlights stuttering on down Harrow Main
+Street as the Bijou's marquee drops in; red and blue over St. Agnes, hazard
+tape snapping across and a QUARANTINE stamp over a heartbeat that goes flat;
+the Blackwater lighthouse sweeping the fog until it reads the name off a
+container; and the camp sign swinging in over Cedar Lake at sunset, claw
+marks and all. A server asleep keeps its count of tries too.
 
 **The places.** Each is a complete, walled-in map of its own -- about 560 by
 560 units -- with its own safe room (sixteen deploy pads, ammunition, a
@@ -204,9 +214,12 @@ area can be seen from another.
   and a terraced ridge with an old mine running under it.
 
 **Waves.** Each wave is paced to last about four minutes: its infected arrive
-in packs over most of it, from the area's own spawn points (the treeline,
-the graveyard, the water, the mine) -- out of every survivor's sight and at
-least seventy units away whenever the area allows it. A wave ends when the last of them dies, and
+in a steady stream over most of it (a couple at a time, every second or so,
+up to seventy-two alive at once), from three to five of the area's spawn
+points at the same time, picked to come at the survivors from different
+sides and changed every twenty to thirty seconds (the treeline, the
+graveyard, the water, the mine) -- out of every survivor's sight and at least
+seventy units away whenever the area allows it. A wave ends when the last of them dies, and
 twenty seconds later the next one starts. Every fifth wave brings a Tank (two
 from the fifteenth). From the third wave on a wave can come with a twist:
 *Rush Hour* (half of them run), *Horde Night* (half as many again, all at
@@ -223,12 +236,15 @@ front), **Hive** (bursts into a swarm of mites), **Burrower** (digs under you
 and comes up beneath), **Ronin** (turns bullets with his blade, then dashes
 in) and the **Plague Captain** (poison bolts, and he raises the fallen).
 Every one of them paths across the whole area -- one flow field from every
-survivor at once -- and climbs to anyone who tries to wait it out on a
-rooftop or a car.
+survivor still on their feet -- and climbs to anyone who tries to wait it out
+on a rooftop or a car. Somebody already down is left where they lie: the
+infected go for whoever is still standing.
 
 **Down, not dead.** A survivor brought to nothing goes down: still shooting,
 crawling, bleeding out over about a minute. Hold **E** on them for three
-seconds to pick them up. The third time in a life is death, and the dead
+seconds to pick them up -- once somebody has started, the revive is theirs
+and nobody else can take it over and reset the bar (the prompt says who is
+on it). The third time in a life is death, and the dead
 watch the living over the shoulder (click to switch who) until the next wave
 begins, when everybody dead comes back in the safe room. Clearing a wave
 picks up everybody still down. A first-aid cabinet heals and resets your
@@ -1024,20 +1040,40 @@ instead, as it would for a player who missed it.
 
 In Last Light the bots are survivors with minds of their own
 (`app/game/bots/survival.py`), not escorts for whoever is real. They team up
-the way people in a co-op lobby do: two to four who drift together (each
-bot's preferred size is its own), a few who tag along with a real player for
+the way people in a co-op lobby do: two or three who drift together (each
+bot's preferred size is its own, and three -- a real player counting as one
+-- is the most there ever is), a couple who tag along with a real player for
 a while, the odd one who wanders off alone and comes back when it gets
-hairy. Squads form, stack up when a wave starts or a Tank arrives, split back
-up when the moment passes, change leader when the one in front goes down,
-and lose members to tangents -- mostly between waves, mostly the loners and
-explorers. Nobody follows a person for ever, and somebody standing still is
-boring company.
+hairy. Squads form, close in on each other when a Tank arrives or half the
+team is down (each still its own squad), change leader when the one in
+front goes down, and lose members to tangents -- mostly between waves,
+mostly the loners and explorers. Nobody follows a person for ever, and
+somebody standing still -- above all in the safe room -- is boring company.
+
+**The whole map.** Each area is known as a grid of places: one on the ground
+in every 30-unit cell a body can reach and get back from, and one up on
+whatever roof, deck or boxcar is there, each known for its height, how open
+it is, how near the infected come out and what it is near. Every plan is a
+place, scored against where the rest of the team is standing right now,
+where another squad already said it is going, where nobody has been for a
+while, and the way this squad set off from the safe room -- so squads fan out
+across the area instead of milling about the spawn or the same few
+landmarks, and a spot somebody fell off is never picked again. On a 300
+second headless run with sixteen bots this took the share of bots near the
+safe room from 55% to under 5%, the biggest clump from about seven to three,
+and the cells walked from 79 to over 170.
 
 Each squad, or a bot on its own, picks a plan by the personas in it and how
-the round stands: hold a strong point, take the high ground (roofs, decks
-and towers found on the navigation graph next to each area's landmarks),
-roam the streets, hunt the last few infected, hang about between waves, or
-go and look at something -- the rail yard, the hedge maze, the island. Each
+the round stands. Between waves: hang about in a ring facing each other,
+explore the landmarks (the rail yard, the hedge maze, the island), wander the
+streets, walk a patrol round one edge of the area, search a building spot by
+spot, climb about on roofs and boxcars, keep watch from up high, stock up
+before the wave, take a breather (a few seconds AFK at a time), mess about,
+go and see what that bang or that bell was, or press the lure just to see
+what it does. In a wave: hold a spot (each facing out, shuffling now and
+then), take the high ground, roam with the fight, kite the horde round the
+block, flank it, stand guard over a real player or a newbie who is out in
+it, fall back when a spot is overrun, and hunt the last few. Each
 area's places are known for what people do with them, so nobody sensible
 holds the graveyard, the maze, the waterline or the mine while a wave is on.
 A plan just tried is less likely next, so a wave is not spent on one roof.
@@ -1046,8 +1082,13 @@ Movement is a player's: a squad member keeps a loose place beside or behind
 the one in front (re-picked every so often), reacts to it moving after a
 beat (a slower beat for newbies and AFK-prone players), runs to catch up and
 shift-walks to settle, looks out over the street while it waits, and a leader
-who has left its squad behind stops and lets them catch up. Between waves
-bots stand about, hop on things and go AFK by the usual rates. Over all of
+who has left its squad behind stops and lets them catch up. Long calm walks
+curve rather than run on rails, are walked (or jogged and walked by turns)
+with a glance to the side now and then, and nobody stops on the exact patch
+another did. Between waves bots stand about, hop on things, take out
+another gun for a second and put it back, celebrate a cleared wave with a
+hop, and go AFK by the usual rates; in a fight they back off a step or two
+from one that gets too close while they shoot. Over all of
 that come the emergencies: struggling free of a pin, crawling towards help
 when downed, shooting a pinner off a teammate, getting out of acid, backing
 off a Tank, picking people up (real players first, then the squad; one
@@ -1060,15 +1101,18 @@ the team is drowning.
 | Loner, Shy | goes off alone far more; never tags along with real players |
 | Social butterfly, Friendly, Newbie | joins squads and real players; newbies trail behind and sometimes get lost |
 | Team player, Wholesome | tight squads, revives from further away, covers whoever is reviving |
-| Explorer, Chaotic, Kid | wanders the area between waves, hops about, rings the bell for fun now and then |
-| Sniper main, Veteran | heads for the high ground |
+| Explorer, Chaotic, Kid | wanders, searches and climbs between waves, goes to see every noise, hops about, presses the bell for fun |
+| Chill, Adult | walks rather than runs, takes breathers |
+| Sniper main, Veteran | heads for the high ground and keeps watch |
 | Fragger, Shotgun rusher, Melee maniac | up front, roams, hunts the last infected |
-| Zombie survivor | knows the crates, calls regroups, rings the lure at the right moment |
+| Tryhard, Competitive, Streamer wannabe | kites the horde round the block, flanks it |
+| Zombie survivor, Objective player | knows the crates, stocks up before each wave, calls regroups, rings the lure at the right moment |
 | Chatty, Trash talker | calls out specials ("bomber by the diner") and talks about the round more |
 
 The **Last Light** submenu under In-Game Behaviour sets squads and callouts
-on or off, squad size, lone wolves, cohesion, playing with real players,
-exploring between waves, the high ground, hunting stragglers, the
+on or off, squad size (two or three), lone wolves, cohesion, playing with
+real players, how hard squads spread over the map, how varied their
+breathers are, exploring between waves, the high ground, hunting stragglers, the
 noise-maker, revive reach, regrouping, keeping clear of spawns and practice
 in the holdout, and shows every Last Light round's squads and lone wolves
 live. Bots waiting in the bunker put a few rounds into the practice dummies.
@@ -1225,8 +1269,9 @@ a stand-in real player and checks that they move, fight, take objectives and
 wake mid-round, that no bot is ever inside the map's geometry or needs
 rescuing from the void, that ledge jumps land on the ledge, that bots vote
 after a round with staggered delays, and that a round with no real player
-stands still, and that Last Light bots form squads, play on their own,
-get about the area, follow their personas, honour the Squads switch, put the
+stands still, and that Last Light bots form squads of no more than three,
+play on their own, keep away from the spawn, walk most of the map, do all
+sorts rather than only hold and hang out, get about the area, follow their personas, honour the Squads switch, put the
 bots a spectator watches at full detail and practise in the bunker; the
 profiles group checks the profile-setting chances and that
 created bots carry them; the scale group creates thousands of bots, loads

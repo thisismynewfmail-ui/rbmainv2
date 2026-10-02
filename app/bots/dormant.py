@@ -120,6 +120,7 @@ class Dormant:
         elif self.mode == "survival":
             self.areas = [a["id"] for a in world.get("areas") or []] or ["town"]
             self.area = self.rng.choice(self.areas)
+            self.losses = 0          # wipes at this area; the third moves on
             self.wave = 0
             self.best = 0
             self.phase = "setup"
@@ -351,9 +352,11 @@ class Dormant:
     # waves last about four minutes, with twenty seconds between them
     WAVE_SECONDS = 215.0
     BREATHER = 20.0
+    LOSSES_PER_AREA = 3
 
     def _advance_survival(self, start: float, now: float, pace: float) -> None:
-        """Wave after wave until the team falls, then on to the next area.
+        """Wave after wave until the team falls; three falls at one area and
+        the server shuffles on to another.
 
         A team's chance of holding a wave falls as the waves climb (and
         drops again on every fifth, the Tank's), and rises with its size
@@ -367,8 +370,10 @@ class Dormant:
                 if now < self.phase_until:
                     return
                 t = self.phase_until
-                others = [a for a in self.areas if a != self.area] or self.areas
-                self.area = self.rng.choice(others)
+                if self.losses >= self.LOSSES_PER_AREA:
+                    others = [a for a in self.areas if a != self.area] or self.areas
+                    self.area = self.rng.choice(others)
+                    self.losses = 0
                 self.wave = 0
                 self.round += 1
                 self.round_started = t
@@ -403,6 +408,7 @@ class Dormant:
                 for member in self.members.values():
                     member.d += 1
                 self.rounds_ended += 1
+                self.losses += 1
                 self.best = max(self.best, self.wave - 1)
                 self.phase = "wiped"
                 self.phase_until = t + 12.0
@@ -523,9 +529,18 @@ class Dormant:
             # a live round picks up between waves: the wave that was on is
             # counted as held if it was going to be, otherwise as the one
             # still to come
-            state.update({"area": self.area, "best": self.best,
-                          "wave": self.wave if self.phase == "setup"
-                          else max(0, self.wave - 1)})
+            area, losses = self.area, self.losses
+            wave = self.wave if self.phase == "setup" else max(0, self.wave - 1)
+            if self.phase == "wiped":
+                # the fall already happened: the live round is the next try,
+                # somewhere new if that was the third
+                wave = 0
+                if losses >= self.LOSSES_PER_AREA:
+                    area = self.rng.choice([a for a in self.areas if a != area]
+                                           or self.areas)
+                    losses = 0
+            state.update({"area": area, "best": self.best, "wave": wave,
+                          "losses": min(losses, self.LOSSES_PER_AREA - 1)})
         else:
             state["plots"] = [{"members": list(p["members"]), "built": list(p["built"]),
                                "coins": int(p["coins"]), "bank": int(p["bank"]),
@@ -560,6 +575,7 @@ class Dormant:
         elif self.mode == "survival":
             if live.get("area") in self.areas:
                 self.area = live["area"]
+            self.losses = int(live.get("losses", 0) or 0)
             self.wave = int(live.get("wave", 0) or 0)
             self.best = max(self.best, int(live.get("best", 0) or 0))
             self.phase = "setup" if phase != "wiped" else "wiped"
@@ -590,7 +606,8 @@ class Dormant:
                          "checkpoints": self.checkpoints, "round_wins": self.round_wins,
                          "round_ends": self.round_ends})
         elif self.mode == "survival":
-            data.update({"area": self.area, "wave": self.wave, "best": self.best})
+            data.update({"area": self.area, "wave": self.wave, "best": self.best,
+                         "losses": self.losses})
         else:
             data["plots"] = self.plots
         return data
@@ -613,7 +630,7 @@ class Dormant:
                     setattr(inst, key, data[key])
             inst.defenders = "red" if inst.attackers == "blue" else "blue"
         elif inst.mode == "survival":
-            for key in ("area", "wave", "best"):
+            for key in ("area", "wave", "best", "losses"):
                 if key in data:
                     setattr(inst, key, data[key])
         elif "plots" in data:

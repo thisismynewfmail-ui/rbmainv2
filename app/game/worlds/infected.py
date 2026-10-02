@@ -416,19 +416,22 @@ class Horde:
         if self.frozen:
             return
         nav = self.nav
-        if nav is not None and moment - self.field_at > 0.9 and survivors:
+        # the downed are left where they fell: the horde hunts, paths to and
+        # piles on only survivors still on their feet (acid and blasts are
+        # still where they are, and still hurt whoever lies in them)
+        standing = [s for s in survivors if not s.extra.get("downed")]
+        if nav is not None and moment - self.field_at > 0.9 and standing:
             self.field_at = moment
-            self._request_field(nav, survivors, moment)
+            self._request_field(nav, standing, moment)
         self._step_shots(dt, survivors)
         if self.tick % 10 == 0:
             self._step_pools(survivors, moment)
         if not self.zombies:
             return
-        standing = [s for s in survivors if not s.extra.get("downed")]
         for z in list(self.zombies.values()):
             if not z.alive:
                 continue
-            near = self._nearest(z, survivors)
+            near = self._nearest(z, standing)
             distance = near[1] if near else 1e9
             # far from everyone: a few steps a second is plenty
             stride = 1 if distance < 140 else (3 if distance < 320 else 6)
@@ -437,7 +440,7 @@ class Horde:
             step_dt = min(0.35, moment - z.last_step) if stride > 1 else dt
             z.last_step = moment
             try:
-                self._think(z, near, survivors, standing, step_dt, moment, nav)
+                self._think(z, near, standing, standing, step_dt, moment, nav)
             except Exception:
                 import traceback
                 traceback.print_exc()
