@@ -227,6 +227,8 @@ class Bot:
                 self.map = message["map"]
                 self.state = message.get("state", {})
                 self.pos = list(message["you"].get("pos", self.pos))
+            elif kind == "zarea":              # Last Light moved areas
+                self.map = message.get("map", self.map)
             elif kind == "spawn":
                 self.pos = list(message["p"])
                 self.yaw = message.get("yaw", 0)
@@ -255,11 +257,15 @@ class Bot:
                         self.held[pid] = (-1 if message.get("stowed")
                                           else message["slot"])
             elif kind == "snap":
+                if "zs" in message:            # Last Light's infected
+                    self.zombies = message["zs"]
                 for row in message.get("ps", []):
                     try:
                         self.held[row[0]] = row[8]
                     except (IndexError, TypeError):
                         pass
+
+    zombies: list = []
 
     def start(self) -> None:
         self.login()

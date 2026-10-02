@@ -38,6 +38,45 @@
       </div>
     </div>
 
+    {% if world.get('areas') %}
+    <div class="panel">
+      <div class="panel-head">Locations <span class="muted tiny">&mdash; a new one every round</span></div>
+      <div class="panel-body">
+        <div class="ll-places">
+          {% for area in world.areas %}
+          <div class="ll-place">
+            <div class="ll-shot"><canvas class="world-shot" width="512" height="288"
+                 data-world="ll_{{ area.id }}" data-name="{{ area.name }}"></canvas></div>
+            <b>{{ area.name }}</b>
+            <p class="tiny muted">{{ area.blurb }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="panel-foot tiny">Every area has its own safe room, ammunition crates, first-aid
+        cabinets, fuel barrels and one noise-maker that draws the whole horde to it.</div>
+    </div>
+    {% endif %}
+
+    {% if world.get('bestiary') %}
+    <div class="panel">
+      <div class="panel-head red">Know your enemy</div>
+      <div class="panel-body">
+        <div class="ll-beasts">
+          {% for beast in world.bestiary %}
+          <div class="ll-beast">
+            <canvas class="zombie-shot" width="220" height="260" data-zombie="{{ beast.kind }}"></canvas>
+            <div class="ll-beast-name"><b>{{ beast.name }}</b>
+              <span class="pill">wave {{ beast.wave }}+</span></div>
+            <p class="tiny">{{ beast.blurb }}</p>
+            <p class="tiny ll-tip">{{ beast.tip }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="panel">
       <div class="panel-head green">Live instances</div>
       <div class="panel-body flush">
@@ -47,7 +86,7 @@
           {% for inst in status.instance_list %}
           <tr>
             <td>#{{ inst.id }}</td><td>{{ inst.count }}/{{ inst.max }}</td>
-            <td>{{ inst.phase }}</td><td>{{ inst.round }}</td>
+            <td>{{ inst.get('summary') or inst.phase }}</td><td>{{ inst.round }}</td>
             <td class="right"><a class="btn small go no-mobile" href="/{{ world.id }}?instance={{ inst.id }}">Join</a></td>
           </tr>
           {% endfor %}

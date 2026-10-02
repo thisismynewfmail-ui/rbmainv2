@@ -116,8 +116,12 @@ def test_unit() -> None:
             inst.add(uid, 1000.0, rng.random(), rng.random())
         inst.advance(1000.0 + 3600)
         state = inst.wake_state(1000.0 + 3600)
-        moved = (inst.round > 1 if inst.mode != "endless"
-                 else sum(len(p["built"]) for p in inst.plots) > 0)
+        if inst.mode == "endless":
+            moved = sum(len(p["built"]) for p in inst.plots) > 0
+        elif inst.mode == "survival":
+            moved = inst.round > 1 or inst.wave > 1
+        else:
+            moved = inst.round > 1
         check("dormant: %s moves on in an hour asleep" % world["id"], moved,
               inst.summary())
         again = dormant.Dormant.load(world, inst.dump())
@@ -207,9 +211,11 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
     import app.game.worlds.fortress_team2 as payload_module
     import app.game.worlds.burger_tycoon as tycoon_module
     import app.game.worlds.blackout_relay as relay_module
+    import app.game.worlds.last_light as survival_module
+    import app.game.worlds.infected as infected_module
     clock = Clock()
     patched = [engine, brain_module, runner_module, ctf_module, payload_module,
-               tycoon_module, relay_module]
+               tycoon_module, relay_module, survival_module, infected_module]
     originals = [(m, m.now) for m in patched if hasattr(m, "now")]
     for module, _orig in originals:
         module.now = clock
@@ -338,12 +344,15 @@ def _carrier_run() -> int:
 
 def test_live(seconds: float) -> None:
     print("\n== live (headless, %.0f simulated seconds each) ==" % seconds)
-    for world_id in ("capture_the_flag", "blackout_relay", "fortress_team_2", "burger_tycoon"):
+    for world_id in ("capture_the_flag", "blackout_relay", "fortress_team_2", "burger_tycoon",
+                     "last_light"):
         host = FakeHost(world_id)
         inst = host.cls(host, host.world, 7, host.map)
         points = [sp for team in (inst.team_names() or [""]) for sp in inst.spawn_points(team)]
         for extra in (getattr(inst, "forward_spawns", None) or {}).values():
             points.extend(extra)
+        for area in (inst.map.get("markers") or {}).get("areas") or []:
+            points.extend(area.get("safe") or [])     # every area's safe room
         stuck = [sp["p"] for sp in points if not inst.body_fits(*sp["p"])]
         check("%s: every spawn point has room for a body (%d points)" % (world_id, len(points)),
               not stuck, stuck)
@@ -401,6 +410,53 @@ def test_live(seconds: float) -> None:
         else:
             built = sum(len(p.built) for p in inst.plots)
             check("%s: restaurants get built" % label, built >= 3, built)
+    _survival_run(max(seconds, 280.0))
+
+
+def _survival_run(seconds: float) -> None:
+    """Last Light: a squad of bots holds a wave, with the infected spawning
+    where they should and the bots keeping together."""
+    spawned: List[float] = []
+    apart: List[float] = []
+
+    def setup(inst):
+        horde = inst.horde
+        original = horde.spawn
+
+        def spawn(kind, pos, hp, dmg, wave, variant=None, rise=False):
+            if kind != "mite" and not rise:
+                near = [math.dist(s.pos, pos) for s in inst.survivors()]
+                if near:
+                    spawned.append(min(near))
+            return original(kind, pos, hp, dmg, wave, variant, rise)
+        horde.spawn = spawn
+
+    r = run_world("last_light", seconds, 8, setup=setup)
+    inst = r["inst"]
+    label = "last_light"
+    for brain in inst.bots.brains.values():
+        p = brain.p
+        if not p.alive or p.extra.get("ll_where") != "field":
+            continue
+        others = [o for o in inst.survivors() if o is not p]
+        if others:
+            apart.append(min(math.dist(o.pos, p.pos) for o in others))
+    if VERBOSE:
+        print("   last_light: %.2f ms/tick, wave %d, %d killed, spawns %d (nearest %.0f)"
+              % (r["ms_per_tick"], inst.wave, inst.round_kills + inst.wave_kills,
+                 len(spawned), min(spawned or [0])))
+    check("%s: waves start and the infected die" % label,
+          inst.wave >= 1 and (inst.round_kills > 0 or inst.round_number > 1),
+          (inst.wave, inst.round_kills))
+    check("%s: infected spawn well away from every survivor (%d spawns, nearest %.0f)"
+          % (label, len(spawned), min(spawned or [0])),
+          spawned and min(spawned) >= 40.0, sorted(spawned)[:5])
+    check("%s: bots keep with the team" % label,
+          not apart or sorted(apart)[len(apart) // 2] < 45.0, apart)
+    check("%s: no bot is ever inside the map's geometry" % label, r["inside"] == 0,
+          "%d frames" % r["inside"])
+    check("%s: tick cost stays low" % label, r["ms_per_tick"] < 12.0,
+          "%.2f ms" % r["ms_per_tick"])
 
 
 # ====================================================================== chat

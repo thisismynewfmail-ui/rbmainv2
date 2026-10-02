@@ -64,6 +64,14 @@ QUICK = {
     "build": ["nice", "big upgrade", "we're rich", "lets go", "one more"],
     "tilt": ["this is so unfair", "im done", "ok im trying now", "sweats everywhere",
              "cant win this"],
+    # Last Light
+    "tank": ["TANK", "tank!!", "big one incoming", "everyone shoot the tank", "oh no tank"],
+    "downed": ["im down", "help", "pick me up", "down!!", "need a revive", "help me"],
+    "revived": ["ty", "thanks", "thx", "ty {name}", "saved", "<3"],
+    "wave": ["here they come", "get ready", "stick together", "reload now", "lets go"],
+    "cleared": ["nice", "wave clear", "ez", "get ammo", "heal up", "gg wave"],
+    "wipe": ["gg", "so close", "rip", "next time", "that tank tho", "gg all"],
+    "pinned": ["HELP", "get it off", "its on me", "help!!", "leaper!"],
 }
 
 
@@ -207,6 +215,8 @@ class Brain:
             return "roam"
         if mode == "payload":
             return "cart" if roll < 0.35 + self.objective * 0.55 else "roam"
+        if mode == "survival":
+            return "survivor"
         return "tycoon" if roll < 0.25 + self.objective * 0.7 else "wander"
 
     def say(self, kind: str, name: str = "", chance: float = 1.0, delay: float = 0.0) -> None:
@@ -258,6 +268,8 @@ class Brain:
                 * (0.6 + self.t("aggression", 0.5))
             if self.runner.mode == "endless":
                 revenge *= 0.35
+            elif self.runner.mode == "survival":
+                revenge = 0.0
             if self.rng.random() < revenge:
                 self.revenge = killer.pid
         if recent >= tilt_after and moment > self.tilt_until:
@@ -302,6 +314,12 @@ class Brain:
         vx = vz = 0.0
         moving = False
         still = moment < self.afk_until or moment < self.typing_until
+        if p.extra.get("pinned_by"):
+            # held down: nothing moves but the struggle (runner._survival)
+            self.waypoints = []
+            p.anim = "idle"
+            return
+        crawl = 0.27 if p.extra.get("downed") else 1.0
         if not still and self.waypoints:
             target = self.waypoints[0]
             dx, dz = target[0] - p.pos[0], target[2] - p.pos[2]
@@ -320,7 +338,7 @@ class Brain:
                     self.vy = JUMP_SPEED
                     self.climb = target
                     self.climbs += 1
-                speed = min(self.speed, dist / max(dt, 1e-3))
+                speed = min(self.speed * crawl, dist / max(dt, 1e-3))
                 vx, vz = ux * speed, uz * speed
                 moving = True
         # strafing in a fight, never off an edge
@@ -467,7 +485,12 @@ class Brain:
                 return
             budget = self.runner.path_budget()
             nodes = grid.astar(start, goal, budget) or []
-        points = grid.smooth(p.pos, nodes, 12)
+        los = None
+        if self.runner.mode == "survival":
+            inst = self.instance
+            los = lambda a, b: inst.line_of_sight([a[0], a[1] + 1.2, a[2]],  # noqa: E731
+                                                  [b[0], b[1] + 1.2, b[2]])
+        points = grid.smooth(p.pos, nodes, 12, los=los)
         if not points:
             # no route found this time (a cheap search ran out of budget):
             # walk straight at it only if it is on this level, otherwise
@@ -537,6 +560,11 @@ class Brain:
     # -------------------------------------------------------- perception
     def _enemies(self):
         inst = self.instance
+        hostiles = getattr(inst, "hostiles_for", None)
+        if hostiles is not None:
+            # a world with enemies of its own (the infected): those, not people
+            yield from hostiles(self.p)
+            return
         mine = self.p.team
         for other in inst.players.values():
             if other is self.p or not other.alive:
@@ -548,8 +576,11 @@ class Brain:
     def _perceive(self, moment: float, near: bool) -> None:
         inst = self.instance
         p = self.p
+        if self.runner.mode == "survival":
+            self._perceive_horde(moment, near)
+            return
         if self.target is not None:
-            tgt = inst.players.get(self.target)
+            tgt = inst.entity(self.target)
             if tgt is None or not tgt.alive or math.dist(tgt.pos, p.pos) > 260:
                 self.target = None
             elif near and not self._sees(tgt):
@@ -594,6 +625,55 @@ class Brain:
         # a person needs a moment to react to somebody appearing
         self.next_shot = max(self.next_shot, moment + self.reaction * self.rng.uniform(0.8, 1.35))
 
+    def _perceive_horde(self, moment: float, near: bool) -> None:
+        """Survival: all-round awareness, and the worst threat first.
+
+        Whatever is on a teammate comes before anything else, then whatever
+        is about to blow up or knock somebody over, then whatever is
+        closest; a target far off is dropped the moment something closes in.
+        """
+        inst = self.instance
+        p = self.p
+        current = inst.entity(self.target) if self.target is not None else None
+        if current is not None and (not current.alive or getattr(current, "hidden", False)
+                                    or math.dist(current.pos, p.pos) > 220):
+            current = None
+        best, best_score = None, 1e9
+        for other in self._enemies():
+            d = math.dist(other.pos, p.pos)
+            if d > 150:
+                continue
+            kind = getattr(other, "kind", "")
+            score = d
+            if getattr(other, "state", "") == "pin":
+                score -= 120
+            elif kind in ("bomber", "brute", "leaper", "ronin"):
+                score -= 25
+            elif kind == "tank":
+                score -= 15 if d < 60 else 0
+            elif kind in ("screamer", "captain", "spitter"):
+                score -= 12
+            if score < best_score:
+                best, best_score = other, score
+        if best is None:
+            self.target = None
+            return
+        if current is not None and current is not best:
+            keep = math.dist(current.pos, p.pos)
+            if keep < 30 and best_score > keep - 20:
+                return
+        if best is current:
+            return
+        if near and not self._sees(best):
+            if current is None or not self._sees(current):
+                self.target = None
+            return
+        self.target = best.pid
+        self.target_since = moment
+        self.track = 0.0
+        self.next_shot = max(self.next_shot,
+                             moment + self.reaction * self.rng.uniform(0.6, 1.1))
+
     def _sees(self, other) -> bool:
         p = self.p
         eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
@@ -635,6 +715,14 @@ class Brain:
         if self.runner.mode == "endless":
             weights["fight"] *= 0.12
             weights["revenge"] *= 0.3
+        elif self.runner.mode == "survival":
+            # nobody wanders off from the team on purpose in a horde
+            setup = self.instance.phase != "active"
+            weights = {"objective": 1.0, "fight": 0.0, "explore": 0.0,
+                       "afk": floor * 0.3 if setup else 0.0,
+                       "jumpy": floor * 0.5 if setup else 0.0,
+                       "follow": 0.12 if self.runner.humans else 0.0,
+                       "revenge": 0.0}
         goal = self.rng.choices(list(weights), list(weights.values()))[0]
         self.goal = goal
         self.goal_data = {}
@@ -668,7 +756,7 @@ class Brain:
         if goal == "objective":
             self.runner.objective(self)
         elif goal == "fight":
-            tgt = self.instance.players.get(self.target or 0)
+            tgt = self.instance.entity(self.target or 0)
             if tgt is None:
                 # go where the fighting is: the objective, or a nearby enemy
                 enemy = self._closest_enemy()
@@ -741,6 +829,10 @@ class Brain:
                 continue
             if kind == "melee":
                 fit = 1.0 if distance < reach else 0.0
+                if self.runner.mode == "survival":
+                    # against a horde a stick is the last resort, not the
+                    # first: the guns stay out while they have anything in
+                    fit *= 0.15
             elif int(stats.get("pellets", 1) or 1) > 1:
                 fit = max(0.0, 1.0 - distance / 40.0)
             elif kind == "projectile":
@@ -760,7 +852,7 @@ class Brain:
 
     def _fight(self, moment: float, near: bool, interval: float) -> None:
         inst = self.instance
-        tgt = inst.players.get(self.target or 0)
+        tgt = inst.entity(self.target or 0)
         if tgt is None or not tgt.alive:
             self.target = None
             return
@@ -774,7 +866,7 @@ class Brain:
             self.strafe = self.rng.choice((-1.0, 1.0)) if self.rng.random() < 0.3 + self.skill * 0.6 else 0.0
             self.strafe_until = moment + self.rng.uniform(0.4, 1.4)
         chase = self._prefers_close() and distance > float(stats.get("range", 10)) * 0.6 \
-            and not self.runner.urgent(self)
+            and not self.runner.urgent(self) and self.runner.mode != "survival"
         if chase and self.goal == "objective" and self.role in ("attack", "cart"):
             # on the way somewhere: shoot on the move, only turn for someone
             # right on top of us (or the one running off with our flag)
@@ -791,8 +883,12 @@ class Brain:
         eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
         # lead a moving target a little, badly
         lead = 0.0 if kind != "projectile" else distance / float(stats.get("speed", 70) or 70)
+        body_y, head_y = getattr(tgt, "aim_heights", (3.0, 4.6))
+        head = self.rng.random() < 0.12 + self.skill * 0.18
+        if getattr(tgt, "kind", "") == "bomber":
+            head = self.rng.random() < 0.35 + self.skill * 0.4   # defuse it
         chest = [tgt.pos[0] + tgt.vel[0] * lead * 0.7,
-                 tgt.pos[1] + (4.6 if self.rng.random() < 0.12 + self.skill * 0.18 else 3.0),
+                 tgt.pos[1] + (head_y if head else body_y),
                  tgt.pos[2] + tgt.vel[2] * lead * 0.7]
         if kind == "projectile" and self.rng.random() < 0.5:
             chest[1] = tgt.pos[1] + 0.6            # rockets at the feet
@@ -847,7 +943,8 @@ class Brain:
 
     def _abstract_fire(self, moment, tgt, distance, stats, interval) -> None:
         """A fight nobody real can see, settled by the odds."""
-        if tgt.brain is None or tgt.brain.near:
+        npc = bool(getattr(tgt, "npc", False))
+        if not npc and (tgt.brain is None or tgt.brain.near):
             return      # a person, or a bot somebody is watching: no dice
         reach = float(stats.get("range", 200))
         if distance > min(reach, 120):
@@ -872,10 +969,11 @@ class Brain:
         if damage > 0.5:
             name = (self.p.weapon() or {}).get("name", "Unknown")
             self.instance.apply_damage(tgt, self.p, damage, name, False)
-            tgt.brain.last_attacker = self.p.pid
-            tgt.brain.last_hit_at = moment
-            if tgt.brain.target is None:
-                tgt.brain.target = self.p.pid
+            if not npc:
+                tgt.brain.last_attacker = self.p.pid
+                tgt.brain.last_hit_at = moment
+                if tgt.brain.target is None:
+                    tgt.brain.target = self.p.pid
         self.next_shot = moment + 0.35
 
     def _housekeeping(self) -> None:

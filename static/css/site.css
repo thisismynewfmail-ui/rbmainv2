@@ -2214,3 +2214,16 @@ table.bz-mod-table td, table.bz-mod-table th { font-size: 11px; vertical-align: 
 .bz-line.bot b { color: var(--bz-bot); }
 .bz-line.event { color: var(--ink-soft); font-style: italic; }
 .bz-line.pending { opacity: .7; }
+
+/* --------------------------------------------------- Last Light world page */
+.ll-places { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.ll-place .ll-shot { aspect-ratio: 16 / 9; border: 1px solid var(--preview-edge); border-radius: 4px;
+  overflow: hidden; margin-bottom: 6px; }
+.ll-place .ll-shot canvas { width: 100%; height: 100%; display: block; }
+.ll-place p { margin: 3px 0 0; }
+.ll-beasts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.ll-beast canvas { width: 100%; aspect-ratio: 22 / 26; display: block; border-radius: 4px;
+  border: 1px solid var(--preview-edge); background: #1a1d24; }
+.ll-beast-name { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; gap: 6px; }
+.ll-beast p { margin: 4px 0 0; }
+.ll-beast .ll-tip { opacity: .8; font-style: italic; }

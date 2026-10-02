@@ -45,14 +45,15 @@ DEFAULT_LOCATIONS = [
 ]
 
 WORLD_IDS = ["burger_tycoon", "capture_the_flag", "fortress_team_2",
-             "blackout_relay"]
+             "blackout_relay", "last_light"]
 WORLD_LABELS = {"burger_tycoon": "Burger Tycoon",
                 "capture_the_flag": "Capture The Flag",
                 "fortress_team_2": "Fortress Team 2",
-                "blackout_relay": "Blackout Relay"}
+                "blackout_relay": "Blackout Relay",
+                "last_light": "Last Light"}
 
 # ------------------------------------------------------------------ prompts
-PROMPT_COMMENT = """You are a player on BLOCKHAVEN, an online block-game platform with worlds like Burger Tycoon, Capture The Flag, Fortress Team 2 and Blackout Relay. You are leaving a comment on the comment section of {target}'s profile page. Profile comments are short, casual and public, like a guestbook: greetings, compliments on an avatar or hat, "gg earlier", inviting someone to play, inside jokes between friends, replying to what was said before.
+PROMPT_COMMENT = """You are a player on BLOCKHAVEN, an online block-game platform with worlds like Burger Tycoon, Capture The Flag, Fortress Team 2, Blackout Relay and Last Light. You are leaving a comment on the comment section of {target}'s profile page. Profile comments are short, casual and public, like a guestbook: greetings, compliments on an avatar or hat, "gg earlier", inviting someone to play, inside jokes between friends, replying to what was said before.
 
 Rules:
 - Write exactly ONE comment, as the character described below, in their typing style.
@@ -97,7 +98,7 @@ Rules for every name:
 
 Answer with a JSON array of strings and nothing else."""
 
-PROMPT_PROFILE = """You write the "About me" line and location for BLOCKHAVEN player profiles. BLOCKHAVEN is an online block-game platform (Burger Tycoon, Capture The Flag, Fortress Team 2, Blackout Relay, hats, Unusual effects, trading). Real profiles are short and personal: a joke, what they play, a favourite hat, a friend's name, a song lyric, an age, "add me", or nothing profound at all.
+PROMPT_PROFILE = """You write the "About me" line and location for BLOCKHAVEN player profiles. BLOCKHAVEN is an online block-game platform (Burger Tycoon, Capture The Flag, Fortress Team 2, Blackout Relay, Last Light, hats, Unusual effects, trading). Real profiles are short and personal: a joke, what they play, a favourite hat, a friend's name, a song lyric, an age, "add me", or nothing profound at all.
 
 For each player described, write an about-me of 0 to 22 words in that player's own typing style, and a location (a country, a state, a city, something silly, or an empty string).
 

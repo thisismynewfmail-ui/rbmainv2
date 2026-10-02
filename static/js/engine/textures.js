@@ -30,7 +30,10 @@
 
   function allocate(name) {
     if (Textures.slots[name]) return Textures.slots[name];
-    var index = Textures.nextSlot++;
+    // a cell given back (a sign from an area no longer being played) is
+    // used again before the atlas grows into recycling live artwork
+    var index = (Textures.freeCells && Textures.freeCells.length) ? Textures.freeCells.pop()
+      : Textures.nextSlot++;
     // slot 0 is the plain white square every untextured part samples, so an
     // overflowing atlas recycles cells from 1 upwards rather than stamping
     // artwork over it.
@@ -545,10 +548,76 @@
     return slot;
   };
 
+  /* A sign: text the map names itself, "t~TEXT~background~colour~aspect".
+
+     The cell is square but the sign it is printed on is not, and a decal is
+     stretched over the whole face.  So the lettering is laid out at the
+     sign's real proportions on a canvas of its own and then squeezed into
+     the cell -- the face stretches it back out, and the letters arrive the
+     shape they were drawn.  Signs are painted the first time something asks
+     for one rather than at start-up, so a map's signage only spends atlas
+     cells on the area that is actually being played. */
+  function drawSign(key, name) {
+    var bits = name.split('~');
+    var text = bits[1] || '', bg = bits[2] || '#f2f3f3', fg = bits[3] || '#1b2a35';
+    var aspect = Math.max(0.2, Math.min(12, parseFloat(bits[4]) || 1));
+    var w = aspect >= 1 ? Math.round(CELL * aspect) : CELL;
+    var h = aspect >= 1 ? CELL : Math.round(CELL / aspect);
+    var scratch = document.createElement('canvas');
+    scratch.width = w; scratch.height = h;
+    var c = scratch.getContext('2d');
+    c.fillStyle = bg; c.fillRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = Math.max(2, h * 0.04);
+    c.strokeRect(c.lineWidth / 2, c.lineWidth / 2, w - c.lineWidth, h - c.lineWidth);
+    c.fillStyle = fg;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    // the largest size whose wrapped lines fit both ways
+    var words = text.split(' ');
+    var size = Math.floor(h * 0.78), lines = [text];
+    for (; size > 8; size -= 2) {
+      c.font = 'bold ' + size + 'px Verdana, sans-serif';
+      lines = [];
+      var line = '';
+      for (var i = 0; i < words.length; i++) {
+        var test = line ? line + ' ' + words[i] : words[i];
+        if (c.measureText(test).width > w * 0.9 && line) { lines.push(line); line = words[i]; }
+        else line = test;
+      }
+      if (line) lines.push(line);
+      var widest = 0;
+      lines.forEach(function (l) { widest = Math.max(widest, c.measureText(l).width); });
+      if (widest <= w * 0.92 && lines.length * size * 1.08 <= h * 0.9) break;
+    }
+    c.font = 'bold ' + size + 'px Verdana, sans-serif';
+    var top = h / 2 - (lines.length - 1) * size * 1.08 / 2;
+    lines.forEach(function (l, k) { c.fillText(l, w / 2, top + k * size * 1.08 + size * 0.04); });
+    var slot = allocate(key);
+    var ctx = cellContext(slot, null);
+    ctx.drawImage(scratch, 0, 0, w, h, 0, 0, CELL, CELL);
+    ctx.restore();
+    Textures.version++;
+    return slot;
+  }
+
+  /* Give back every sign's cell.  A world that swaps its whole map (Last
+     Light moves to a new area every round) calls this before building the
+     new one, so four areas' worth of signage never has to fit in the atlas
+     at once.  Whatever is still on screen asks for its sign again and gets
+     it repainted. */
+  Textures.freeCells = [];
+  Textures.dropSigns = function () {
+    Object.keys(Textures.slots).forEach(function (key) {
+      if (key.indexOf('decal:t~') !== 0) return;
+      Textures.freeCells.push(Textures.slots[key].index);
+      delete Textures.slots[key];
+    });
+  };
+
   Textures.decal = function (name) {
     if (!name) return null;
     var key = 'decal:' + name;
     if (Textures.slots[key]) return Textures.slots[key];
+    if (name.charAt(0) === 't' && name.charAt(1) === '~') return drawSign(key, name);
     var fn = decalPainters[name];
     if (!fn) {
       if (/^plot_\d+$/.test(name)) {

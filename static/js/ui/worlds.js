@@ -2,6 +2,11 @@
 (function () {
   'use strict';
 
+  function esc(text) {
+    return String(text === undefined || text === null ? '' : text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   function refresh() {
     Site.get('/api/worlds/status').then(function (res) {
       if (!res.ok) return;
@@ -31,7 +36,7 @@
     } else {
       info.instance_list.forEach(function (inst) {
         html += '<tr><td>#' + inst.id + '</td><td>' + inst.count + '/' + inst.max +
-          '</td><td>' + inst.phase + '</td>' +
+          '</td><td>' + esc(inst.summary || inst.phase) + '</td>' +
           (wide ? '<td>' + inst.round + '</td>' : '') +
           '<td class="right"><a class="btn small go" href="/' + id +
           '?instance=' + inst.id + '">Join</a></td></tr>';

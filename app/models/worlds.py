@@ -106,6 +106,121 @@ WORLDS: List[Dict[str, Any]] = [
                      "Outpost lockdown", "Secret tunnels",
                      "Overtime + sudden death"],
     },
+    # Appended last on purpose: the bot director snapshots each bot's world
+    # as an index into this list, so a new world goes on the end.
+    {
+        "id": "last_light",
+        "name": "Last Light",
+        "genre": "Zombie Survival",
+        "creator": "BLOCKHAVEN",
+        "tagline": "Hold the line. Wave after wave. Until the last light goes out.",
+        "description": (
+            "Harrow County fell in a single night. You and up to twenty-three "
+            "others hold out against the infected, wave after wave, in one of "
+            "four places the outbreak reached first -- Harrow's main street, "
+            "St. Agnes Medical, the Blackwater docks or the Cedar Pines "
+            "campground. Every wave is bigger than the last; every fifth "
+            "brings a Tank. Eleven kinds of special infected hunt the slow, "
+            "the careless and the alone: Bloaters, Bombers, Leapers, Brutes, "
+            "Spitters, Screamers, Riot infected, the Plague Captain, Hives, "
+            "Ronin and Burrowers. Go down and a teammate can pick you up; die "
+            "and you watch the others until the next wave brings you back. "
+            "When the last survivor falls, the round ends -- and the next one "
+            "starts somewhere else."),
+        "max_players": 24,
+        "team_count": 1,
+        "mode": "survival",
+        "shuffle": False,
+        "round_label": "Survive the waves",
+        "colors": ["#5d8a4e", "#8a2a1c", "#e0a040"],
+        "thumb": "lastlight",
+        "features": ["24 players", "Endless waves", "Tank every 5th wave",
+                     "11 special infected", "4 shuffled locations",
+                     "Revive your team", "Spectate while dead"],
+        # The places a round can be played in, in shuffle order, for the
+        # world page's location gallery.  Each id is the map's own area id.
+        "areas": [
+            {"id": "town", "name": "Harrow Main Street",
+             "blurb": "Dusk on a small-town main street: the sheriff's "
+                      "office, a diner, a church whose bell carries for "
+                      "miles, a gas station that should not be shot at, "
+                      "back yards and a rail yard full of boxcars."},
+            {"id": "hospital", "name": "St. Agnes Medical",
+             "blurb": "A hospital the army tried to quarantine. Hold the "
+                      "checkpoint, fight up the four-storey parking garage, "
+                      "and listen for the ambulances."},
+            {"id": "docks", "name": "Blackwater Docks",
+             "blurb": "Night and harbour fog. Container mazes, a cargo ship "
+                      "you can board, warehouses with catwalks and a "
+                      "lighthouse at the end of the breakwater."},
+            {"id": "camp", "name": "Cedar Pines Camp",
+             "blurb": "A lakeside summer camp in the last of the sunset: "
+                      "cabins round their fire pits, a mess hall with a "
+                      "dinner bell, a fire lookout tower, a boathouse on "
+                      "the lake and a terraced ridge with an old mine "
+                      "running under it."},
+        ],
+        # Know your enemy: the world page's bestiary, in the order they
+        # turn up.  ``kind`` is the infected kind (engine/zombies.js draws
+        # the portrait); ``wave`` is the first wave it can appear in.
+        "bestiary": [
+            {"kind": "common", "name": "Infected", "wave": 1,
+             "blurb": "Green, slow-witted and never alone. Two in the body "
+                      "or one in the head.",
+             "tip": "Back up while you shoot -- they hit harder in a crowd."},
+            {"kind": "runner", "name": "Runner", "wave": 3,
+             "blurb": "Fresh, fast and frantic: faster than you can walk.",
+             "tip": "Turn and fight; you will not outrun one."},
+            {"kind": "bloater", "name": "Bloater", "wave": 1,
+             "blurb": "Swollen with bile. Pops when it dies and soaks "
+                      "everyone close, and the horde comes for the smell.",
+             "tip": "Kill it at range, never in the middle of your team."},
+            {"kind": "spitter", "name": "Spitter", "wave": 1,
+             "blurb": "Lobs acid that pools and burns hotter the longer you "
+                      "stand in it.",
+             "tip": "Move out of the green. It cannot spit and run at once."},
+            {"kind": "leaper", "name": "Leaper", "wave": 2,
+             "blurb": "Pounces from a long way off and pins you to the floor, "
+                      "clawing.",
+             "tip": "Shoot or shove it off a pinned friend; mash E if it is you."},
+            {"kind": "bomber", "name": "Bomber", "wave": 2,
+             "blurb": "Wears a vest of dynamite and runs for the biggest "
+                      "group it can find.",
+             "tip": "A clean headshot defuses it. Anything else, it goes off."},
+            {"kind": "brute", "name": "Brute", "wave": 3,
+             "blurb": "One arm grown into a club. Charges in a straight line "
+                      "and knocks people flying.",
+             "tip": "Sidestep the charge -- it stuns itself on walls."},
+            {"kind": "screamer", "name": "Screamer", "wave": 3,
+             "blurb": "Hangs back and shrieks, calling more of them and "
+                      "driving the rest into a frenzy.",
+             "tip": "Kill it first. Every scream is another pack."},
+            {"kind": "riot", "name": "Riot", "wave": 4,
+             "blurb": "Riot gear and a shield: bullets from the front barely "
+                      "scratch it.",
+             "tip": "Flank it, or shove it with a melee hit to open it up."},
+            {"kind": "hive", "name": "Hive", "wave": 5,
+             "blurb": "A walking nest. When it dies it bursts into a swarm "
+                      "of fast, biting mites.",
+             "tip": "Shotguns and explosions clear the swarm."},
+            {"kind": "burrower", "name": "Burrower", "wave": 6,
+             "blurb": "A miner who digs under the ground and comes up "
+                      "beneath your feet.",
+             "tip": "Watch for the moving earth and keep moving."},
+            {"kind": "ronin", "name": "Ronin", "wave": 7,
+             "blurb": "Guards with his blade and turns bullets aside, then "
+                      "dashes in for a cut.",
+             "tip": "Hit him from the side, or when he is open after a slash."},
+            {"kind": "captain", "name": "Plague Captain", "wave": 8,
+             "blurb": "A drowned captain with a lantern of plague fire. "
+                      "Throws poison and raises the fallen.",
+             "tip": "Hunt him down before the dead get back up."},
+            {"kind": "tank", "name": "Tank", "wave": 5,
+             "blurb": "Every fifth wave. Throws chunks of road, slams the "
+                      "ground and punches people into next week.",
+             "tip": "Everybody shoots. Nobody stands next to it."},
+        ],
+    },
 ]
 
 WORLDS = [db.AttrDict(w) for w in WORLDS]

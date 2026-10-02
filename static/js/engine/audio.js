@@ -171,6 +171,136 @@
       case 'alarm':
         this.tone({ type: 'sawtooth', freq: 440, freqEnd: 880, dur: 0.4, gain: 0.14 * vol });
         break;
+      // ------------------------------------------------ Last Light
+      case 'groan':
+        // a wet, falling moan: a low saw through a narrow filter, pitch varied
+        var base = 95 + Math.random() * 60;
+        this.tone({ type: 'sawtooth', freq: base * 1.3, freqEnd: base * 0.7,
+                    dur: 0.7 + Math.random() * 0.5, gain: 0.07 * vol });
+        this.noise({ filter: 'bandpass', freq: 500, freqEnd: 260, dur: 0.6, gain: 0.05 * vol });
+        break;
+      case 'growl':
+        this.tone({ type: 'sawtooth', freq: 70, freqEnd: 42, dur: 1.1, gain: 0.16 * vol });
+        this.noise({ freq: 300, freqEnd: 90, dur: 1.0, gain: 0.12 * vol });
+        break;
+      case 'scream':
+        this.tone({ type: 'sawtooth', freq: 900, freqEnd: 1600, dur: 1.2, gain: 0.12 * vol });
+        this.tone({ type: 'square', freq: 1210, freqEnd: 760, dur: 1.4, gain: 0.06 * vol });
+        this.noise({ filter: 'highpass', freq: 2400, dur: 1.2, gain: 0.1 * vol });
+        break;
+      case 'roar':
+        this.tone({ type: 'sawtooth', freq: 110, freqEnd: 48, dur: 1.6, gain: 0.26 * vol });
+        this.tone({ type: 'square', freq: 82, freqEnd: 36, dur: 1.5, gain: 0.12 * vol });
+        this.noise({ freq: 600, freqEnd: 80, dur: 1.6, gain: 0.28 * vol });
+        break;
+      case 'bell':
+        // the church bell: a struck partial series, three rings
+        for (var b = 0; b < 3; b++) {
+          setTimeout(function (self) { return function () {
+            [220, 440, 528, 660, 880].forEach(function (f, k) {
+              self.tone({ type: 'sine', freq: f, dur: 2.2 - k * 0.3, gain: (0.16 - k * 0.025) * vol });
+            });
+          }; }(this), b * 900);
+        }
+        break;
+      case 'dinner':
+        // the triangle on the mess hall porch, rattled
+        for (var d = 0; d < 8; d++) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'triangle', freq: 1760, dur: 0.5, gain: 0.08 * vol });
+            self.tone({ type: 'sine', freq: 2640, dur: 0.35, gain: 0.04 * vol });
+          }; }(this), d * 120);
+        }
+        break;
+      case 'siren':
+        for (var w = 0; w < 4; w++) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'sawtooth', freq: 620, freqEnd: 980, dur: 0.6, gain: 0.12 * vol });
+            setTimeout(function () {
+              self.tone({ type: 'sawtooth', freq: 980, freqEnd: 620, dur: 0.6, gain: 0.12 * vol });
+            }, 600);
+          }; }(this), w * 1200);
+        }
+        break;
+      case 'horn':
+        this.tone({ type: 'sawtooth', freq: 98, dur: 2.6, gain: 0.2 * vol });
+        this.tone({ type: 'square', freq: 147, dur: 2.6, gain: 0.08 * vol });
+        break;
+      case 'pounce':
+        this.noise({ filter: 'bandpass', freq: 1800, freqEnd: 700, dur: 0.3, gain: 0.18 * vol });
+        this.tone({ type: 'sawtooth', freq: 600, freqEnd: 1100, dur: 0.3, gain: 0.08 * vol });
+        break;
+      case 'charge':
+        this.tone({ type: 'sawtooth', freq: 140, freqEnd: 260, dur: 0.8, gain: 0.16 * vol });
+        this.noise({ freq: 400, dur: 0.8, gain: 0.1 * vol });
+        break;
+      case 'spit':
+        this.noise({ filter: 'bandpass', freq: 2600, freqEnd: 900, dur: 0.25, gain: 0.16 * vol });
+        break;
+      case 'splat':
+        this.noise({ freq: 900, freqEnd: 120, dur: 0.35, gain: 0.2 * vol });
+        break;
+      case 'fuse':
+        for (var f = 0; f < 6; f++) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'square', freq: 1600, dur: 0.06, gain: 0.1 * vol });
+          }; }(this), f * 200);
+        }
+        this.noise({ filter: 'highpass', freq: 3000, dur: 1.2, gain: 0.08 * vol });
+        break;
+      case 'defuse':
+        this.tone({ type: 'sine', freq: 1200, freqEnd: 300, dur: 0.4, gain: 0.12 * vol });
+        break;
+      case 'bile':
+        this.noise({ freq: 700, freqEnd: 90, dur: 0.7, gain: 0.32 * vol });
+        this.tone({ type: 'sine', freq: 140, freqEnd: 50, dur: 0.6, gain: 0.2 * vol });
+        break;
+      case 'bolt':
+        this.tone({ type: 'sine', freq: 300, freqEnd: 900, dur: 0.35, gain: 0.1 * vol });
+        this.noise({ filter: 'bandpass', freq: 1200, dur: 0.3, gain: 0.08 * vol });
+        break;
+      case 'raise':
+        this.tone({ type: 'sine', freq: 180, freqEnd: 90, dur: 1.4, gain: 0.14 * vol });
+        this.tone({ type: 'triangle', freq: 270, freqEnd: 135, dur: 1.4, gain: 0.08 * vol });
+        break;
+      case 'clang':
+        this.tone({ type: 'triangle', freq: 1900, freqEnd: 1500, dur: 0.25, gain: 0.12 * vol });
+        this.tone({ type: 'sine', freq: 2850, dur: 0.18, gain: 0.06 * vol });
+        break;
+      case 'burrow':
+        this.noise({ freq: 260, freqEnd: 70, dur: 0.9, gain: 0.3 * vol });
+        break;
+      case 'wave':
+        this.tone({ type: 'sawtooth', freq: 110, dur: 0.5, gain: 0.18 * vol });
+        setTimeout(function (self) {
+          return function () { self.tone({ type: 'sawtooth', freq: 104, dur: 0.9, gain: 0.2 * vol }); };
+        }(this), 420);
+        this.noise({ freq: 400, freqEnd: 60, dur: 1.2, gain: 0.18 * vol });
+        break;
+      case 'wavewin':
+        [523, 659, 784, 1046].forEach(function (f, k) {
+          setTimeout(function (self) { return function () {
+            self.tone({ type: 'square', freq: f, dur: 0.18, gain: 0.12 * vol });
+          }; }(this), k * 110);
+        }, this);
+        break;
+      case 'down':
+        this.tone({ type: 'sine', freq: 300, freqEnd: 90, dur: 0.9, gain: 0.22 * vol });
+        this.noise({ freq: 300, freqEnd: 60, dur: 0.6, gain: 0.14 * vol });
+        break;
+      case 'revive':
+        this.tone({ type: 'sine', freq: 400, freqEnd: 800, dur: 0.4, gain: 0.16 * vol });
+        setTimeout(function (self) {
+          return function () { self.tone({ type: 'sine', freq: 800, freqEnd: 1200, dur: 0.3, gain: 0.14 * vol }); };
+        }(this), 200);
+        break;
+      case 'headshot':
+        this.tone({ type: 'square', freq: 1800, freqEnd: 1300, dur: 0.07, gain: 0.14 * vol });
+        this.noise({ filter: 'bandpass', freq: 1500, dur: 0.12, gain: 0.12 * vol });
+        break;
+      case 'zkill':
+        this.noise({ freq: 700, freqEnd: 150, dur: 0.18, gain: 0.12 * vol });
+        break;
       default:
         break;
     }

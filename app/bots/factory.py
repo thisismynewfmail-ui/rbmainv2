@@ -348,6 +348,9 @@ OPENERS = {
                         "i live on dustworks"],
     "relay_regular": ["blackout relay tunnels are mine", "ironvale regular",
                       "i know every tunnel", "relay main"],
+    "survivor": ["last light wave 20 club", "i always ring the bell", "medic main",
+                 "tanks dont scare me", "harrow main street survivor",
+                 "never leave a teammate down"],
     "collector": ["collecting every hat", "one day i will get an unusual",
                   "hat collector", "ask me about my hats"],
     "fashionista": ["outfit > kd", "fits on point", "drip check"],
@@ -600,6 +603,11 @@ def _history(joined: int, traits: Dict[str, float], rng: random.Random,
         kills = int(share * rate * (0.35 + skill * 1.3))
         deaths = int(share * rate * (1.45 - skill * 0.9))
         rounds = int(share / (9 if world != "blackout_relay" else 24))
+        if world == "last_light":
+            # the horde dies by the dozen; a survivor dies once a round or so
+            kills = int(share * (2.5 + skill * 6.0))
+            deaths = int(share * 0.05 * (1.6 - skill))
+            rounds = int(share / 26)
         out[world] = {"kills": kills, "deaths": deaths, "rounds": rounds,
                       "wins": int(rounds * (0.3 + skill * 0.35)),
                       "playtime": int(share * 60),

@@ -48,6 +48,8 @@ def load_world_class(world_id: str):
         from app.game.worlds.blackout_relay import BlackoutRelay as cls
     elif world_id == "burger_tycoon":
         from app.game.worlds.burger_tycoon import BurgerTycoon as cls
+    elif world_id == "last_light":
+        from app.game.worlds.last_light import LastLight as cls
     else:
         raise SystemExit("unknown world %r" % world_id)
     WORLD_CLASSES[world_id] = cls

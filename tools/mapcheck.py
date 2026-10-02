@@ -64,11 +64,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.game.instance import PLAYER_SIZE  # noqa: E402
 from app.game.maps import (  # noqa: E402
-    crossroads, ironvale, payload, tycoon)
+    crossroads, ironvale, lastlight, payload, tycoon)
 
 MAPS = {
     "crossroads": crossroads,
     "ironvale": ironvale,
+    "lastlight": lastlight,
     "payload": payload,
     "tycoon": tycoon,
 }
@@ -344,25 +345,34 @@ def check_points(solid: Solid, points: Sequence[Tuple[str, List[float]]],
 
 def check_playfield(solid: Solid, data: Dict[str, Any], step: float = 12.0
                     ) -> List[str]:
-    """Probe the walkable area for holes in the ground and low ceilings."""
+    """Probe the walkable area for holes in the ground and low ceilings.
+
+    A map made of separate places (``markers.nav_regions``) is probed inside
+    each of them; the empty country between them is not playfield."""
     parts = data["parts"]
-    xs = [p["p"][0] for p in parts]
-    zs = [p["p"][2] for p in parts]
-    x0, x1 = min(xs) + step, max(xs) - step
-    z0, z1 = min(zs) + step, max(zs) - step
+    regions = (data.get("markers") or {}).get("nav_regions")
+    if regions:
+        # inside the boundary: the regions run out under the walls
+        boxes = [(r[0] + 16.0 + step, r[1] - 16.0 - step, r[2] + 16.0 + step,
+                  r[3] - 16.0 - step) for r in regions]
+    else:
+        xs = [p["p"][0] for p in parts]
+        zs = [p["p"][2] for p in parts]
+        boxes = [(min(xs) + step, max(xs) - step, min(zs) + step, max(zs) - step)]
     kill_y = data.get("kill_y", -60.0)
     holes = 0
     samples = 0
-    x = x0
-    while x <= x1:
-        z = z0
-        while z <= z1:
-            samples += 1
-            ground = solid.ground_under(x, 60.0, z)
-            if ground is None or ground < kill_y + 4.0:
-                holes += 1
-            z += step
-        x += step
+    for x0, x1, z0, z1 in boxes:
+        x = x0
+        while x <= x1:
+            z = z0
+            while z <= z1:
+                samples += 1
+                ground = solid.ground_under(x, 60.0, z)
+                if ground is None or ground < kill_y + 4.0:
+                    holes += 1
+                z += step
+            x += step
     out = []
     if holes:
         out.append("%d of %d ground probes found no floor (open sky over the "
@@ -764,17 +774,21 @@ def nearest_node(nodes, area, spacing, point) -> Optional[Tuple[int, int, int]]:
 
 def check_reachability(solid: Solid, data: Dict[str, Any],
                        targets: Sequence[Tuple[str, List[float]]],
-                       spacing: float = 5.0) -> List[str]:
+                       spacing: float = 5.0,
+                       area: Optional[Tuple[float, float, float, float]] = None
+                       ) -> List[str]:
     """Walk out from the first spawn and confirm the map joins up.
 
     Falling is one way, so this is run from each spawn *and* back from every
     objective: a route in that is not a route out would be a flag room you
-    can never carry anything out of.
+    can never carry anything out of.  ``area`` limits the walk to one place
+    of a map made of several.
     """
-    parts = data["parts"]
-    xs = [p["p"][0] for p in parts]
-    zs = [p["p"][2] for p in parts]
-    area = (min(xs), max(xs), min(zs), max(zs))
+    if area is None:
+        parts = data["parts"]
+        xs = [p["p"][0] for p in parts]
+        zs = [p["p"][2] for p in parts]
+        area = (min(xs), max(xs), min(zs), max(zs))
     nodes = walkable_graph(solid, area, data.get("kill_y", -60.0), spacing)
     problems = []
     anchors = [t for t in targets if "spawn" in t[0] or "muster" in t[0]][:2]
@@ -822,6 +836,19 @@ def audit(name: str, module) -> int:
             for i, entry in enumerate(value):
                 points.append(("%s %d" % (key, i), list(entry["p"])))
 
+    # a map of separate places (Last Light) lists each one's own spawns,
+    # supplies and infected spawns inside its area record
+    areas = (data.get("markers") or {}).get("areas") or []
+    for area in areas:
+        for i, spawn in enumerate(area.get("safe") or []):
+            points.append(("%s safe spawn %d" % (area["id"], i), list(spawn["p"])))
+        for i, spawn in enumerate(area.get("zspawn") or []):
+            points.append(("%s zspawn %d" % (area["id"], i), list(spawn["p"])))
+    lobby = (data.get("markers") or {}).get("lobby")
+    if lobby:
+        for i, spawn in enumerate(lobby.get("safe") or []):
+            points.append(("lobby spawn %d" % i, list(spawn["p"])))
+
     fights = find_zfighting(parts, Opaque(parts))
     index = PartIndex(parts)
     floating = find_floating_decor(parts, index)
@@ -834,8 +861,24 @@ def audit(name: str, module) -> int:
     field_problems = check_playfield(solid, data)
     key_points = [pt for pt in points
                   if "spawn" in pt[0] or "flag_" in pt[0] or "outpost" in pt[0]]
-    route_problems = ([] if "--fast" in sys.argv
-                      else check_reachability(solid, data, key_points))
+    if "--fast" in sys.argv:
+        route_problems = []
+    elif areas:
+        # each area on its own, from its safe room to everything in it
+        route_problems = []
+        for area in areas:
+            targets = [("%s safe spawn" % area["id"], area["safe"][0]["p"])]
+            targets += [("%s zspawn %d" % (area["id"], i), z["p"])
+                        for i, z in enumerate(area.get("zspawn") or [])]
+            for kind, entries in (area.get("points") or {}).items():
+                targets += [("%s %s %d" % (area["id"], kind, i), e["p"])
+                            for i, e in enumerate(entries)]
+            if area.get("lure"):
+                targets.append(("%s lure" % area["id"], area["lure"]["p"]))
+            route_problems += check_reachability(solid, data, targets,
+                                                 area=tuple(area["rect"]))
+    else:
+        route_problems = check_reachability(solid, data, key_points)
 
     print("=" * 74)
     print("%s -- %s" % (name, data.get("name", "?")))

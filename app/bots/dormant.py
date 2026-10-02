@@ -78,7 +78,9 @@ class Member:
 
 
 # Kill and death rates per minute of play for a mid-skill bot, per mode.
-COMBAT = {"captures": 0.9, "payload": 1.05, "endless": 0.08}
+COMBAT = {"captures": 0.9, "payload": 1.05, "endless": 0.08, "survival": 5.5}
+# ...and how often a survivor dies, which is nothing like how often they kill
+DEATHS = {"survival": 0.06}
 
 
 class Dormant:
@@ -115,6 +117,13 @@ class Dormant:
             self.phase = "setup"
             self.phase_until = now + 18.0
             self.round_ends = self.phase_until + 420.0
+        elif self.mode == "survival":
+            self.areas = [a["id"] for a in world.get("areas") or []] or ["town"]
+            self.area = self.rng.choice(self.areas)
+            self.wave = 0
+            self.best = 0
+            self.phase = "setup"
+            self.phase_until = now + 30.0
         else:
             from ..game.worlds import burger_tycoon as tycoon
             self.tycoon = tycoon
@@ -141,6 +150,8 @@ class Dormant:
         self.advance(now)
         if self.mode == "endless":
             team = self._pick_plot(uid, now)
+        elif self.mode == "survival":
+            team = "survivors"
         else:
             counts = self.team_counts()
             team = min(TEAMS, key=lambda t: (counts.get(t, 0), self.rng.random()))
@@ -190,6 +201,8 @@ class Dormant:
             self._advance_ctf(start, now, pace)
         elif self.mode == "payload":
             self._advance_payload(start, now, pace)
+        elif self.mode == "survival":
+            self._advance_survival(start, now, pace)
         else:
             self._advance_tycoon(dt, pace)
 
@@ -335,6 +348,65 @@ class Dormant:
             self.phase = "intermission"
             self.phase_until = t + 8.0
 
+    # waves last about four minutes, with twenty seconds between them
+    WAVE_SECONDS = 215.0
+    BREATHER = 20.0
+
+    def _advance_survival(self, start: float, now: float, pace: float) -> None:
+        """Wave after wave until the team falls, then on to the next area.
+
+        A team's chance of holding a wave falls as the waves climb (and
+        drops again on every fifth, the Tank's), and rises with its size
+        and skill: a full server of good bots goes deep, three new ones
+        do not see wave six often."""
+        t = start
+        guard = 0
+        while t < now and guard < 400:
+            guard += 1
+            if self.phase == "wiped":
+                if now < self.phase_until:
+                    return
+                t = self.phase_until
+                others = [a for a in self.areas if a != self.area] or self.areas
+                self.area = self.rng.choice(others)
+                self.wave = 0
+                self.round += 1
+                self.round_started = t
+                for member in self.members.values():
+                    member.k = member.d = 0
+                self.phase = "setup"
+                self.phase_until = t + 30.0
+                continue
+            if self.phase == "setup":
+                if now < self.phase_until:
+                    return
+                t = self.phase_until
+                self.wave += 1
+                self.phase = "active"
+                self.phase_until = t + self.WAVE_SECONDS * self.rng.uniform(0.85, 1.15) / pace
+                continue
+            # active: the wave is decided when it would have ended
+            if now < self.phase_until:
+                return
+            t = self.phase_until
+            strength = sum(0.4 + m.skill * 0.8 for m in self.members.values())
+            hold = 0.985 - 0.03 * self.wave - (0.1 if self.wave % 5 == 0 else 0.0)
+            hold += min(0.18, strength * 0.025)
+            for member in self.members.values():
+                member.k += poisson(self.rng, 3.0 + self.wave * 1.2 + member.skill * 4)
+                member.s += 10
+            if self.rng.random() < max(0.15, min(0.99, hold)):
+                self.best = max(self.best, self.wave)
+                self.phase = "setup"
+                self.phase_until = t + self.BREATHER
+            else:
+                for member in self.members.values():
+                    member.d += 1
+                self.rounds_ended += 1
+                self.best = max(self.best, self.wave - 1)
+                self.phase = "wiped"
+                self.phase_until = t + 12.0
+
     def _advance_tycoon(self, dt: float, pace: float) -> None:
         upgrades = self.tycoon.UPGRADES
         for plot in self.plots:
@@ -382,9 +454,12 @@ class Dormant:
 
     # ------------------------------------------------------------ describe
     def describe(self) -> Dict[str, Any]:
-        return {"id": self.id, "count": len(self.members), "max": self.max,
-                "phase": self.phase, "round": self.round, "dormant": True,
-                "humans": 0, "bots": len(self.members)}
+        out = {"id": self.id, "count": len(self.members), "max": self.max,
+               "phase": self.phase, "round": self.round, "dormant": True,
+               "humans": 0, "bots": len(self.members)}
+        if self.mode == "survival":
+            out["summary"] = "Wave %d" % max(1, self.wave)
+        return out
 
     def summary(self) -> str:
         if self.mode == "captures":
@@ -392,6 +467,8 @@ class Dormant:
         if self.mode == "payload":
             return "cart %d%% (%d-%d)" % (int(self.progress * 100),
                                          self.round_wins["red"], self.round_wins["blue"])
+        if self.mode == "survival":
+            return "wave %d" % max(1, self.wave)
         built = sum(len(p["built"]) for p in self.plots)
         return "%d builds" % built
 
@@ -401,8 +478,11 @@ class Dormant:
         minutes = max(0.0, now - member.seg_start) / 60.0
         base = COMBAT.get(self.mode, 0.5)
         kills = poisson(self.rng, base * minutes * (0.35 + member.skill * 1.3))
-        deaths = poisson(self.rng, base * minutes * (1.45 - member.skill * 0.9))
+        dying = DEATHS.get(self.mode, base)
+        deaths = poisson(self.rng, dying * minutes * (1.45 - member.skill * 0.9))
         score = kills * 10 + int(minutes * (6 + member.objective * 10))
+        if self.mode == "survival":
+            score = kills * 2 + int(minutes * 6)
         rounds = max(0, self.rounds_ended - member.rounds)
         wins = sum(1 for _ in range(rounds) if self.rng.random() < 0.35 + member.skill * 0.3)
         return {"kills": kills, "deaths": deaths, "score": score,
@@ -414,8 +494,10 @@ class Dormant:
         minutes = max(0.0, now - since) / 60.0
         base = COMBAT.get(self.mode, 0.5)
         member.k += poisson(self.rng, base * minutes * (0.35 + member.skill * 1.3))
-        member.d += poisson(self.rng, base * minutes * (1.45 - member.skill * 0.9))
-        member.s += member.k * 10 + int(minutes * (4 + member.objective * 8))
+        member.d += poisson(self.rng, DEATHS.get(self.mode, base) * minutes
+                            * (1.45 - member.skill * 0.9))
+        member.s += member.k * (2 if self.mode == "survival" else 10) + \
+            int(minutes * (4 + member.objective * 8))
 
     # --------------------------------------------------------------- wake
     def wake_state(self, now: float) -> Dict[str, Any]:
@@ -437,6 +519,13 @@ class Dormant:
                           "time_left": max(20.0, self.round_ends - now),
                           "setup_left": max(0.0, self.phase_until - now)
                           if self.phase == "setup" else 0.0})
+        elif self.mode == "survival":
+            # a live round picks up between waves: the wave that was on is
+            # counted as held if it was going to be, otherwise as the one
+            # still to come
+            state.update({"area": self.area, "best": self.best,
+                          "wave": self.wave if self.phase == "setup"
+                          else max(0, self.wave - 1)})
         else:
             state["plots"] = [{"members": list(p["members"]), "built": list(p["built"]),
                                "coins": int(p["coins"]), "bank": int(p["bank"]),
@@ -468,6 +557,13 @@ class Dormant:
             wins = live.get("round_wins") or {}
             self.round_wins = {t: int(wins.get(t, 0) or 0) for t in TEAMS}
             self.round_ends = now + float(live.get("time_left", 300) or 300)
+        elif self.mode == "survival":
+            if live.get("area") in self.areas:
+                self.area = live["area"]
+            self.wave = int(live.get("wave", 0) or 0)
+            self.best = max(self.best, int(live.get("best", 0) or 0))
+            self.phase = "setup" if phase != "wiped" else "wiped"
+            self.phase_until = now + (20.0 if self.phase == "setup" else 12.0)
         else:
             plots = live.get("plots") or []
             for index, plot in enumerate(plots[:8]):
@@ -493,6 +589,8 @@ class Dormant:
             data.update({"attackers": self.attackers, "progress": self.progress,
                          "checkpoints": self.checkpoints, "round_wins": self.round_wins,
                          "round_ends": self.round_ends})
+        elif self.mode == "survival":
+            data.update({"area": self.area, "wave": self.wave, "best": self.best})
         else:
             data["plots"] = self.plots
         return data
@@ -514,6 +612,10 @@ class Dormant:
                 if key in data:
                     setattr(inst, key, data[key])
             inst.defenders = "red" if inst.attackers == "blue" else "blue"
+        elif inst.mode == "survival":
+            for key in ("area", "wave", "best"):
+                if key in data:
+                    setattr(inst, key, data[key])
         elif "plots" in data:
             inst.plots = data["plots"]
         return inst
@@ -530,6 +632,13 @@ class Dormant:
             self.updated = now - self.rng.uniform(30, 400)
             self.phase_until = self.updated + 18
             self.round_ends = self.phase_until + 420
+        elif self.mode == "survival":
+            self.round = self.rng.randint(1, 5)
+            self.wave = self.rng.randint(0, 6)
+            self.best = self.wave + self.rng.randint(0, 6)
+            self.updated = now - self.rng.uniform(30, 600)
+            self.phase = "setup"
+            self.phase_until = self.updated + 20
         else:
             self.updated = now - self.rng.uniform(300, 2400)
             for plot in self.plots:

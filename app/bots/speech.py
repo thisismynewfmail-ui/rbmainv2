@@ -25,8 +25,10 @@ CAPTURES = ("capture_the_flag", "blackout_relay")
 RELAY = ("blackout_relay",)
 PAYLOAD = ("fortress_team_2",)
 TYCOON = ("burger_tycoon",)
+SURVIVAL = ("last_light",)
 ROUNDS = ("capture_the_flag", "blackout_relay", "fortress_team_2")
-ALL = ("capture_the_flag", "blackout_relay", "fortress_team_2", "burger_tycoon")
+ALL = ("capture_the_flag", "blackout_relay", "fortress_team_2", "burger_tycoon",
+       "last_light")
 
 # (group id, heading on the Speech Events subtab)
 GROUPS = [
@@ -36,9 +38,11 @@ GROUPS = [
     ("relay", "Blackout Relay only"),
     ("payload", "Fortress Team 2"),
     ("tycoon", "Burger Tycoon"),
+    ("survival", "Last Light"),
 ]
 GROUP_WORLDS = {"all": ALL, "rounds": ROUNDS, "captures": CAPTURES,
-                "relay": RELAY, "payload": PAYLOAD, "tycoon": TYCOON}
+                "relay": RELAY, "payload": PAYLOAD, "tycoon": TYCOON,
+                "survival": SURVIVAL}
 
 
 class Kind:
@@ -92,6 +96,28 @@ KINDS: List[Kind] = [
          "An upgrade is bought; dearer ones get talked about more."),
     Kind("tycoon_complete", "Restaurant finished", "tycoon", 55,
          "A restaurant gets its last upgrade."),
+    Kind("area", "New area", "survival", 20,
+         "Everybody moves to a new place and the waves start again."),
+    Kind("wave_start", "Wave incoming", "survival", 12,
+         "A wave of infected begins (and any twist it comes with)."),
+    Kind("wave_clear", "Wave cleared", "survival", 20,
+         "The last infected of a wave goes down."),
+    Kind("tank", "Tank!", "survival", 55,
+         "A Tank arrives, every fifth wave."),
+    Kind("tank_down", "Tank down", "survival", 50,
+         "The Tank is finally killed."),
+    Kind("downed", "Survivor down", "survival", 30,
+         "Somebody is downed and needs picking up."),
+    Kind("revived", "Revive", "survival", 25,
+         "Somebody picks a downed teammate back up."),
+    Kind("pinned", "Pinned", "survival", 35,
+         "A Leaper pins somebody to the ground."),
+    Kind("save", "Shoved off", "survival", 25,
+         "Somebody knocks a Leaper off a pinned teammate."),
+    Kind("lure", "Lure rung", "survival", 25,
+         "Somebody sets off the area's bell, siren or horn."),
+    Kind("wipe", "Wiped", "survival", 50,
+         "Everybody is dead: the round is over."),
 ]
 KINDS_BY_ID: Dict[str, Kind] = {k.id: k for k in KINDS}
 DEFAULT_CHANCES: Dict[str, int] = {k.id: k.chance for k in KINDS}
@@ -238,6 +264,8 @@ def describe(event: Dict[str, Any], name: str, team: str) -> Tuple[str, str]:
             return ("Your crewmate %s just bought %s for your restaurant (%s)."
                     % (by, upgrade, progress), "ally")
         return ("%s just bought %s for %s (%s)." % (by, upgrade, plot, progress), "neutral")
+    if kind in SURVIVAL_KINDS:
+        return _survival(kind, event, name, me)
     if kind == "killstreak":
         count = int(event.get("n", 3) or 3)
         if me:
@@ -265,6 +293,61 @@ def describe(event: Dict[str, Any], name: str, team: str) -> Tuple[str, str]:
     return ("", "neutral")
 
 
+SURVIVAL_KINDS = ("area", "wave_start", "wave_clear", "tank", "tank_down",
+                  "downed", "revived", "pinned", "save", "lure", "wipe")
+
+
+def _survival(kind: str, event: Dict[str, Any], name: str, me: bool) -> Tuple[str, str]:
+    """Last Light: one team against the horde, so everything is "us"."""
+    by = str(event.get("by") or "")
+    what = str(event.get("what") or "")
+    n = int(event.get("n", 0) or 0)
+    if kind == "area":
+        return ("Everybody just moved to %s; the waves start again from one."
+                % (what or "a new area"), "neutral")
+    if kind == "wave_start":
+        twist = (" It is a %s." % what) if what else ""
+        if event.get("tank"):
+            return ("Wave %d is starting, and it is a Tank wave.%s" % (n, twist), "ally")
+        return ("Wave %d of infected is starting.%s" % (n, twist), "ally")
+    if kind == "wave_clear":
+        return ("Your team just cleared wave %d. Time to restock and heal." % n, "ally")
+    if kind == "tank":
+        return ("A Tank -- a huge boss infected -- just showed up on wave %d." % n, "victim")
+    if kind == "tank_down":
+        if me:
+            return ("You landed the killing shot on the Tank.", "actor")
+        return ("The Tank is dead%s." % ((", %s finished it" % by) if by else ""), "ally")
+    if kind == "downed":
+        if me:
+            return ("You just got downed%s and need a teammate to pick you up."
+                    % ((" by a " + what) if what else ""), "victim")
+        return ("Your teammate %s is down and needs reviving." % by, "victim")
+    if kind == "revived":
+        if me:
+            return ("You just picked %s back up." % what, "actor")
+        if what == name:
+            return ("%s just revived you." % by, "ally")
+        return ("%s picked %s back up." % (by, what), "ally")
+    if kind == "pinned":
+        if me:
+            return ("A %s just pinned you to the ground; you need help." % (what or "Leaper"),
+                    "victim")
+        return ("%s is pinned by a %s." % (by, what or "Leaper"), "victim")
+    if kind == "save":
+        if me:
+            return ("You shoved a Leaper off a teammate.", "actor")
+        return ("%s shoved a Leaper off a teammate." % by, "ally")
+    if kind == "lure":
+        if me:
+            return ("You rang %s to draw the horde away." % what, "actor")
+        return ("%s rang %s and the horde is heading for it." % (by, what), "ally")
+    if kind == "wipe":
+        return ("Everybody died: your team held %s for %d waves. A new area is next."
+                % (what or "the area", n), "victim")
+    return ("", "neutral")
+
+
 def voice_weight(event: Dict[str, Any], relation: str) -> float:
     if event.get("kind") == "player_joined":
         return 1.0
@@ -281,6 +364,11 @@ def importance(event: Dict[str, Any]) -> float:
     if kind in ("killstreak", "streak_ended"):
         count = int(event.get("n", 3) or 3)
         return 1.0 if count < 5 else (1.4 if count < 8 else 1.8)
+    if kind in ("wave_start", "wave_clear"):
+        # the tenth wave is news; the second is not
+        return max(0.5, min(2.0, 0.4 + int(event.get("n", 1) or 1) * 0.12))
+    if kind == "wipe":
+        return max(0.8, min(2.0, 0.6 + int(event.get("n", 1) or 1) * 0.1))
     return 1.0
 
 
@@ -320,6 +408,19 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("streak_ended", "actor"): ["got him", "streak over", "ez"],
     ("streak_ended", "victim"): ["bruh", "lag", "was on a roll"],
     ("player_joined", "neutral"): ["hi", "hey", "yo", "welcome", "o/", "sup"],
+    ("area", "neutral"): ["new map lets go", "ooh this one", "stick together", "find the ammo"],
+    ("wave_start", "ally"): ["here they come", "stack up", "reload", "stay together"],
+    ("wave_clear", "ally"): ["nice", "wave clear", "get ammo", "heal up", "ez"],
+    ("tank", "victim"): ["TANK", "tank!!", "everyone on the tank", "run", "oh no"],
+    ("tank_down", "ally"): ["tank down!!", "lets go", "gg tank", "ez tank"],
+    ("tank_down", "actor"): ["got the tank", "lets gooo", "ez"],
+    ("downed", "victim"): ["help", "pick me up", "im down", "someone get him up", "revive!!"],
+    ("revived", "ally"): ["ty", "thanks", "saved", "nice"],
+    ("revived", "actor"): ["np", "got you", "up you go"],
+    ("pinned", "victim"): ["HELP", "get it off", "shoot it", "leaper!!"],
+    ("save", "ally"): ["nice save", "ty", "clutch"],
+    ("lure", "ally"): ["nice bell", "go go while theyre distracted", "smart"],
+    ("wipe", "victim"): ["gg", "so close", "next time", "gg all", "rip"],
 }
 
 

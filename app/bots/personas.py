@@ -56,6 +56,7 @@ TRAIT_BASE: Dict[str, float] = {
     "w_capture_the_flag": 1.0,
     "w_fortress_team_2": 1.0,
     "w_blackout_relay": 1.0,
+    "w_last_light": 1.0,
     "wp_sniper": 0.2,
     "wp_shotgun": 0.35,
     "wp_smg": 0.3,
@@ -234,6 +235,9 @@ TAGS: List[Dict[str, Any]] = [
     _t("relay_regular", "world", "Relay regular",
        "Plays Blackout Relay's long flag runs at dusk.", 0.9,
        w_blackout_relay=2.4),
+    _t("survivor", "world", "Zombie survivor",
+       "Plays Last Light every night and knows every safe room by heart.", 1.0,
+       w_last_light=2.4, support=0.08),
     # ---- interests
     _t("collector", "interest", "Hat collector",
        "Collects hats and dreams of Unusuals.", 0.9, collector=0.45,
@@ -434,6 +438,7 @@ PACK_ORDER = [
     "wealth", "w_burger_tycoon", "w_capture_the_flag", "w_fortress_team_2",
     "w_blackout_relay", "wp_sniper", "wp_shotgun", "wp_smg", "wp_rifle",
     "wp_melee", "wp_rocket", "lower", "emoji", "grammar", "abbrev", "caps",
+    "w_last_light",
 ]
 
 
