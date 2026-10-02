@@ -1009,6 +1009,7 @@ Events** subtab, grouped by world:
 | Blackout Relay | lockdown, overtime, sudden death |
 | Fortress Team 2 | gates open, checkpoint reached, the final stretch |
 | Burger Tycoon | restaurant claimed, a purchase (dearer ones are bigger news), restaurant finished |
+| Last Light | new area, wave incoming, wave cleared, Tank, Tank down, survivor down, revive, pinned, shoved off, lure rung, wiped, a special spotted (and where), somebody swarmed, the last one standing, the last few infected, a new best wave, going solo, a regroup, a squad on the high ground, out of ammo, a clutch revive, a barrel blast, covered in bile |
 
 Up to two bots react to one event, the same kind of event then waits out a
 cooldown in that round, several notifications about one moment (the flag is
@@ -1018,6 +1019,68 @@ the players, so an event turns into a conversation. When the language model
 is switched off or down, events fall back to short stock lines ("they have
 our flag", "nice cap"); when it is only busy, the moment goes unanswered
 instead, as it would for a player who missed it.
+
+### Bots in Last Light
+
+In Last Light the bots are survivors with minds of their own
+(`app/game/bots/survival.py`), not escorts for whoever is real. They team up
+the way people in a co-op lobby do: two to four who drift together (each
+bot's preferred size is its own), a few who tag along with a real player for
+a while, the odd one who wanders off alone and comes back when it gets
+hairy. Squads form, stack up when a wave starts or a Tank arrives, split back
+up when the moment passes, change leader when the one in front goes down,
+and lose members to tangents -- mostly between waves, mostly the loners and
+explorers. Nobody follows a person for ever, and somebody standing still is
+boring company.
+
+Each squad, or a bot on its own, picks a plan by the personas in it and how
+the round stands: hold a strong point, take the high ground (roofs, decks
+and towers found on the navigation graph next to each area's landmarks),
+roam the streets, hunt the last few infected, hang about between waves, or
+go and look at something -- the rail yard, the hedge maze, the island. Each
+area's places are known for what people do with them, so nobody sensible
+holds the graveyard, the maze, the waterline or the mine while a wave is on.
+A plan just tried is less likely next, so a wave is not spent on one roof.
+
+Movement is a player's: a squad member keeps a loose place beside or behind
+the one in front (re-picked every so often), reacts to it moving after a
+beat (a slower beat for newbies and AFK-prone players), runs to catch up and
+shift-walks to settle, looks out over the street while it waits, and a leader
+who has left its squad behind stops and lets them catch up. Between waves
+bots stand about, hop on things and go AFK by the usual rates. Over all of
+that come the emergencies: struggling free of a pin, crawling towards help
+when downed, shooting a pinner off a teammate, getting out of acid, backing
+off a Tank, picking people up (real players first, then the squad; one
+revives, up to two stand over them facing out), restocking, patching up,
+falling back when swamped, and ringing the area's bell, siren or horn when
+the team is drowning.
+
+| Persona | In Last Light |
+| --- | --- |
+| Loner, Shy | goes off alone far more; never tags along with real players |
+| Social butterfly, Friendly, Newbie | joins squads and real players; newbies trail behind and sometimes get lost |
+| Team player, Wholesome | tight squads, revives from further away, covers whoever is reviving |
+| Explorer, Chaotic, Kid | wanders the area between waves, hops about, rings the bell for fun now and then |
+| Sniper main, Veteran | heads for the high ground |
+| Fragger, Shotgun rusher, Melee maniac | up front, roams, hunts the last infected |
+| Zombie survivor | knows the crates, calls regroups, rings the lure at the right moment |
+| Chatty, Trash talker | calls out specials ("bomber by the diner") and talks about the round more |
+
+The **Last Light** submenu under In-Game Behaviour sets squads and callouts
+on or off, squad size, lone wolves, cohesion, playing with real players,
+exploring between waves, the high ground, hunting stragglers, the
+noise-maker, revive reach, regrouping, keeping clear of spawns and practice
+in the holdout, and shows every Last Light round's squads and lone wolves
+live. Bots waiting in the bunker put a few rounds into the practice dummies.
+
+Detail follows attention here too, with one addition: a dead or waiting
+player's spectator camera tells the server whose shoulder it is over, and the
+bots near *that* survivor run at full detail, so a spectator never watches
+fights settled by the odds. Trouble (somebody downed, pinned, a Tank) wakes
+the bots close by straight away instead of on their next slow think. When the
+language model writes a Last Light line it knows the bot's squad, what it is
+doing, where it is, its health and ammunition, and how co-op players type
+("rez me", "omw", "tank by the church").
 
 ### The language model
 
@@ -1162,7 +1225,10 @@ a stand-in real player and checks that they move, fight, take objectives and
 wake mid-round, that no bot is ever inside the map's geometry or needs
 rescuing from the void, that ledge jumps land on the ledge, that bots vote
 after a round with staggered delays, and that a round with no real player
-stands still; the profiles group checks the profile-setting chances and that
+stands still, and that Last Light bots form squads, play on their own,
+get about the area, follow their personas, honour the Squads switch, put the
+bots a spectator watches at full detail and practise in the bunker; the
+profiles group checks the profile-setting chances and that
 created bots carry them; the scale group creates thousands of bots, loads
 them and times the director; the llm group runs the model client against the
 stand-in server playing every kind of reasoning model, in chat and completion

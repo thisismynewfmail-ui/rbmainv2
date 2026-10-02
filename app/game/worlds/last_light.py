@@ -319,6 +319,13 @@ class LastLight(GameInstance):
             self.use(player)
         elif kind == "unuse":
             player.extra.pop("using", None)
+        elif kind == "watch":
+            # who a dead or waiting player's camera follows: the bots near
+            # them are what that player sees, so they run at full detail
+            try:
+                player.extra["watching"] = max(0, int(message.get("id") or 0))
+            except (TypeError, ValueError):
+                player.extra["watching"] = 0
 
     def use(self, player: Player) -> None:
         """E: struggle, ring the lure, restock, patch up, or start reviving."""
@@ -571,8 +578,14 @@ class LastLight(GameInstance):
         self.broadcast({"t": "fx", "k": "explode", "p": centre, "r": BARREL_RADIUS,
                         "id": -barrel.ident, "big": 1})
         self.broadcast({"t": "zbar", "id": barrel.ident, "alive": False})
+        before = sum(1 for z in self.horde.zombies.values() if z.alive)
         self._blast(centre, BARREL_RADIUS, 210.0, by if isinstance(by, Player) else None,
                     "Fuel Barrel", hurt_people=True, people_damage=22.0)
+        killed = before - sum(1 for z in self.horde.zombies.values() if z.alive)
+        if killed >= 3 and self.bots is not None:
+            # a pack taken out in one go: something the bots talk about
+            self.bots.on_game_event("barrel", {"by": getattr(by, "username", "") or "",
+                                               "n": killed})
 
     def knock(self, player: Player, velocity: Sequence[float]) -> None:
         if player.extra.get("downed") or player.extra.get("pinned_by"):
@@ -756,9 +769,12 @@ class LastLight(GameInstance):
         self.hurt_survivor(player, None, amount, "Acid", quiet=True)
 
     def bile(self, player: Player) -> None:
+        fresh = now() >= player.extra.get("biled_until", 0)
         player.extra["biled_until"] = now() + BILE_SECONDS
         self.horde.field_at = 0.0
         self._send_me(player, force=True)
+        if fresh and self.bots is not None:
+            self.bots.on_game_event("biled", {"by": player.username})
 
     def pin(self, player: Player, z: Zombie) -> bool:
         if player.extra.get("pinned_by") or player.extra.get("downed"):

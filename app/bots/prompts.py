@@ -126,6 +126,15 @@ def _clock(seconds: Any) -> str:
     return "%d:%02d" % (seconds // 60, seconds % 60)
 
 
+SURVIVAL_TONE = """How people type in a co-op zombie game's chat, which is how you type here:
+- callouts with a place: "tank by the church", "bomber left", "spitter on the roof"
+- asking and offering help: "rez me", "omw", "need ammo", "cover me", "got you"
+- hyping and thanking teammates: "nice shot", "clutch", "ty", "huge", "W"
+- groaning at the horde and joking about it: "theres so many lol", "why is it always the bomber"
+- short, mostly lowercase, gamer slang (omw, ty, np, gg, lol, ez, rez, brb, ngl); talk to your
+  teammates, never in full formal sentences, never describe the game like a narrator"""
+
+
 def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[str]:
     """What the bot could see on its own screen right now, as plain lines.
 
@@ -211,6 +220,13 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
                 (", %d downed" % state["downed"]) if state.get("downed") else ""))
         if state.get("best_wave"):
             lines.append("Best wave reached on this server: %s." % state["best_wave"])
+        teams = state.get("teams") or {}
+        groups = len(teams.get("squads") or [])
+        alone = len(teams.get("solo") or [])
+        if groups or alone:
+            lines.append("The team is split into %d squad%s%s." % (
+                groups, "" if groups == 1 else "s",
+                (" and %d on their own" % alone) if alone else ""))
     elif mode == "endless":
         if me.get("plot"):
             lines.append("Your restaurant: %s, %s upgrades built, %s coins in hand." % (
@@ -236,6 +252,20 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
                         "you died and are watching until the next wave")
         if me.get("downed"):
             mine.append("you are downed and need a teammate to revive you")
+        if mode == "survival" and not me.get("waiting") and me.get("alive", True):
+            if me.get("squad"):
+                mine.append("in a squad with %s" % ", ".join(me["squad"][:4]))
+            elif me.get("solo"):
+                mine.append("off on your own")
+            if me.get("doing"):
+                mine.append(str(me["doing"]))
+            if me.get("near"):
+                mine.append("near %s" % me["near"])
+            hp = me.get("hp")
+            if isinstance(hp, int) and hp < 40 and not me.get("downed"):
+                mine.append("hurt (%d health)" % hp)
+            if me.get("ammo_low"):
+                mine.append("almost out of ammo")
         if mode != "endless" and ("kills" in me or "deaths" in me):
             mine.append("%s kills and %s deaths this round" % (me.get("kills", 0),
                                                               me.get("deaths", 0)))
@@ -258,6 +288,8 @@ def chat(card: Dict[str, Any], world: str, team: str,
     max_tokens = int(bot_config.get("llm.max_tokens_chat") or 48)
     system = _fmt(bot_config.get("prompts.chat"), world=world) + "\n\n" + \
         persona_block(card)
+    if (state or {}).get("mode") == "survival":
+        system += "\n\n" + SURVIVAL_TONE
     if team and (state or {}).get("mode") not in ("endless", "survival"):
         system += "\nYou are on the %s team this round." % team
     context = game_context(state or {}, me or {}, team)

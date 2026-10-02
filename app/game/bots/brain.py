@@ -183,6 +183,11 @@ class Brain:
         self.jumpy_until = 0.0
         self.was_alive = player.alive
         self.said: deque = deque(maxlen=8)
+        # where it is looking when it has nothing to aim at (turned to
+        # smoothly, as a person turns the view), and the survival mind
+        self.look_yaw: Optional[float] = None
+        self.look_until = 0.0
+        self.mind = None
 
     # =============================================================== basics
     def t(self, key: str, default: float = 0.5) -> float:
@@ -374,8 +379,17 @@ class Brain:
         p.vel = [vx, self.vy if self.airborne else 0.0, vz]
         p.grounded = not self.airborne
         # where it is looking
+        horizontal_now = math.hypot(vx, vz)
+        scanning = self.look_yaw is not None and (not moving or horizontal_now < 12.0)
         if self.target is not None:
             p.yaw, p.pitch = self.aim_yaw, self.aim_pitch
+        elif scanning and not still:
+            # looking round: a person turns the view, it does not snap
+            turn = _wrap(self.look_yaw - p.yaw)
+            rate = dt * (2.0 + self.skill * 1.6)
+            p.yaw = _wrap(p.yaw + max(-rate, min(rate, turn)))
+            p.pitch *= max(0.0, 1.0 - dt * 3.0)
+            self.aim_yaw, self.aim_pitch = p.yaw, p.pitch
         elif moving and (vx or vz):
             want = math.atan2(vx, vz)
             p.yaw = p.yaw + _wrap(want - p.yaw) * min(1.0, dt * 8.0)
@@ -694,6 +708,13 @@ class Brain:
         return False
 
     def _choose_goal(self, moment: float, interval: float) -> None:
+        if self.runner.mode == "survival":
+            # squads, tangents, AFK moments and the rest are the survival
+            # mind's (bots/survival.py), weighed by the same persona
+            self.goal = "objective"
+            self.goal_data = {}
+            self.goal_until = moment + self.rng.uniform(20, 40)
+            return
         cfg = self.runner.cfg
         floor = float(cfg.get("anything_floor", 3)) / 100.0
         tangent = float(cfg.get("tangent_per_minute", 9)) / 100.0
@@ -715,14 +736,6 @@ class Brain:
         if self.runner.mode == "endless":
             weights["fight"] *= 0.12
             weights["revenge"] *= 0.3
-        elif self.runner.mode == "survival":
-            # nobody wanders off from the team on purpose in a horde
-            setup = self.instance.phase != "active"
-            weights = {"objective": 1.0, "fight": 0.0, "explore": 0.0,
-                       "afk": floor * 0.3 if setup else 0.0,
-                       "jumpy": floor * 0.5 if setup else 0.0,
-                       "follow": 0.12 if self.runner.humans else 0.0,
-                       "revenge": 0.0}
         goal = self.rng.choices(list(weights), list(weights.values()))[0]
         self.goal = goal
         self.goal_data = {}
@@ -744,6 +757,9 @@ class Brain:
             self.goal_data["point"] = grid.point(node) if node >= 0 else None
 
     def _pursue(self, moment: float) -> None:
+        if self.runner.mode == "survival":
+            self.runner.objective(self)
+            return
         if self.runner.urgent(self):
             # carrying the flag: every other plan waits
             self.afk_until = 0.0

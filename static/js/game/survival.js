@@ -44,6 +44,8 @@
     this.spectating = false;
     this.lobbyWatch = false;
     this.watchId = 0;
+    this.watchSent = 0;
+    this.watchSentAt = 0;
     this.useHeld = false;
     this.promptAt = 0;
     this.groanAt = 0;
@@ -735,6 +737,18 @@
       this.updatePrompt();
       this.renderTeam();
     }
+    this.reportWatch();
+  };
+
+  /* Tell the server whose shoulder the camera is over: the bots there are
+     what this player sees, so they keep fighting at full detail. */
+  Survival.prototype.reportWatch = function () {
+    var target = (this.isWatching() || !this.client.local.alive) ? this.watched() : null;
+    var id = target ? target.id : 0;
+    if (id === this.watchSent && (!id || this.time - this.watchSentAt < 5)) return;
+    this.watchSent = id;
+    this.watchSentAt = this.time;
+    this.client.net.send({ t: 'act', k: 'watch', id: id });
   };
 
   // ------------------------------------------------------------ drawing

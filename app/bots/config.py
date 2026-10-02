@@ -126,7 +126,7 @@ REASONING_EFFORTS = [
 ]
 
 # Sections drawn in the dashboard as a submenu of another one.
-SUBSECTIONS = {"profiles": "ingame"}
+SUBSECTIONS = {"survival": "ingame", "profiles": "ingame"}
 
 # The profile settings a new bot is dealt, one weighted draw per setting.
 # The keys under "privacy" are the site's own privacy fields
@@ -183,6 +183,7 @@ SECTIONS = [
     ("presence", "Presence & Schedule", "When bots are online, and for how long."),
     ("worlds", "Joining Worlds", "How bots pick a world and an instance, and how empty instances sleep."),
     ("ingame", "In-Game Behaviour", "How bots play when a real player is in the round."),
+    ("survival", "Last Light", "How bots play the zombie survival map: squads, lone wolves, the high ground and callouts."),
     ("profiles", "Profile Settings", "The privacy and account settings each new bot starts with."),
     ("friends", "Friends", "Bots adding and confirming friends."),
     ("chatter", "Chatter", "Profile comments, posts and likes between associated bots."),
@@ -404,6 +405,61 @@ FIELDS: List[Field] = [
       1, 20, 0.5, "Hz"),
     F("ingame.far_think_hz", "Think rate (far)", "float", 1.2, "ingame", "",
       0.1, 10, 0.1, "Hz"),
+
+    # ----------------------------------------------------------- survival
+    F("survival.squads", "Squads", "bool", True, "survival",
+      "Bots team up into small squads that move, hold, restock and revive "
+      "together, form and split as the round goes, and sometimes tag along "
+      "with a real player. Off: every bot plays on its own.", toggle=True),
+    F("survival.callouts", "Callouts", "bool", True, "survival",
+      "Bots call out the specials they see, with where (\"bomber by the "
+      "diner\"). Quick lines, so Quick reactions must be on too; the language "
+      "model's own reactions come from the Special spotted speech event.",
+      toggle=True),
+    F("survival.squad_size", "Squad size", "range", [2, 4], "survival",
+      "How big a group each bot likes; sociable personas sit at the top. A "
+      "big moment (a wave, a Tank) can stack two squads past it for a while.",
+      2, 8, 1, "bots", scope="per-bot"),
+    F("survival.solo", "Lone wolves", "pct", 14, "survival",
+      "Chance a bot without a squad goes it alone for a while; loners, "
+      "explorers and speedrunners far more, team players and newbies less.",
+      0, 100, 1, "%", scope="base"),
+    F("survival.cohesion", "Squad cohesion", "pct", 70, "survival",
+      "How tightly squads keep together; support personas tighter, chaotic "
+      "ones looser. Squads always pull in closer during a wave.", 0, 100, 1,
+      "%", scope="base"),
+    F("survival.people", "Play with real players", "pct", 35, "survival",
+      "How much bots like to tag along with a real player; social butterflies "
+      "and newbies most, loners never. Nobody follows a person for ever, and "
+      "somebody standing still is boring company.", 0, 100, 1, "%",
+      scope="base"),
+    F("survival.roam", "Explore between waves", "pct", 30, "survival",
+      "How much bots wander the area's places in the breathers (the rail "
+      "yard, the hedge maze, the island); explorers and kids most.", 0, 100,
+      1, "%", scope="base"),
+    F("survival.perch", "High ground", "pct", 30, "survival",
+      "How much squads head for roofs, decks and towers to hold a wave; "
+      "sniper mains and veterans most.", 0, 100, 1, "%", scope="base"),
+    F("survival.hunt", "Hunt stragglers", "pct", 45, "survival",
+      "How keen bots are to go after the last few infected of a wave; "
+      "fraggers and shotgun rushers most.", 0, 100, 1, "%", scope="base"),
+    F("survival.lure", "Use the noise-maker", "pct", 55, "survival",
+      "Willingness to ring the bell, siren or horn when the team is swamped; "
+      "survivor mains and veterans most, chaotic ones now and then for fun.",
+      0, 100, 1, "%", scope="base"),
+    F("survival.revive_reach", "Revive reach", "int", 140, "survival",
+      "How far a bot goes to pick somebody up; kind and support personas go "
+      "further, and real players are picked up first.", 20, 600, 10, "units",
+      scope="base"),
+    F("survival.regroup", "Regroup for big moments", "bool", True, "survival",
+      "When a wave starts or the team is scattered, somebody calls a regroup "
+      "and lone wolves mostly come back for the fight."),
+    F("survival.avoid_spawns", "Keep clear of spawns in a wave", "bool", True,
+      "survival", "During a wave squads do not hold the graveyard, the maze, "
+      "the waterline or the mine; explorers still go there between waves."),
+    F("survival.practice", "Practice in the holdout", "bool", True, "survival",
+      "Bots waiting in the bunker for the next wave put a few rounds into the "
+      "practice dummies."),
 
     # ----------------------------------------------------------- profiles
     F("profiles.vary", "Varied profile settings", "bool", True, "profiles",
@@ -973,6 +1029,8 @@ def ingame_section() -> Dict[str, Any]:
     values = load()
     out = {k.split(".", 1)[1]: v for k, v in values.items()
            if k.startswith("ingame.")}
+    out.update({k.replace(".", "_"): v for k, v in values.items()
+                if k.startswith("survival.")})
     for key in ("messages.ingame_chat", "messages.quick_reactions",
                 "messages.chat_per_minute", "messages.typing_cps",
                 "messages.chat_reply_chance", "worlds.sleep_grace_seconds",
