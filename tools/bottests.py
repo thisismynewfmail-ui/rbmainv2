@@ -140,7 +140,9 @@ class FakeHost:
         from app.game.instance import GameInstance
         from app.game.bots import nav
         self.world_id = world_id
-        self.world = worlds.get(world_id)
+        # get_any: the hidden worlds still have their game code, and the
+        # bots still have to play it properly for the day they come back
+        self.world = worlds.get_any(world_id)
         self.cls = load_world_class(world_id)
         self.map = self.cls.build_map()
         self.nav = nav.NavGrid(world_id, self.map, GameInstance._build_colliders(self.map))

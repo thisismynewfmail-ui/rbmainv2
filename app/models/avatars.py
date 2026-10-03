@@ -12,7 +12,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .. import db, security
-from . import catalog, inventory
+from . import badges, catalog, inventory
 
 
 class AvatarError(Exception):
@@ -232,6 +232,8 @@ def descriptor(user_id: int, username: Optional[str] = None) -> Dict[str, Any]:
         "body_type": avatar["body_type"],
         "items": items,
         "hotbar": hotbar,
+        # the badge pinned to the chest, with its model, or None
+        "badge": badges.worn_payload(user_id),
         "updated_at": avatar["updated_at"],
     }
 

@@ -805,6 +805,46 @@
       });
     });
 
+    // ------------------------------------------------------- Drop A Crate
+    var crateBox = document.getElementById('dc-crates');
+    if (crateBox) {
+      crateBox.addEventListener('change', function () {
+        crateBox.querySelectorAll('.dc-crate').forEach(function (label) {
+          label.classList.toggle('on', label.querySelector('input').checked);
+        });
+      });
+      document.getElementById('dc-go').addEventListener('click', function () {
+        var chosen = crateBox.querySelector('input:checked');
+        var button = document.getElementById('dc-go');
+        var payload = {
+          username: document.getElementById('dc-user').value.trim(),
+          crate: chosen ? chosen.value : '',
+          count: parseInt(document.getElementById('dc-count').value, 10) || 1,
+          keys: document.getElementById('dc-keys').checked,
+          note: document.getElementById('dc-note').value
+        };
+        var out = document.getElementById('dc-result');
+        if (!payload.username) {
+          out.innerHTML = '<div class="notice bad">Who is it for?</div>';
+          return;
+        }
+        button.disabled = true;
+        Site.post('/api/admin/drop-crate', payload).then(function (res) {
+          button.disabled = false;
+          if (!res.ok) {
+            out.innerHTML = '<div class="notice bad">' + esc(res.error) + '</div>';
+            return;
+          }
+          out.innerHTML = '<div class="notice">Dropped ' + res.count + ' &times; ' +
+            esc(res.crate) + (res.keys ? ' (with keys)' : '') + ' on <b>' +
+            esc(res.username) + '</b>.</div>';
+          button.classList.remove('dropped');
+          void button.offsetWidth;
+          button.classList.add('dropped');
+        });
+      });
+    }
+
     document.getElementById('gr-go').addEventListener('click', function () {
       var payload = {
         username: document.getElementById('gr-user').value.trim(),

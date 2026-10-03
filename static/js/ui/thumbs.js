@@ -55,6 +55,9 @@
       Thumbs.tiers = data.tiers || {};
       Thumbs.effects = data.effects || {};
       Thumbs.palette = data.palette || [];
+      // random looks draw from the trimmed palette (see
+      // catalog.RANDOM_EXCLUDED_COLORS); the editor keeps the full one
+      Thumbs.randomPalette = data.random_palette || [];
       return Thumbs.catalog;
     }).catch(function () { Thumbs.catalog = {}; return {}; });
     return Thumbs.catalogPromise;
@@ -242,6 +245,18 @@
   Thumbs.itemParts = function (item, effect) {
     var slot = item.slot;
     var data = item.data || {};
+    if (slot === 'crate' || slot === 'key') {
+      // crates and keys are objects, shown on their own and from a little
+      // above, the way they sit on a shelf
+      var objParts = (data.parts || []).map(function (piece) {
+        return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
+                 c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
+                 decSlot: piece.decal ? Textures.decal(piece.decal) : null };
+      });
+      return slot === 'crate'
+        ? { parts: objParts, angle: -0.58, tilt: 0.34, padding: 1.10 }
+        : { parts: objParts, angle: -0.30, tilt: 0.30, padding: 1.08 };
+    }
     if (slot === 'hat' || slot === 'back') {
       var parts = (data.parts || []).map(function (piece) {
         return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
@@ -331,7 +346,7 @@
      against the shared offscreen renderer and blit it out, and they stop the
      moment the canvas leaves the page, so nothing keeps burning CPU behind a
      closed dialog. */
-  var LIVE_MAX = 4;
+  var LIVE_MAX = 6;
   var live = [];
   var liveFrame = 0;
   var particlePool = [];
@@ -373,13 +388,20 @@
                         sun: [0.45, 0.8, 0.35], clouds: 0, tint: '#ffffff' });
       renderer.buildStatic([]);
       renderer.beginFrame(dt);
+      if (job.spin && !job.held) {
+        job.angle += dt * job.spin;
+        // a turntable bobs a little, so it reads as on show rather than parked
+        job.bob = Math.sin(now / 900) * 0.04;
+      }
       for (var n = 0; n < job.parts.length; n++) renderer.push(job.parts[n]);
       frameCamera(renderer, job.frame && job.frame.length ? job.frame : job.parts,
-                  job.padding, job.angle, job.tilt);
-      job.particles.setEmitter('fx', job.def, job.anchor);
-      job.particles.update(dt);
+                  job.padding, job.angle, job.tilt + (job.bob || 0));
+      if (job.def) {
+        job.particles.setEmitter('fx', job.def, job.anchor);
+        job.particles.update(dt);
+      }
       renderer.render();
-      job.particles.draw(renderer);
+      if (job.def) job.particles.draw(renderer);
       blit(job.canvas, renderer.canvas);
     }
   }
@@ -403,7 +425,9 @@
      previews are already running. */
   Thumbs.animateItem = function (canvas, itemId, effect, options) {
     options = options || {};
-    if (!canvas || !effect) {
+    // with nothing to animate, a still is all there is to draw -- unless the
+    // caller asked for a turntable
+    if (!canvas || (!effect && !options.spin)) {
       if (canvas && itemId) Thumbs.renderItem(canvas, itemId, effect);
       return;
     }
@@ -413,9 +437,13 @@
       if (!item || !ensureRenderer()) return;
       // draw the still first so the tile is never blank while we spin up
       Thumbs.renderItem(canvas, itemId, effect);
-      var def = Thumbs.effectDef(effect);
-      if (!def) return;
-      if (live.length >= LIVE_MAX) return;
+      var def = effect ? Thumbs.effectDef(effect) : null;
+      if (!def && !options.spin) return;
+      if (live.length >= LIVE_MAX) {
+        // the oldest turntable gives way to the one just asked for
+        if (!options.spin) return;
+        Thumbs.stopLive(live[0].canvas);
+      }
       var spec = Thumbs.itemParts(item, effect);
       var system = borrowParticles();
       if (!system) return;
@@ -427,18 +455,82 @@
         padding: spec.padding,
         anchor: spec.anchor || [0, 0.35, 0],
         frame: spec.frame,
-        def: Thumbs.scaleEffect(def, options.scale || spec.effectScale),
+        def: def ? Thumbs.scaleEffect(def, options.scale || spec.effectScale) : null,
         particles: system,
+        spin: options.spin || 0,
         last: 0
       };
+      if (options.padding) job.padding = options.padding;
       // a couple of seconds of pre-roll, so it opens mid-effect not empty
-      for (var step = 0; step < 70; step++) {
+      for (var step = 0; job.def && step < 70; step++) {
         system.setEmitter('fx', job.def, job.anchor);
         system.update(1 / 60);
       }
       live.push(job);
       if (!liveFrame) liveFrame = requestAnimationFrame(liveTick);
     });
+  };
+
+  /* ------------------------------------------------------------ any parts
+     Badges (and anything else that is not a catalogue item) hand over their
+     own part list.  ``prepParts`` resolves the authoring keys the server
+     sends (a decal by name) into what the renderer draws. */
+  Thumbs.prepParts = function (raw) {
+    return (raw || []).map(function (piece) {
+      return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
+               c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
+               decSlot: piece.decal ? Textures.decal(piece.decal) : null };
+    });
+  };
+
+  /* A still of a part list, cached under ``key``. */
+  Thumbs.renderPartsTo = function (canvas, raw, options, key) {
+    if (!canvas) return;
+    if (key && Thumbs.imageCache[key]) { blit(canvas, Thumbs.imageCache[key]); return; }
+    options = options || {};
+    var source = renderParts(Thumbs.prepParts(raw), {
+      angle: options.angle, tilt: options.tilt, padding: options.padding
+    });
+    if (!source) return;
+    var copy = snapshot(source);
+    if (key) Thumbs.imageCache[key] = copy;
+    blit(canvas, copy);
+  };
+
+  /* A turntable of a part list.  ``options.def`` is an effect definition
+     (not an id) to run round it; ``options.anchor`` where it emits from. */
+  Thumbs.animateParts = function (canvas, raw, options) {
+    options = options || {};
+    if (!canvas || !ensureRenderer()) return null;
+    Thumbs.stopLive(canvas);
+    if (live.length >= LIVE_MAX) Thumbs.stopLive(live[0].canvas);
+    var system = borrowParticles();
+    if (!system) return null;
+    var job = {
+      canvas: canvas,
+      parts: Thumbs.prepParts(raw),
+      angle: options.angle === undefined ? -0.4 : options.angle,
+      tilt: options.tilt === undefined ? 0.1 : options.tilt,
+      padding: options.padding || 1.1,
+      anchor: options.anchor || [0, 0, 0],
+      def: options.def || null,
+      particles: system,
+      spin: options.spin === undefined ? 0.6 : options.spin,
+      last: 0
+    };
+    for (var step = 0; job.def && step < 60; step++) {
+      system.setEmitter('fx', job.def, job.anchor);
+      system.update(1 / 60);
+    }
+    live.push(job);
+    if (!liveFrame) liveFrame = requestAnimationFrame(liveTick);
+    return job;
+  };
+
+  /* The running job for a canvas, so a page can let people turn it. */
+  Thumbs.liveJob = function (canvas) {
+    for (var i = 0; i < live.length; i++) if (live[i].canvas === canvas) return live[i];
+    return null;
   };
 
   Thumbs.renderAvatarFor = function (canvas, username) {
@@ -1447,10 +1539,19 @@
 
   // Used for the very first character, before /api/catalog has answered.
   var FALLBACK_PALETTE = ['#f5cd30', '#c4281c', '#0d69ac', '#2f9e55', '#8b3fd6',
-                          '#d3592b', '#1b2a35', '#a3a2a5', '#f3cf9b', '#008f9c'];
+                          '#d3592b', '#6d6e6c', '#a3a2a5', '#f3cf9b', '#008f9c'];
+  // Never dealt to a random look, whatever the server's palette says.
+  var RANDOM_EXCLUDED = { '#cc8e69': 1, '#287f47': 1, '#1b2a35': 1,
+                          '#40292a': 1, '#7c503a': 1 };
 
   function paletteHex() {
-    var list = Thumbs.palette;
+    var list = (Thumbs.randomPalette && Thumbs.randomPalette.length)
+      ? Thumbs.randomPalette : Thumbs.palette;
+    if (list && list.length) {
+      list = list.filter(function (entry) {
+        return entry && entry.hex && !RANDOM_EXCLUDED[entry.hex.toLowerCase()];
+      });
+    }
     if (list && list.length) {
       var entry = pick(list);
       if (entry && entry.hex) return entry.hex;

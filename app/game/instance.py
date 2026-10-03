@@ -264,10 +264,11 @@ class Player:
 
 class Projectile:
     __slots__ = ("pid_owner", "team", "pos", "vel", "stats", "born", "kind",
-                 "ident")
+                 "ident", "weapon")
     _next_id = 1
 
-    def __init__(self, owner: Player, pos, vel, stats, kind="rocket"):
+    def __init__(self, owner: Player, pos, vel, stats, kind="rocket",
+                 weapon: str = "Blast Launcher"):
         self.pid_owner = owner.pid
         self.team = owner.team
         self.pos = list(pos)
@@ -275,6 +276,7 @@ class Projectile:
         self.stats = stats
         self.born = now()
         self.kind = kind
+        self.weapon = weapon
         self.ident = Projectile._next_id
         Projectile._next_id += 1
 
@@ -718,6 +720,15 @@ class GameInstance:
                 continue
             player.send(payload)
 
+    def badge(self, player, stat: str, amount: int = 1, mode: str = "add") -> None:
+        """Count towards one of ``player``'s badges (app/models/badges.py).
+
+        The host batches these into its heartbeat; a host without badge
+        support (a test double, say) simply does not count them."""
+        report = getattr(self.host, "report_badge", None)
+        if report is not None and player is not None:
+            report(player, stat, amount, mode)
+
     def system_message(self, text: str, kind: str = "system") -> None:
         entry = {"t": "chat", "kind": kind, "m": text, "from": "", "id": 0,
                  "at": time.time()}
@@ -944,6 +955,9 @@ class GameInstance:
 
             origin = [player.pos[0], player.pos[1] + EYE_HEIGHT, player.pos[2]]
             if kind == "melee":
+                reaping = self.spend_souls(player, stats)
+                if reaping is not None:
+                    stats = reaping
                 self.do_melee(player, direction, stats)
                 self.broadcast({"t": "fx", "k": "swing", "id": player.pid},
                                exclude=player.pid)
@@ -973,11 +987,13 @@ class GameInstance:
                                    origin[1] + direction[1] * 2.0,
                                    origin[2] + direction[2] * 2.0],
                                   [direction[0] * speed, direction[1] * speed,
-                                   direction[2] * speed], stats)
+                                   direction[2] * speed], stats,
+                                  str(stats.get("projectile", "rocket")),
+                                  (player.weapon() or {}).get("name", "Blast Launcher"))
                 self.projectiles.append(proj)
                 self.broadcast({"t": "proj", "id": proj.ident,
                                 "p": proj.pos, "v": proj.vel,
-                                "o": player.pid})
+                                "o": player.pid, "k": proj.kind})
                 return
 
             self.do_hitscan(player, origin, direction, stats)
@@ -1046,6 +1062,46 @@ class GameInstance:
             best_dist = distance
             best_head = head_hit is not None
         return best_victim, best_dist, best_head
+
+    # ------------------------------------------------------------- souls
+    # The Hollow Harvester keeps a soul for every kill it takes (up to
+    # ``souls``) and spends them all on the next swing: a wider, longer, harder
+    # reaping arc that mends its wielder a little per soul.  Balanced as a
+    # reward for chaining kills rather than a way to open a fight: a cold
+    # swing is an ordinary, slower-than-a-sword blade.
+    def bank_soul(self, killer: Optional[Player], where=None) -> None:
+        if killer is None or not killer.alive:
+            return
+        stats = killer.weapon_stats() if not killer.stowed else {}
+        cap = int(stats.get("souls", 0) or 0)
+        if cap <= 0 or stats.get("kind") != "melee":
+            return
+        held = min(cap, int(killer.extra.get("souls", 0)) + 1)
+        killer.extra["souls"] = held
+        killer.send({"t": "souls", "n": held, "max": cap})
+        if where is not None:
+            self.broadcast({"t": "fx", "k": "soul", "p": [round(v, 2) for v in where],
+                            "id": killer.pid})
+
+    def spend_souls(self, player: Player, stats: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """The stats for a reaping swing, or None when no souls are banked."""
+        held = int(player.extra.get("souls", 0) or 0)
+        if held <= 0 or not stats.get("souls"):
+            return None
+        player.extra["souls"] = 0
+        reaping = dict(stats)
+        reaping["damage"] = float(stats.get("damage", 30)) + \
+            float(stats.get("soul_damage", 0)) * held
+        reaping["arc"] = max(float(stats.get("arc", 0.55)), float(stats.get("soul_arc", 1.0)))
+        reaping["range"] = float(stats.get("range", 9.0)) + float(stats.get("soul_range", 0))
+        reaping["knockback"] = float(stats.get("knockback", 0)) * 1.5
+        heal = float(stats.get("soul_heal", 0)) * held
+        if heal > 0:
+            self.heal(player, heal, player)
+        player.send({"t": "souls", "n": 0, "max": int(stats.get("souls", 0)),
+                     "spent": held})
+        self.broadcast({"t": "fx", "k": "reap", "id": player.pid, "n": held})
+        return reaping
 
     def do_melee(self, player: Player, direction, stats: Dict[str, Any]) -> None:
         reach = float(stats.get("range", 9.0))
@@ -1159,6 +1215,8 @@ class GameInstance:
             killer.kills += 1
             killer.score += 10
             killer.streak += 1
+            if weapon_name == (killer.weapon() or {}).get("name"):
+                self.bank_soul(killer, [victim.pos[0], victim.pos[1] + 2.6, victim.pos[2]])
         elif killer is victim:
             victim.score = max(0, victim.score - 5)
         self.broadcast({
@@ -1350,7 +1408,8 @@ class GameInstance:
         payload: Dict[str, Any] = {"t": "snap", "k": self.tick_count, "ps": rows}
         if self.projectiles:
             payload["pr"] = [[p.ident, round(p.pos[0], 2), round(p.pos[1], 2),
-                              round(p.pos[2], 2)] for p in self.projectiles]
+                              round(p.pos[2], 2)] + (["pumpkin"] if p.kind == "pumpkin" else [])
+                             for p in self.projectiles]
         return payload
 
     def step_projectiles(self, dt: float) -> None:
@@ -1358,7 +1417,7 @@ class GameInstance:
             return
         alive: List[Projectile] = []
         for proj in self.projectiles:
-            proj.vel[1] -= GRAVITY * 0.35 * dt
+            proj.vel[1] -= GRAVITY * 0.35 * float(proj.stats.get("gravity_scale", 1.0)) * dt
             start = list(proj.pos)
             proj.pos[0] += proj.vel[0] * dt
             proj.pos[1] += proj.vel[1] * dt
@@ -1404,9 +1463,10 @@ class GameInstance:
         radius = float(stats.get("splash", 8.0))
         splash = float(stats.get("splash_damage", stats.get("damage", 50)))
         owner = self.players.get(proj.pid_owner)
-        weapon_name = "Blast Launcher"
+        weapon_name = proj.weapon or "Blast Launcher"
         self.broadcast({"t": "fx", "k": "explode", "p": proj.pos,
-                        "r": radius, "id": proj.ident})
+                        "r": radius, "id": proj.ident, "kind": proj.kind})
+        self.treat(proj, owner)
         for player in list(self.players.values()):
             if not player.alive:
                 continue
@@ -1436,6 +1496,31 @@ class GameInstance:
                                    push[2] * knock]})
             if damage > 0.5:
                 self.apply_damage(player, owner, damage, weapon_name, False)
+
+    def treat(self, proj: Projectile, owner: Optional[Player]) -> None:
+        """The Jack-o'-Launcher's candy: every teammate in the blast -- the
+        one who fired it too -- is patched up by ``treat_heal`` (less at the
+        edge of the blast, never less than half)."""
+        amount = float(proj.stats.get("treat_heal", 0) or 0)
+        if amount <= 0:
+            return
+        radius = float(proj.stats.get("splash", 8.0))
+        team = owner.team if owner is not None else proj.team
+        healed = 0
+        for player in list(self.players.values()):
+            if not player.alive or player.extra.get("downed"):
+                continue
+            if player is not owner and player.team != team:
+                continue
+            centre = [player.pos[0], player.pos[1] + 2.6, player.pos[2]]
+            distance = math.dist(centre, proj.pos)
+            if distance > radius:
+                continue
+            share = max(0.5, 1.0 - distance / radius)
+            if self.heal(player, amount * share, owner):
+                healed += 1
+        if healed and owner is not None:
+            owner.send({"t": "hit", "n": 0, "heal": healed})
 
     def tick(self) -> None:
         with self.lock:

@@ -168,12 +168,23 @@ class BlackoutRelay(CaptureTheFlag):
 
     def on_kill(self, killer: Optional[Player], victim: Player,
                 weapon_name: str) -> None:
+        # who was carrying is only knowable before the base class drops it
+        carrying = any(flag.carrier == victim.pid for flag in self.flags.values())
         super().on_kill(killer, victim, weapon_name)
         if killer is None or killer is victim:
             return
+        self.badge(killer, "br_kills")
+        if carrying:
+            self.badge(killer, "br_carrier_kills")
         home = self.flags.get(killer.team)
         if home is not None and math.dist(victim.pos, home.home) <= DEFENCE_RADIUS:
             killer.score += DEFENCE_POINTS
+            self.badge(killer, "br_defends")
+
+    def return_flag(self, flag: Flag, by: Optional[Player] = None) -> None:
+        super().return_flag(flag, by)
+        if by is not None:
+            self.badge(by, "br_returns")
 
     # ------------------------------------------------- overtime and the end
     def time_expired(self) -> None:
@@ -209,10 +220,24 @@ class BlackoutRelay(CaptureTheFlag):
         self.system_message("SUDDEN DEATH -- the next capture takes it!")
 
     def capture(self, player: Player, flag: Flag) -> None:
+        decider = self.sudden_death and self.phase == "active"
+        clutch = self.overtime and self.phase == "active"
         super().capture(player, flag)
+        self.badge(player, "br_captures")
+        if clutch:
+            self.badge(player, "br_clutch")
+        if decider:
+            self.badge(player, "br_sudden")
         if self.sudden_death and self.phase == "active":
             self.end_round(player.team,
                            "%s takes it in sudden death!" % player.team.upper())
+
+    def end_round(self, winner: str, reason: str = "") -> None:
+        if winner and self.phase == "active":
+            for player in self.players.values():
+                if player.team == winner:
+                    self.badge(player, "br_wins")
+        super().end_round(winner, reason)
 
     def restart_round(self) -> None:
         self.overtime = False

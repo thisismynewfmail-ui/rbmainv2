@@ -263,3 +263,185 @@
     paint(current());
   });
 })();
+
+/* Profile editor: the Badge Inventory.
+
+   The same gesture as the pinned items above -- drag a badge into one of the
+   four slots, drag it back out (or hit its x) to take it down, drop one on
+   another to swap, or just click it -- over badges rather than items. Locked
+   badges can be hovered (to see what they are for) but not picked up. */
+(function () {
+  'use strict';
+
+  var DRAG_SLOP = 6;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var pool = document.getElementById('badge-pool');
+    var row = document.getElementById('badge-slots');
+    if (!pool || !row) return;
+    var slots = row.querySelectorAll('[data-badge-slot]').length;
+    var status = document.getElementById('badge-status');
+
+    function esc(text) { return window.Site ? Site.escape(text) : String(text || ''); }
+    function field(i) { return document.getElementById('badge-field-' + i); }
+    function current() {
+      var out = [];
+      for (var i = 0; i < slots; i++) out.push((field(i) && field(i).value) || '');
+      return out;
+    }
+    function cardOf(id) { return pool.querySelector('[data-badge-pick="' + id + '"]'); }
+
+    function paint(list) {
+      pool.querySelectorAll('[data-badge-pick]').forEach(function (card) {
+        card.classList.toggle('on', !!card.dataset.badgePick && list.indexOf(card.dataset.badgePick) >= 0);
+      });
+      for (var i = 0; i < slots; i++) {
+        var box = row.querySelector('[data-badge-slot="' + i + '"]');
+        var id = list[i];
+        var info = id && window.Badges ? Badges.cards[id] : null;
+        if (!info) {
+          box.className = 'bi-slot';
+          box.removeAttribute('data-badge-pop');
+          box.removeAttribute('data-badge');
+          box.innerHTML = '<span class="slot-n">' + (i + 1) + '</span><span class="slot-hint">drag a badge here</span>';
+          continue;
+        }
+        box.className = 'bi-slot filled tier-' + info.tier;
+        box.dataset.badge = id;
+        box.dataset.badgePop = id;
+        box.style.setProperty('--tier', info.color);
+        box.style.setProperty('--glow', info.glow);
+        box.innerHTML = '<span class="slot-n">' + (i + 1) + '</span>' +
+          '<button type="button" class="slot-clear" data-badge-clear="' + i + '" title="Take it down">&times;</button>' +
+          '<div class="bt-stage"><canvas class="badge-3d" width="160" height="160" data-badge="' + esc(id) + '"></canvas></div>' +
+          '<b>' + esc(info.name) + '</b>';
+        if (window.Badges) Badges.render(box.querySelector('canvas'), info);
+      }
+      var used = list.filter(Boolean).length;
+      if (status) {
+        status.textContent = used
+          ? used + ' of ' + slots + ' shown on your profile. Save to keep it.'
+          : 'None picked: your profile shows your best four. Drag badges into the slots to choose.';
+      }
+    }
+
+    function write(list) {
+      for (var i = 0; i < slots; i++) if (field(i)) field(i).value = list[i] || '';
+      paint(list);
+    }
+
+    function place(id, index) {
+      var list = current();
+      var from = list.indexOf(id);
+      if (from === index) return;
+      var displaced = list[index];
+      list[index] = id;
+      if (from >= 0) list[from] = displaced;
+      write(list);
+    }
+
+    function takeDown(id) {
+      var list = current();
+      var at = list.indexOf(id);
+      if (at >= 0) { list[at] = ''; write(list); }
+    }
+
+    // ---------------------------------------------------------- dragging
+    var drag = null;
+    function tileFrom(node) {
+      var card = node.closest('#badge-pool [data-badge-pick]');
+      if (card && card.dataset.badgePick) return { id: card.dataset.badgePick, source: card };
+      var slot = node.closest('.bi-slot.filled[data-badge]');
+      if (slot) return { id: slot.dataset.badge, source: slot };
+      return null;
+    }
+    function hover(e) {
+      var under = document.elementFromPoint(e.clientX, e.clientY);
+      row.querySelectorAll('.bi-slot').forEach(function (n) { n.classList.remove('over'); });
+      if (!under) return null;
+      var slot = under.closest('[data-badge-slot]');
+      if (slot) { slot.classList.add('over'); return { kind: 'slot', node: slot }; }
+      if (under.closest('#badge-pool')) return { kind: 'pool' };
+      return null;
+    }
+    function startGhost() {
+      var info = window.Badges ? Badges.cards[drag.id] : null;
+      var ghost = document.createElement('div');
+      ghost.className = 'bi-ghost';
+      ghost.innerHTML = '<canvas width="120" height="120"></canvas>';
+      document.body.appendChild(ghost);
+      if (info && window.Badges) Badges.render(ghost.querySelector('canvas'), info);
+      drag.ghost = ghost;
+      document.body.classList.add('bi-dragging');
+      drag.source.classList.add('dragging');
+      if (window.Badges) Badges.hide(true);
+    }
+    document.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest('[data-badge-clear]')) return;
+      var tile = tileFrom(e.target);
+      if (!tile) return;
+      drag = { id: tile.id, source: tile.source, x: e.clientX, y: e.clientY,
+               pointerId: e.pointerId, moved: false, ghost: null };
+    });
+    document.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      if (!drag.moved) {
+        if (Math.abs(e.clientX - drag.x) < DRAG_SLOP && Math.abs(e.clientY - drag.y) < DRAG_SLOP) return;
+        drag.moved = true;
+        startGhost();
+      }
+      e.preventDefault();
+      drag.ghost.style.transform = 'translate(' + (e.clientX - 42) + 'px,' + (e.clientY - 48) + 'px)';
+      hover(e);
+    }, { passive: false });
+    function end(e, cancelled) {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      var target = drag.moved && !cancelled ? hover(e) : null;
+      if (drag.ghost) drag.ghost.remove();
+      drag.source.classList.remove('dragging');
+      document.body.classList.remove('bi-dragging');
+      row.querySelectorAll('.bi-slot').forEach(function (n) { n.classList.remove('over'); });
+      if (!drag.moved && !cancelled) {
+        var list = current();
+        if (list.indexOf(drag.id) >= 0) takeDown(drag.id);
+        else {
+          var free = list.indexOf('');
+          if (free < 0 && window.Site) Site.toast('All ' + slots + ' slots are full -- drag one out first, or drop this on one to swap.', 'bad');
+          else if (free >= 0) place(drag.id, free);
+        }
+      } else if (target && target.kind === 'slot') {
+        place(drag.id, parseInt(target.node.dataset.badgeSlot, 10));
+      } else if (target && target.kind === 'pool') {
+        takeDown(drag.id);
+      }
+      drag = null;
+    }
+    document.addEventListener('pointerup', function (e) { end(e, false); });
+    document.addEventListener('pointercancel', function (e) { end(e, true); });
+    row.addEventListener('click', function (e) {
+      var clear = e.target.closest('[data-badge-clear]');
+      if (!clear) return;
+      e.preventDefault();
+      var list = current();
+      list[parseInt(clear.dataset.badgeClear, 10)] = '';
+      write(list);
+    });
+
+    // ------------------------------------------------------------ filter
+    var filter = document.getElementById('badge-filter');
+    if (filter) {
+      filter.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-game]');
+        if (!b) return;
+        filter.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+        pool.querySelectorAll('.bi-card').forEach(function (card) {
+          card.style.display = !b.dataset.game || card.dataset.game === b.dataset.game ? '' : 'none';
+        });
+      });
+    }
+
+    // the badge cards arrive with the page; draw the slots once they are read
+    setTimeout(function () { paint(current()); }, 0);
+  });
+})();

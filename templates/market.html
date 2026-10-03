@@ -1,81 +1,311 @@
 {% include "partials/head.html" %}
-<div class="row">
-  <div class="col">
-    <div class="panel">
-      <div class="panel-head gold">
-        <span>The Market</span>
-        <span class="head-links">Hats have a <b>0.5%</b> chance of unboxing <b>UNUSUAL</b></span>
-      </div>
-      <div class="panel-body">
-        <div class="tabs">
-          {% for t in tabs %}
-          <a href="/market?slot={{ t[0] }}&sort={{ sort }}" class="{{ 'on' if slot == t[0] else '' }}">{{ t[1] }}</a>
-          {% endfor %}
-        </div>
-        <form class="inline-form" method="get" action="/market" style="margin-bottom:10px">
-          <input type="hidden" name="slot" value="{{ slot }}">
-          <input type="search" name="q" value="{{ term }}" placeholder="Search the catalogue" style="flex:1 1 180px;min-width:0">
-          <select name="sort">
-            <option value="featured" {{ 'selected' if sort == 'featured' else '' }}>Featured</option>
-            <option value="price_asc" {{ 'selected' if sort == 'price_asc' else '' }}>Price: low to high</option>
-            <option value="price_desc" {{ 'selected' if sort == 'price_desc' else '' }}>Price: high to low</option>
-            <option value="name" {{ 'selected' if sort == 'name' else '' }}>Name</option>
-          </select>
-          <button class="btn">Filter</button>
-          <span class="muted">{{ len(items) }} items</span>
-        </form>
+{% set event = events[0] if events else None %}
+<div class="mk" id="market" data-now="{{ now }}">
 
-        <div class="itemgrid">
-          {% for it in items %}
-          <div class="item" data-market-item="{{ it.id }}">
-            <div class="thumb-wrap">
-              <canvas class="thumb item-thumb" width="216" height="216" data-item="{{ it.id }}"></canvas>
-              <span class="tier-flag">Normal</span>
-              <span class="owned-flag {{ '' if owned.get(it.id) else 'hidden' }}"
-                    data-owned="{{ it.id }}" data-count="{{ owned.get(it.id) or 0 }}">Owned x{{ owned.get(it.id) or 0 }}</span>
-            </div>
-            <div class="meta">
-              <span class="iname" title="{{ it.name }}">{{ it.name }}</span>
-              <span class="islot">{{ it.slot_label }} &bull; {{ it.rarity }}</span>
-              <div class="spread" style="margin-top:5px">
-                <span class="price">{% if it.free %}Free{% else %}<span class="coin"></span> {{ fmt_num(it.price) }}{% endif %}</span>
-                {% if user %}
-                <button class="btn small primary" data-buy="{{ it.id }}" data-price="{{ it.price }}"
-                        data-name="{{ it.name }}" data-slot="{{ it.slot }}"
-                        data-unusual="{{ 1 if it.unusual_capable else 0 }}">Buy</button>
-                {% else %}
-                <a class="btn small" href="/login">Sign in</a>
-                {% endif %}
-              </div>
-              {% if it.unusual_capable %}<div class="tiny muted" style="margin-top:4px">Can roll Unusual</div>{% endif %}
-            </div>
+  {% if event and feature %}
+  {% set es = feature.series %}
+  <!-- ======================================================= the event hero
+       Everything sold here comes from the event's series (crates.EVENTS ->
+       crates.SERIES), so a new event is data plus a theme-<id> skin in
+       market.css; see reference_images_to_start_with/CRATES_AND_KEYS.md. -->
+  <section class="mk-hero theme-{{ event.id }}" data-event-ends="{{ event.ends }}">
+    <div class="mk-sky" aria-hidden="true">
+      <div class="mk-stars"></div>
+      <div class="mk-moon"><i></i><i></i><i></i></div>
+      <div class="mk-bats"><b></b><b></b><b></b><b></b><b></b></div>
+      <div class="mk-fog a"></div><div class="mk-fog b"></div>
+      <svg class="mk-graves" viewBox="0 0 1200 140" preserveAspectRatio="none">
+        <path d="M0 140 L0 96 Q60 70 120 92 T260 88 Q300 60 350 84 T470 80 Q540 52 600 82 T760 86 Q820 58 880 84 T1020 82 Q1100 64 1200 90 L1200 140 Z"/>
+        <path class="g" d="M90 140v-34a18 18 0 0 1 36 0v34zM210 140v-26h6v-10h8v10h6v26zM330 140v-40a22 22 0 0 1 44 0v40zM690 140v-30a16 16 0 0 1 32 0v30zM800 140v-22h5v-12h8v12h5v22zM960 140v-38a20 20 0 0 1 40 0v38zM1100 140v-28a14 14 0 0 1 28 0v28z"/>
+        <path class="t" d="M520 140 L528 70 L512 86 L520 60 L506 74 L516 40 L532 74 L524 64 L536 92 L528 84 L534 140 Z"/>
+      </svg>
+      <div class="mk-lanterns"><i></i><i></i><i></i></div>
+    </div>
+    <div class="mk-hero-copy">
+      <div class="mk-kicker"><span class="mk-live-dot"></span> Limited event &bull; Series #{{ es.number }}</div>
+      <h1 class="mk-title" data-text="{{ event.title }}">{{ event.title }}</h1>
+      <p class="mk-blurb">{{ event.blurb }}</p>
+      <div class="mk-countdown" aria-label="Time left in the event">
+        <div><b data-cd="d">--</b><span>days</span></div>
+        <div><b data-cd="h">--</b><span>hours</span></div>
+        <div><b data-cd="m">--</b><span>min</span></div>
+        <div><b data-cd="s">--</b><span>sec</span></div>
+      </div>
+      <div class="mk-cta">
+        {% if user %}
+        <button class="mk-btn hot" data-buy="{{ es.crate }}" data-name="{{ es.crate_name }}"
+                data-price="{{ es.crate_price }}" data-slot="crate" data-stack="1">
+          <span>Buy the Crate</span><em><span class="coin"></span> {{ fmt_num(es.crate_price) }}</em></button>
+        <button class="mk-btn" data-buy="{{ es.key }}" data-name="{{ es.key_name }}"
+                data-price="{{ es.key_price }}" data-slot="key" data-stack="1">
+          <span>Buy the Key</span><em><span class="coin"></span> {{ fmt_num(es.key_price) }}</em></button>
+        {% else %}
+        <a class="mk-btn hot" href="/login?next=/market"><span>Sign in to unbox</span></a>
+        {% endif %}
+        <button class="mk-btn ghost" data-contents="{{ es.id }}"><span>&#128269; What's inside?</span></button>
+      </div>
+      <div class="mk-chase" aria-label="In the {{ es.crate_name }}">
+        {% for item_id in feature.loot %}
+        <button class="mk-chase-item" data-contents="{{ es.id }}" title="See the odds">
+          <canvas class="item-thumb" width="96" height="96" data-item="{{ item_id }}"></canvas>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="mk-hero-stage">
+      <div class="mk-pedestal"><i></i></div>
+      <canvas class="mk-hero-crate" id="hero-crate" width="460" height="460"
+              data-item="{{ es.crate }}" data-glow="{{ feature.glow }}"
+              data-series="{{ es.id }}" data-effect="{{ feature.hero_effect }}"></canvas>
+      <div class="mk-unusual-tease">
+        <span class="mk-tease-k">&#9733; {{ es.unusual_chance }}% Unusual</span>
+        <span class="mk-tease-v">{{ ' \u2022 '.join(feature.effects) }}</span>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- =============================================================== live drops -->
+  <section class="mk-drops" id="drop-feed" aria-label="Live drops">
+    <span class="mk-drops-tag"><span class="mk-live-dot"></span> LIVE DROPS</span>
+    <div class="mk-drops-window">
+      <div class="mk-drops-track" id="drop-track">
+        {% for d in feed %}
+        <span class="mk-drop {{ 'unusual' if d.tier == 'unusual' else '' }}" style="--g:{{ d.color }}">
+          <b>{{ d.username }}</b> unboxed
+          <i>{{ ('Unusual ' + d.effect_name + ' ') if d.tier == 'unusual' else '' }}{{ d.name }}</i>
+          <small>{{ d.grade_label }}</small>
+        </span>
+        {% endfor %}
+        {% if not feed %}<span class="mk-drop empty">Nobody has opened a crate yet. Be the first name on the board.</span>{% endif %}
+      </div>
+    </div>
+    <span class="mk-drops-count"><b id="opened-count">{{ fmt_num(crate_stats.opened) }}</b> opened &bull;
+      <b style="color:#c98bff">{{ crate_stats.unusuals }}</b> Unusual</span>
+  </section>
+
+  {% if user %}
+  <!-- ================================================================ your stash -->
+  <section class="mk-stash" id="stash-bar">
+    <div class="mk-wallet">
+      <span class="mk-coin-big"></span>
+      <div><small>Your Noogets</small><b id="mk-wallet">{{ fmt_num(user.credits) }}</b></div>
+    </div>
+    {% for s in series %}
+    {% set held = stash.get(s.id) or {'crates': 0, 'keys': 0} %}
+    <div class="mk-stash-row theme-{{ s.theme }}" data-series="{{ s.id }}" style="--accent:{{ s.colors.accent }}">
+      <canvas class="item-thumb" width="88" height="88" data-item="{{ s.crate }}"></canvas>
+      <div class="mk-stash-txt">
+        <b>{{ s.crate_name }}</b>
+        <span><i data-count="crates">{{ held['crates'] }}</i> crate{{ '' if held['crates'] == 1 else 's' }}
+          &bull; <i data-count="keys">{{ held['keys'] }}</i> key{{ '' if held['keys'] == 1 else 's' }}</span>
+      </div>
+      <button class="mk-btn small open {{ '' if held['crates'] and held['keys'] else 'hidden' }}"
+              data-open-series="{{ s.id }}"><span>&#128275; Open now</span></button>
+    </div>
+    {% endfor %}
+    <a class="mk-stash-link" href="/inventory?slot=stash">Your crates &amp; keys &rarr;</a>
+  </section>
+  {% endif %}
+
+  <div class="row mk-row">
+    <div class="col">
+      <!-- ============================================================ crate hall -->
+      <section class="panel mk-hall">
+        <div class="panel-head gold">
+          <span>&#128273; The Crate Hall</span>
+          <span class="head-links">Every hat comes out of a crate now &mdash; any of them can be <b>Unusual</b></span>
+        </div>
+        <div class="panel-body">
+          <div class="mk-steps">
+            <div><i>1</i><b>Get a key</b><span>Keys open one crate each. Match the key to the crate.</span></div>
+            <div><i>2</i><b>Get a crate</b><span>500 Noogets. It lands in your inventory, under Crates &amp; Keys.</span></div>
+            <div><i>3</i><b>Open it</b><span>Click the key, then the crate &mdash; and watch the reel.</span></div>
           </div>
+          <div class="mk-showcase">
+            {% for s in series %}{% if s.active %}
+            {% for kind in ['key', 'crate'] %}
+            {% set item_id = s.key if kind == 'key' else s.crate %}
+            {% set price = s.key_price if kind == 'key' else s.crate_price %}
+            <article class="mk-show {{ kind }} theme-{{ s.theme }}" style="--accent:{{ s.colors.accent }};--glow:{{ s.colors.glow }}"
+                     data-tilt="1">
+              {% if s.event %}<span class="mk-ribbon">EVENT</span>{% elif kind == 'key' and loop.first %}<span class="mk-ribbon gold">START HERE</span>{% endif %}
+              <div class="mk-show-art">
+                <span class="mk-show-rays"></span>
+                <canvas class="item-thumb" width="260" height="260" data-item="{{ item_id }}"></canvas>
+                <span class="mk-shine"></span>
+              </div>
+              <div class="mk-show-body">
+                <small>{{ 'Key' if kind == 'key' else 'Crate' }} &bull; Series #{{ s.number }}</small>
+                <h3>{{ s.key_name if kind == 'key' else s.crate_name }}</h3>
+                <p>{{ ('Opens one ' + s.crate_name + '.') if kind == 'key' else s.tagline }}</p>
+                <div class="mk-show-foot">
+                  <span class="mk-price"><span class="coin"></span> {{ fmt_num(price) }}</span>
+                  <span class="mk-owned {{ '' if owned.get(item_id) else 'hidden' }}" data-owned="{{ item_id }}">x{{ owned.get(item_id) or 0 }}</span>
+                </div>
+                <div class="mk-show-actions">
+                  {% if user %}
+                  <div class="mk-qty" data-qty-for="{{ item_id }}">
+                    <button type="button" data-step="-1" aria-label="One fewer">&minus;</button>
+                    <input type="number" value="1" min="1" max="10" aria-label="How many">
+                    <button type="button" data-step="1" aria-label="One more">+</button>
+                  </div>
+                  <button class="mk-btn hot small" data-buy="{{ item_id }}" data-name="{{ s.key_name if kind == 'key' else s.crate_name }}"
+                          data-price="{{ price }}" data-slot="{{ kind }}" data-stack="1"><span>Buy</span></button>
+                  {% else %}
+                  <a class="mk-btn small" href="/login?next=/market"><span>Sign in</span></a>
+                  {% endif %}
+                </div>
+                <button class="mk-link" data-contents="{{ s.id }}">Contents &amp; odds &rarr;</button>
+              </div>
+            </article>
+            {% endfor %}
+            {% endif %}{% endfor %}
+          </div>
+
+          {% if offers %}
+          <h3 class="mk-sub">Bundles</h3>
+          <div class="mk-offers">
+            {% for o in offers %}
+            {% set s = [x for x in series if x.id == o.series][0] %}
+            <article class="mk-offer theme-{{ s.theme }}" style="--accent:{{ s.colors.accent }}">
+              <span class="mk-save">SAVE {{ fmt_num(o.value - o.price) }}</span>
+              <div class="mk-offer-art">
+                <canvas class="item-thumb" width="120" height="120" data-item="{{ s.crate }}"></canvas>
+                <canvas class="item-thumb k" width="90" height="90" data-item="{{ s.key }}"></canvas>
+              </div>
+              <div class="mk-offer-body">
+                <b>{{ o.name }}</b>
+                <span>{{ o.blurb }}</span>
+                <div class="mk-show-foot">
+                  <span class="mk-price"><span class="coin"></span> {{ fmt_num(o.price) }}
+                    <s>{{ fmt_num(o.value) }}</s></span>
+                  {% if user %}
+                  <button class="mk-btn small hot" data-offer="{{ o.id }}" data-name="{{ o.name }}"
+                          data-price="{{ o.price }}" data-series="{{ o.series }}"><span>Grab it</span></button>
+                  {% endif %}
+                </div>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- ===================================================== the spotlight -->
+      <section class="panel mk-spot" id="spotlight">
+        <div class="panel-head purple">
+          <span>&#9733; From the crates</span>
+          <span class="head-links">What could be waiting in yours</span>
+        </div>
+        <div class="panel-body mk-spot-body">
+          <div class="mk-spot-stage">
+            <canvas id="spot-canvas" width="360" height="360"></canvas>
+            <div class="mk-spot-fx" id="spot-fx">Unusual: <b>&mdash;</b></div>
+          </div>
+          <div class="mk-spot-list" id="spot-list">
+            {% for it in spotlight %}
+            <button class="mk-spot-pick {{ 'on' if loop.first else '' }}" data-spot="{{ it.id }}"
+                    data-name="{{ it.name }}" data-rarity="{{ it.rarity }}" data-desc="{{ it.description }}"
+                    data-crate="{{ 'halloween' if it.get('event') else 'classic' }}">
+              <canvas class="item-thumb" width="96" height="96" data-item="{{ it.id }}"></canvas>
+              <span><b>{{ it.name }}</b><i class="r-{{ it.rarity }}">{{ it.rarity }}</i></span>
+            </button>
+            {% endfor %}
+          </div>
+          <div class="mk-spot-copy" id="spot-copy"></div>
+        </div>
+      </section>
+
+      <!-- ========================================================= the aisles -->
+      <section class="panel mk-aisles" id="aisles">
+        <div class="panel-head">
+          <span>The Aisles</span>
+          <span class="head-links">{{ len(items) }} item{{ '' if len(items) == 1 else 's' }}</span>
+        </div>
+        <div class="panel-body">
+          <nav class="mk-tabs">
+            {% for t in tabs %}
+            <a href="/market?slot={{ t[0] }}&sort={{ sort }}#aisles" class="{{ 'on' if slot == t[0] else '' }} ic-{{ t[2] }}">{{ t[1] }}</a>
+            {% endfor %}
+          </nav>
+          <form class="mk-filter" method="get" action="/market#aisles">
+            <input type="hidden" name="slot" value="{{ slot }}">
+            <input type="search" name="q" value="{{ term }}" placeholder="Search the shelves">
+            <select name="sort" onchange="this.form.submit()">
+              <option value="featured" {{ 'selected' if sort == 'featured' else '' }}>Featured</option>
+              <option value="price_asc" {{ 'selected' if sort == 'price_asc' else '' }}>Price: low to high</option>
+              <option value="price_desc" {{ 'selected' if sort == 'price_desc' else '' }}>Price: high to low</option>
+              <option value="name" {{ 'selected' if sort == 'name' else '' }}>Name</option>
+            </select>
+            <button class="btn">Search</button>
+          </form>
+          <div class="mk-grid">
+            {% for it in items %}
+            <article class="mk-card r-{{ it.rarity }} {{ 'stash' if it.stackable else '' }}" data-market-item="{{ it.id }}"
+                     style="--rc:{{ it.rarity_color }}" data-tilt="1">
+              {% if it.event %}<span class="mk-ribbon">EVENT</span>{% elif it.is_new %}<span class="mk-ribbon new">NEW</span>{% endif %}
+              <div class="mk-card-art">
+                <canvas class="item-thumb" width="216" height="216" data-item="{{ it.id }}"></canvas>
+                <span class="mk-shine"></span>
+                <span class="mk-owned {{ '' if owned.get(it.id) else 'hidden' }}" data-owned="{{ it.id }}">x{{ owned.get(it.id) or 0 }}</span>
+              </div>
+              <div class="mk-card-body">
+                <span class="mk-card-name" title="{{ it.name }}">{{ it.name }}</span>
+                <span class="mk-card-meta">{{ it.slot_label }} <i>{{ it.rarity }}</i></span>
+                <div class="mk-card-foot">
+                  <span class="mk-price">{% if it.free %}Free{% else %}<span class="coin"></span> {{ fmt_num(it.price) }}{% endif %}</span>
+                  {% if user %}
+                  <button class="mk-btn tiny" data-buy="{{ it.id }}" data-price="{{ it.price }}"
+                          data-name="{{ it.name }}" data-slot="{{ it.slot }}"
+                          data-stack="{{ 1 if it.stackable else 0 }}"><span>Buy</span></button>
+                  {% else %}
+                  <a class="mk-btn tiny" href="/login?next=/market"><span>Sign in</span></a>
+                  {% endif %}
+                </div>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+          {% if not items %}<p class="muted">Nothing on these shelves matches that.</p>{% endif %}
+        </div>
+      </section>
+    </div>
+
+    <div class="col-narrow mk-side">
+      <div class="panel">
+        <div class="panel-head purple">Crate odds</div>
+        <div class="panel-body">
+          {% for s in series %}{% if s.active %}
+          <div class="mk-odds" data-odds="{{ s.id }}">
+            <b>{{ s.crate_name }}</b>
+            <div class="mk-oddsbar" data-oddsbar="{{ s.id }}"><i style="flex:1;background:var(--line-soft)"></i></div>
+            <div class="mk-oddskey tiny" data-oddskey="{{ s.id }}"></div>
+            <span class="tiny">&#9733; <b style="color:var(--unusual-ink)">{{ s.unusual_chance }}%</b> of hats come out Unusual</span>
+            <button class="mk-link" data-contents="{{ s.id }}">Every item &amp; its odds &rarr;</button>
+          </div>
+          {% endif %}{% endfor %}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head gold">Grades</div>
+        <div class="panel-body mk-grades">
+          {% for gid in ['common', 'uncommon', 'rare', 'legendary', 'mythic'] %}
+          <span style="--g:{{ grades[gid].color }}"><i></i>{{ grades[gid].label }}</span>
           {% endfor %}
+          <span class="unusual"><i></i>Unusual &mdash; any hat, plus a permanent effect</span>
         </div>
-        {% if not items %}<p class="muted">Nothing matches that search.</p>{% endif %}
       </div>
-    </div>
-  </div>
-
-  <div class="col-narrow">
-    <div class="panel">
-      <div class="panel-head purple">Item tiers</div>
-      <div class="panel-body">
-        <p><span class="tier-flag static">Normal</span>
-           The standard finish every item ships with. The glow on the tile is the tier &mdash;
-           hover an item to read it.</p>
-        <p><span class="tier-flag unusual static">Unusual</span>
-           A 0.5% roll on <b>hat purchases only</b>. Unusual hats carry a permanent particle effect
-           that follows you into every world.</p>
-        <hr>
-        <h3>Known effects</h3>
-        <div class="tiny">
-          {% for eid, e in effects.items() %}<span class="pill purple" style="margin:2px 0">{{ e.name }}</span> {% endfor %}
+      <div class="panel">
+        <div class="panel-head">Unusual effects</div>
+        <div class="panel-body tiny mk-fx-list">
+          {% for eid, e in effects.items() %}<span class="pill purple {{ 'event' if e.get('event') else '' }}">{{ e.name }}</span> {% endfor %}
         </div>
       </div>
     </div>
-
   </div>
 </div>
+<script type="application/json" id="crate-data">{{& to_json({'series': series, 'stash': stash}) }}</script>
 {% set page_script = "/static/js/ui/market.js" %}
 {% include "partials/foot.html" %}

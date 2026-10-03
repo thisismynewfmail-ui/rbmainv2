@@ -353,7 +353,7 @@ def test_relay_drop() -> None:
 # ------------------------------------------------------------------ combat
 def test_combat() -> None:
     print("\n== combat, damage and the kill feed ==")
-    bots = spawn_bots("capture_the_flag", 2)
+    bots = spawn_bots("blackout_relay", 2)
     try:
         attacker = next((b for b in bots if b.me.get("team") == "blue"), bots[0])
         victim = next((b for b in bots if b is not attacker), bots[1])
@@ -362,11 +362,14 @@ def test_combat() -> None:
         wait_for_active(bots)
         pump(bots, 2.4)   # let spawn protection expire
 
-        # Meet in the open field: firing through a fort wall is (correctly)
-        # blocked by the server's line-of-sight check.
-        meeting = [70.0, 0.4, -20.0]
+        # Meet in the open: firing through a wall is (correctly) blocked by
+        # the server's line-of-sight check.  Two of the blue muster spots in
+        # the Relay stand in one clear row.
+        musters = victim.map.get("markers", {}).get("muster_blue") or []
+        meeting = list(musters[1]["p"]) if len(musters) > 1 else [77.0, 3.0, -42.0]
+        other = list(musters[0]["p"]) if musters else [89.0, 3.0, -42.0]
         close_in(victim, [attacker], meeting, 0.6)
-        close_in(attacker, [victim], [meeting[0], meeting[1], meeting[2] + 9], 0.6)
+        close_in(attacker, [victim], other, 0.6)
         pump(bots, 1.2)
         dx = victim.pos[0] - attacker.pos[0]
         dy = 0.0
@@ -404,7 +407,7 @@ def test_combat() -> None:
 # ------------------------------------------------------------- anti-cheat
 def test_anticheat() -> None:
     print("\n== movement validation ==")
-    bots = spawn_bots("capture_the_flag", 1)
+    bots = spawn_bots("blackout_relay", 1)
     bot = bots[0]
     try:
         pump(bots, 1.0)
@@ -621,12 +624,12 @@ def test_instances() -> None:
     import urllib.request
     bots = []
     try:
-        # capture_the_flag holds 16, so seventeen *different* players force a
+        # one more *different* player than Blackout Relay holds forces a
         # second instance.  One session per account is enforced now, so these
-        # have to be seventeen accounts rather than seventeen sockets.
-        accounts = sim_accounts(17)
+        # have to be separate accounts rather than extra sockets.
+        accounts = sim_accounts(INSTANCE_WORLD_CAP + 1)
         for user, password in accounts:
-            bot = Bot(HOST, PORT, user, password, "capture_the_flag", tls=TLS)
+            bot = Bot(HOST, PORT, user, password, INSTANCE_WORLD, tls=TLS)
             bot.start()
             bots.append(bot)
         pump(bots, 3.5)
@@ -635,11 +638,11 @@ def test_instances() -> None:
         with _open(
                 "%s://%s:%d/api/worlds/status" % (SCHEME, HOST, PORT), timeout=8) as fh:
             status = json.loads(fh.read().decode())
-        ctf = status["worlds"]["capture_the_flag"]
+        ctf = status["worlds"][INSTANCE_WORLD]
         check("instances: a second instance opened once the first filled",
               ctf["instances"] >= 2, json.dumps(ctf)[:200])
         check("instances: every player is accounted for",
-              ctf["players"] >= 17, json.dumps(ctf["instance_list"]))
+              ctf["players"] >= INSTANCE_WORLD_CAP + 1, json.dumps(ctf["instance_list"]))
         check("instances: no instance exceeds its capacity",
               all(i["count"] <= i["max"] for i in ctf["instance_list"]),
               json.dumps(ctf["instance_list"]))
@@ -657,10 +660,10 @@ def test_visits() -> None:
     def visits() -> int:
         with _open(
                 "%s://%s:%d/api/worlds/status" % (SCHEME, HOST, PORT), timeout=8) as fh:
-            return json.loads(fh.read().decode())["worlds"]["burger_tycoon"]["visits"]
+            return json.loads(fh.read().decode())["worlds"]["last_light"]["visits"]
 
     before = visits()
-    bots = spawn_bots("burger_tycoon", 1)
+    bots = spawn_bots("last_light", 1)
     try:
         pump(bots, 12)
         mid = visits()
@@ -686,7 +689,7 @@ def test_hotbar() -> None:
     with them empty.  So this drives the wire directly rather than the key.
     """
     print("\n== hotbar: drawing and stowing ==")
-    bots = spawn_bots("capture_the_flag", 2)
+    bots = spawn_bots("blackout_relay", 2)
     try:
         holder, watcher = bots[0], bots[1]
         check("hotbar: both bots joined",
@@ -826,6 +829,16 @@ def test_survival() -> None:
             bot.stop()
 
 
+# The world the instance-overflow test fills, and how many it holds.
+INSTANCE_WORLD = "blackout_relay"
+INSTANCE_WORLD_CAP = 24
+
+# Scenarios for worlds that are hidden now (Capture the Flag, Fortress Team 2
+# and Burger Tycoon do not run as instances any more).  They are kept for the
+# day those worlds come back, and skipped unless named on the command line.
+LEGACY = {"ctf": "capture_the_flag", "payload": "fortress_team_2",
+          "tycoon": "burger_tycoon", "vote": "capture_the_flag"}
+
 SCENARIOS = {
     "ctf": test_ctf,
     "relay": test_relay,
@@ -843,11 +856,15 @@ SCENARIOS = {
 
 
 def main(argv: List[str]) -> int:
-    names = argv or list(SCENARIOS)
+    names = argv or [n for n in SCENARIOS if n not in LEGACY]
     for name in names:
         fn = SCENARIOS.get(name)
         if fn is None:
             print("unknown scenario:", name)
+            continue
+        if name in LEGACY:
+            print("\n== %s: skipped -- %s is hidden and has no running host =="
+                  % (name, LEGACY[name]))
             continue
         try:
             fn()

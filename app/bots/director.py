@@ -61,6 +61,12 @@ SNAPSHOT_MAX_AGE = 20 * 60
 
 WORLD_IDS: List[str] = [w["id"] for w in world_registry.WORLDS]
 WORLD_INDEX = {wid: i for i, wid in enumerate(WORLD_IDS)}
+# Hidden worlds keep their index (snapshots store worlds by position) but a
+# bot is never sent into one: their weight is always zero.
+OPEN_WORLDS = frozenset(wid for wid in WORLD_IDS if world_registry.is_open(wid))
+# Chance an idle bot opens a crate when it next looks round (crates.bot_unbox):
+# a handful a minute across a few thousand online bots.
+UNBOX_CHANCE = 0.015
 
 # per-bot traits the director itself reads, as float arrays
 TRAIT_ARRAYS = ("activity", "night", "weekend", "session", "gamer", "social",
@@ -574,6 +580,8 @@ class Director:
             if self._wants_game(i, want_playing):
                 if self._join_world(i, now):
                     return
+            if self.rng.random() < UNBOX_CHANCE:
+                self._unbox(i)
             self._schedule(i, now + self.rng.randint(120, 900))
             return
         if state == PLAYING:
@@ -581,6 +589,22 @@ class Director:
             self._leave_world(i, now, "left the server")
             b_lo, b_hi = bot_config.get("worlds.break_minutes") or [2, 18]
             self._schedule(i, now + int(_between(self.rng, (b_lo, b_hi)) * 60) + 5)
+
+    def _unbox(self, i: int) -> None:
+        """An idle bot wanders into the market and opens a crate, paying the
+        same price at the same odds as anyone -- the drop feed has a crowd in
+        it, and a bot's Unusual is as real as a person's.  Off the director's
+        thread: it is a write transaction, and the tick holds the lock."""
+        uid = int(self.uids[i])
+        seed = self.rng.random()
+
+        def go() -> None:
+            try:
+                from ..models import crates
+                crates.bot_unbox(uid, random.Random(seed))
+            except Exception:
+                traceback.print_exc()
+        threading.Thread(target=go, daemon=True, name="bots-unbox").start()
 
     def _wants_game(self, i: int, want_playing: int) -> bool:
         if not bot_config.get("worlds.enabled") or not self._any_host():
@@ -702,7 +726,7 @@ class Director:
         weights = bot_config.get("worlds.world_weights") or {}
         out = []
         for w, wid in enumerate(WORLD_IDS):
-            if wid not in self._hosts_up:
+            if wid not in self._hosts_up or wid not in OPEN_WORLDS:
                 out.append(0.0)
                 continue
             base = self.wpref[w][i] * float(weights.get(wid, 1.0))
@@ -763,7 +787,8 @@ class Director:
         for fid in friend_ids[:40]:
             j = self.index_of(fid)
             if j >= 0:
-                if self.state[j] == PLAYING and self.world[j] != NO_WORLD:
+                if self.state[j] == PLAYING and self.world[j] != NO_WORLD \
+                        and WORLD_IDS[self.world[j]] in OPEN_WORLDS:
                     return WORLD_IDS[self.world[j]], int(self.inst[j])
                 continue
             where = registry.human_place(fid)
@@ -1096,7 +1121,7 @@ class Director:
         room is woken -- mid-round, busy, alive -- and failing that the host
         opens a fresh one.
         """
-        if world not in self.dormant:
+        if world not in self.dormant or world not in OPEN_WORLDS:
             return prefer
         now = _now()
         info = world_registry.get(world)
@@ -1339,6 +1364,12 @@ class Director:
             self.loaded = True
         self.started = time.time()
         try:
+            # bots from before badges existed get the ones their record earns
+            from . import factory
+            factory.backfill_badges()
+        except Exception:
+            traceback.print_exc()
+        try:
             from . import llm
             threading.Thread(target=lambda: llm.client().probe(True),
                              daemon=True, name="bots-probe").start()
@@ -1461,7 +1492,8 @@ class Director:
 
     def _warm_join(self, i: int, now: int) -> None:
         weights = [self.wpref[w][i] * float((bot_config.get("worlds.world_weights") or {})
-                                            .get(wid, 1.0)) for w, wid in enumerate(WORLD_IDS)]
+                                            .get(wid, 1.0)) if wid in OPEN_WORLDS else 0.0
+                   for w, wid in enumerate(WORLD_IDS)]
         if sum(weights) <= 0:
             return
         world = self.rng.choices(WORLD_IDS, weights)[0]

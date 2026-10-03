@@ -13,6 +13,8 @@ from .. import db
 WORLDS: List[Dict[str, Any]] = [
     {
         "id": "burger_tycoon",
+        # Retired from the browser: no page, no host, no bots (see HIDDEN_WORLDS).
+        "hidden": True,
         "name": "Burger Tycoon",
         "genre": "Tycoon",
         "creator": "BLOCKHAVEN",
@@ -35,6 +37,8 @@ WORLDS: List[Dict[str, Any]] = [
     },
     {
         "id": "capture_the_flag",
+        # Retired from the browser: no page, no host, no bots (see HIDDEN_WORLDS).
+        "hidden": True,
         "name": "Capture The Flag",
         "genre": "Classic Shooter",
         "creator": "BLOCKHAVEN",
@@ -56,6 +60,8 @@ WORLDS: List[Dict[str, Any]] = [
     },
     {
         "id": "fortress_team_2",
+        # Retired from the browser: no page, no host, no bots (see HIDDEN_WORLDS).
+        "hidden": True,
         "name": "Fortress Team 2",
         "genre": "Objective Shooter",
         "creator": "BLOCKHAVEN",
@@ -226,12 +232,40 @@ WORLDS: List[Dict[str, Any]] = [
 WORLDS = [db.AttrDict(w) for w in WORLDS]
 WORLDS_BY_ID: Dict[str, Dict[str, Any]] = {w["id"]: w for w in WORLDS}
 
+# Worlds that are switched off.  They stay in WORLDS -- the bot director
+# stores each bot's world as an index into that list, so removing one would
+# shift every index after it -- but nothing outside this module ever sees
+# them: no page, no Play button, no game host process, no join ticket, and no
+# bot can be sent into one.  A sleeping round left over in a director
+# snapshot from before a world was hidden is dropped when the snapshot loads,
+# because ``get`` no longer answers for it.
+HIDDEN_WORLDS = frozenset(w["id"] for w in WORLDS if w.get("hidden"))
+
 
 def get(world_id: str) -> Optional[Dict[str, Any]]:
+    """A world that is open to play, or None (unknown or hidden)."""
+    if world_id in HIDDEN_WORLDS:
+        return None
     return WORLDS_BY_ID.get(world_id)
 
 
+def get_any(world_id: str) -> Optional[Dict[str, Any]]:
+    """Any world in the registry, hidden or not -- for development tools that
+    deliberately run a retired world's rules headless."""
+    return WORLDS_BY_ID.get(world_id)
+
+
+def is_open(world_id: str) -> bool:
+    return world_id in WORLDS_BY_ID and world_id not in HIDDEN_WORLDS
+
+
 def all_worlds() -> List[Dict[str, Any]]:
+    """Every world that is open to play, in registry order."""
+    return [w for w in WORLDS if w["id"] not in HIDDEN_WORLDS]
+
+
+def every_world() -> List[Dict[str, Any]]:
+    """The whole registry, hidden worlds included."""
     return list(WORLDS)
 
 

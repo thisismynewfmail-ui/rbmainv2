@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ..http import router as R
 from ..http.router import Request
-from ..models import avatars, catalog, inventory
+from ..models import avatars, badges, catalog, inventory
 from .base import api_error, api_ok, login_required, render, router
 
 
@@ -32,6 +32,8 @@ def avatar_editor(req: Request):
         body_types=catalog.BODY_TYPES,
         body_type_labels=catalog.BODY_TYPE_LABELS,
         body_type_options=catalog.BODY_TYPE_OPTIONS,
+        badge_cards=[b for b in badges.collection(uid) if b["earned"]],
+        worn_badge=badges.worn_of(uid),
     )
 
 
@@ -77,6 +79,19 @@ def equip(req: Request):
     except avatars.AvatarError as exc:
         return api_error(str(exc))
     return api_ok(avatar=avatars.descriptor(int(req.user["id"]),
+                                            req.user["username"]))
+
+
+@router.post("/api/avatar/badge")
+@login_required
+def wear_badge(req: Request):
+    """Pin one earned badge to the character's chest ("" takes it off)."""
+    try:
+        worn = badges.set_worn(int(req.user["id"]), str(req.data().get("badge_id", "") or ""))
+    except ValueError as exc:
+        return api_error(str(exc))
+    return api_ok(badge=worn,
+                  avatar=avatars.descriptor(int(req.user["id"]),
                                             req.user["username"]))
 
 

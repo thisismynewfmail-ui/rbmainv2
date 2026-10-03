@@ -66,8 +66,21 @@ def site_ticker() -> str:
                         % (row["username"], ago(row["created_at"])))
         else:
             bits.append("%s is one of the newest noogers here" % row["username"])
+    from ..models import crates
+    for event in crates.active_events():
+        bits.append("EVENT: %s is on -- %d day%s left to open a Hallowed Harvest crate"
+                    % (event["name"], event["seconds_left"] // 86400,
+                       "" if event["seconds_left"] // 86400 == 1 else "s")
+                    if event["ends"] else "EVENT: %s is on" % event["name"])
+    for row in crates.recent_openings(6):
+        if row["tier"] == "unusual":
+            bits.append("%s UNBOXED an UNUSUAL %s (%s)!"
+                        % (row["username"], row["name"], row["effect_name"]))
+        elif row["grade"] in ("legendary", "mythic"):
+            bits.append("%s just unboxed the %s %s"
+                        % (row["username"], row["grade_label"].lower(), row["name"]))
     for row in inventory.unusual_showcase(3):
-        bits.append("%s pulled an UNUSUAL %s (%s)"
+        bits.append("%s owns an UNUSUAL %s (%s)"
                     % (row["username"], row["name"], row["effect_name"]))
     for row in inventory.notable_finds(4):
         bits.append("%s now owns the %s %s"
@@ -78,8 +91,8 @@ def site_ticker() -> str:
             bits.append("%s: %d playing across %d instance%s"
                         % (world["name"], status["players"], status["instances"],
                            "" if status["instances"] == 1 else "s"))
-    bits.append("Hats are the only slot that can roll Unusual -- 0.5% a purchase")
-    bits.append("New here? Grab 2,000 Noogets and go buy a hat.")
+    bits.append("Hats come out of crates now -- every crate can be an Unusual")
+    bits.append("New here? You start with 2,000 Noogets: a crate and a key are 1,000")
     text = "  \u2022  ".join(bits)
     TICKER_CACHE["at"] = time.time()
     TICKER_CACHE["text"] = text

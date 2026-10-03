@@ -120,7 +120,7 @@ def world_status(world_id: str) -> Dict[str, Any]:
 
 def all_status() -> Dict[str, Dict[str, Any]]:
     from ..models import worlds
-    return {w["id"]: world_status(w["id"]) for w in worlds.WORLDS}
+    return {w["id"]: world_status(w["id"]) for w in worlds.all_worlds()}
 
 
 def total_players() -> int:

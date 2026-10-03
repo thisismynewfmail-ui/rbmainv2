@@ -56,6 +56,27 @@ def load_world_class(world_id: str):
     return cls
 
 
+def with_badge_model(avatar: Dict[str, Any]) -> Dict[str, Any]:
+    """The ticket carries the worn badge as just its id and level (the ticket
+    rides in the socket URL, and a Mythic badge is sixty-odd parts); the
+    model is rebuilt here from the same catalogue the web server uses."""
+    badge = avatar.get("badge") if isinstance(avatar, dict) else None
+    if not isinstance(badge, dict) or badge.get("parts"):
+        return avatar
+    try:
+        from app.models import badges as badge_catalogue
+        if badge.get("id") in badge_catalogue.BADGES:
+            badge = dict(badge)
+            badge["parts"] = badge_catalogue.model(str(badge["id"]),
+                                                   int(badge.get("level", 1) or 1))
+            avatar = dict(avatar)
+            avatar["badge"] = badge
+    except Exception:
+        if config.DEBUG:
+            traceback.print_exc()
+    return avatar
+
+
 class GameHost:
     def __init__(self, world_id: str, port: int, web_port: int):
         self.world_id = world_id
@@ -73,6 +94,8 @@ class GameHost:
         self.tick_ms = 0.0
         self.reports: List[Dict[str, Any]] = []
         self.report_lock = threading.Lock()
+        # badge stats counted since the last heartbeat, (uid, stat, mode) -> n
+        self.badge_tally: Dict[Any, int] = {}
         self.running = True
         self.connections = 0
         # --- bots ------------------------------------------------------
@@ -219,6 +242,60 @@ class GameHost:
         self.queue_report({"kind": "round", "world": self.world_id,
                            "user_id": player.user_id, "won": bool(won)})
 
+    def report_badge(self, player, stat: str, amount: int = 1,
+                     mode: str = "add") -> None:
+        """Count towards a badge (app/models/badges.py).
+
+        Tallied here and sent with the next heartbeat as one report per
+        player, so forty kills in a wave are one row update on the web
+        server rather than forty.  ``mode`` is ``add`` for a running count
+        and ``max`` for a best-ever (the highest wave cleared)."""
+        uid = int(getattr(player, "user_id", 0) or 0)
+        if uid <= 0 or not stat or amount <= 0:
+            return
+        key = (uid, stat, mode)
+        with self.report_lock:
+            if mode == "max":
+                self.badge_tally[key] = max(self.badge_tally.get(key, 0), int(amount))
+            else:
+                self.badge_tally[key] = self.badge_tally.get(key, 0) + int(amount)
+
+    def _drain_badges(self) -> List[Dict[str, Any]]:
+        """The tally as reports; called with ``report_lock`` held."""
+        tally, self.badge_tally = self.badge_tally, {}
+        grouped: Dict[int, List[List[Any]]] = {}
+        for (uid, stat, mode), amount in tally.items():
+            grouped.setdefault(uid, []).append([stat, amount, mode])
+        return [{"kind": "badges", "world": self.world_id, "user_id": uid,
+                 "stats": stats} for uid, stats in grouped.items()]
+
+    def announce_badges(self, events: List[Dict[str, Any]]) -> None:
+        """Level-ups the web server worked out from our reports: a toast for
+        the player who earned it and a line in the chat for everyone else."""
+        with self.lock:
+            instances = list(self.instances)
+        for event in events or []:
+            try:
+                uid = int(event.get("uid", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            for instance in instances:
+                with instance.lock:
+                    for player in list(instance.players.values()):
+                        if player.user_id != uid:
+                            continue
+                        message = {"t": "badge"}
+                        for key in ("id", "name", "level", "tier", "tier_label",
+                                    "color", "glow", "rank", "emblem", "family",
+                                    "first", "value", "title"):
+                            message[key] = event.get(key)
+                        player.send(message)
+                        verb = "earned" if event.get("first") else "levelled up"
+                        instance.system_message(
+                            "%s %s the %s badge -- %s %s!" % (
+                                player.username, verb, event.get("name", ""),
+                                event.get("tier_label", ""), event.get("rank", "")))
+
     def queue_report(self, payload: Dict[str, Any]) -> None:
         with self.report_lock:
             self.reports.append(payload)
@@ -253,7 +330,7 @@ class GameHost:
                     if report:
                         chat.append(report)
         with self.report_lock:
-            reports = self.reports
+            reports = self.reports + self._drain_badges()
             self.reports = []
             sleepers, self.sleepers = self.sleepers, []
             left, self.bots_left = self.bots_left, []
@@ -305,6 +382,8 @@ class GameHost:
         if isinstance(reply.get("cfg"), dict):
             self.bot_cfg = reply["cfg"]
             self.bot_cfg_version = int(reply["cfg"].get("v", -1))
+        if reply.get("badges"):
+            self.announce_badges(reply["badges"])
         reserve = int(reply.get("reserve", 0) or 0)
         if reserve:
             with self.lock:
@@ -466,7 +545,8 @@ class GameHost:
         instance = self.pick_instance(prefer)
         player = instance.add_player(
             int(ticket.get("uid", 0)), str(ticket.get("name", "Player")),
-            ticket.get("avatar") or {}, ws, bool(ticket.get("admin")))
+            with_badge_model(ticket.get("avatar") or {}), ws,
+            bool(ticket.get("admin")))
         self.connections += 1
         try:
             while True:

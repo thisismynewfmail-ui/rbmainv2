@@ -109,6 +109,11 @@ def join_ticket(req: Request):
     if previous:
         db.audit(uid, "game.takeover", world_id, {"dropped": previous})
     avatar = avatars.descriptor(uid, req.user["username"])
+    if avatar.get("badge"):
+        # the ticket goes in the socket URL: the host rebuilds the badge's
+        # model from its id and level (app/game/host.py, with_badge_model)
+        avatar["badge"] = {k: avatar["badge"][k] for k in
+                           ("id", "name", "level", "tier", "tier_label", "rank")}
     ticket = security.sign({
         "uid": uid,
         "name": req.user["username"],

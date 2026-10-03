@@ -337,6 +337,49 @@
         }
       });
     }],
+    ['ghost', function (c) {
+      // a sheet ghost: round head, a body that flares into a wavy hem, two
+      // eyes and a little "o" of a mouth punched through
+      c.beginPath();
+      c.arc(64, 50, 32, Math.PI, 0);
+      c.lineTo(96, 96);
+      for (var k = 0; k < 4; k++) {
+        var x0 = 96 - k * 16;
+        c.quadraticCurveTo(x0 - 4, 112, x0 - 8, 100);
+        c.quadraticCurveTo(x0 - 12, 90, x0 - 16, 104);
+      }
+      c.lineTo(32, 50);
+      c.closePath(); c.fill();
+      punch(c, function () {
+        c.beginPath(); c.ellipse(52, 52, 6, 9, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(76, 52, 6, 9, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(64, 72, 5, 6, 0, 0, Math.PI * 2); c.fill();
+      });
+    }],
+    ['candycorn', function (c) {
+      // three bands: the tint shows full at the tip, darker in the middle,
+      // darkest at the base -- yellow, orange and white once tinted warm
+      poly(c, [[64, 14], [96, 104], [32, 104]]);
+      c.fillStyle = '#c8c8c8';
+      poly(c, [[52, 48], [76, 48], [88, 82], [40, 82]]);
+      c.fillStyle = '#9a9a9a';
+      poly(c, [[40, 82], [88, 82], [96, 104], [32, 104]]);
+    }],
+    ['sweet', function (c) {
+      // a round boiled sweet with a swirl
+      c.beginPath(); c.arc(64, 64, 34, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#a8a8a8'; c.lineWidth = 7; c.lineCap = 'round';
+      c.beginPath(); c.arc(64, 64, 20, 0.3, 4.6); c.stroke();
+      c.beginPath(); c.arc(64, 64, 8, 2.0, 5.8); c.stroke();
+    }],
+    ['sweet_wrap', function (c) {
+      // a wrapped toffee: the sweet and its two twisted ends
+      c.beginPath(); c.ellipse(64, 64, 26, 20, 0, 0, Math.PI * 2); c.fill();
+      poly(c, [[40, 64], [12, 42], [18, 64], [12, 86]]);
+      poly(c, [[88, 64], [116, 42], [110, 64], [116, 86]]);
+      c.fillStyle = '#b4b4b4';
+      c.fillRect(52, 50, 6, 28); c.fillRect(70, 50, 6, 28);
+    }],
     ['candle', function (c) {
       c.fillStyle = '#dcdcdc';
       c.fillRect(50, 54, 28, 60);
@@ -727,6 +770,53 @@
           life: 0.09 + Math.random() * 0.07, size: 0.5 + Math.random() * 0.4,
           grow: -1.4, gravity: 0, spin: 6, blend: 'add', shape: 'flame',
           colors: ['#fff3b0', '#ffb347', '#ff6b1a'] });
+      }
+    } else if (kind === 'candy') {
+      // a Jack-o'-Launcher pumpkin bursting: rind, a puff of orange and a
+      // shower of sweets (the treat that heals the shooter's team)
+      var radius = options.radius || 8;
+      for (i = 0; i < 26; i++) {
+        ang = Math.random() * Math.PI * 2;
+        speed = 5 + Math.random() * radius * 1.2;
+        var sweet = ['candycorn', 'sweet', 'sweet_wrap'][i % 3];
+        this.spawn({ p: position, v: [Math.cos(ang) * speed, 6 + Math.random() * 10,
+                                      Math.sin(ang) * speed],
+          life: 0.9 + Math.random() * 0.7, size: 0.35 + Math.random() * 0.3,
+          grow: -0.05, gravity: -26, spin: 9, blend: 'normal', shape: sweet,
+          colors: sweet === 'candycorn' ? ['#fff4d6', '#ffb000', '#ff6a00']
+            : ['#ff4d9a', '#7de0ff', '#b6ff6b', '#ffe36b'] });
+      }
+      for (i = 0; i < 10; i++) {
+        ang = Math.random() * Math.PI * 2;
+        speed = 4 + Math.random() * 8;
+        this.spawn({ p: position, v: [Math.cos(ang) * speed, 3 + Math.random() * 6,
+                                      Math.sin(ang) * speed],
+          life: 0.6 + Math.random() * 0.4, size: 0.5 + Math.random() * 0.4,
+          grow: -0.2, gravity: -22, spin: 6, blend: 'normal', shape: 'spark',
+          colors: ['#ff8c1a', '#d4580a'] });
+      }
+      this.spawn({ p: position, v: [0, 1.2, 0], life: 0.8, size: radius * 0.5, grow: 2.2,
+        gravity: 0.6, blend: 'add', shape: 'puff', colors: ['#ffb347', '#ff7a1a', '#6b2a00'] });
+    } else if (kind === 'soul') {
+      // a soul leaving a Hollow Harvester kill, rising before it goes
+      for (i = 0; i < 6; i++) {
+        this.spawn({ p: position, v: [(Math.random() - 0.5) * 2, 3 + Math.random() * 3,
+                                      (Math.random() - 0.5) * 2],
+          life: 0.9 + Math.random() * 0.5, size: 0.6 + Math.random() * 0.4,
+          grow: -0.3, gravity: 1.5, spin: 2, blend: 'add', shape: i ? 'puff' : 'ghost',
+          colors: ['#d8ffe0', '#7dff9a', '#2bd46a'] });
+      }
+    } else if (kind === 'reap') {
+      // the souls spent: a green crescent of light swept round the wielder
+      n = options.count || 1;
+      for (i = 0; i < 18 + n * 8; i++) {
+        ang = (i / (18 + n * 8)) * Math.PI * 2;
+        var r = 2.5 + n * 0.6;
+        this.spawn({ p: [position[0] + Math.cos(ang) * r, position[1], position[2] + Math.sin(ang) * r],
+          v: [Math.cos(ang) * 6, 1 + Math.random() * 2, Math.sin(ang) * 6],
+          life: 0.45 + Math.random() * 0.25, size: 0.5 + n * 0.12,
+          grow: -0.6, gravity: 0, spin: 4, blend: 'add', shape: 'flame',
+          colors: ['#eaffef', '#7dff9a', '#1fae56'] });
       }
     } else if (kind === 'impact') {
       var colour = options.color || '#c8cbcd';

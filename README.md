@@ -3,16 +3,17 @@
 A complete block-world game platform written in **pure Python 3 (standard
 library only)** and **vanilla JavaScript**. It has two halves:
 
-* **The UI** — the website: accounts, profiles with a live 3D character, an
-  avatar editor with two body types, an item market with Unusual rolls, an
-  inventory bound to your account, friends/followers/posts/comments/messages,
-  a world browser and an administrator dashboard. It has a hand-built dark
-  theme and a phone layout, because the site half is meant to work from a
-  pocket even though the game half is not.
+* **The UI** — the website: accounts, profiles with a live 3D character and
+  a row of 3D badges, an avatar editor with two body types, a market built
+  round **crates and keys** (with a full-screen opening show and limited-time
+  events), an inventory bound to your account,
+  friends/followers/posts/comments/messages, a world browser and an
+  administrator dashboard. It has a hand-built dark theme and a phone layout,
+  because the site half is meant to work from a pocket even though the game
+  half is not.
 * **The Game View** — press **Load** on a world and you drop into a first- or
   third-person block shooter running in your browser, served from the same
-  port on its own sub-page (`/burger_tycoon`, `/capture_the_flag`,
-  `/fortress_team_2`, `/blackout_relay`).
+  port on its own sub-page (`/blackout_relay`, `/last_light`).
 
 Around both runs an optional population of **synthetic players** — accounts
 with personas that log in on a daily curve, make friends, comment, answer
@@ -98,15 +99,22 @@ Basic Shotgun and a Basic Stick.
 
 | World | URL | Mode | Round size |
 | --- | --- | --- | --- |
-| **Burger Tycoon** | `/burger_tycoon` | Endless tycoon, 8 claimable plots, 4 players per plot | 24 |
-| **Capture The Flag** | `/capture_the_flag` | First to 3 captures, then a shuffle vote | 16 |
-| **Fortress Team 2** | `/fortress_team_2` | Payload push, teams swap each round, first to 3 round wins | 24 |
 | **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
 24.
+
+**Hidden worlds.** Burger Tycoon, Capture The Flag and Fortress Team 2 are
+still in the code but switched off: `"hidden": True` in
+`app/models/worlds.py`. A hidden world has no game host (none is started),
+does not appear in the world browser, the home page, the help page or the
+status API, its pages are treated as missing (they send you to the home page)
+and its join endpoint refuses, and bots never pick it
+(the director's world weights and warm joins skip it). Players' old stats for
+those worlds stay in the database. Delete the flag to bring one back. Their
+sections below describe them as they were.
 
 ### Burger Tycoon
 Claim one of eight plots, then grow a flat plate into a burger empire: floor,
@@ -569,14 +577,107 @@ The catalogue lives in `app/models/catalog.py` and is mirrored into the
 database on boot — adding a hat is one dict and a restart.
 
 * **Normal** — yellow. Every item ships this way.
-* **Unusual** — purple, with a permanent particle effect. Rolled at **0.5% on
-  hat purchases only**. Eleven effects ship: Burning Flames, Scorching Flames,
-  Starstruck, Void Mist, Frostbite, Circuitry, Bubbly, Ember Storm, Sunbeam,
-  Toxic Haze and Static Charge.
+* **Unusual** — purple, with a permanent particle effect. Unusuals only come
+  out of **crates** now (hats are no longer sold on the shelf): about 2% of
+  hat pulls from the Blockhaven Hat Crate and 4% from an event crate. Each
+  crate series has its own pool of effects, and events add their own: the
+  Hallowed Harvest brought **Phantom Procession** (a ring of ghosts) and
+  **Trick or Treat** (candy corn and wrapped sweets).
 
 Effects render on the hat in every world and on every avatar preview across the
 site. Each owned copy of an item is its own database row, so an Unusual is a
 specific copy with a serial number — not a flag on an item type.
+
+**How items are modelled.** Every hat, back item, crate, key and weapon is a
+list of parts: a mesh, a centre, a size, a colour, and optionally a rotation,
+material (`metal`, `glass`, `neon`), decal or alpha. Most meshes are
+*sculpted* rather than boxes: `static/js/engine/shapes.js` builds lathed
+crowns, bells and pumpkins, extruded stars, shields, wings, leaves and bats,
+and swept tubes, all normalised to a unit box. `app/models/modeling.py`
+mirrors their native sizes so `place()` can put a point on one shape at a
+point on another (a horn's root on the skull). The items are authored in
+`app/models/cosmetics.py`. A part with alpha `-1` is a **sticker**: only its
+decal prints, which is how stencils, logos and emblems sit on a surface
+without a visible card behind them.
+
+**Hair** comes in thirteen styles built on skull-hugging shells (see
+[Avatars](#avatars)), with a strand texture so it reads as hair rather than a
+helmet.
+
+## Crates, keys and events
+
+Hats come out of **crates**. A crate and the **key** that opens it are both
+ordinary items (500 Noogets each for the Blockhaven Hat Crate and its Crate
+Key). Buying one puts it in your inventory, where crates and keys stack and
+lead the "Everything" tab. Open one from the market's **Crate Hall**, from the
+"Ready to open!" card that appears when you hold a pair, or from the
+inventory: click a **key**, carry it (it follows the cursor) to a crate it
+opens, and click.
+
+Opening is a full-screen show (`static/js/ui/crates.js`): the crate drops,
+the key flies into the lock and turns, the crate rattles, the lid blows open
+with a beam and a burst, and a reel of prizes spins past and hooks onto what
+you won. It then shows the item turning on a stand, with **Wear it now** and
+**Open another**. The result is rolled on the server before any of that
+starts (`app/models/crates.py`, one transaction), and the reel is built
+around it, so the show cannot change the outcome. Odds per grade and per
+item are published in each crate's **What's inside?** panel.
+
+* **Series** tie a crate to its key, loot, grade odds, Unusual chance and
+  effects (`crates.SERIES`).
+* **Events** are limited-time series. The first is the **Hallowed Harvest**
+  (Oct 1 to Nov 8): the Hallowed Harvest Crate and the Hallowed Key, five
+  cosmetics (Hexed Witch's Hat, Plague Doctor's Visage, Mummy's Wrappings,
+  Boo the Tagalong Ghost, Nightwing Cloak), two Unusual effects, and two
+  weapons:
+  * **Hollow Harvester** (scythe). Every kill banks a soul, up to three.
+    The next swing spends them all in a wider, longer reap that hits 16
+    harder per soul and heals 9 per soul. A cold swing is a slow blade, so
+    it rewards chaining kills, not opening fights.
+  * **Jack-o'-Launcher**. Lobs pumpkins on a heavier arc than a rocket.
+    Trick: they burst on whatever they hit and hurt every enemy nearby.
+    Treat: the candy inside heals every teammate in the blast, the shooter
+    included. It does no self-damage and gives no rocket jump.
+  While an event runs the market leads with its hero (a countdown, the chase
+  items, the Unusual tease) and an event aisle.
+* **Bundles** (crate + key, five-packs) are priced under the singles.
+* **The live drop feed** shows every opening; Unusual pulls also toast on the
+  market and appear in the news ticker.
+* **Admins** can **Drop A Crate** on any player (any series, any number, keys
+  optional, with a note), and grant crates and keys from the item picker.
+  The player gets a notification.
+* **Bots** buy and open crates now and then at the same prices and odds.
+
+Adding the next crate, key or event is mostly data. The full guide, with the
+design rules for the opening, is
+[`reference_images_to_start_with/CRATES_AND_KEYS.md`](reference_images_to_start_with/CRATES_AND_KEYS.md).
+Set `BLOCKHAVEN_EVENTS=all` to keep every event running while you develop.
+
+## Badges
+
+Badges are 3D medals earned by playing. Each badge watches one stat (flags
+captured, teammates revived, the best wave cleared, crates opened) and
+**levels up** through Bronze, Silver, Gold, Platinum, Diamond and Mythic as
+the count climbs. Every level adds metal and ornament: a rim, laurels,
+ribbons and a gem, wings, then a crown and a ring of glowing beads.
+
+* 8 for **Blackout Relay** (Flag Runner, Homeguard, Interceptor, Relay
+  Frontline, Relay Champion, Bulwark, Overtime Clutch, Sudden Death), 10 for
+  **Last Light** (Holdout, Field Medic, Infected Slayer, Special Hunter, Tank
+  Buster, Bomb Squad, Sharpshooter, Wave Breaker, Untouchable, Grand Tour),
+  2 for crates and 1 for the Hallowed Harvest.
+* The **profile** shows four. Hover one to see it turning on a stand (drag to
+  turn it), with its one-line description, rank and progress.
+* The **Badge Inventory** at the top of Profile Settings shows every badge,
+  locked ones with progress, and four slots for the profile.
+* **Edit Avatar → Badge** pins one to your character's right chest. It shows
+  everywhere your avatar does, in game included.
+* Earning or levelling a badge sends a notification: a medal toast on the
+  site, and in game a drop-in at the top of the screen plus a chat line.
+
+Game hosts tally the stats and send them with the heartbeat, so a wave of
+kills is one database write. How to add one:
+[`howto_readmes/badge_creation_and_implimentation_and_ceration.txt`](howto_readmes/badge_creation_and_implimentation_and_ceration.txt).
 
 ## Avatars
 
@@ -597,8 +698,9 @@ of it, and the two builds have different heads. So a style is authored in *head
 units* — 1.0 is the head's own width, height and depth, the origin is the
 middle of the head, +Z is the face — and the renderer scales it to whichever
 head is wearing it. One style fits both builds with no per-type variant, and a
-style added later needs no variant either. Nine ship, from a short crop to a
-bob, and anyone can wear any of them.
+style added later needs no variant either. Thirteen ship, from a short crop
+and a quiff to an afro, space buns, waves and a long bob, and anyone can wear
+any of them.
 
 A **belt** is a band round the waist with an optional buckle, so it is
 described by colours and a width rather than by parts: the renderer sizes it
@@ -1241,7 +1343,7 @@ tools/sitetests.py                      # HTTP-level tests for the website
 tools/sitetests.py --https              # ...the same suite over TLS
 tools/checkmaps.py                      # static map validation
 tools/checkeffects.py                   # Unusual effects vs the shapes that exist
-tools/simclient.py --world capture_the_flag --bots 4 --seconds 20
+tools/simclient.py --world blackout_relay --bots 4 --seconds 20
 tools/gametests.py                      # full gameplay test suite
 BLOCKHAVEN_TLS=1 tools/gametests.py     # ...over HTTPS and wss://
 tools/gametests.py ctf combat tycoon    # or a subset

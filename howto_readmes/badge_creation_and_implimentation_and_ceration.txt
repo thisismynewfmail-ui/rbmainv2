@@ -1,0 +1,346 @@
+BADGES: CREATION, IMPLEMENTATION AND WHERE EVERYTHING LIVES
+============================================================
+
+Badges are 3D medals players earn by playing (Blackout Relay, Last Light) and
+by opening crates. Each badge watches one STAT and has a ladder of
+THRESHOLDS. Crossing the first threshold awards the badge, and every later
+threshold LEVELS IT UP, the way a Strange counter climbs its ranks. Each level
+is a new metal plus more ornament, so the badge looks more impressive the
+further it climbs:
+
+    Level 1  Bronze    the plate, its enamel face and the emblem
+    Level 2  Silver    a raised, riveted rim
+    Level 3  Gold      a laurel wreath round the bottom
+    Level 4  Platinum  ribbon tails and a gem set at the top
+    Level 5  Diamond   wings, and gems round the rim
+    Level 6  Mythic    an obsidian plate, a crown, a ring of glowing beads,
+                       and sparkles in its pop-up
+
+A badge can have fewer than six levels (Sudden Death has 3, Grand Tour has 4).
+It cannot have more: there are six tiers.
+
+Where players see badges:
+  * PROFILE:        a "Badges" panel shows four of them. Hovering one opens a
+                    pop-up with the badge turning on a stand (drag it round),
+                    its one-sentence description, its rank, the level ladder
+                    and progress to the next rank.
+  * PROFILE SETTINGS (/profile-editor), top of the page: the BADGE
+                    INVENTORY. Every badge there is: earned ones in their
+                    metal, the rest locked with a progress bar. Four slots
+                    choose which ones the profile shows (drag in or click,
+                    drag out or x to remove, drop on another to swap). With
+                    no slots chosen, the profile shows the player's best four.
+  * EDIT AVATAR (/avatar, "Badge" tab): pick one badge to WEAR. It is
+                    pinned on the RIGHT of the CHEST (the character's right,
+                    which is -X), small but readable, and it shows everywhere
+                    the avatar does: profile, thumbnails, and in game.
+  * NOTIFICATIONS:  the first award and every level-up leave a notification.
+                    On the site it is a medal toast in the corner. In game,
+                    the host shows a medal drop-in at the top of the screen
+                    and a line in the chat.
+
+
+1. THE FILES
+------------
+
+  app/models/badges.py            THE catalogue (BADGES_LIST), the tiers, the
+                                  families, record()/record_many() (stats in,
+                                  awards out), reads for the pages, and
+                                  model(): the 3D model for a badge at a level.
+  app/db.py                       tables badge_stats (user, stat, value) and
+                                  badge_awards (user, badge, level, dates);
+                                  users.badges_shown (JSON list of the four on
+                                  show) and avatars.badge (the one worn).
+  app/game/instance.py            GameInstance.badge(player, stat, n, mode):
+                                  what world code calls.
+  app/game/host.py                report_badge() tallies stats between
+                                  heartbeats; announce_badges() toasts the
+                                  player; with_badge_model() rebuilds a worn
+                                  badge's model from {id, level} (the join
+                                  ticket only carries those two).
+  app/views/internal.py           the heartbeat books "badges" reports with
+                                  badges.record_many and returns the level-ups
+                                  to the host in the reply.
+  app/game/worlds/last_light.py   Last Light's hooks (kills, revives, waves...)
+  app/game/worlds/blackout_relay.py  Blackout Relay's hooks (captures...)
+  app/models/crates.py            open_crate() books the crate badges.
+  app/models/avatars.py           descriptor() carries "badge" (worn).
+  app/bots/factory.py             _badges(): bots get badges to match their
+                                  history; backfill_badges() at director start.
+  static/js/engine/textures.js    the EMBLEM painters (em_flag, em_cross...),
+                                  and Textures.paintEmblem() for 2D canvases.
+  static/js/engine/avatar.js      Avatar.build draws descriptor.badge on the
+                                  chest.
+  static/js/ui/badges.js          the badge UI: 3D stills (canvas.badge-3d),
+                                  hover pop-ups ([data-badge-pop]), the toast.
+  static/js/ui/thumbs.js          renderPartsTo / animateParts / liveJob: the
+                                  offscreen renderer the badges draw with.
+  static/js/ui/profile_edit.js    the Badge Inventory's slots.
+  static/js/ui/avatar_editor.js   the Badge tab (POST /api/avatar/badge).
+  static/js/game/hud.js           HUD.badgeToast for the in-game medal.
+  static/css/badges.css           everything badge-shaped on the site.
+  templates/profile.html, profile_edit.html, avatar.html
+
+
+2. HOW A BADGE GETS EARNED (the flow)
+------------------------------------
+
+  world code                       self.badge(player, "br_captures")
+     |                                 (GameInstance.badge -> host.report_badge)
+  game host                        adds it to a tally keyed (user, stat, mode)
+     |  every heartbeat (~2.5 s)   one "badges" report per player:
+     |                             {"kind": "badges", "user_id": 42,
+     |                              "stats": [["br_captures", 1, "add"], ...]}
+  web server /internal/heartbeat   badges.record_many(42, stats)
+     |                                - updates badge_stats in one transaction
+     |                                - finds every badge watching those stats
+     |                                - awards / levels up, writes badge_awards
+     |                                - pushes a notification (not for bots)
+     |  reply {"badges": [level-up events]}
+  game host                        announce_badges: {"t": "badge", ...} to the
+                                   player (HUD toast) + a chat line for all
+
+Things that happen on the web server (crates) call badges.record_many
+directly. Anything else can too: badges.record(user_id, "stat", 1).
+
+MODES:
+  "add"  a running count. The value is the total so far (kills, revives).
+  "max"  a best-ever. The value only goes up (best wave cleared).
+
+DERIVED STATS: a stat worked out from other stats. DERIVED in badges.py maps
+"ll_areas" to the prefix "ll_area_". Whenever an "ll_area_<id>" stat changes,
+ll_areas becomes the number of those stats above zero, which is how the Grand
+Tour counts distinct areas. Use this for any "do X in N different places"
+badge.
+
+
+3. MAKING A NEW BADGE: STEP BY STEP
+-----------------------------------
+
+The example adds "Flag Saver" to Blackout Relay: pick up your own team's
+dropped flag while an enemy is within 20 studs.
+
+STEP 1 -- Decide the stat, the ladder and the words.
+  * Stat id: short, prefixed by game: br_ (Blackout Relay), ll_ (Last Light),
+    ev_ (an event), or none for site-wide (crates_opened).
+  * Thresholds: about one session for level 1, a dedicated week for gold, a
+    long time for mythic. Look at the existing ladders for scale (ll_kills
+    runs 100 -> 40,000; br_captures runs 1 -> 300). Six rising numbers.
+  * Ranks: one title per level, getting grander ("Courier" ... "Blackout
+    Phantom"). They show on the pop-up, the toast and the chat line.
+  * Description: ONE sentence. It is the hover text and should say what you
+    do to earn it.
+  * Unit: what the number counts ("flags saved"), used in progress text.
+
+STEP 2 -- Add the entry to BADGES_LIST in app/models/badges.py.
+
+    _badge("br_flag_saver", "Flag Saver", "blackout_relay", "br_saves",
+           [1, 10, 30, 75, 150, 300],
+           ["Lifeguard", "Rescuer", "Saviour", "Guardian", "Shepherd",
+            "The Last Line"],
+           "Returned your team's flag with an enemy close enough to take it.",
+           "em_lifebuoy", "cog", "flags saved"),
+
+  Arguments, in order: id, name, game ("blackout_relay" | "last_light" |
+  "market" | "event"), stat, thresholds, ranks (one per threshold), the
+  one-sentence description, emblem, family, unit. Keywords:
+  mode="max" for best-ever stats, and event="<event id>" for event badges.
+
+  FAMILY is the backplate and colour scheme:
+    "cog"     Blackout Relay (an industrial relay station): a cog, deep blue
+              enamel, blue ribbons, steel wings
+    "shield"  Last Light: a heater shield, ember enamel, orange ribbons,
+              white feathered wings
+    "star"    crates and the market: a star, purple enamel, purple ribbons
+    "moon"    events: a moon disc with a crescent, near-black enamel, orange
+              ribbons, BAT wings at Diamond
+  A new game should get a new family. Add it to FAMILIES (face colour,
+  ribbon colour, wing colour, wing mesh) and add a plate branch in _build().
+  Any flat mesh from static/js/engine/shapes.js works as a plate: disc, star,
+  shield, cog, heart, chevron, tri.
+
+STEP 3 -- Paint the emblem (static/js/engine/textures.js).
+  Emblems are 128x128 STICKERS: transparent around the picture, drawn with
+  the helpers next to the others:
+      inked(ctx, pathFn, fill, width)    a filled shape with a dark keyline
+      stroked(ctx, pathFn, colour, w)    a keylined stroke
+      poly([[x,y], ...])                 a path function from points
+      circlePath(x, y, r)                a circle path function
+  Keep the picture inside a circle of radius ~50 around (64, 64): the rim
+  covers anything further out from Silver up. Use the cream (CREAM) and one
+  or two strong colours. It has to read at the size of a badge on a chest.
+
+      emblem('em_lifebuoy', function (ctx) {
+        stroked(ctx, circlePath(64, 64, 34), '#ff5a3c', 22);
+        stroked(ctx, circlePath(64, 64, 34), CREAM, 8);
+      });
+
+  emblem() registers it both as a decal (for the 3D badge) and for
+  Textures.paintEmblem (the 2D medals in toasts).
+
+STEP 4 -- Record the stat where the thing happens.
+  In a world (any GameInstance subclass):
+
+      def return_flag(self, flag, by=None):
+          threatened = by is not None and any(
+              p.team != by.team and p.alive and math.dist(p.pos, flag.pos) < 20
+              for p in self.players.values())
+          super().return_flag(flag, by)
+          if threatened:
+              self.badge(by, "br_saves")
+
+  * Call self.badge(player, stat[, amount[, mode]]). Never call the host or
+    the database from game code. self.badge works with any host, including
+    test doubles that do not count badges.
+  * Count ONCE per event, at the place the game already decides the event
+    happened (after the capture is confirmed, not when the player is near).
+  * Bots are players: they earn badges too, and that is intended.
+
+  On the web server:
+      from app.models import badges
+      badges.record(user_id, "crates_opened")            # +1
+      badges.record_many(user_id, [("a", 1, "add"), ("b", 9, "max")])
+
+STEP 5 -- (Bots) give them the stat.
+  New bots get badges from their made-up history in bots/factory.py
+  _badges(). Add a line deriving the new stat from that history, so bot
+  profiles show the badge at believable levels.
+
+STEP 6 -- Test it.
+  * python3 -c "from app.models import badges; print(badges.model('br_flag_saver', 6)[:2])"
+    builds the model without errors.
+  * Award it to yourself on a dev server:
+      python3 -c "from app.models import badges; print(badges.record(1, 'br_saves', 40))"
+    then look at /profile-editor (Badge Inventory), hover it, wear it from
+    /avatar#badge, and check your profile.
+  * Look at all six levels side by side. The scratch harness pattern used
+    for the originals: render badges.model(id, level) for level 1..6 with the
+    engine scripts and compare. Every level should read as a step up.
+  * Play: earn it in game and check the drop-in toast and the chat line.
+  * python3 tools/sitetests.py (badges section) and python3 tools/gametests.py.
+
+
+4. THE MODEL: HOW _build() MAKES A BADGE
+----------------------------------------
+
+The model is about 1 unit tall, centred on the origin, facing +Z, built from
+part()/place() exactly like the hats (app/models/modeling.py). Parts use the
+renderer's keys directly: t, p, s, c, r, m (material: "metal", "glass",
+"neon"), a (alpha; -1 = sticker), decal.
+
+  plate         family mesh in the tier's body colour, metal
+  face          a smaller disc/shield in the family's enamel colour
+  emblem        a sticker box with the emblem decal at z ~0.1
+  rim (L2+)     a torus turned to face +Z, trim colour, 8 rivets
+  laurel (L3+)  6 leaves a side round the bottom
+  ribbons (L4+) two ribbon tails, family ribbon colour; a glass gem on top
+  wings (L5+)   wing (or bat) meshes behind the plate; 4 rim gems
+  mythic (L6)   obsidian plate, crown of cones with neon tips, 18 neon beads
+
+Models are cached per (badge, level). A Mythic is about 65 parts, which is
+why the game join ticket carries only {id, level}: the host rebuilds it.
+
+On the chest (avatar.js), the model is scaled to 0.34 (male) or 0.30
+(female), placed at the upper right of the chest, and stood just proud of
+whichever torso segment is at that height (trunkAt), turning and leaning with
+the shoulders. If a new family is much wider than the others (big wings),
+check it on both builds, from the front and at three-quarters.
+
+
+5. THE TIERS (badges.TIERS)
+---------------------------
+
+  bronze    body #b8743a  trim #8a5226  gem #ffb070
+  silver    body #c9d2da  trim #97a3ae  gem #e8f4ff
+  gold      body #f0bd45  trim #c8901c  gem #ff5a5a
+  platinum  body #f1eef8  trim #a99bd6  gem #56d8ff   (pearl, not silver)
+  diamond   body #8fe6ff  trim #f4fdff  gem #7fe3ff   (sparkles in pop-up)
+  mythic    body #2c1440  trim #ffcf4a  gem #ff4fd8   (sparkles, animated
+                                                       border on the tile)
+
+The "glow" colour of each tier tints the pop-up, the tile's hover glow and
+the progress bar. CSS: .badge-tile.tier-<id>, .bp-ladder .t-<id> in
+static/css/badges.css. A seventh tier would need all of these plus a
+_build() step.
+
+
+6. EVENT BADGES
+---------------
+
+An event badge has game "event", family "moon" (or a new one), and
+event="<event id>". It is only earnable while the event runs: book its stat
+behind crates.event_active("<event id>"), as open_crate does for Hallowed
+Harvest 2026 (stat ev_harvest_2026). In the Badge Inventory an UNEARNED event
+badge only appears while its event is live, which is the advert for it.
+Earned ones stay forever. That is the point.
+
+Name event badges with the year ("Hallowed Harvest 2026") so next year's
+event can have its own.
+
+
+7. RULES OF THUMB
+-----------------
+
+  * One sentence for the description. No numbers in it: the ladder and the
+    progress bar show those.
+  * Level 1 should come in the first session or two of doing the thing.
+    Mythic should be rare and visible: that is what makes the top level
+    worth showing off.
+  * Don't count something a player can farm alone in a corner (killing a
+    teammate, suiciding, standing in the lobby). Count the thing at the
+    moment the game has already decided it happened.
+  * Never call the database from a game tick. Use self.badge; the host
+    batches it into the heartbeat.
+  * Badge ids, stat ids and emblem names are permanent. Players' awards are
+    stored by badge id. Rename the display name freely, never the id.
+  * Removing a badge from BADGES_LIST hides it everywhere (earned() filters
+    unknown ids), but the rows stay, so putting it back restores everyone's.
+
+
+8. THE CURRENT BADGES
+---------------------
+
+  BLACKOUT RELAY (cog)
+    br_flag_runner   Flag Runner        br_captures        1/10/30/75/150/300
+    br_homeguard     Homeguard          br_returns         1/10/40/100/250/500
+    br_interceptor   Interceptor        br_carrier_kills   1/10/30/80/200/400
+    br_frontline     Relay Frontline    br_kills           25/150/500/1.5k/4k/10k
+    br_champion      Relay Champion     br_wins            1/5/15/40/100/250
+    br_bulwark       Bulwark            br_defends         10/50/150/400/1k/2.5k
+    br_clutch        Overtime Clutch    br_clutch          1/5/15/40/80/150
+    br_sudden_death  Sudden Death       br_sudden          1/3/10
+  LAST LIGHT (shield)
+    ll_holdout       Last Light Holdout ll_best_wave (max) 5/10/15/20/30/40
+    ll_medic         Field Medic        ll_revives         1/10/40/100/250/600
+    ll_slayer        Infected Slayer    ll_kills           100/500/2k/6k/15k/40k
+    ll_hunter        Special Hunter     ll_specials        5/30/100/300/800/2k
+    ll_tank_buster   Tank Buster        ll_tanks           1/5/15/40/100/200
+    ll_bomb_squad    Bomb Squad         ll_defuses         1/10/30/75/150/300
+    ll_sharpshooter  Sharpshooter       ll_headshots       25/200/750/2k/6k/15k
+    ll_wavebreaker   Wave Breaker       ll_waves           5/25/100/300/750/1.5k
+    ll_untouchable   Untouchable        ll_untouched       1/5/15/40/100/200
+    ll_grand_tour    Grand Tour         ll_areas (derived) 1/2/3/4
+  CRATES (star)
+    mk_unboxer       Unboxer            crates_opened      1/10/30/75/150/300
+    mk_lucky_star    Lucky Star         unusuals_unboxed   1/2/4/7/12/20
+  EVENTS (moon)
+    ev_harvest_2026  Hallowed Harvest 2026  ev_harvest_2026  1/5/15/30/60/100
+
+  Where each stat is counted:
+    br_captures, br_clutch (in overtime), br_sudden (in sudden death)
+                     BlackoutRelay.capture
+    br_returns       BlackoutRelay.return_flag (touching your dropped flag)
+    br_kills, br_carrier_kills, br_defends
+                     BlackoutRelay.on_kill
+    br_wins          BlackoutRelay.end_round (the winning team)
+    ll_kills, ll_headshots, ll_specials
+                     LastLight.kill_infected
+    ll_tanks         LastLight.kill_infected: the last blow, or 25%+ of the
+                     Tank's damage
+    ll_defuses       LastLight.kill_infected: a Bomber headshot
+    ll_revives       LastLight.revive
+    ll_waves, ll_best_wave, ll_area_<id>, ll_untouched
+                     LastLight.clear_wave (ll_untouched: wave 10+ with no
+                     downs that wave)
+    crates_opened, unusuals_unboxed, ev_harvest_2026
+                     crates.open_crate
