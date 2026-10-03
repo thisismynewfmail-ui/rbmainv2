@@ -83,6 +83,7 @@ WORLDS: List[Dict[str, Any]] = [
     },
     {
         "id": "blackout_relay",
+        "display_order": 2,
         "name": "Blackout Relay",
         "genre": "Team Objective",
         "creator": "BLOCKHAVEN",
@@ -116,6 +117,10 @@ WORLDS: List[Dict[str, Any]] = [
     # as an index into this list, so a new world goes on the end.
     {
         "id": "last_light",
+        # listed first wherever worlds are shown (home, Jump back in, the
+        # world browser); the registry's own order stays put because the
+        # bot director indexes worlds by position
+        "display_order": 1,
         "name": "Last Light",
         "genre": "Zombie Survival",
         "creator": "BLOCKHAVEN",
@@ -260,8 +265,11 @@ def is_open(world_id: str) -> bool:
 
 
 def all_worlds() -> List[Dict[str, Any]]:
-    """Every world that is open to play, in registry order."""
-    return [w for w in WORLDS if w["id"] not in HIDDEN_WORLDS]
+    """Every world that is open to play, in display order (``display_order``,
+    then registry order): Last Light, then Blackout Relay."""
+    open_worlds = [w for w in WORLDS if w["id"] not in HIDDEN_WORLDS]
+    return sorted(open_worlds, key=lambda w: (int(w.get("display_order") or 99),
+                                             WORLDS.index(w)))
 
 
 def every_world() -> List[Dict[str, Any]]:

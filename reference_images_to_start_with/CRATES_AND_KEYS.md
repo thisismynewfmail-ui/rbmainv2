@@ -90,8 +90,9 @@ Use them for every new theme.
 ### The loop (make the next pull easy)
 
 * **Open another (n left)** sits right on the reveal card.
-* **The "Ready to open!" card** (`Crates.prompt`) slides in whenever a
-  purchase leaves you holding a crate and a matching key.
+* **Open now** appears on the market's stash bar whenever you hold a crate
+  and a key that fits it. (A pop-up card used to slide in after every such
+  purchase; it was taken out as too pushy. The button in place is enough.)
 * **Inventory key mode.** Clicking a key makes the matching crates glow, and
   the key follows the cursor until you drop it on one.
 * **Bundles anchor the price.** The pair and five-pack show a crossed-out
@@ -174,7 +175,7 @@ can be graded `mythic` to make them the chase items.
 
 ```python
 "frostfall": {
-    "id": "frostfall", "number": 3,                 # shown as "Series #3"
+    "id": "frostfall", "number": 3,                 # "Series #3" on its shelf cards
     "name": "Frostfall Crate",
     "crate": "crate_frostfall", "key": "key_frostfall",
     "tagline": "Packed in snow. Still cold inside.",

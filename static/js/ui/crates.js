@@ -366,47 +366,10 @@
             flag.classList.remove('pop'); void flag.offsetWidth; flag.classList.add('pop');
           });
         }
-        var stash = res.stash || Crates.stash || {};
-        var ready = Object.keys(stash).filter(function (k) {
-          return stash[k].crates > 0 && stash[k].keys > 0;
-        });
-        if (ready.length && (offer || button.dataset.slot === 'crate' || button.dataset.slot === 'key')) {
-          var series = offer ? button.dataset.series :
-            (ready.indexOf(button.dataset.series) >= 0 ? button.dataset.series : ready[0]);
-          Crates.prompt(series || ready[0]);
-        } else {
-          Site.toast((qty > 1 ? qty + ' x ' : '') + name + ' is yours!' +
-                     (button.dataset.slot === 'crate' ? ' Now grab a key.' :
-                      button.dataset.slot === 'key' ? ' Now grab a crate.' : ''));
-        }
+        Site.toast((qty > 1 ? qty + ' x ' : '') + name + ' is yours!');
         return res;
       });
     });
-  };
-
-  /* "You have a crate and a key -- open it?" as a little card that slides in
-     at the bottom of the screen, rather than another dialog in the way. */
-  Crates.prompt = function (series) {
-    var old = document.getElementById('crate-ready');
-    if (old) old.remove();
-    var card = document.createElement('div');
-    card.id = 'crate-ready';
-    card.className = 'crate-ready theme-' + series;
-    var info = (global.CRATE_SERIES || {})[series] || {};
-    card.innerHTML =
-      '<canvas class="item-thumb" width="120" height="120" data-item="' + esc(info.crate || '') + '"></canvas>' +
-      '<div><b>Ready to open!</b><span>You have a crate and the key for it.</span></div>' +
-      '<button class="mk-btn hot small" type="button"><span>&#128275; Open it</span></button>' +
-      '<button class="crate-ready-x" type="button" aria-label="Later">&times;</button>';
-    document.body.appendChild(card);
-    if (global.Thumbs) Thumbs.rescan();
-    requestAnimationFrame(function () { card.classList.add('in'); });
-    card.querySelector('.mk-btn').addEventListener('click', function () {
-      card.remove();
-      Crates.open({ series: series });
-    });
-    card.querySelector('.crate-ready-x').addEventListener('click', function () { card.remove(); });
-    setTimeout(function () { if (card.isConnected) card.classList.add('nudge'); }, 3500);
   };
 
   // ============================================================ the stage

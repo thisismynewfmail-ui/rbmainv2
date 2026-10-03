@@ -1099,8 +1099,54 @@ def test_llm() -> None:
     result = {"text": "\nhey there\nsecond line", "finish": "stop"}
     client._settle(result)
     check("stops: a newline stop is applied here, not by the server",
-          client.stops("chat") == ["</s>"] and result["text"] == "hey there",
+          "\n" not in client.stops("chat") and "\n" not in client.stops("completion")
+          and result["text"] == "hey there",
           (client.stops("chat"), result["text"]))
+    # The server applies its own reported stops whenever a chat request names
+    # none; echoing them back can end a reply before its first word (a model
+    # whose turn opens with one of them answers with nothing at all).
+    check("stops: chat requests do not echo the server's own stop strings",
+          client.stops("chat") == [] and "</s>" in client.stops("completion"),
+          (client.stops("chat"), client.stops("completion")))
+
+    # ---- a server that ends the turn at once
+    def empty_server(trigger):
+        calls = []
+
+        def http(method, url, body, timeout):
+            calls.append(dict(body))
+            empty = trigger(body)
+            return 200, {"choices": [{"finish_reason": "stop", "message": {
+                "role": "assistant", "content": "" if empty else "hey everyone"}}]}
+        return http, calls
+    bot_config.save({"llm.enabled": True, "llm.base_url": "http://127.0.0.1:9/v1",
+                         "llm.reasoning_effort": "none", "llm.stop": []})
+    talk = [{"role": "user", "content": "say hi"}]
+    client = llm.Client()
+    client._http, calls = empty_server(lambda body: "chat_template_kwargs" in body)
+    first = client.complete(talk, 40)
+    after_first = len(calls)
+    second = client.complete(talk, 40)
+    check("empty: a reply ended at once is asked again plainly, and answers",
+          first["text"] == "hey everyone" and first.get("plain_retry") and after_first == 2,
+          (first.get("text"), [sorted(c) for c in calls[:after_first]]))
+    check("empty: that model is asked plainly from then on",
+          second["text"] == "hey everyone" and len(calls) == 3
+          and "chat_template_kwargs" not in calls[-1], len(calls))
+    client = llm.Client()
+    client._http, calls = empty_server(lambda body: True)
+    dead = client.complete(talk, 40)
+    check("empty: a model that says nothing either way is explained as such",
+          not dead["text"] and "came back empty too" in llm.explain("", dead),
+          llm.explain("", dead))
+    client = llm.Client()
+    client._http = lambda m, u, b, t: (200, {"choices": [{"finish_reason": "stop", "message": {
+        "content": [{"type": "thinking", "thinking": "a greeting"},
+                    {"type": "text", "text": "hi all"}]}}]})
+    parts = client.complete(talk, 40)
+    check("empty: content sent as a list of parts is read, notes kept apart",
+          parts["text"] == "hi all" and parts["thought"], parts.get("text"))
+    bot_config.reset("llm")
 
     # ---- reasoning effort
     import mockllm

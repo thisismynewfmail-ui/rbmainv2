@@ -56,6 +56,10 @@ def load_world_class(world_id: str):
     return cls
 
 
+# How often every connection is pinged at the websocket level (see keepalive).
+KEEPALIVE_SECONDS = 10.0
+
+
 def expand_avatar(avatar: Dict[str, Any]) -> Dict[str, Any]:
     """The join ticket carries the avatar by reference (item ids, the badge's
     id and level) because it rides in the socket URL; the models are rebuilt
@@ -186,6 +190,7 @@ class GameHost:
         next_tick = time.monotonic()
         cull_at = time.monotonic() + 30.0
         sleep_check = time.monotonic() + 1.0
+        ping_at = time.monotonic() + KEEPALIVE_SECONDS
         while self.running:
             started = time.monotonic()
             with self.lock:
@@ -202,6 +207,9 @@ class GameHost:
             if time.monotonic() > cull_at:
                 cull_at = time.monotonic() + 30.0
                 self.cull_instances()
+            if time.monotonic() > ping_at:
+                ping_at = time.monotonic() + KEEPALIVE_SECONDS
+                self.keepalive(instances)
             next_tick += TICK_DT
             delay = next_tick - time.monotonic()
             if delay < -0.25:
@@ -209,6 +217,22 @@ class GameHost:
                 delay = 0
             if delay > 0:
                 time.sleep(delay)
+
+    def keepalive(self, instances: List[GameInstance]) -> None:
+        """A websocket ping to every connection.  The browser answers it
+        itself -- no page script involved -- so a player whose tab is in the
+        background (where the page's own 2.5-second ping is throttled down to
+        once a minute) still shows as connected, and is not dropped for being
+        silent while they look at something else.  The send is queued, so
+        this costs the tick nothing."""
+        for instance in instances:
+            for player in list(instance.players.values()):
+                ws = player.ws
+                if ws is not None and not getattr(ws, "closed", True):
+                    try:
+                        ws.ping()
+                    except Exception:
+                        pass
 
     # -------------------------------------------------------------- reports
     def report_visit(self, instance: GameInstance, player) -> None:

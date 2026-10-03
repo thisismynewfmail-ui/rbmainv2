@@ -1565,7 +1565,11 @@ class GameInstance:
         that tells everybody and files the stats.
         """
         for player in list(self.players.values()):
-            if moment - player.last_message < SILENT_SECONDS:
+            # any frame from the peer counts, the replies to the host's
+            # keep-alive pings included (a background tab sends no messages
+            # of its own for minutes, but its browser still answers pings)
+            heard = max(player.last_message, getattr(player.ws, "last_frame", 0.0) or 0.0)
+            if moment - heard < SILENT_SECONDS:
                 continue
             player.connected = False
             try:

@@ -833,6 +833,112 @@ def test_survival() -> None:
 INSTANCE_WORLD = "blackout_relay"
 INSTANCE_WORLD_CAP = 24
 
+def test_stall() -> None:
+    """A player whose connection stops reading must not hold up anybody else.
+
+    Runs in-process on a socket pair with tiny buffers (no server needed):
+    the host's sends must return at once however far behind the peer is,
+    snapshots must collapse to the newest rather than queue up, a close must
+    still deliver what was queued in front of it, and a peer that never
+    reads must be let go instead of piling up memory.  Before the writer
+    thread, the first loop below never finished: ``sendall`` blocked the
+    caller -- in the game, the tick of every round in the world."""
+    import socket
+    import struct
+    import threading
+    from app.game import protocol
+
+    print("\n== stalled connections (websocket writer) ==")
+
+    def pair():
+        host_end, peer = socket.socketpair()
+        host_end.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+        peer.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
+        return protocol.WebSocket(host_end), peer
+
+    def read_frame(peer, timeout=3.0):
+        peer.settimeout(timeout)
+        def exact(n):
+            out = b""
+            while len(out) < n:
+                chunk = peer.recv(n - len(out))
+                if not chunk:
+                    raise EOFError
+                out += chunk
+            return out
+        first, second = exact(2)
+        length = second & 0x7F
+        if length == 126:
+            length = struct.unpack("!H", exact(2))[0]
+        elif length == 127:
+            length = struct.unpack("!Q", exact(8))[0]
+        return first & 0x0F, exact(length)
+
+    ws, peer = pair()
+    blob = "x" * 8000
+    finished = threading.Event()
+
+    def flood():
+        ws.send_json({"t": "welcome", "id": 1})
+        for seq in range(600):
+            ws.send_json({"t": "snap", "seq": seq, "pad": blob})
+        finished.set()
+
+    started = time.monotonic()
+    threading.Thread(target=flood, daemon=True).start()
+    finished.wait(5.0)
+    took = time.monotonic() - started
+    check("sends to a peer that is not reading never block the sender",
+          finished.is_set() and took < 2.0, "took %.2fs" % took)
+    check("snapshots waiting for a slow peer collapse to the newest",
+          ws.backlog < 3 * 8100, "backlog %d bytes" % ws.backlog)
+    opcodes, last_snap, saw_welcome = [], None, False
+    try:
+        while True:
+            op, data = read_frame(peer, 1.0)
+            opcodes.append(op)
+            message = json.loads(data)
+            if message["t"] == "welcome":
+                saw_welcome = True
+            else:
+                last_snap = message["seq"]
+    except (socket.timeout, EOFError, ValueError):
+        pass
+    check("the welcome still arrives ahead of the snapshots", saw_welcome)
+    check("a peer that catches up gets the latest snapshot, not a backlog",
+          last_snap == 599 and len(opcodes) < 10,
+          "last seq %r after %d frames" % (last_snap, len(opcodes)))
+
+    ws.ping()
+    op, _ = read_frame(peer)
+    check("keep-alive pings go out as websocket pings", op == protocol.OP_PING)
+    before = ws.last_frame
+    time.sleep(0.05)
+    reader = threading.Thread(target=ws.recv, daemon=True)
+    reader.start()
+    peer.sendall(struct.pack("!BB", 0x80 | protocol.OP_PONG, 0x80) + b"\0\0\0\0")
+    time.sleep(0.2)
+    check("a pong from the peer counts as hearing from it", ws.last_frame > before)
+
+    ws.send_json({"t": "kicked", "reason": "bye"})
+    ws.close(1000)
+    op1, data1 = read_frame(peer)
+    op2, _ = read_frame(peer)
+    check("a close still delivers what was queued ahead of it",
+          op1 == protocol.OP_TEXT and json.loads(data1).get("t") == "kicked"
+          and op2 == protocol.OP_CLOSE, "got %r then %r" % (op1, op2))
+    peer.close()
+
+    ws, peer = pair()
+    for _ in range(80):
+        ws.send_json({"t": "fx", "pad": "y" * 65536})
+        if ws.closed:
+            break
+    check("a peer that never reads is let go past the backlog limit", ws.closed,
+          "backlog %d bytes" % ws.backlog)
+    peer.close()
+
+
 # Scenarios for worlds that are hidden now (Capture the Flag, Fortress Team 2
 # and Burger Tycoon do not run as instances any more).  They are kept for the
 # day those worlds come back, and skipped unless named on the command line.
@@ -852,6 +958,7 @@ SCENARIOS = {
     "instances": test_instances,
     "visits": test_visits,
     "survival": test_survival,
+    "stall": test_stall,
 }
 
 

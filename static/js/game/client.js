@@ -1141,6 +1141,9 @@
     if (this.survival) distance = this.survival.rayHit(origin, dir, distance);
     var end = [origin[0] + dir[0] * distance, origin[1] + dir[1] * distance,
                origin[2] + dir[2] * distance];
+    // a tab in the background runs no frames to age these out, so keep only
+    // the newest few rather than a pile to work through on the way back
+    if (this.tracers.length >= 96) this.tracers.splice(0, this.tracers.length - 95);
     this.tracers.push({ a: origin.slice(), b: end, t: 0 });
     if (distance < maxRange - 0.5) {
       this.particles.burst('impact', end);

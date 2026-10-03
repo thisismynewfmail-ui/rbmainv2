@@ -559,6 +559,19 @@ CPU core, and a busy match cannot slow the website down. Hosts push a heartbeat
 (instances, players, kills, visits) back to the web server every 2.5 seconds,
 and the supervisor restarts any host that dies.
 
+**Slow and quiet connections.** One thread ticks every round of a world, so
+nothing on it may wait on a player's network. Sends are queued and a writer
+thread per connection does the actual writing (`app/game/protocol.py`):
+snapshots replace one still waiting rather than queue behind it, so a player
+who hiccups gets the latest state rather than a backlog, and a connection that
+stops reading altogether is let go once 4 MB or 15 seconds have piled up for
+it -- without anybody else's game stopping while that happens. The host also
+pings every connection at the websocket level every 10 seconds; the browser
+answers those itself, so a player whose tab is in the background (where the
+page's own pings are throttled to one a minute) is not dropped by the
+45-second silence rule. `python3 tools/gametests.py stall` checks all of this
+in-process, with no server running.
+
 ### Server authority
 
 * **Noogets, items and inventory.** Clients send intents ("buy `hat_crown`"),
@@ -618,8 +631,8 @@ helmet.
 Hats come out of **crates**. A crate and the **key** that opens it are both
 ordinary items (500 Noogets each for the Blockhaven Hat Crate and its Crate
 Key). Buying one puts it in your inventory, where crates and keys stack and
-lead the "Everything" tab. Open one from the market's **Crate Hall**, from the
-"Ready to open!" card that appears when you hold a pair, or from the
+lead the "Everything" tab. Open one from the market's **Crate Hall** (the
+stash bar's **Open now** appears whenever you hold a pair), or from the
 inventory: click a **key**, carry it (it follows the cursor) to a crate it
 opens, and click.
 
@@ -793,7 +806,11 @@ gaits on two different bodies is not a transition, it is a cut.
 ### Textures
 
 Every texture in the project is drawn at runtime on a 2D canvas into one
-1280×1280 atlas, so the platform ships without a single image asset. A decal
+2048×2048 atlas, so the platform ships without a single image asset. Cells
+are painted on demand (a face when its wearer turns up, an area's signs when
+the round gets there), and every paint is logged by cell, so a renderer sends
+the GPU only the 128×128 cells painted since its last upload rather than the
+whole 16 MB atlas each time. A decal
 normally lands on a part's own +Z face in object space, which is what keeps a
 face on the front of a head and a graphic on the front of a shirt however the
 character turns.
@@ -1293,6 +1310,22 @@ under **Thinking**, and **Recent requests** says why any reply came back
 empty (all its tokens spent thinking, cut off before any text, the model
 ending its turn at once) -- hover a row for its token count and finish reason.
 
+**Empty replies.** Chat requests carry only the stop strings set on the
+Language Model tab, never the ones the probe read from the server
+(llama.cpp's `/props`, an Ollama Modelfile): the server applies its own
+whenever a request names none, and echoing them back can stop a model whose
+turn opens with one of those tokens before its first word. A reply that
+still comes back with nothing at all -- no text, no notes, finished rather
+than cut off -- is asked once more with nothing but the messages (no stop
+strings, no reasoning fields, no `/no_think`); if that answers, the model is
+asked that way from then on (until the effort changes or the endpoint is
+probed again), and Recent requests says so. If it is empty both ways, the
+note says so and lists what the first try sent, which points at the model
+or the server's chat template rather than this client. Notes are read from
+every field servers put them in -- `reasoning_content`, `reasoning`,
+Ollama's `thinking`, OpenRouter's `reasoning_details` -- and content that
+arrives as a list of parts (text and thinking) is read as such.
+
 Each bot has its own folder, `data/bots/accounts/<shard>/<id>-<name>/`, with
 `account.json` and a `logs/` directory holding one log per conversation —
 `kikamu Comment Section`, `Chat Conversation With kikamu`,
@@ -1420,7 +1453,9 @@ restaurant without building one first.
 `gametests.py` drives real websocket clients against the running servers and
 asserts on what the servers broadcast: flag captures, damage and the kill feed,
 fire-rate clamping, movement correction, cart pushing, tycoon buying and
-income, instance overflow, visit accounting and the end-of-round shuffle vote.
+income, instance overflow, visit accounting and the end-of-round shuffle vote,
+and (`stall`, in-process) that a connection which stops reading never holds up
+the tick.
 
 `mapcheck.py` needs no server; it builds each map and audits the geometry:
 
