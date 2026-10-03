@@ -40,10 +40,10 @@
     var canvas = $('#hero-crate');
     if (!canvas || !window.Thumbs) return;
     Thumbs.loadCatalog().then(function () {
-      Thumbs.animateItem(canvas, canvas.dataset.item, 'haunted_wisps',
+      Thumbs.animateItem(canvas, canvas.dataset.item, canvas.dataset.effect || '',
                          { spin: 0.45, scale: 1.1, padding: 1.3 });
     });
-    canvas.addEventListener('click', function () { Crates.showContents('halloween'); });
+    canvas.addEventListener('click', function () { Crates.showContents(canvas.dataset.series); });
   }
 
   // ----------------------------------------------------------- spotlight
@@ -84,7 +84,8 @@
         copy.innerHTML = '<b>' + esc(pick.dataset.name) + '</b><span class="r-' + esc(pick.dataset.rarity) + '">' +
           esc(pick.dataset.rarity) + '</span><p>' + esc(pick.dataset.desc) + '</p>' +
           '<button class="mk-link" data-contents="' + esc(crate) + '">Comes out of the ' +
-          (crate === 'halloween' ? 'Hallowed Harvest' : 'Blockhaven Hat') + ' Crate &rarr;</button>';
+          esc(((window.CRATE_SERIES || {})[crate] || {}).name || 'Blockhaven Hat Crate') +
+          ' &rarr;</button>';
       }
       Thumbs.animateItem(canvas, pick.dataset.spot, hatLike ? effect : '', { spin: 0.55 });
     }

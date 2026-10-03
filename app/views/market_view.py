@@ -56,7 +56,9 @@ def market_page(req: Request):
     spotlight = [catalog.get(i) for i in ("hat_hexed_witch", "hat_halo", "hat_lantern",
                                           "hat_tagalong_ghost", "hat_crown",
                                           "back_nightwing_cloak")]
+    feature = crates.event_feature(events[0]["id"]) if events else None
     return render(req, "market.html", page_title="Market",
+                  feature=feature,
                   items=items, slot=slot, sort=sort, term=term, tabs=tabs,
                   owned=owned, stash=stash, series=series, offers=offers,
                   events=events, feed=crates.recent_openings(14),

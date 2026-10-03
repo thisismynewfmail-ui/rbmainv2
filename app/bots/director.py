@@ -64,6 +64,9 @@ WORLD_INDEX = {wid: i for i, wid in enumerate(WORLD_IDS)}
 # Hidden worlds keep their index (snapshots store worlds by position) but a
 # bot is never sent into one: their weight is always zero.
 OPEN_WORLDS = frozenset(wid for wid in WORLD_IDS if world_registry.is_open(wid))
+# Chance an idle bot opens a crate when it next looks round (crates.bot_unbox):
+# a handful a minute across a few thousand online bots.
+UNBOX_CHANCE = 0.015
 
 # per-bot traits the director itself reads, as float arrays
 TRAIT_ARRAYS = ("activity", "night", "weekend", "session", "gamer", "social",
@@ -577,6 +580,8 @@ class Director:
             if self._wants_game(i, want_playing):
                 if self._join_world(i, now):
                     return
+            if self.rng.random() < UNBOX_CHANCE:
+                self._unbox(i)
             self._schedule(i, now + self.rng.randint(120, 900))
             return
         if state == PLAYING:
@@ -584,6 +589,22 @@ class Director:
             self._leave_world(i, now, "left the server")
             b_lo, b_hi = bot_config.get("worlds.break_minutes") or [2, 18]
             self._schedule(i, now + int(_between(self.rng, (b_lo, b_hi)) * 60) + 5)
+
+    def _unbox(self, i: int) -> None:
+        """An idle bot wanders into the market and opens a crate, paying the
+        same price at the same odds as anyone -- the drop feed has a crowd in
+        it, and a bot's Unusual is as real as a person's.  Off the director's
+        thread: it is a write transaction, and the tick holds the lock."""
+        uid = int(self.uids[i])
+        seed = self.rng.random()
+
+        def go() -> None:
+            try:
+                from ..models import crates
+                crates.bot_unbox(uid, random.Random(seed))
+            except Exception:
+                traceback.print_exc()
+        threading.Thread(target=go, daemon=True, name="bots-unbox").start()
 
     def _wants_game(self, i: int, want_playing: int) -> bool:
         if not bot_config.get("worlds.enabled") or not self._any_host():

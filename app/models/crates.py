@@ -106,6 +106,9 @@ EVENTS: Dict[str, Dict[str, Any]] = {
                  "that only exist until the first of November is long gone.",
         "starts": SERIES["halloween"]["starts"], "ends": SERIES["halloween"]["ends"],
         "colors": SERIES["halloween"]["colors"],
+        # the series the market's event hero sells, and the Unusual effect
+        # that curls round its crate on the pedestal
+        "series": "halloween", "hero_effect": "haunted_wisps",
     },
 }
 
@@ -256,6 +259,24 @@ def public_series(series: Dict[str, Any]) -> Dict[str, Any]:
 
 def all_series() -> List[Dict[str, Any]]:
     return [public_series(s) for s in sorted(SERIES.values(), key=lambda s: s["number"])]
+
+
+def event_feature(event_id: str) -> Optional[Dict[str, Any]]:
+    """What the market's event hero shows for an event: its series (crate,
+    key, prices), the chase items best first, and the effects it pushes."""
+    event = EVENTS.get(event_id)
+    series = SERIES.get((event or {}).get("series", ""))
+    if event is None or series is None:
+        return None
+    order = {g: i for i, g in enumerate(("mythic", "legendary", "rare", "uncommon", "common"))}
+    loot = sorted(series["loot"], key=lambda i: order.get(grade_of(series, i), 9))
+    weights = series.get("effect_weights") or {}
+    featured = [e for e in series["effects"] if weights.get(e, 1.0) > 1.0] or series["effects"][:2]
+    return {"series": public_series(series), "loot": loot,
+            "effects": [catalog.UNUSUAL_EFFECTS[e]["name"] for e in featured
+                        if e in catalog.UNUSUAL_EFFECTS],
+            "hero_effect": event.get("hero_effect", ""),
+            "glow": series["colors"].get("glow", "#ffffff")}
 
 
 # ------------------------------------------------------------- rolling

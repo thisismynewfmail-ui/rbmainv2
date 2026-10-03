@@ -2,8 +2,12 @@
 {% set event = events[0] if events else None %}
 <div class="mk" id="market" data-now="{{ now }}">
 
-  {% if event %}
-  <!-- ======================================================= the event hero -->
+  {% if event and feature %}
+  {% set es = feature.series %}
+  <!-- ======================================================= the event hero
+       Everything sold here comes from the event's series (crates.EVENTS ->
+       crates.SERIES), so a new event is data plus a theme-<id> skin in
+       market.css; see reference_images_to_start_with/CRATES_AND_KEYS.md. -->
   <section class="mk-hero theme-{{ event.id }}" data-event-ends="{{ event.ends }}">
     <div class="mk-sky" aria-hidden="true">
       <div class="mk-stars"></div>
@@ -18,7 +22,7 @@
       <div class="mk-lanterns"><i></i><i></i><i></i></div>
     </div>
     <div class="mk-hero-copy">
-      <div class="mk-kicker"><span class="mk-live-dot"></span> Limited event &bull; Series #2</div>
+      <div class="mk-kicker"><span class="mk-live-dot"></span> Limited event &bull; Series #{{ es.number }}</div>
       <h1 class="mk-title" data-text="{{ event.title }}">{{ event.title }}</h1>
       <p class="mk-blurb">{{ event.blurb }}</p>
       <div class="mk-countdown" aria-label="Time left in the event">
@@ -29,20 +33,20 @@
       </div>
       <div class="mk-cta">
         {% if user %}
-        <button class="mk-btn hot" data-buy="crate_halloween" data-name="Hallowed Harvest Crate"
-                data-price="500" data-slot="crate" data-stack="1">
-          <span>Buy the Crate</span><em><span class="coin"></span> 500</em></button>
-        <button class="mk-btn" data-buy="key_halloween" data-name="Hallowed Key"
-                data-price="600" data-slot="key" data-stack="1">
-          <span>Buy the Key</span><em><span class="coin"></span> 600</em></button>
+        <button class="mk-btn hot" data-buy="{{ es.crate }}" data-name="{{ es.crate_name }}"
+                data-price="{{ es.crate_price }}" data-slot="crate" data-stack="1">
+          <span>Buy the Crate</span><em><span class="coin"></span> {{ fmt_num(es.crate_price) }}</em></button>
+        <button class="mk-btn" data-buy="{{ es.key }}" data-name="{{ es.key_name }}"
+                data-price="{{ es.key_price }}" data-slot="key" data-stack="1">
+          <span>Buy the Key</span><em><span class="coin"></span> {{ fmt_num(es.key_price) }}</em></button>
         {% else %}
         <a class="mk-btn hot" href="/login?next=/market"><span>Sign in to unbox</span></a>
         {% endif %}
-        <button class="mk-btn ghost" data-contents="halloween"><span>&#128269; What's inside?</span></button>
+        <button class="mk-btn ghost" data-contents="{{ es.id }}"><span>&#128269; What's inside?</span></button>
       </div>
-      <div class="mk-chase" aria-label="In the Hallowed Harvest crate">
-        {% for item_id in ['hat_hexed_witch', 'use_hollow_harvester', 'use_jack_o_launcher', 'hat_tagalong_ghost', 'back_nightwing_cloak', 'hat_plague_doctor', 'hat_mummy'] %}
-        <button class="mk-chase-item" data-contents="halloween" title="See the odds">
+      <div class="mk-chase" aria-label="In the {{ es.crate_name }}">
+        {% for item_id in feature.loot %}
+        <button class="mk-chase-item" data-contents="{{ es.id }}" title="See the odds">
           <canvas class="item-thumb" width="96" height="96" data-item="{{ item_id }}"></canvas>
         </button>
         {% endfor %}
@@ -51,10 +55,11 @@
     <div class="mk-hero-stage">
       <div class="mk-pedestal"><i></i></div>
       <canvas class="mk-hero-crate" id="hero-crate" width="460" height="460"
-              data-item="crate_halloween" data-glow="#6bff9a"></canvas>
+              data-item="{{ es.crate }}" data-glow="{{ feature.glow }}"
+              data-series="{{ es.id }}" data-effect="{{ feature.hero_effect }}"></canvas>
       <div class="mk-unusual-tease">
-        <span class="mk-tease-k">&#9733; 4% Unusual</span>
-        <span class="mk-tease-v">Phantom Procession &bull; Trick or Treat</span>
+        <span class="mk-tease-k">&#9733; {{ es.unusual_chance }}% Unusual</span>
+        <span class="mk-tease-v">{{ ' \u2022 '.join(feature.effects) }}</span>
       </div>
     </div>
   </section>
