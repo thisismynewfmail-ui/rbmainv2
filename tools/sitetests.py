@@ -90,6 +90,32 @@ class Client:
         except Exception:
             return {"ok": False, "error": "bad json (%s)" % status, "status": status}
 
+    def websocket_handshake(self, path: str) -> str:
+        """Open a game socket the way the browser does; return the status line."""
+        conn = self._connect()
+        conn.connect()
+        sock = conn.sock
+        key = "dGhlIHNhbXBsZSBub25jZQ=="
+        head = ("GET %s HTTP/1.1\r\nHost: %s:%d\r\nUpgrade: websocket\r\n"
+                "Connection: Upgrade\r\nSec-WebSocket-Key: %s\r\n"
+                "Sec-WebSocket-Version: 13\r\n" % (path, self.host, self.port, key))
+        if self.cookie:
+            head += "Cookie: %s\r\n" % self.cookie
+        sock.sendall((head + "\r\n").encode("latin-1"))
+        sock.settimeout(10)
+        data = b""
+        try:
+            while b"\r\n" not in data:
+                chunk = sock.recv(1024)
+                if not chunk:
+                    break
+                data += chunk
+        except OSError:
+            pass
+        finally:
+            conn.close()
+        return data.split(b"\r\n", 1)[0].decode("latin-1", "replace")
+
     def get_api(self, path: str) -> Dict[str, Any]:
         status, data, _ = self.request("GET", path, None, False,
                                        {"X-Requested-With": "fetch"})
@@ -484,9 +510,32 @@ def run(host: str, port: int, tls: bool = False) -> int:
     world_status = client.get_api("/api/worlds/status").get("worlds", {})
     check("hidden: and are not in the world status",
           not (set(hidden) & set(world_status)), sorted(world_status))
-    joins = [client.api("/api/worlds/join", {"world": w}) for w in hidden]
-    check("hidden: and cannot be joined", not any(j.get("ok") for j in joins),
+    joins = [client.api("/api/game/join", {"world_id": w}) for w in hidden]
+    check("hidden: and cannot be joined",
+          not any(j.get("ok") for j in joins)
+          and all(j.get("error") and "nothing at" not in j.get("error", "") for j in joins),
           [j.get("error") for j in joins])
+
+    print("\n== joining a world with everything equipped ==")
+    # The join ticket rides in the socket URL.  It used to carry every model
+    # the avatar wore and held, and two event weapons on the hotbar pushed it
+    # past the game host's request-line limit: the ticket was cut short, its
+    # signature failed and the join hung on "waiting for the world".
+    for item_id, index in (("use_hollow_harvester", 3), ("use_jack_o_launcher", 4)):
+        admin.api("/api/admin/grant", {"username": name, "item_id": item_id})
+        owned = client.get_api("/api/inventory").get("items", [])
+        copy = next((i for i in owned if i["item_id"] == item_id), None)
+        if copy:
+            client.api("/api/avatar/hotbar", {"index": index, "inv_id": copy["inv_id"]})
+    for world in ("last_light", "blackout_relay"):
+        ticket = client.api("/api/game/join", {"world_id": world})
+        ws_path = ticket.get("ws", "")
+        check("join: %s hands out a compact ticket with the event weapons held" % world,
+              ticket.get("ok") and 0 < len(ws_path) < 4096, len(ws_path))
+        if ws_path:
+            status_line = client.websocket_handshake(ws_path)
+            check("join: the %s host accepts that ticket" % world,
+                  " 101 " in status_line, status_line)
     status, worlds_html = client.get("/worlds")
     check("hidden: the world browser does not list them",
           not any(w in worlds_html for w in hidden), status)

@@ -256,6 +256,75 @@ def _item_payload(item: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+# ------------------------------------------------------- compact form
+# A descriptor carries every equipped item's model -- its parts -- which is
+# what every renderer needs and far more than a *reference* to the avatar
+# needs.  The game join ticket rides in the socket URL, and a full descriptor
+# with a sculpted hat, wings and two event weapons on the hotbar is past ten
+# kilobytes: long enough that the host's request line cut it off and the
+# ticket's signature no longer matched.  So the ticket carries this compact
+# form (what is worn and held, by id) and the host rebuilds the rest from the
+# same catalogue with expand().
+
+_REF_KEYS = ("inv_id", "item_id", "tier", "effect")
+
+
+def _ref(entry: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not entry:
+        return None
+    return {k: entry.get(k) for k in _REF_KEYS}
+
+
+def compact(descriptor: Dict[str, Any]) -> Dict[str, Any]:
+    """The descriptor with each item reduced to its id, copy, tier and effect."""
+    out = dict(descriptor)
+    out["items"] = {slot: _ref(entry) for slot, entry in
+                    (descriptor.get("items") or {}).items() if entry}
+    out["hotbar"] = [_ref(entry) for entry in descriptor.get("hotbar") or []]
+    badge = descriptor.get("badge")
+    if isinstance(badge, dict):
+        out["badge"] = {k: badge.get(k) for k in
+                        ("id", "name", "level", "tier", "tier_label", "rank")}
+    return out
+
+
+def _expand_entry(entry: Any, slot: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not isinstance(entry, dict):
+        return None
+    if entry.get("data") is not None:
+        return entry                      # already whole
+    item = catalog.get(str(entry.get("item_id", "")))
+    if item is None or (slot is not None and item["slot"] != slot):
+        return None
+    tier = entry.get("tier") if entry.get("tier") in catalog.TIERS else "normal"
+    effect = entry.get("effect") if entry.get("effect") in catalog.UNUSUAL_EFFECTS else ""
+    return _item_payload(item, {"id": int(entry.get("inv_id") or 0), "tier": tier,
+                                "effect": effect})
+
+
+def expand(descriptor: Dict[str, Any]) -> Dict[str, Any]:
+    """Undo compact(): rebuild each item (and the worn badge) from the
+    catalogue.  A whole descriptor passes through unchanged."""
+    if not isinstance(descriptor, dict):
+        return default_descriptor()
+    out = dict(descriptor)
+    items = {}
+    for slot, entry in (descriptor.get("items") or {}).items():
+        whole = _expand_entry(entry, slot)
+        if whole is not None:
+            items[slot] = whole
+    out["items"] = items
+    hotbar = [_expand_entry(entry, "usable") for entry in descriptor.get("hotbar") or []]
+    hotbar += [None] * (catalog.HOTBAR_SIZE - len(hotbar))
+    out["hotbar"] = hotbar[:catalog.HOTBAR_SIZE]
+    badge = descriptor.get("badge")
+    if isinstance(badge, dict) and not badge.get("parts") and badge.get("id") in badges.BADGES:
+        badge = dict(badge)
+        badge["parts"] = badges.model(str(badge["id"]), int(badge.get("level") or 1))
+        out["badge"] = badge
+    return out
+
+
 def default_descriptor(username: str = "Guest") -> Dict[str, Any]:
     face = catalog.get("face_smile")
     return {
