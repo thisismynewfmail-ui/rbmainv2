@@ -245,6 +245,18 @@
   Thumbs.itemParts = function (item, effect) {
     var slot = item.slot;
     var data = item.data || {};
+    if (slot === 'crate' || slot === 'key') {
+      // crates and keys are objects, shown on their own and from a little
+      // above, the way they sit on a shelf
+      var objParts = (data.parts || []).map(function (piece) {
+        return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
+                 c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
+                 decSlot: piece.decal ? Textures.decal(piece.decal) : null };
+      });
+      return slot === 'crate'
+        ? { parts: objParts, angle: -0.58, tilt: 0.34, padding: 1.10 }
+        : { parts: objParts, angle: -0.30, tilt: 0.30, padding: 1.08 };
+    }
     if (slot === 'hat' || slot === 'back') {
       var parts = (data.parts || []).map(function (piece) {
         return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
@@ -334,7 +346,7 @@
      against the shared offscreen renderer and blit it out, and they stop the
      moment the canvas leaves the page, so nothing keeps burning CPU behind a
      closed dialog. */
-  var LIVE_MAX = 4;
+  var LIVE_MAX = 6;
   var live = [];
   var liveFrame = 0;
   var particlePool = [];
@@ -376,13 +388,20 @@
                         sun: [0.45, 0.8, 0.35], clouds: 0, tint: '#ffffff' });
       renderer.buildStatic([]);
       renderer.beginFrame(dt);
+      if (job.spin) {
+        job.angle += dt * job.spin;
+        // a turntable bobs a little, so it reads as on show rather than parked
+        job.bob = Math.sin(now / 900) * 0.04;
+      }
       for (var n = 0; n < job.parts.length; n++) renderer.push(job.parts[n]);
       frameCamera(renderer, job.frame && job.frame.length ? job.frame : job.parts,
-                  job.padding, job.angle, job.tilt);
-      job.particles.setEmitter('fx', job.def, job.anchor);
-      job.particles.update(dt);
+                  job.padding, job.angle, job.tilt + (job.bob || 0));
+      if (job.def) {
+        job.particles.setEmitter('fx', job.def, job.anchor);
+        job.particles.update(dt);
+      }
       renderer.render();
-      job.particles.draw(renderer);
+      if (job.def) job.particles.draw(renderer);
       blit(job.canvas, renderer.canvas);
     }
   }
@@ -406,7 +425,9 @@
      previews are already running. */
   Thumbs.animateItem = function (canvas, itemId, effect, options) {
     options = options || {};
-    if (!canvas || !effect) {
+    // with nothing to animate, a still is all there is to draw -- unless the
+    // caller asked for a turntable
+    if (!canvas || (!effect && !options.spin)) {
       if (canvas && itemId) Thumbs.renderItem(canvas, itemId, effect);
       return;
     }
@@ -416,9 +437,13 @@
       if (!item || !ensureRenderer()) return;
       // draw the still first so the tile is never blank while we spin up
       Thumbs.renderItem(canvas, itemId, effect);
-      var def = Thumbs.effectDef(effect);
-      if (!def) return;
-      if (live.length >= LIVE_MAX) return;
+      var def = effect ? Thumbs.effectDef(effect) : null;
+      if (!def && !options.spin) return;
+      if (live.length >= LIVE_MAX) {
+        // the oldest turntable gives way to the one just asked for
+        if (!options.spin) return;
+        Thumbs.stopLive(live[0].canvas);
+      }
       var spec = Thumbs.itemParts(item, effect);
       var system = borrowParticles();
       if (!system) return;
@@ -430,12 +455,14 @@
         padding: spec.padding,
         anchor: spec.anchor || [0, 0.35, 0],
         frame: spec.frame,
-        def: Thumbs.scaleEffect(def, options.scale || spec.effectScale),
+        def: def ? Thumbs.scaleEffect(def, options.scale || spec.effectScale) : null,
         particles: system,
+        spin: options.spin || 0,
         last: 0
       };
+      if (options.padding) job.padding = options.padding;
       // a couple of seconds of pre-roll, so it opens mid-effect not empty
-      for (var step = 0; step < 70; step++) {
+      for (var step = 0; job.def && step < 70; step++) {
         system.setEmitter('fx', job.def, job.anchor);
         system.update(1 / 60);
       }

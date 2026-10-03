@@ -58,6 +58,25 @@ def _live_payload() -> Dict[str, Any]:
     }
 
 
+GRANT_GROUPS = [("key", "Keys"), ("crate", "Crates"), ("hat", "Hats"),
+                ("hair", "Hair"), ("face", "Faces"), ("shirt", "Shirts"),
+                ("pants", "Pants"), ("belt", "Belts"), ("back", "Back"),
+                ("usable", "Usables")]
+
+
+def _grant_groups():
+    """The Grant an item list, grouped by slot with the keys first."""
+    return [{"label": label,
+             "items": sorted(catalog.by_slot(slot),
+                             key=lambda i: (i.get("sort_order", 0), i["name"]))}
+            for slot, label in GRANT_GROUPS if catalog.by_slot(slot)]
+
+
+def _crate_series():
+    from ..models import crates
+    return crates.all_series()
+
+
 @router.get("/admin-dashboard")
 @admin_required
 def dashboard(req: Request):
@@ -75,6 +94,8 @@ def dashboard(req: Request):
                       " JOIN users u ON u.id=l.user_id"
                       " ORDER BY l.id DESC LIMIT 25")),
                   catalogue=catalog.ALL_ITEMS,
+                  catalogue_groups=_grant_groups(),
+                  crate_series=_crate_series(),
                   effects=catalog.UNUSUAL_EFFECTS,
                   server={
                       "pid": os.getpid(),
@@ -300,6 +321,35 @@ def admin_grant(req: Request):
                           force_effect=effect)
     db.audit(int(req.user["id"]), "admin.grant", target["username"], row)
     return api_ok(item=row)
+
+
+@router.post("/api/admin/drop-crate")
+@admin_required
+def admin_drop_crate(req: Request):
+    """Drop A Crate: give any player crates of any series, keys optional.
+
+    Runs through crates.drop, which grants the rows in one transaction and
+    leaves the player a notification -- the same path any future in-game drop
+    would use.  Works whether or not the series' event is running, because an
+    administrator handing out a crate is the event."""
+    from ..models import crates
+    data = req.data()
+    target = users.get_by_username(str(data.get("username", "")).strip())
+    if target is None:
+        return api_error("No such player.")
+    crate_item = str(data.get("crate", ""))
+    try:
+        count = int(data.get("count", 1) or 1)
+    except (TypeError, ValueError):
+        return api_error("Bad count.")
+    try:
+        result = crates.drop(int(target["id"]), crate_item, count,
+                             bool(data.get("keys")), int(req.user["id"]),
+                             str(data.get("note", "") or ""))
+    except crates.CrateError as exc:
+        return api_error(str(exc))
+    return api_ok(username=target["username"],
+                  crate=catalog.get(crate_item)["name"], **result)
 
 
 @router.post("/api/admin/revoke")

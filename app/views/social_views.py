@@ -4,6 +4,7 @@ from __future__ import annotations
 from ..http import router as R
 from ..http.router import Request
 from ..models import users
+from ..models import notifications
 from ..social import follows, friends, messages
 from .base import (api_error, api_ok, flash_redirect, login_required, render,
                    router)
@@ -187,4 +188,6 @@ def counts(req: Request):
                   requests=friends.pending_count(uid),
                   friends=friends.count_friends(uid),
                   credits=int(fresh["credits"]),
-                  theme=users.theme_of(fresh))
+                  theme=users.theme_of(fresh),
+                  # badges earned and crates dropped since the last look
+                  notes=notifications.unseen(uid))

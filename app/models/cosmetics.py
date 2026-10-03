@@ -734,7 +734,7 @@ def _backpack():
     ]
 
 
-def _wing_pair(colours, root_y=0.55, spread=0.32, lift=0.38, size=1.55):
+def _wing_pair(colours, root_y=0.55, spread=0.32, lift=0.38, size=2.15):
     parts = []
     for layer, (c, k, dz, dlift) in enumerate(zip(colours, (1.0, 0.82, 0.62),
                                                    (0.0, -0.05, -0.10),
@@ -936,8 +936,8 @@ def _nightwing_cloak():
         place("cape", [0, 0.98, -0.08], [1.70, 1.90, 1.5], "#121018", anchor=[0, 0, 0]),
         place("cape", [0, 0.96, -0.04], [1.58, 1.84, 1.2], "#7a0f1c", anchor=[0, 0, 0]),
         # the stand-up collar, black outside and blood red within
-        place("collar", [0, 0.88, 0.52], [1.16, 1.0, 1.12], "#121018", anchor=[0, 0, 0]),
-        place("collar", [0, 0.90, 0.52], [1.08, 0.92, 1.04], "#7a0f1c", anchor=[0, 0, 0]),
+        place("collar", [0, 0.86, 0.50], [1.30, 0.62, 1.22], "#121018", anchor=[0, 0, 0]),
+        place("collar", [0, 0.88, 0.50], [1.22, 0.56, 1.14], "#7a0f1c", anchor=[0, 0, 0]),
         # a gold clasp at each collarbone and the chain between them
         part("disc", [0.50, 0.86, 0.98], [0.24, 0.24, 0.06], GOLD, mat="metal"),
         part("disc", [-0.50, 0.86, 0.98], [0.24, 0.24, 0.06], GOLD, mat="metal"),
@@ -985,7 +985,6 @@ HALLOWEEN_COSMETICS: List[Dict[str, Any]] = [
 # the key knows where to go.
 def _classic_crate():
     wood = "#a06e3e"
-    dark = "#6b4524"
     iron = "#4a4d52"
     parts = [
         part("rbox", [0, 0.0, 0], [1.64, 1.00, 1.12], wood, decal="planks", wrap=True),
@@ -1233,4 +1232,320 @@ HALLOWEEN_WEAPONS: List[Dict[str, Any]] = [
          "gravity_scale": 1.25, "self_damage": 0.0, "knockback": 18,
          "self_knockback": 0.0, "treat_heal": 22,
      }, "parts": _jack_o_launcher()}},
+]
+
+
+# ================================================================= HAIR
+# Hair is authored in HEAD UNITS: 1.0 is the head's own width, height and
+# depth, the origin is the middle of the head, +Z is the face.  The renderer
+# scales it to whichever head is wearing it (avatar.js), so one style fits
+# both builds.  Keep anything that is not a fringe above y 0.22 at the
+# front: that is where the eyes are printed.
+BROWN, BLACK, BLONDE, AUBURN, SILVER_HAIR = ("#4a2f1b", "#1a1a1a", "#d9a441",
+                                             "#8b3a1a", "#c9ccd1")
+
+
+def _shade(hex_colour: str, k: float) -> str:
+    """The same colour lighter (k > 1) or darker (k < 1), for strand tones."""
+    h = hex_colour.lstrip("#")
+    rgb = [int(h[i:i + 2], 16) for i in (0, 2, 4)]
+    rgb = [max(0, min(255, int(round(v * k)))) for v in rgb]
+    return "#%02x%02x%02x" % tuple(rgb)
+
+
+def _hair_item(item_id, name, price, parts, desc, rarity="common", order=0):
+    return {"id": item_id, "name": name, "slot": "hair", "price": price,
+            "rarity": rarity, "description": desc, "sort_order": order,
+            "data": {"parts": parts}}
+
+
+def _shell(kind: str, c: str, puff: float = 1.0) -> Dict[str, Any]:
+    """The hair shell (shapes.js): one surface hugging the skull down to the
+    hairline -- ``hairshort``, ``hairmid``, ``hairbob`` or ``hairlong`` --
+    printed with strands.  ``puff`` gives it a little more volume."""
+    return place(kind, [0, 0, 0], [puff, puff, puff], c, anchor=[0, 0, 0],
+                 decal="strands", wrap=True)
+
+
+def _hair_crop():
+    c, hi, lo = BROWN, _shade(BROWN, 1.25), _shade(BROWN, 0.8)
+    parts = [_shell("hairshort", c)]
+    # a textured top: tufts pushed about by hand
+    k = 0
+    for gx in (-0.28, 0.0, 0.28):
+        for gz in (-0.26, 0.02, 0.28):
+            k += 1
+            parts.append(part("sph", [gx + (0.03 if k % 2 else -0.03), 0.55,
+                                      gz + (0.02 if k % 3 else -0.03)],
+                              [0.34, 0.14, 0.32], hi if k % 2 else c,
+                              [0, k * 0.7, 0]))
+    parts += [place("teardrop", [x, 0.32, 0.53], [0.15, 0.17, 0.10], hi,
+                    anchor=[0, 0.0, 0], r=[PI - 0.5, 0, lean])
+              for x, lean in ((-0.27, 0.2), (-0.09, 0.05), (0.09, -0.1), (0.27, -0.25))]
+    parts += [part("rbox", [0.535, 0.02, 0.22], [0.04, 0.24, 0.10], lo),
+              part("rbox", [-0.535, 0.02, 0.22], [0.04, 0.24, 0.10], lo)]
+    return parts
+
+
+def _hair_spikes():
+    c, tip = BLACK, "#34343c"
+    parts = [_shell("hairshort", c)]
+    parts.append(place("cone", [0, 0.50, 0.02], [0.30, 0.50, 0.30], c, anchor=[0, -0.5, 0],
+                       r=[-0.12, 0, 0]))
+    for ring, (radius, count, h, tilt, y) in enumerate(((0.22, 6, 0.42, 0.42, 0.50),
+                                                        (0.40, 7, 0.32, 0.78, 0.44))):
+        for k in range(count):
+            a = TAU * k / count + ring * 0.4
+            x, z = math.sin(a) * radius, math.cos(a) * radius - 0.04
+            # lean outwards from the crown and a touch towards the back
+            r = [-math.cos(a) * tilt - 0.15, 0, math.sin(a) * tilt]
+            parts.append(place("cone", [x, y, z], [0.26, h, 0.26], c if k % 2 else tip,
+                               anchor=[0, -0.5, 0], r=r))
+    return parts
+
+
+def _hair_swept():
+    c, hi, lo = BLONDE, _shade(BLONDE, 1.12), _shade(BLONDE, 0.84)
+    parts = [_shell("hairshort", c)]
+    # the parting, then the volume swept over the top and the strands combed
+    # across the brow
+    parts.append(part("rbox", [-0.26, 0.555, 0.04], [0.03, 0.02, 0.72], _shade(BLONDE, 0.6)))
+    parts.append(place("teardrop", [-0.20, 0.52, 0.16], [0.36, 0.98, 0.52], hi,
+                       anchor=[0, 0.25, 0], r=[0.12, 0, -PI / 2 + 0.18]))
+    for k, (y, z, length, tilt, colour) in enumerate(((0.40, 0.53, 1.00, -0.20, c),
+                                                      (0.33, 0.54, 0.92, -0.32, hi),
+                                                      (0.27, 0.53, 0.80, -0.44, c),
+                                                      (0.45, 0.50, 0.76, -0.08, lo))):
+        parts.append(place("leaf", [0.06, y, z], [0.60, length, 3.0], colour,
+                           r=[0, 0, PI / 2 + tilt]))
+    return parts
+
+
+def _hair_flattop():
+    c, lo = BLACK, "#2a2a30"
+    return [
+        _shell("hairshort", lo),
+        part("rbox", [0, 0.56, -0.03], [0.98, 0.42, 0.96], c, decal="fur", wrap=True),
+        part("rbox", [0, 0.775, -0.03], [0.94, 0.025, 0.92], "#2c2c34"),
+    ]
+
+
+def _hair_long():
+    c, hi, lo = BROWN, _shade(BROWN, 1.22), _shade(BROWN, 0.82)
+    parts = [_shell("hairlong", c),
+             part("rbox", [0, 0.545, 0.10], [0.03, 0.02, 0.62], _shade(BROWN, 0.6))]
+    # curtains parted in the middle
+    parts += [place("leaf", [0.22 * s, 0.30, 0.50], [0.75, 0.62, 3.2], hi if s > 0 else c,
+                    r=[0, 0, (PI / 2 - 0.55) * s]) for s in (1, -1)]
+    # the length down the back, strand by strand, each ending in a soft point
+    for k, x in enumerate((-0.42, -0.25, -0.08, 0.08, 0.25, 0.42)):
+        length = 1.42 + (0.10 if k % 2 else 0.0) - abs(x) * 0.25
+        colour = (c, lo, hi)[k % 3]
+        parts.append(part("rbox", [x, 0.30 - length / 2, -0.55], [0.20, length, 0.16], colour,
+                          decal="strands", wrap=True))
+        parts.append(place("teardrop", [x, 0.30 - length, -0.55], [0.20, 0.22, 0.16],
+                           colour, anchor=[0, 0.0, 0], r=[PI, 0, 0]))
+    # and down either side of the face, behind the ears
+    for side in (1, -1):
+        parts += [
+            part("rbox", [0.55 * side, -0.42, 0.12], [0.12, 0.56, 0.28], c),
+            part("rbox", [0.55 * side, -0.48, -0.20], [0.13, 0.70, 0.36], lo),
+            place("teardrop", [0.55 * side, -0.70, 0.12], [0.12, 0.20, 0.28], c,
+                  anchor=[0, 0, 0], r=[PI, 0, 0]),
+        ]
+    return parts
+
+
+def _hair_ponytail():
+    c, hi = BLONDE, _shade(BLONDE, 1.12)
+    parts = [_shell("hairmid", c),
+             place("leaf", [0.18, 0.31, 0.54], [0.6, 0.7, 3.0], hi, r=[0, 0, PI / 2 - 0.35]),
+             place("leaf", [-0.12, 0.33, 0.54], [0.5, 0.6, 3.0], c, r=[0, 0, PI / 2 + 0.25])]
+    # the tie, then the tail in three tapering lengths, swinging out a little
+    parts.append(part("torus", [0, 0.22, -0.60], [0.32, 0.12, 0.32], "#c4281c",
+                      [PI / 2 - 0.4, 0, 0]))
+    parts.append(part("sph", [0, 0.22, -0.58], [0.22, 0.22, 0.20], c))
+    y, z = 0.20, -0.66
+    for k, (w, h, swing) in enumerate(((0.34, 0.62, 0.30), (0.28, 0.58, 0.14),
+                                       (0.20, 0.50, 0.04))):
+        parts.append(place("teardrop", [0, y, z], [w, h, w * 0.9], (c, hi, c)[k],
+                           anchor=[0, 0.12, 0], r=[PI - swing, 0, 0]))
+        drop = rotate([0, -h * 0.80, 0], [-swing, 0, 0])
+        y, z = y + drop[1], z + drop[2]
+    return parts
+
+
+def _hair_bunches():
+    c, hi, lo = AUBURN, _shade(AUBURN, 1.18), _shade(AUBURN, 0.82)
+    parts = [_shell("hairmid", c),
+             part("rbox", [0, 0.545, 0.05], [0.03, 0.02, 0.66], _shade(AUBURN, 0.6))]
+    parts += [place("teardrop", [x, 0.31, 0.54], [0.18, 0.20, 0.10], hi, anchor=[0, 0, 0],
+                    r=[PI - 0.4, 0, lean]) for x, lean in ((-0.24, 0.2), (0.0, 0.0), (0.24, -0.2))]
+    for side in (1, -1):
+        parts += [
+            part("cyl", [0.56 * side, 0.24, -0.12], [0.22, 0.10, 0.22], "#e8557f",
+                 [0, 0, 0.5 * side]),
+            part("sph", [0.62 * side, 0.27, -0.12], [0.14, 0.14, 0.14], "#ff8fb0"),
+            place("teardrop", [0.60 * side, 0.20, -0.12], [0.44, 0.74, 0.42], c,
+                  anchor=[0, 0.1, 0], r=[PI - 0.15, 0, -0.35 * side]),
+            place("teardrop", [0.66 * side, 0.12, -0.04], [0.30, 0.62, 0.30], hi,
+                  anchor=[0, 0.1, 0], r=[PI - 0.05, 0, -0.55 * side]),
+            place("hook", [0.80 * side, -0.46, -0.10], 0.30, lo, anchor=[0, 0, 0],
+                  r=[PI, 0 if side > 0 else PI, 0]),
+        ]
+    return parts
+
+
+def _hair_bob():
+    c, hi = BLACK, "#2e2e36"
+    parts = [_shell("hairbob", c, 1.04)]
+    # the blunt fringe, cut strand by strand and lying on the brow
+    parts.append(part("rbox", [0, 0.31, 0.525], [0.98, 0.16, 0.05], c))
+    parts += [place("teardrop", [x, 0.25, 0.53], [0.16, 0.12, 0.06], hi if k % 2 else c,
+                    anchor=[0, 0.0, 0], r=[PI, 0, 0])
+              for k, x in enumerate((-0.40, -0.20, 0.0, 0.20, 0.40))]
+    for side in (1, -1):
+        # the cut line swings forward to a point at the jaw
+        parts += [part("rbox", [0.545 * side, -0.30, 0.22], [0.08, 0.30, 0.34], c,
+                       [-0.35, 0, 0]),
+                  part("rbox", [0.55 * side, 0.10, 0.36], [0.04, 0.46, 0.04], hi)]
+    return parts
+
+
+def _hair_silver():
+    c, white, lo = SILVER_HAIR, "#f7f8fa", _shade(SILVER_HAIR, 0.82)
+    parts = [_shell("hairbob", c, 1.03),
+             # a side-swept fringe with the white streak through it
+             place("leaf", [0.14, 0.33, 0.535], [0.7, 0.86, 2.4], c, r=[0, 0, PI / 2 - 0.35]),
+             place("leaf", [-0.24, 0.31, 0.535], [0.7, 0.62, 2.4], white, r=[0, 0, PI / 2 + 0.5]),
+             place("leaf", [-0.16, 0.38, 0.53], [0.6, 0.52, 2.4], white, r=[0, 0, PI / 2 + 0.3]),
+             part("rbox", [-0.55, 0.06, 0.24], [0.05, 0.62, 0.10], white)]
+    # layered ends flicking out at the shoulder
+    for side in (1, -1):
+        parts += [place("teardrop", [0.50 * side, -0.40, z], [0.18, 0.26, 0.18], lo,
+                        anchor=[0, 1.0, 0], r=[PI, 0, 0.5 * side]) for z in (-0.30, 0.0, 0.26)]
+    parts += [place("teardrop", [x, -0.42, -0.52], [0.18, 0.24, 0.16], lo, anchor=[0, 1.0, 0],
+                    r=[PI + 0.4, 0, 0]) for x in (-0.30, 0.0, 0.30)]
+    return parts
+
+
+def _hair_quiff():
+    c, hi, lo = "#3b2416", _shade("#3b2416", 1.35), "#22140c"
+    parts = [_shell("hairshort", lo)]
+    # the quiff itself, rolled up and forward off the brow
+    parts.append(place("teardrop", [0, 0.40, 0.10], [0.70, 0.86, 0.56], c,
+                       anchor=[0, 0.18, 0], r=[1.15, 0, 0]))
+    parts.append(place("teardrop", [0.10, 0.46, 0.06], [0.48, 0.70, 0.40], hi,
+                       anchor=[0, 0.18, 0], r=[1.0, 0.2, -0.15]))
+    parts.append(place("hook", [-0.12, 0.62, 0.30], 0.36, c, anchor=[0, 0, 0],
+                       r=[0, -PI / 2, 0.6]))
+    parts += [place("cone", [x, 0.56, z], [0.10, 0.22, 0.10], hi, anchor=[0, -0.5, 0],
+                    r=[rx, 0, rz]) for x, z, rx, rz in ((0.2, -0.1, -0.3, -0.4),
+                                                        (-0.18, -0.2, -0.4, 0.3),
+                                                        (0.02, -0.32, -0.6, 0.0))]
+    return parts
+
+
+def _hair_afro():
+    c, hi = "#2a1a10", "#3d2718"
+    parts = [_shell("hairshort", c),
+             part("sph", [0, 0.42, -0.12], [1.44, 1.02, 1.30], c, decal="fur", wrap=True)]
+    # the curls that break up the outline
+    k = 0
+    for ring, (y, radius, count) in enumerate(((0.78, 0.30, 6), (0.62, 0.56, 10),
+                                               (0.34, 0.68, 11))):
+        for n in range(count):
+            a = TAU * n / count + ring * 0.3
+            z = math.cos(a) * radius * 0.92 - 0.12
+            if ring == 2 and z > 0.30:
+                continue                    # never across the face
+            k += 1
+            parts.append(part("sph", [math.sin(a) * radius, y, z], [0.32, 0.30, 0.32],
+                              hi if k % 3 == 0 else c, decal="fur", wrap=True))
+    return parts
+
+
+def _hair_buns():
+    c, hi = "#2e1b12", _shade("#2e1b12", 1.45)
+    parts = [_shell("hairmid", c),
+             part("rbox", [0, 0.545, 0.0], [0.03, 0.02, 0.70], "#120a06")]
+    parts.append(part("rbox", [0, 0.31, 0.525], [0.96, 0.14, 0.05], c))
+    parts += [place("teardrop", [x, 0.26, 0.53], [0.16, 0.11, 0.06], hi if k % 2 else c,
+                    anchor=[0, 0.0, 0], r=[PI, 0, 0])
+              for k, x in enumerate((-0.36, -0.18, 0.0, 0.18, 0.36))]
+    for side in (1, -1):
+        parts += [
+            part("sph", [0.32 * side, 0.70, -0.10], [0.44, 0.42, 0.44], c, decal="fur",
+                 wrap=True),
+            part("torus", [0.32 * side, 0.54, -0.10], [0.36, 0.08, 0.36], "#f5c518",
+                 mat="metal"),
+            place("hook", [0.47 * side, 0.20, 0.26], 0.36, c, anchor=[0, 0, 0],
+                  r=[PI, 0 if side > 0 else PI, 0.1 * side]),
+        ]
+    return parts
+
+
+def _hair_waves():
+    c, hi, lo = "#b5651d", _shade("#b5651d", 1.18), _shade("#b5651d", 0.8)
+    parts = [_shell("hairlong", c),
+             part("rbox", [-0.20, 0.545, 0.08], [0.03, 0.02, 0.64], _shade("#b5651d", 0.55)),
+             place("teardrop", [0.06, 0.48, 0.20], [0.44, 0.92, 0.48], hi, anchor=[0, 0.2, 0],
+                   r=[0.1, 0, -PI / 2 - 0.2]),
+             place("leaf", [0.16, 0.32, 0.52], [0.7, 0.76, 3.0], c, r=[0, 0, PI / 2 - 0.5]),
+             place("leaf", [-0.30, 0.30, 0.50], [0.6, 0.50, 3.0], hi, r=[0, 0, PI / 2 + 0.6])]
+    # waves: each strand zig-zags down the back and ends in a curl
+    for k, x in enumerate((-0.40, -0.20, 0.0, 0.20, 0.40)):
+        colour = (c, hi, lo)[k % 3]
+        offset = 0.04 if k % 2 else -0.04
+        parts += [
+            part("rbox", [x + offset, -0.30, -0.56], [0.27, 0.60, 0.18], colour, [0, 0, 0.10],
+                 decal="strands", wrap=True),
+            part("rbox", [x - offset, -0.78, -0.57], [0.27, 0.52, 0.18], colour, [0, 0, -0.12],
+                 decal="strands", wrap=True),
+            place("hook", [x, -1.02, -0.57], 0.34, colour, anchor=[0, 0, 0],
+                  r=[PI, 0 if x >= 0 else PI, 0]),
+        ]
+    for side in (1, -1):
+        parts += [
+            part("rbox", [0.55 * side, -0.46, 0.12], [0.12, 0.50, 0.28], c, [0, 0, 0.06 * side]),
+            part("rbox", [0.56 * side, -0.52, -0.20], [0.13, 0.64, 0.36], lo),
+            place("hook", [0.57 * side, -0.70, 0.12], 0.30, c, anchor=[0, 0, 0],
+                  r=[PI, 0 if side > 0 else PI, 0]),
+        ]
+    return parts
+
+
+HAIRS: List[Dict[str, Any]] = [
+    _hair_item("hair_crop", "Short Crop", 120, _hair_crop(),
+               "Cut short, faded at the sides, the top pushed about by hand.", "common", 1),
+    _hair_item("hair_spikes", "Spiked Hair", 260, _hair_spikes(),
+               "Thirteen spikes, two rings of them, and a firm opinion.", "uncommon", 2),
+    _hair_item("hair_swept", "Side Sweep", 200, _hair_swept(),
+               "Parted on the left, swept over and combed across the brow.", "common", 3),
+    _hair_item("hair_flattop", "Flat Top", 150, _hair_flattop(),
+               "Level enough to rest a drink on, faded hard at the sides.", "common", 4),
+    _hair_item("hair_long", "Long Hair", 320, _hair_long(),
+               "Parted in the middle, down past the shoulders, strand by strand.",
+               "uncommon", 5),
+    _hair_item("hair_ponytail", "Ponytail", 280, _hair_ponytail(),
+               "Tied up high with a red band, and it swings when you run.", "uncommon", 6),
+    _hair_item("hair_bunches", "Bunches", 300, _hair_bunches(),
+               "Two of them, tied with pink bobbles, curling at the ends.", "uncommon", 7),
+    _hair_item("hair_bob", "Bob Cut", 340, _hair_bob(),
+               "A blunt fringe and a sharp line at the jaw. Always in fashion.",
+               "uncommon", 8),
+    _hair_item("hair_silver", "Silver Streak", 520, _hair_silver(),
+               "Layered to the shoulder with a white streak through the fringe. Earned "
+               "every one of them.", "rare", 9),
+    _hair_item("hair_quiff", "Messy Quiff", 380, _hair_quiff(),
+               "Undercut sides and a quiff rolled up off the brow, a few strands "
+               "refusing to cooperate.", "uncommon", 10),
+    _hair_item("hair_afro", "Curly Afro", 560, _hair_afro(),
+               "Big, round and curly, and it keeps its shape in any weather.", "rare", 11),
+    _hair_item("hair_buns", "Twin Buns", 420, _hair_buns(),
+               "Two buns on top ringed in gold, a straight fringe and two loose curls.",
+               "uncommon", 12),
+    _hair_item("hair_waves", "Long Waves", 640, _hair_waves(),
+               "Copper waves to the middle of the back, every strand ending in a curl.",
+               "rare", 13),
 ]

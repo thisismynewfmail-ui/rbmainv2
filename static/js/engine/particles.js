@@ -337,6 +337,49 @@
         }
       });
     }],
+    ['ghost', function (c) {
+      // a sheet ghost: round head, a body that flares into a wavy hem, two
+      // eyes and a little "o" of a mouth punched through
+      c.beginPath();
+      c.arc(64, 50, 32, Math.PI, 0);
+      c.lineTo(96, 96);
+      for (var k = 0; k < 4; k++) {
+        var x0 = 96 - k * 16;
+        c.quadraticCurveTo(x0 - 4, 112, x0 - 8, 100);
+        c.quadraticCurveTo(x0 - 12, 90, x0 - 16, 104);
+      }
+      c.lineTo(32, 50);
+      c.closePath(); c.fill();
+      punch(c, function () {
+        c.beginPath(); c.ellipse(52, 52, 6, 9, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(76, 52, 6, 9, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(64, 72, 5, 6, 0, 0, Math.PI * 2); c.fill();
+      });
+    }],
+    ['candycorn', function (c) {
+      // three bands: the tint shows full at the tip, darker in the middle,
+      // darkest at the base -- yellow, orange and white once tinted warm
+      poly(c, [[64, 14], [96, 104], [32, 104]]);
+      c.fillStyle = '#c8c8c8';
+      poly(c, [[52, 48], [76, 48], [88, 82], [40, 82]]);
+      c.fillStyle = '#9a9a9a';
+      poly(c, [[40, 82], [88, 82], [96, 104], [32, 104]]);
+    }],
+    ['sweet', function (c) {
+      // a round boiled sweet with a swirl
+      c.beginPath(); c.arc(64, 64, 34, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#a8a8a8'; c.lineWidth = 7; c.lineCap = 'round';
+      c.beginPath(); c.arc(64, 64, 20, 0.3, 4.6); c.stroke();
+      c.beginPath(); c.arc(64, 64, 8, 2.0, 5.8); c.stroke();
+    }],
+    ['sweet_wrap', function (c) {
+      // a wrapped toffee: the sweet and its two twisted ends
+      c.beginPath(); c.ellipse(64, 64, 26, 20, 0, 0, Math.PI * 2); c.fill();
+      poly(c, [[40, 64], [12, 42], [18, 64], [12, 86]]);
+      poly(c, [[88, 64], [116, 42], [110, 64], [116, 86]]);
+      c.fillStyle = '#b4b4b4';
+      c.fillRect(52, 50, 6, 28); c.fillRect(70, 50, 6, 28);
+    }],
     ['candle', function (c) {
       c.fillStyle = '#dcdcdc';
       c.fillRect(50, 54, 28, 60);

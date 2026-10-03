@@ -232,6 +232,60 @@ CREATE TABLE IF NOT EXISTS user_badges (
     PRIMARY KEY (user_id, badge_id)
 );
 
+-- Every crate ever opened: the drop history the market's live feed reads,
+-- and the record of what came out of which crate for whom.
+CREATE TABLE IF NOT EXISTS crate_openings (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    series      TEXT NOT NULL,
+    crate_item  TEXT NOT NULL,
+    key_item    TEXT NOT NULL,
+    item_id     TEXT NOT NULL,
+    inv_id      INTEGER NOT NULL DEFAULT 0,
+    grade       TEXT NOT NULL DEFAULT 'common',
+    tier        TEXT NOT NULL DEFAULT 'normal',
+    effect      TEXT NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_openings_recent ON crate_openings(id DESC);
+CREATE INDEX IF NOT EXISTS idx_openings_user ON crate_openings(user_id, id DESC);
+
+-- Things that happened to a player while they were not looking: a badge
+-- earned in a round, a crate an administrator dropped them.  The site shows
+-- each one once (seen_at) and the game host shows a badge as it happens.
+CREATE TABLE IF NOT EXISTS notifications (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind        TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    body        TEXT NOT NULL DEFAULT '',
+    data        TEXT NOT NULL DEFAULT '{}',
+    created_at  INTEGER NOT NULL,
+    seen_at     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_notes_user ON notifications(user_id, seen_at, id);
+
+-- Badges (app/models/badges.py).  Stats are plain counters and records per
+-- player -- flags captured, best wave -- and a badge is earned (and levelled)
+-- from them, so a badge added later can be awarded from history already kept.
+CREATE TABLE IF NOT EXISTS badge_stats (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stat       TEXT NOT NULL,
+    value      INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, stat)
+);
+
+CREATE TABLE IF NOT EXISTS badge_awards (
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    badge_id    TEXT NOT NULL,
+    level       INTEGER NOT NULL DEFAULT 1,
+    awarded_at  INTEGER NOT NULL,
+    levelled_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, badge_id)
+);
+CREATE INDEX IF NOT EXISTS idx_badge_awards_badge ON badge_awards(badge_id);
+
 CREATE TABLE IF NOT EXISTS audit_log (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     actor_id   INTEGER,
@@ -322,6 +376,10 @@ MIGRATIONS = [
     # this flag set, so every page treats it exactly like a person while the
     # admin dashboard can still tell the two apart.
     ("users", "is_bot", "INTEGER NOT NULL DEFAULT 0"),
+    # The four badges a player shows on their profile, in order, and the one
+    # they wear on the right of the chest.
+    ("users", "badges_shown", "TEXT NOT NULL DEFAULT '[]'"),
+    ("avatars", "badge", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 

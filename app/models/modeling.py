@@ -67,6 +67,11 @@ SHAPES: Dict[str, Dict[str, List[float]]] = {
     "tri": {"size": [1, 0.9, 0.12], "centre": [0, 0.05, 0]},
     "grin": {"size": [1, 0.42, 0.12], "centre": [0, -0.03, 0]},
     "collar": {"size": [1.5996, 0.9179, 1.1689], "centre": [0, 0.4589, -0.2156]},
+    # hair shells, in head units round the middle of the head
+    "hairshort": {"size": [1.07, 0.715, 1.0823], "centre": [0, 0.1775, -0.0036]},
+    "hairmid": {"size": [1.07, 0.875, 1.0821], "centre": [0, 0.0975, -0.0035]},
+    "hairbob": {"size": [1.0688, 0.975, 1.0796], "centre": [0, 0.0475, -0.0051]},
+    "hairlong": {"size": [1.07, 1.055, 1.0825], "centre": [0, 0.0075, -0.0037]},
 }
 
 # The built-in primitives are all unit meshes centred on the origin.

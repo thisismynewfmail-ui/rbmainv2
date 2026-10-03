@@ -221,6 +221,31 @@ UNUSUAL_EFFECTS: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# ----------------------------------------------------- Halloween 2026
+# The two effects that ship with the Hallowed Harvest crate.  They only roll
+# out of that crate (see app/models/crates.py), and they are drawn by shapes
+# of their own in the particle atlas: a little sheet ghost, and candy.
+UNUSUAL_EFFECTS["phantom_procession"] = {
+    # A ring of small ghosts circling the crown, bobbing as they go and
+    # fading in and out -- the procession never quite stops.
+    "name": "Phantom Procession", "rate": 3.4, "life": [2.0, 2.8],
+    "size": [0.42, 0.56], "grow": 0.0, "gravity": 0.0,
+    "spread": 0.12, "rise": [0.04, 0.22], "blend": "normal", "spin": 0.25,
+    "colors": ["#ffffff", "#e9f4ff", "#c9e2ff", "#9fc4ee"],
+    "shape": "ghost", "radius": 0.86, "orbit": 1.25,
+    "upright": True, "wobble": 0.6, "event": "halloween",
+}
+UNUSUAL_EFFECTS["trick_or_treat"] = {
+    # A shower of candy corn and wrapped sweets tumbling off the hat: thrown
+    # up, spinning, and falling past the shoulders like a burst bag.
+    "name": "Trick or Treat", "rate": 7.5, "life": [1.2, 1.9],
+    "size": [0.26, 0.40], "grow": 0.0, "gravity": -2.4,
+    "spread": 0.70, "rise": [1.1, 1.9], "blend": "normal", "spin": 4.2,
+    "colors": ["#ffffff", "#ffe08a", "#ff9a2e", "#ff4fa0"],
+    "shapes": ["candycorn", "sweet", "candycorn", "sweet_wrap"], "radius": 0.34,
+    "event": "halloween",
+}
+
 EFFECT_IDS: List[str] = list(UNUSUAL_EFFECTS.keys())
 
 # Effects that used to ship and no longer do.  Copies already rolled with one
@@ -679,113 +704,9 @@ USABLES: List[Dict[str, Any]] = [
 #
 # Keep anything that is not a fringe above y 0.22: that is where the eyes are
 # printed, and hair over them reads as a bug rather than as a style.
-BROWN, BLACK, BLONDE, AUBURN, SILVER = ("#4a2f1b", "#1a1a1a", "#d9a441",
-                                        "#8b3a1a", "#c9ccd1")
-
-
-def _hair(item_id, name, price, parts, desc, rarity="common", order=0):
-    return {"id": item_id, "name": name, "slot": "hair", "price": price,
-            "rarity": rarity, "description": desc, "sort_order": order,
-            "data": {"parts": parts}}
-
-
-def _crown_cap(colour, height=0.30, y=0.40):
-    """The part every style shares: hair lying over the top of the head."""
-    return {"t": "rbox", "p": [0, y, -0.02], "s": [1.04, height, 1.06], "c": colour}
-
-
-HAIRS: List[Dict[str, Any]] = [
-    _hair("hair_crop", "Short Crop", 120, [
-        _crown_cap(BROWN),
-        {"t": "rbox", "p": [0, 0.30, 0.46], "s": [0.92, 0.18, 0.18], "c": BROWN},
-        {"t": "rbox", "p": [0, 0.10, -0.50], "s": [0.98, 0.52, 0.14], "c": BROWN},
-        {"t": "rbox", "p": [0.50, 0.18, -0.10], "s": [0.10, 0.40, 0.78], "c": BROWN},
-        {"t": "rbox", "p": [-0.50, 0.18, -0.10], "s": [0.10, 0.40, 0.78], "c": BROWN},
-    ], "Cut short, parted by hand, done in a minute.", "common", 1),
-
-    _hair("hair_spikes", "Spiked Hair", 260, [
-        _crown_cap(BLACK, 0.32, 0.38),
-        {"t": "rbox", "p": [0, 0.28, 0.46], "s": [0.90, 0.22, 0.18], "c": BLACK},
-        {"t": "rbox", "p": [0, 0.10, -0.50], "s": [0.94, 0.48, 0.14], "c": BLACK},
-        # the spikes are rooted in the cap rather than balanced on it, so they
-        # read as hair standing up rather than as a crown of triangles
-        {"t": "cone", "p": [0, 0.62, 0.02], "s": [0.30, 0.42, 0.30], "c": BLACK},
-        {"t": "cone", "p": [0.30, 0.58, -0.10], "s": [0.26, 0.34, 0.26], "c": BLACK,
-         "r": [0.15, 0, -0.34]},
-        {"t": "cone", "p": [-0.30, 0.58, -0.10], "s": [0.26, 0.34, 0.26], "c": BLACK,
-         "r": [0.15, 0, 0.34]},
-        {"t": "cone", "p": [0.17, 0.58, 0.30], "s": [0.25, 0.34, 0.25], "c": BLACK,
-         "r": [-0.34, 0, -0.16]},
-        {"t": "cone", "p": [-0.17, 0.58, 0.30], "s": [0.25, 0.34, 0.25], "c": BLACK,
-         "r": [-0.34, 0, 0.16]},
-        {"t": "cone", "p": [0.03, 0.56, -0.34], "s": [0.24, 0.30, 0.24], "c": BLACK,
-         "r": [0.4, 0, 0]},
-    ], "Half a tub of wax and a firm opinion.", "uncommon", 2),
-
-    _hair("hair_swept", "Side Sweep", 200, [
-        _crown_cap(BLONDE, 0.30, 0.39),
-        # the sweep is a fringe combed across, so it lies along the brow
-        # rather than standing off the front of the head
-        {"t": "rbox", "p": [0.06, 0.32, 0.44], "s": [0.98, 0.20, 0.22], "c": BLONDE,
-         "r": [0, 0, -0.16]},
-        {"t": "rbox", "p": [0.26, 0.44, 0.16], "s": [0.54, 0.18, 0.52], "c": BLONDE,
-         "r": [0, 0, -0.24]},
-        {"t": "rbox", "p": [0, 0.10, -0.50], "s": [0.96, 0.50, 0.14], "c": BLONDE},
-        {"t": "rbox", "p": [-0.48, 0.20, -0.06], "s": [0.12, 0.38, 0.74], "c": BLONDE},
-        {"t": "rbox", "p": [0.48, 0.24, -0.06], "s": [0.12, 0.34, 0.74], "c": BLONDE},
-    ], "Swept over, held there by sheer confidence.", "common", 3),
-
-    _hair("hair_flattop", "Flat Top", 150, [
-        {"t": "rbox", "p": [0, 0.44, -0.02], "s": [1.02, 0.28, 1.02], "c": BLACK},
-        {"t": "rbox", "p": [0, 0.12, -0.50], "s": [0.92, 0.46, 0.12], "c": BLACK},
-        {"t": "rbox", "p": [0.49, 0.20, -0.08], "s": [0.08, 0.36, 0.72], "c": BLACK},
-        {"t": "rbox", "p": [-0.49, 0.20, -0.08], "s": [0.08, 0.36, 0.72], "c": BLACK},
-    ], "Level enough to rest a drink on.", "common", 4),
-
-    _hair("hair_long", "Long Hair", 320, [
-        _crown_cap(BROWN, 0.32, 0.38),
-        {"t": "rbox", "p": [0, 0.28, 0.44], "s": [0.94, 0.30, 0.24], "c": BROWN},
-        {"t": "rbox", "p": [0, -0.35, -0.52], "s": [1.00, 1.60, 0.20], "c": BROWN},
-        {"t": "rbox", "p": [0.50, -0.15, 0.02], "s": [0.16, 1.10, 0.80], "c": BROWN},
-        {"t": "rbox", "p": [-0.50, -0.15, 0.02], "s": [0.16, 1.10, 0.80], "c": BROWN},
-    ], "Down past the shoulders and perfectly behaved.", "uncommon", 5),
-
-    _hair("hair_ponytail", "Ponytail", 280, [
-        _crown_cap(BLONDE, 0.30, 0.39),
-        {"t": "rbox", "p": [0, 0.30, 0.45], "s": [0.90, 0.24, 0.20], "c": BLONDE},
-        {"t": "rbox", "p": [0, 0.14, -0.50], "s": [0.90, 0.44, 0.16], "c": BLONDE},
-        {"t": "sph", "p": [0, 0.18, -0.58], "s": [0.34, 0.30, 0.26], "c": "#c4281c"},
-        {"t": "rbox", "p": [0, -0.22, -0.66], "s": [0.36, 1.05, 0.30], "c": BLONDE,
-         "r": [0.22, 0, 0]},
-    ], "Up, out of the way, ready for the round.", "uncommon", 6),
-
-    _hair("hair_bunches", "Bunches", 300, [
-        _crown_cap(AUBURN, 0.30, 0.39),
-        {"t": "rbox", "p": [0, 0.30, 0.45], "s": [0.88, 0.24, 0.20], "c": AUBURN},
-        {"t": "rbox", "p": [0, 0.12, -0.50], "s": [0.88, 0.42, 0.14], "c": AUBURN},
-        {"t": "sph", "p": [0.56, 0.02, -0.16], "s": [0.42, 0.62, 0.42], "c": AUBURN},
-        {"t": "sph", "p": [-0.56, 0.02, -0.16], "s": [0.42, 0.62, 0.42], "c": AUBURN},
-        {"t": "cyl", "p": [0.54, 0.26, -0.14], "s": [0.20, 0.10, 0.20], "c": "#e8557f"},
-        {"t": "cyl", "p": [-0.54, 0.26, -0.14], "s": [0.20, 0.10, 0.20], "c": "#e8557f"},
-    ], "Two of them, tied with whatever was to hand.", "uncommon", 7),
-
-    _hair("hair_bob", "Bob Cut", 340, [
-        _crown_cap(BLACK, 0.30, 0.39),
-        {"t": "rbox", "p": [0, 0.30, 0.45], "s": [0.94, 0.26, 0.22], "c": BLACK},
-        {"t": "rbox", "p": [0, -0.02, -0.52], "s": [1.00, 0.86, 0.18], "c": BLACK},
-        {"t": "rbox", "p": [0.51, -0.02, -0.02], "s": [0.14, 0.84, 0.86], "c": BLACK},
-        {"t": "rbox", "p": [-0.51, -0.02, -0.02], "s": [0.14, 0.84, 0.86], "c": BLACK},
-    ], "Sharp line, no fuss, always in fashion.", "uncommon", 8),
-
-    _hair("hair_silver", "Silver Streak", 520, [
-        _crown_cap(SILVER, 0.30, 0.39),
-        {"t": "rbox", "p": [0.18, 0.30, 0.44], "s": [0.58, 0.26, 0.22], "c": SILVER},
-        {"t": "rbox", "p": [-0.26, 0.30, 0.44], "s": [0.34, 0.26, 0.22], "c": "#f2f3f3"},
-        {"t": "rbox", "p": [0, -0.18, -0.52], "s": [0.98, 1.24, 0.20], "c": SILVER},
-        {"t": "rbox", "p": [0.50, -0.08, 0.00], "s": [0.15, 0.96, 0.82], "c": SILVER},
-        {"t": "rbox", "p": [-0.50, -0.08, 0.00], "s": [0.15, 0.96, 0.82], "c": SILVER},
-    ], "Earned every one of them.", "rare", 9),
-]
+# The styles are modelled -- layered locks, tufts, ties and partings -- in
+# app/models/cosmetics.py, next to the hats.
+from .cosmetics import HAIRS  # noqa: E402
 
 # ------------------------------------------------------------------- belts
 # A belt is a band round the waist with an optional buckle, so it is described

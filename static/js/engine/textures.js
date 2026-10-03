@@ -645,6 +645,24 @@
     ctx.fillRect(0, 2, CELL, 5); ctx.fillRect(0, CELL - 7, CELL, 5);
   });
 
+  // hair: strands running from the crown down, light and dark, on
+  // transparency so it suits any colour of hair
+  painter('strands', function (ctx) {
+    var rnd = scatter(53);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 70; i++) {
+      var x = rnd() * CELL, w = 1 + rnd() * 2.2;
+      var bend = (rnd() - 0.5) * 10;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.16)';
+      ctx.lineWidth = w;
+      [x, x - CELL, x + CELL].forEach(function (xx) {
+        ctx.beginPath(); ctx.moveTo(xx, -4);
+        ctx.quadraticCurveTo(xx + bend, CELL / 2, xx + bend * 0.4, CELL + 4);
+        ctx.stroke();
+      });
+    }
+  });
+
   // the stencil on a Blockhaven crate
   painter('crate_logo', function (ctx) {
     ctx.fillStyle = 'rgba(25,18,10,0.78)';

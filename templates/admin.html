@@ -111,13 +111,47 @@
       </div>
     </div>
 
+    <div class="panel drop-crate-panel">
+      <div class="panel-head gold"><span>&#128230; Drop A Crate</span></div>
+      <div class="panel-body">
+        <p class="tiny muted">Hats come out of crates now. Drop any crate on any player &mdash;
+          with keys if you like &mdash; and they get a notification the next time they look.</p>
+        <div class="field"><label for="dc-user">Player</label>
+          <div class="ac-wrap"><input type="text" id="dc-user" placeholder="username"
+               autocomplete="off" spellcheck="false" data-user-autocomplete="1"></div></div>
+        <div class="field"><label>Crate</label>
+          <div class="dc-crates" id="dc-crates" role="radiogroup">
+            {% for s in crate_series %}
+            <label class="dc-crate {{ 'on' if loop.first else '' }}" style="--accent:{{ s.colors.accent }}">
+              <input type="radio" name="dc-crate" value="{{ s.crate }}" {{ 'checked' if loop.first else '' }}>
+              <canvas class="item-thumb" width="120" height="120" data-item="{{ s.crate }}"></canvas>
+              <span><b>{{ s.crate_name }}</b><i>Series #{{ s.number }}{% if s.event %} &bull; event{% endif %}</i></span>
+            </label>
+            {% endfor %}
+          </div></div>
+        <div class="spread" style="gap:8px">
+          <div class="field" style="flex:1"><label for="dc-count">How many</label>
+            <input type="number" id="dc-count" value="1" min="1" max="50"></div>
+          <label class="dc-keys"><input type="checkbox" id="dc-keys" checked> with keys</label>
+        </div>
+        <div class="field"><label for="dc-note">Note (optional)</label>
+          <input type="text" id="dc-note" maxlength="120" placeholder="e.g. thanks for testing!"></div>
+        <button class="btn primary block" id="dc-go">&#128230; Drop it</button>
+        <div id="dc-result" style="margin-top:6px"></div>
+      </div>
+    </div>
+
     <div class="panel">
       <div class="panel-head">Grant an item</div>
       <div class="panel-body">
         <div class="field"><label>Player</label><input type="text" id="gr-user" placeholder="username"></div>
         <div class="field"><label>Item</label>
           <select id="gr-item">
-            {% for it in catalogue %}<option value="{{ it.id }}">{{ it.name }} ({{ it.slot }})</option>{% endfor %}
+            {% for group in catalogue_groups %}
+            <optgroup label="{{ group.label }}">
+              {% for it in group['items'] %}<option value="{{ it.id }}">{{ it.name }}</option>{% endfor %}
+            </optgroup>
+            {% endfor %}
           </select></div>
         <div class="field"><label>Tier</label>
           <select id="gr-tier"><option value="normal">Normal</option><option value="unusual">Unusual (hats only)</option></select></div>

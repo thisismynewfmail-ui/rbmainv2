@@ -106,6 +106,13 @@ def decorate(row: Dict[str, Any]) -> Dict[str, Any]:
         "acquired_at": row.get("acquired_at", 0),
         "source": row.get("source", ""),
         "is_default": bool(item.get("is_default")),
+        # crates and keys: what they belong to, so the inventory can pair a
+        # key with the crates it opens without asking the server again
+        "stash": item["slot"] in catalog.STASH_SLOTS,
+        "series": item.get("series", ""),
+        "opens": list(item.get("opens") or []),
+        "event": item.get("event", ""),
+        "unboxed": str(row.get("source", "")).startswith("crate:"),
     })
 
 

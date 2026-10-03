@@ -1,14 +1,38 @@
-"""Catalogue browsing, buying and the personal inventory."""
+"""The market, crates and keys, and the personal inventory."""
 from __future__ import annotations
 
+import time
+
+from .. import db
 from ..http import router as R
 from ..http.router import Request
-from ..models import avatars, catalog, economy, inventory, market
+from ..models import (avatars, catalog, crates, economy, inventory, market,
+                      notifications)
 from .base import api_error, api_ok, login_required, render, router
 
-SLOT_TABS = [("all", "Everything"), ("hat", "Hats"), ("hair", "Hair"),
-             ("face", "Faces"), ("shirt", "Shirts"), ("pants", "Pants"),
-             ("belt", "Belts"), ("back", "Back"), ("usable", "Usables")]
+# The market's aisles.  Hats are not one of them any more -- they come out of
+# crates -- so the first aisle is the crates and the keys that open them.
+MARKET_TABS = [("all", "Everything", "star"), ("stash", "Crates & Keys", "crate"),
+               ("event", "Hallowed Harvest", "pumpkin"), ("usable", "Gear", "blade"),
+               ("hair", "Hair", "hair"), ("face", "Faces", "face"),
+               ("shirt", "Shirts", "shirt"), ("pants", "Pants", "pants"),
+               ("belt", "Belts", "belt"), ("back", "Back", "wing")]
+
+INVENTORY_TABS = [("all", "Everything"), ("stash", "Crates & Keys"), ("hat", "Hats"),
+                  ("hair", "Hair"), ("face", "Faces"), ("shirt", "Shirts"),
+                  ("pants", "Pants"), ("belt", "Belts"), ("back", "Back"),
+                  ("usable", "Usables")]
+
+# kept for anything that still imports the old name
+SLOT_TABS = INVENTORY_TABS
+
+
+def _owned_counts(uid: int):
+    owned = {}
+    for row in db.query("SELECT item_id, COUNT(*) AS n FROM inventory WHERE user_id=?"
+                        " GROUP BY item_id", (uid,)):
+        owned[row["item_id"]] = int(row["n"])
+    return owned
 
 
 @router.get("/market")
@@ -16,16 +40,30 @@ def market_page(req: Request):
     slot = req.query.get("slot", "all")
     sort = req.query.get("sort", "featured")
     term = req.query.get("q", "")
+    events = crates.active_events()
+    tabs = [t for t in MARKET_TABS if t[0] != "event" or events]
+    if slot not in [t[0] for t in tabs]:
+        slot = "all"
     items = market.listing(slot, sort, term)
-    owned = {}
-    if req.user:
-        for row in inventory.list_for_user(int(req.user["id"])):
-            owned[row["item_id"]] = owned.get(row["item_id"], 0) + 1
-    return render(req, "market.html", items=items, slot=slot, sort=sort,
-                  term=term, tabs=SLOT_TABS, owned=owned,
-                  tiers=catalog.TIERS,
-                  unusual_chance=0.5,
-                  effects=catalog.UNUSUAL_EFFECTS)
+    owned = _owned_counts(int(req.user["id"])) if req.user else {}
+    stash = crates.stash_counts(int(req.user["id"])) if req.user else {}
+    series = crates.all_series()
+    offers = [dict(o, active=crates.series_active(crates.SERIES[o["series"]]),
+                   value=sum(int(catalog.get(i)["price"]) * n
+                             for i, n in o["contents"].items()))
+              for o in crates.OFFERS]
+    offers = [o for o in offers if o["active"]]
+    spotlight = [catalog.get(i) for i in ("hat_hexed_witch", "hat_halo", "hat_lantern",
+                                          "hat_tagalong_ghost", "hat_crown",
+                                          "back_nightwing_cloak")]
+    return render(req, "market.html", page_title="Market",
+                  items=items, slot=slot, sort=sort, term=term, tabs=tabs,
+                  owned=owned, stash=stash, series=series, offers=offers,
+                  events=events, feed=crates.recent_openings(14),
+                  crate_stats=crates.stats(), spotlight=[s for s in spotlight if s],
+                  grades=crates.GRADES, tiers=catalog.TIERS,
+                  effects=catalog.UNUSUAL_EFFECTS,
+                  extra_scripts=["/static/js/ui/crates.js"])
 
 
 @router.get("/inventory")
@@ -34,15 +72,23 @@ def inventory_page(req: Request):
     uid = int(req.user["id"])
     slot = req.query.get("slot", "all")
     items = inventory.list_for_user(uid)
-    if slot != "all":
+    if slot == "stash":
+        items = [i for i in items if i["stash"]]
+    elif slot != "all":
         items = [i for i in items if i["slot"] == slot]
+    # crates and keys lead "Everything", so a new crate is never buried
+    items.sort(key=lambda i: (0 if i["stash"] else 1, -int(i["inv_id"])))
     raw = avatars.raw_avatar(uid)
     equipped_ids = set(raw["equipped"].values())
     hotbar_ids = set(x for x in raw["hotbar"] if x)
-    return render(req, "inventory.html", items=items, slot=slot,
-                  tabs=SLOT_TABS, summary=inventory.summary(uid),
+    return render(req, "inventory.html", page_title="Inventory",
+                  items=items, slot=slot, tabs=INVENTORY_TABS,
+                  summary=inventory.summary(uid),
                   equipped=equipped_ids, hotbar=hotbar_ids,
-                  tiers=catalog.TIERS, ledger=economy.history(uid, 12))
+                  tiers=catalog.TIERS, ledger=economy.history(uid, 12),
+                  stash=crates.stash_counts(uid), series=crates.all_series(),
+                  grades=crates.GRADES,
+                  extra_scripts=["/static/js/ui/crates.js"])
 
 
 @router.get("/inventory/<username>")
@@ -65,13 +111,27 @@ def inventory_of(req: Request, username: str = ""):
                   summary=inventory.summary(uid), tiers=catalog.TIERS)
 
 
+# ------------------------------------------------------------------ buying
 @router.post("/api/market/buy")
 @login_required
 def buy(req: Request):
-    item_id = str(req.data().get("item_id", ""))
+    data = req.data()
+    item_id = str(data.get("item_id", ""))
+    if not db.rate_limit("buy:%d" % int(req.user["id"]), 60, 60):
+        return api_error("Slow down a little -- the till is still ringing.")
     try:
-        result = market.purchase(int(req.user["id"]), item_id)
+        result = market.purchase(int(req.user["id"]), item_id, data.get("qty", 1))
     except market.MarketError as exc:
+        return api_error(str(exc))
+    return api_ok(**result)
+
+
+@router.post("/api/market/bundle")
+@login_required
+def buy_bundle(req: Request):
+    try:
+        result = crates.buy_offer(int(req.user["id"]), str(req.data().get("offer_id", "")))
+    except crates.CrateError as exc:
         return api_error(str(exc))
     return api_ok(**result)
 
@@ -90,10 +150,82 @@ def sell(req: Request):
     return api_ok(balance=economy.balance(int(req.user["id"])), **result)
 
 
+# ------------------------------------------------------------------ crates
+@router.get("/api/crates/contents")
+def crate_contents(req: Request):
+    series = str(req.query.get("series", ""))
+    if series not in crates.SERIES:
+        crate = crates.CRATE_SERIES.get(series) or crates.KEY_SERIES.get(series)
+        series = crate["id"] if crate else ""
+    try:
+        return api_ok(**crates.contents(series))
+    except crates.CrateError as exc:
+        return api_error(str(exc), 404)
+
+
+@router.get("/api/crates/stash")
+@login_required
+def crate_stash(req: Request):
+    uid = int(req.user["id"])
+    return api_ok(stash=crates.stash(uid), counts=crates.stash_counts(uid),
+                  series=crates.all_series())
+
+
+@router.post("/api/crates/open")
+@login_required
+def crate_open(req: Request):
+    data = req.data()
+    uid = int(req.user["id"])
+    if not db.rate_limit("open:%d" % uid, 40, 60):
+        return api_error("Let the last one finish opening first.")
+    try:
+        crate_inv = int(data.get("crate_inv", 0) or 0)
+        key_inv = int(data.get("key_inv", 0) or 0)
+    except (TypeError, ValueError):
+        return api_error("Bad crate or key.")
+    # Either half may be left for the server to pick: "open one of these" is
+    # what the quick-open buttons ask for.
+    if not crate_inv or not key_inv:
+        stash = crates.stash(uid)
+        series = str(data.get("series", ""))
+        if crate_inv and not series:
+            row = inventory.get_row(uid, crate_inv)
+            found = crates.CRATE_SERIES.get(row["item_id"]) if row else None
+            series = found["id"] if found else ""
+        if key_inv and not series:
+            row = inventory.get_row(uid, key_inv)
+            item = catalog.get(row["item_id"]) if row else None
+            series = ((item or {}).get("opens") or [""])[0]
+        held = stash.get(series) or {"crates": [], "keys": []}
+        crate_inv = crate_inv or (held["crates"][0] if held["crates"] else 0)
+        key_inv = key_inv or (held["keys"][0] if held["keys"] else 0)
+        if not crate_inv:
+            return api_error("You have no crate for that key.")
+        if not key_inv:
+            return api_error("You need a key for that crate.")
+    try:
+        result = crates.open_crate(uid, crate_inv, key_inv)
+    except crates.CrateError as exc:
+        return api_error(str(exc))
+    return api_ok(balance=economy.balance(uid), **result)
+
+
+@router.get("/api/crates/feed")
+def crate_feed(req: Request):
+    try:
+        limit = max(1, min(40, int(req.query.get("limit", 14))))
+    except ValueError:
+        limit = 14
+    return api_ok(feed=crates.recent_openings(limit), stats=crates.stats(),
+                  at=int(time.time()))
+
+
+# --------------------------------------------------------------- catalogue
 @router.get("/api/catalog")
 def catalog_json(req: Request):
-    return api_ok(items=market.listing(req.query.get("slot", "all")),
+    return api_ok(items=market.catalog_listing(),
                   tiers=catalog.TIERS, effects=catalog.UNUSUAL_EFFECTS,
+                  grades=crates.GRADES,
                   palette=catalog.BODY_PALETTE,
                   random_palette=catalog.RANDOM_PALETTE)
 
@@ -104,4 +236,21 @@ def inventory_json(req: Request):
     uid = int(req.user["id"])
     return api_ok(items=inventory.list_for_user(uid),
                   summary=inventory.summary(uid),
-                  balance=economy.balance(uid))
+                  balance=economy.balance(uid),
+                  stash=crates.stash_counts(uid))
+
+
+# ----------------------------------------------------------- notifications
+@router.post("/api/notifications/seen")
+@login_required
+def notes_seen(req: Request):
+    ids = req.data().get("ids") or []
+    if not isinstance(ids, list):
+        ids = []
+    return api_ok(marked=notifications.mark_seen(int(req.user["id"]), ids))
+
+
+@router.get("/api/notifications")
+@login_required
+def notes_recent(req: Request):
+    return api_ok(notes=notifications.recent(int(req.user["id"]), 20))

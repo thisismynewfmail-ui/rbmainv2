@@ -827,6 +827,37 @@
     return [Math.sin(th) * r, h, Math.cos(th) * r];
   }, 36, 8, 0.035, false));
 
+  /* Hair shells: one surface hugging the skull, cut along a hairline that is
+     high at the brow, lower over the ears and lowest at the nape.  The skull
+     is a superellipsoid a hair bigger than the head (whose own corners are
+     rounded the same way), so the shell sits ON the head all the way round
+     instead of the head's corners poking through, and a style is volume
+     added on top of a shell rather than slabs stuck to the sides.  Four cut
+     lengths; all are authored in head units (the head is 1 x 1 x 1), centred
+     on the middle of the head. */
+  function hairShell(front, side, back) {
+    var a = 0.535, bb = 0.535, c = 0.545, e = 0.42;
+    function f(w, k) { return (w < 0 ? -1 : 1) * Math.pow(Math.abs(w), k); }
+    function hairline(phi) {
+      var cf = Math.cos(phi);
+      var wf = Math.pow(Math.max(0, cf), 1.6), wb = Math.pow(Math.max(0, -cf), 1.6);
+      return side + (front - side) * wf + (back - side) * wb;
+    }
+    return sheet(function (u, v) {
+      var phi = u * TAU;                       // 0 at the face, turning to +X
+      var hl = Math.max(-0.999, Math.min(0.999, hairline(phi) / bb));
+      var latMin = Math.asin(Math.max(-1, Math.min(1, f(hl, 1 / e))));
+      var lat = Math.PI / 2 - (Math.PI / 2 - latMin) * v;
+      var cl = Math.cos(lat), sl = Math.sin(lat);
+      return [a * f(cl, e) * f(Math.sin(phi), e), bb * f(sl, e),
+              c * f(cl, e) * f(Math.cos(phi), e)];
+    }, 56, 14, 0.035, true);
+  }
+  add('hairshort', hairShell(0.30, 0.08, -0.18));
+  add('hairmid', hairShell(0.30, -0.06, -0.34));
+  add('hairbob', hairShell(0.32, -0.40, -0.44));
+  add('hairlong', hairShell(0.30, -0.30, -0.52));
+
   // A cowboy brim: an annulus whose sides curl up and whose front and back
   // dip a little.  The crown sits in the hole (inner radius 0.27).
   add('cowbrim', sheet(function (u, v) {

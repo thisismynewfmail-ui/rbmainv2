@@ -700,6 +700,33 @@ def _design(reserved: List[str], rng: random.Random, now: int,
     return cards
 
 
+def _series_of(item: Dict[str, Any]):
+    """The crate a crate-only item came out of, or None for a shelf item."""
+    from ..models import crates
+    if item["id"] not in crates.CRATE_EXCLUSIVE:
+        return None
+    for series in crates.SERIES.values():
+        if item["id"] in series["loot"]:
+            return series
+    return crates.SERIES["classic"]
+
+
+def _cost(item: Dict[str, Any]) -> int:
+    """What a bot paid for an item: the shelf price, or for anything that
+    only comes out of a crate, the crate and key it took to get it."""
+    series = _series_of(item)
+    if series is None:
+        return int(item["price"])
+    return int(catalog.get(series["crate"])["price"]) + int(catalog.get(series["key"])["price"])
+
+
+def _bought(item: Dict[str, Any]) -> str:
+    series = _series_of(item)
+    if series is None:
+        return "Bought %s" % item["name"]
+    return "Opened a %s: %s" % (series["name"], item["name"])
+
+
 def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
     rng = random.Random()
     created: List[Dict[str, Any]] = []
@@ -717,7 +744,7 @@ def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
         visits_per_world: Dict[str, int] = {}
         for card in cards:
             owned = [it for it in (catalog.get(i) for i in card["items"]) if it]
-            spent = sum(int(it["price"]) for it in owned)
+            spent = sum(_cost(it) for it in owned)
             opening = card["credits"] + spent
             place_visits = sum(h["visits"] for h in card["history"].values())
             cur = conn.execute(
@@ -741,12 +768,12 @@ def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
             shown = owned[:4]
             for it in shown:
                 when = min(now, when + rng.randint(600, 86400 * 20))
-                balance -= int(it["price"])
-                ledger.append((uid, -int(it["price"]), balance, "Bought %s" % it["name"], when))
+                balance -= _cost(it)
+                ledger.append((uid, -_cost(it), balance, _bought(it), when))
             rest = owned[4:]
             if rest:
                 when = min(now, when + rng.randint(600, 86400 * 40))
-                total = sum(int(it["price"]) for it in rest)
+                total = sum(_cost(it) for it in rest)
                 balance -= total
                 ledger.append((uid, -total, balance, "Bought %d items" % len(rest), when))
             conn.executemany(
@@ -762,13 +789,16 @@ def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
                 rows.setdefault(item_id, []).append((int(inv.lastrowid), "normal"))
             for it in owned:
                 tier, effect = "normal", ""
+                series = _series_of(it)
                 if it["slot"] == "hat" and rng.random() < card["unusual"]:
-                    tier, effect = "unusual", rng.choice(catalog.EFFECT_IDS)
+                    pool = series["effects"] if series else catalog.EFFECT_IDS
+                    tier, effect = "unusual", rng.choice(pool)
                 inv = conn.execute(
                     "INSERT INTO inventory(user_id,item_id,tier,effect,serial,"
-                    "acquired_at,source) VALUES(?,?,?,?,?,?,'market')",
+                    "acquired_at,source) VALUES(?,?,?,?,?,?,?)",
                     (uid, it["id"], tier, effect, next_serial(it["id"]),
-                     min(now, card["joined"] + rng.randint(600, 86400 * 60))))
+                     min(now, card["joined"] + rng.randint(600, 86400 * 60)),
+                     "crate:%s" % series["id"] if series else "market"))
                 rows.setdefault(it["id"], []).append((int(inv.lastrowid), tier))
             equipped, hotbar, pinned = _outfit(card, rows, rng)
             conn.execute(
