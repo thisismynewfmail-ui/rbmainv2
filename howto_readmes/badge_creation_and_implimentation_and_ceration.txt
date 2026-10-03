@@ -55,9 +55,10 @@ Where players see badges:
                                   what world code calls.
   app/game/host.py                report_badge() tallies stats between
                                   heartbeats; announce_badges() toasts the
-                                  player; with_badge_model() rebuilds a worn
-                                  badge's model from {id, level} (the join
-                                  ticket only carries those two).
+                                  player; expand_avatar() rebuilds the models
+                                  of everything the avatar wears and holds,
+                                  the worn badge included, from the compact
+                                  join ticket (avatars.compact / expand).
   app/views/internal.py           the heartbeat books "badges" reports with
                                   badges.record_many and returns the level-ups
                                   to the host in the reply.
@@ -238,7 +239,8 @@ renderer's keys directly: t, p, s, c, r, m (material: "metal", "glass",
   mythic (L6)   obsidian plate, crown of cones with neon tips, 18 neon beads
 
 Models are cached per (badge, level). A Mythic is about 65 parts, which is
-why the game join ticket carries only {id, level}: the host rebuilds it.
+why the game join ticket carries only {id, level} (and every item only by id):
+the ticket rides in the socket URL, and the host rebuilds the models.
 
 On the chest (avatar.js), the model is scaled to 0.34 (male) or 0.30
 (female), placed at the upper right of the chest, and stood just proud of

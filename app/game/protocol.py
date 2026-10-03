@@ -165,18 +165,27 @@ class WebSocket:
             pass
 
 
+# The longest request line accepted.  The join ticket rides in the URL; it is
+# kept small (the avatar travels by reference), and this matches the web
+# server's own header limit so a line the web server forwarded is never cut
+# short here -- a cut ticket fails its signature and the join is refused.
+MAX_REQUEST_LINE = 32 * 1024
+
+
 def read_http_request(rfile) -> Tuple[str, str, Dict[str, str]]:
     """Parse the upgrade request the web server proxied to us."""
-    line = rfile.readline(8192)
+    line = rfile.readline(MAX_REQUEST_LINE + 1)
     if not line:
         raise WebSocketError("empty request")
+    if len(line) > MAX_REQUEST_LINE or not line.endswith(b"\n"):
+        raise WebSocketError("request line too long")
     parts = line.decode("latin-1").strip().split()
     if len(parts) < 2:
         raise WebSocketError("bad request line")
     method, target = parts[0], parts[1]
     headers: Dict[str, str] = {}
     while True:
-        header_line = rfile.readline(8192)
+        header_line = rfile.readline(MAX_REQUEST_LINE)
         if not header_line or header_line in (b"\r\n", b"\n"):
             break
         raw = header_line.decode("latin-1").rstrip("\r\n")

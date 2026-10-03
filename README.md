@@ -339,6 +339,15 @@ again locally, so a race between two windows pointed at the same world ends the
 same way. The window that loses says so plainly rather than looking like a
 dropped connection.
 
+**The join ticket is compact.** It is signed by the web server and carried in
+the game socket's URL, so it names what the avatar wears and holds by item id
+(and the worn badge by id and level) rather than carrying their 3D models; the
+host rebuilds the models from the same catalogue (`avatars.compact` /
+`avatars.expand`). A full descriptor with a sculpted hat, wings and two event
+weapons on the hotbar is past ten kilobytes, which once overran the host's
+request-line limit, cut the ticket short and left the join hanging on "waiting
+for the world".
+
 ---
 
 ## Architecture

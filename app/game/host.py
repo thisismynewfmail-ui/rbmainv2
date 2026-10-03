@@ -56,25 +56,17 @@ def load_world_class(world_id: str):
     return cls
 
 
-def with_badge_model(avatar: Dict[str, Any]) -> Dict[str, Any]:
-    """The ticket carries the worn badge as just its id and level (the ticket
-    rides in the socket URL, and a Mythic badge is sixty-odd parts); the
-    model is rebuilt here from the same catalogue the web server uses."""
-    badge = avatar.get("badge") if isinstance(avatar, dict) else None
-    if not isinstance(badge, dict) or badge.get("parts"):
-        return avatar
+def expand_avatar(avatar: Dict[str, Any]) -> Dict[str, Any]:
+    """The join ticket carries the avatar by reference (item ids, the badge's
+    id and level) because it rides in the socket URL; the models are rebuilt
+    here from the same catalogue the web server uses (avatars.expand)."""
     try:
-        from app.models import badges as badge_catalogue
-        if badge.get("id") in badge_catalogue.BADGES:
-            badge = dict(badge)
-            badge["parts"] = badge_catalogue.model(str(badge["id"]),
-                                                   int(badge.get("level", 1) or 1))
-            avatar = dict(avatar)
-            avatar["badge"] = badge
+        from app.models import avatars as avatar_models
+        return avatar_models.expand(avatar)
     except Exception:
         if config.DEBUG:
             traceback.print_exc()
-    return avatar
+        return avatar
 
 
 class GameHost:
@@ -545,7 +537,7 @@ class GameHost:
         instance = self.pick_instance(prefer)
         player = instance.add_player(
             int(ticket.get("uid", 0)), str(ticket.get("name", "Player")),
-            with_badge_model(ticket.get("avatar") or {}), ws,
+            expand_avatar(ticket.get("avatar") or {}), ws,
             bool(ticket.get("admin")))
         self.connections += 1
         try:
