@@ -478,10 +478,18 @@ class Client:
     def stops(self, mode: str) -> List[str]:
         """Stop strings for the server.  Whitespace-only ones ("\\n") are kept
         back and applied here instead (:meth:`local_stops`): a reply that
-        starts with a newline would otherwise end before its first word."""
-        out = [s for s in (self.info.get("stop") or []) if s]
-        out += list(bot_config.get("llm.stop") or [])
+        starts with a newline would otherwise end before its first word.
+
+        In chat mode only the stops set in the Bots Zone go out.  The ones the
+        probe read from the server (llama.cpp's /props, an Ollama Modelfile)
+        are that server's own defaults -- it applies them whenever a request
+        names none -- so sending them back adds nothing, and it can take the
+        whole reply away: a model whose turn opens with one of those tokens
+        (a channel marker, a turn header) is stopped before its first word
+        and the server answers with nothing at all."""
+        out = list(bot_config.get("llm.stop") or [])
         if mode == "completion":
+            out = [s for s in (self.info.get("stop") or []) if s] + out
             if self.info.get("eos"):
                 out.append(self.info["eos"])
             template = self.info.get("template") or ""
@@ -509,10 +517,12 @@ class Client:
             if self.learned.get("model") != model:
                 self.learned = {"model": model, "thinks": False, "opens": False,
                                 "rejected": [], "checked": "", "since": int(_now()),
-                                "effort": effort}
+                                "effort": effort, "plain": False}
             elif self.learned.get("effort") != effort:
-                # a field refused for one effort may be fine for another
+                # a field refused for one effort may be fine for another, and
+                # a model that had to be asked plainly may take this one
                 self.learned["rejected"] = []
+                self.learned["plain"] = False
                 self.learned["effort"] = effort
             return self.learned
 
@@ -608,21 +618,42 @@ class Client:
         ...}.  A reply that is all notes because the model ran out of tokens
         while thinking is asked again once, with the thinking allowance."""
         extra = self.allowance()
-        result = self._request(messages, max_tokens + extra, timeout)
+        learned = self._learned()
+        plain = bool(learned.get("plain"))
+        result = self._request(messages, max_tokens + extra, timeout, plain)
         if not result["text"] and result["thought"] and not extra and \
                 result.get("finish") == "length":
             extra = self.allowance_tokens()
             if extra:
                 first_ms = int(result.get("ms") or 0)
-                result = self._request(messages, max_tokens + extra, timeout)
+                result = self._request(messages, max_tokens + extra, timeout, plain)
                 result["retried"] = True
                 result["ms"] = int(result.get("ms") or 0) + first_ms
+        if not plain and not result["text"] and not result["thought"] and \
+                result.get("finish") != "length" and result.get("decorated"):
+            # Nothing at all, and not because it ran out of room: the server
+            # ended the turn at once.  Ask once more with nothing but the
+            # messages -- no stop strings, no reasoning fields, no /no_think
+            # -- and if that answers, ask this model plainly from now on.
+            first = result
+            result = self._request(messages, max_tokens + extra, timeout, True)
+            result["ms"] = int(result.get("ms") or 0) + int(first.get("ms") or 0)
+            if result["text"]:
+                learned["plain"] = True
+                result["plain_retry"] = True
+            else:
+                result["plain_failed"] = True
+                result["first_sent"] = first.get("sent")
         return result
 
     def _request(self, messages: List[Dict[str, str]], max_tokens: int,
-                 timeout: Optional[float] = None) -> Dict[str, Any]:
-        result = self._send_request(self._soft_switch(messages), max_tokens, timeout)
+                 timeout: Optional[float] = None, plain: bool = False) -> Dict[str, Any]:
+        sent = messages if plain else self._soft_switch(messages)
+        result = self._send_request(sent, max_tokens, timeout, plain)
         result["max_tokens"] = int(max_tokens)
+        if sent is not messages:
+            result["decorated"] = True
+            result.setdefault("sent", {})["no_think"] = True
         self._settle(result)
         return result
 
@@ -656,7 +687,7 @@ class Client:
             learned["thinks"] = True
 
     def _send_request(self, messages: List[Dict[str, str]], max_tokens: int,
-                      timeout: Optional[float] = None) -> Dict[str, Any]:
+                      timeout: Optional[float] = None, plain: bool = False) -> Dict[str, Any]:
         base, _root, _key = self._endpoint()
         if not base:
             raise LLMError("no endpoint configured")
@@ -664,27 +695,28 @@ class Client:
         timeout = timeout or float(bot_config.get("llm.timeout_seconds") or 90)
         model = bot_config.get("llm.model") or self.info.get("model") or ""
         if mode == "completion" or (mode == "auto" and self.info.get("prefer_completion")):
-            return self._completion(base, model, messages, max_tokens, timeout)
+            return self._completion(base, model, messages, max_tokens, timeout, plain)
         try:
-            return self._chat(base, model, messages, max_tokens, timeout)
+            return self._chat(base, model, messages, max_tokens, timeout, plain)
         except LLMError as exc:
             if mode == "auto" and getattr(exc, "status", 0) in (404, 405, 501) \
                     and self.info.get("template"):
                 self.info["prefer_completion"] = True
-                return self._completion(base, model, messages, max_tokens, timeout)
+                return self._completion(base, model, messages, max_tokens, timeout, plain)
             raise
 
-    def _chat(self, base, model, messages, max_tokens, timeout):
+    def _chat(self, base, model, messages, max_tokens, timeout, plain=False):
         body: Dict[str, Any] = {"messages": messages, "max_tokens": int(max_tokens),
                                 "stream": False}
         if model:
             body["model"] = model
         body.update(self._body_sampling())
-        stops = self.stops("chat")
+        stops = [] if plain else self.stops("chat")
         if stops:
             body["stop"] = stops
-        hints = self._hint_fields()
+        hints = {} if plain else self._hint_fields()
         body.update(hints)
+        sent = {"stop": list(stops), "hints": sorted(hints), "plain": bool(plain)}
         started = _now()
         status, payload = self._http("POST", base + "/chat/completions", body,
                                      timeout)
@@ -714,28 +746,39 @@ class Client:
             error.status = status  # type: ignore[attr-defined]
             raise error
         choice = (payload.get("choices") or [{}])[0]
+        if not isinstance(choice, dict):
+            choice = {}
         message = choice.get("message") or {}
-        text = message.get("content")
-        if text is None:
-            text = choice.get("text") or ""
+        if not isinstance(message, dict):
+            message = {}
+        text, part_notes = _content_text(message.get("content"))
+        if not text and message.get("content") is None:
+            text = str(choice.get("text") or "")
         # llama.cpp, LM Studio, vLLM and Ollama put the notes in a field of
-        # their own; the answer is then empty until the thinking is done
-        reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
+        # their own (each under its own name); the answer is then empty until
+        # the thinking is done
+        reasoning = part_notes
+        for key in ("reasoning_content", "reasoning", "thinking"):
+            reasoning += _content_text(message.get(key))[0]
+        for detail in message.get("reasoning_details") or []:
+            if isinstance(detail, dict):
+                reasoning += str(detail.get("text") or detail.get("summary") or "")
         usage = payload.get("usage") or {}
         details = usage.get("completion_tokens_details") or {}
-        return {"text": str(text), "prompt_tokens": usage.get("prompt_tokens"),
+        return {"text": text, "prompt_tokens": usage.get("prompt_tokens"),
                 "completion_tokens": usage.get("completion_tokens"),
-                "reasoning": reasoning if isinstance(reasoning, str) else "",
+                "reasoning": reasoning,
                 "reasoning_tokens": details.get("reasoning_tokens")
                 if isinstance(details, dict) else None,
                 "ms": int((_now() - started) * 1000), "mode": "chat",
-                "finish": choice.get("finish_reason")}
+                "finish": choice.get("finish_reason"), "sent": sent,
+                "decorated": bool(stops or hints)}
 
-    def _completion(self, base, model, messages, max_tokens, timeout):
+    def _completion(self, base, model, messages, max_tokens, timeout, plain=False):
         source = self.info.get("template") or ""
         if not source:
             raise LLMError("completion mode needs a chat template from the server")
-        variables = self.template_vars()
+        variables = {} if plain else self.template_vars()
         try:
             prompt = chat_template.render_chat(
                 source, messages, True, self.info.get("bos") or "",
@@ -751,6 +794,9 @@ class Client:
         if model:
             body["model"] = model
         body.update(self._body_sampling())
+        # completion mode renders the template here, so its own end-of-turn
+        # tokens are needed even plain: without them the model writes on
+        # into the next turn
         stops = self.stops("completion")
         if stops:
             body["stop"] = stops
@@ -768,7 +814,9 @@ class Client:
                 "ms": int((_now() - started) * 1000), "mode": "completion",
                 "finish": choice.get("finish_reason"), "prompt_chars": len(prompt),
                 # the template opened a think block: the reply starts mid-thought
-                "opened": bool(_OPENED_RE.search(prompt))}
+                "opened": bool(_OPENED_RE.search(prompt)),
+                "sent": {"stop": list(stops), "hints": sorted(variables), "plain": bool(plain)},
+                "decorated": bool(variables)}
 
     # =============================================================== queue
     def available(self) -> bool:
@@ -1038,6 +1086,38 @@ _HARMONY_FINAL = re.compile(r"<\|channel\|>\s*final\s*(?:<\|constrain\|>[^<]*)?"
 _HARMONY_BARE = re.compile(r"\s*analysis(?=[A-Z])")
 
 
+def _content_text(content: Any) -> Tuple[str, str]:
+    """A message's content as (text, notes).
+
+    Usually a string, but some servers send a list of parts -- text parts,
+    and thinking or reasoning parts (Mistral's Magistral, a few proxies) --
+    and a reasoning field can itself be an object with the text inside."""
+    if content is None:
+        return "", ""
+    if isinstance(content, str):
+        return content, ""
+    if isinstance(content, dict):
+        inner = content.get("text") or content.get("content") or content.get("thinking") or ""
+        return _content_text(inner)[0], ""
+    if isinstance(content, list):
+        text, notes = [], []
+        for item in content:
+            if isinstance(item, str):
+                text.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            kind = str(item.get("type") or "text")
+            body = item.get("text") if "text" in item else item.get("content")
+            if kind in ("thinking", "reasoning", "reasoning_text"):
+                notes.append(_content_text(body if body is not None
+                                           else item.get("thinking"))[0])
+            elif kind in ("text", "output_text"):
+                text.append(_content_text(body)[0])
+        return "".join(text), "".join(notes)
+    return str(content), ""
+
+
 def split_reasoning(raw: str, opened: bool = False) -> Tuple[str, str]:
     """Separate a raw reply into (answer, notes).
 
@@ -1094,6 +1174,9 @@ def explain(text: str, result: Dict[str, Any]) -> str:
     limit = int(result.get("max_tokens") or 0)
     finish = str(result.get("finish") or "")
     if text:
+        if result.get("plain_retry"):
+            return ("the first try came back empty; answered once the stop strings and "
+                    "reasoning settings were left off, so this model is now asked plainly")
         if result.get("retried"):
             return "thought past the reply length; answered on a retry with %d tokens" % limit
         return "thought first" if result.get("thought") else ""
@@ -1108,7 +1191,16 @@ def explain(text: str, result: Dict[str, Any]) -> str:
     raw = " ".join(str(result.get("raw") or "").split())
     if raw:
         return "nothing left once cleaned up: %s" % raw[:80]
-    return "the model ended its turn without writing anything (finish: %s)" % (finish or "?")
+    message = "the model ended its turn without writing anything (finish: %s)" % (finish or "?")
+    if result.get("plain_failed"):
+        sent = result.get("first_sent") or {}
+        message += ("; asking again with no stop strings or reasoning settings came back "
+                    "empty too, so it is the model or the server's chat template "
+                    "(first try sent stop %s, reasoning fields %s)"
+                    % (sent.get("stop") or "none", ", ".join(sent.get("hints") or []) or "none"))
+    elif (result.get("sent") or {}).get("plain"):
+        message += "; sent with no stop strings or reasoning settings"
+    return message
 
 
 _client: Optional[Client] = None

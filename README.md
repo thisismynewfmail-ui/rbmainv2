@@ -1293,6 +1293,22 @@ under **Thinking**, and **Recent requests** says why any reply came back
 empty (all its tokens spent thinking, cut off before any text, the model
 ending its turn at once) -- hover a row for its token count and finish reason.
 
+**Empty replies.** Chat requests carry only the stop strings set on the
+Language Model tab, never the ones the probe read from the server
+(llama.cpp's `/props`, an Ollama Modelfile): the server applies its own
+whenever a request names none, and echoing them back can stop a model whose
+turn opens with one of those tokens before its first word. A reply that
+still comes back with nothing at all -- no text, no notes, finished rather
+than cut off -- is asked once more with nothing but the messages (no stop
+strings, no reasoning fields, no `/no_think`); if that answers, the model is
+asked that way from then on (until the effort changes or the endpoint is
+probed again), and Recent requests says so. If it is empty both ways, the
+note says so and lists what the first try sent, which points at the model
+or the server's chat template rather than this client. Notes are read from
+every field servers put them in -- `reasoning_content`, `reasoning`,
+Ollama's `thinking`, OpenRouter's `reasoning_details` -- and content that
+arrives as a list of parts (text and thinking) is read as such.
+
 Each bot has its own folder, `data/bots/accounts/<shard>/<id>-<name>/`, with
 `account.json` and a `logs/` directory holding one log per conversation —
 `kikamu Comment Section`, `Chat Conversation With kikamu`,
