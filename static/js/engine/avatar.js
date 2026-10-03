@@ -264,6 +264,36 @@
     return [Math.asin(sx), Math.atan2(m[6], m[8]), Math.atan2(m[1], m[4])];
   }
 
+  /* Hat hair.  Hair is authored in head units with the top of the skull at
+     y 0.5; a hat sits on that.  Under a hat a piece of hair is pressed down
+     to HAT_LINE (a hair's breadth above the skull, inside any crown), and a
+     piece that rises clear of the scalp -- a bun, a spike, the tip of a quiff
+     -- is tucked away altogether.  A turned piece is measured by how far its
+     turned box reaches up; it is tucked rather than squashed, because
+     squashing a turned box along its own axis is not squashing it flat. */
+  var HAT_LINE = 0.56;
+  var HAT_TUCK = 0.62;
+
+  function underHat(piece) {
+    var r = piece.r;
+    if (r && (r[0] || r[1] || r[2])) {
+      var m = eulerMatrix(r);
+      var reach = Math.abs(m[1]) * piece.s[0] / 2 + Math.abs(m[4]) * piece.s[1] / 2 +
+                  Math.abs(m[7]) * piece.s[2] / 2;
+      return piece.p[1] + reach > HAT_TUCK ? null : piece;
+    }
+    var top = piece.p[1] + piece.s[1] / 2;
+    var bottom = piece.p[1] - piece.s[1] / 2;
+    if (top <= HAT_LINE) return piece;
+    if (bottom >= HAT_LINE - 0.02) return null;
+    var height = HAT_LINE - bottom;
+    var pressed = {};
+    for (var key in piece) { if (piece.hasOwnProperty(key)) pressed[key] = piece[key]; }
+    pressed.p = [piece.p[0], bottom + height / 2, piece.p[2]];
+    pressed.s = [piece.s[0], height, piece.s[2]];
+    return pressed;
+  }
+
   function composeEuler(outer, inner) {
     if (!inner) return [outer[0], outer[1], outer[2]];
     if (!inner[1] && !outer[2]) {
@@ -923,9 +953,20 @@
        origin is the middle of the head -- and scaled to whichever head is
        wearing it.  One style, both builds, no gap and no clipping, and a
        style added later needs no per-build variant. */
-    if (hair && hair.data && hair.data.parts) {
+    /* ...and a hat decides what becomes of it (``data.hair`` on the hat,
+       app/models/cosmetics.py HAT_HAIR): "hide" for a hat that encloses the
+       whole head, "show" for one that is not on the scalp, and "flat" -- hat
+       hair -- for everything else, so a tall style never stands up through
+       a crown. */
+    var hatHair = hat && hat.data && hat.data.parts && hat.data.parts.length
+      ? (hat.data.hair || 'flat') : 'show';
+    if (hair && hair.data && hair.data.parts && hatHair !== 'hide') {
       var hs = head.size, hc = head.centre;
       hair.data.parts.forEach(function (piece) {
+        if (hatHair === 'flat') {
+          piece = underHat(piece);
+          if (!piece) return;
+        }
         var spin = piece.spin ? (opts.time || 0) * piece.spin : 0;
         place([hc[0] + piece.p[0] * hs[0],
                hc[1] + piece.p[1] * hs[1],

@@ -978,6 +978,24 @@ HALLOWEEN_COSMETICS: List[Dict[str, Any]] = [
 ]
 
 
+# How a hat treats the hair under it (avatar.js reads ``data.hair``):
+#   "hide"  the hat encloses the whole head, so no hair is drawn at all --
+#           a carved pumpkin, a glass dome, wrappings, a hood
+#   "show"  the hat is not on the scalp (a halo, a ghost on the shoulder), so
+#           the hair is drawn as it is
+#   "flat"  (every other hat) "hat hair": the hair is pressed down under the
+#           crown and anything that would stand up through it -- spikes,
+#           buns, a quiff -- is tucked away; what hangs below the hat stays
+HAT_HAIR = {
+    "hat_lantern": "hide", "hat_astro": "hide", "hat_mummy": "hide",
+    "hat_plague_doctor": "hide",
+    "hat_halo": "show", "hat_tagalong_ghost": "show",
+}
+for _item in HATS + HALLOWEEN_COSMETICS:
+    if _item["slot"] == "hat":
+        _item["data"]["hair"] = HAT_HAIR.get(_item["id"], "flat")
+
+
 # ====================================================== CRATES AND KEYS
 # A crate's lid parts carry ``lid: 1`` and the crate names the hinge the lid
 # turns about (``data.hinge``, a point and the axis is X), so the opening

@@ -618,8 +618,8 @@ helmet.
 Hats come out of **crates**. A crate and the **key** that opens it are both
 ordinary items (500 Noogets each for the Blockhaven Hat Crate and its Crate
 Key). Buying one puts it in your inventory, where crates and keys stack and
-lead the "Everything" tab. Open one from the market's **Crate Hall**, from the
-"Ready to open!" card that appears when you hold a pair, or from the
+lead the "Everything" tab. Open one from the market's **Crate Hall** (the
+stash bar's **Open now** appears whenever you hold a pair), or from the
 inventory: click a **key**, carry it (it follows the cursor) to a crate it
 opens, and click.
 

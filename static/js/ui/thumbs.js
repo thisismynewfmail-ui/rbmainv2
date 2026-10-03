@@ -650,74 +650,7 @@
       box([-30, 12.6, 16], [26, 1.6, 18], '#3f6580');
       box([12, 4, 18], [12, 8, 12], '#8a5a2b', { st: 1 });
     } else if (kind === 'relay') {
-      // Ironvale is a long map: two keeps a proper run apart with a town
-      // between them.  The card has to say that in one glance, so the
-      // keeps go right out to the ends and the middle is given over to the
-      // ground you actually fight across -- road, bunkers, the cutting,
-      // the depot, trees -- with the Relay's mast over the lot of it.
-      parts[0].s = [98, 2, 48];
-      parts[0].c = '#3f7a4a';
-      // everything below is laid out around z = 0 and then pushed away from
-      // the camera in one go, which leaves a band of open ground across the
-      // bottom of the card instead of a building cropped by its edge
-      var built = parts.length;
-      box([0, 0.25, 0], [98, 0.5, 10], '#565c63');
-      for (var r = -43; r <= 43; r += 8) box([r, 0.56, 0], [4.4, 0.2, 1], '#d6dade');
-      box([0, 0.18, 15], [52, 0.36, 6], '#9aa0a6');       // the flank path
-      relayBase(-1, '#cf4030', '#b9c0c6', '#ff8d6e', 'banner_red', 37);
-      relayBase(1, '#2f86cf', '#b9c0c6', '#8ed2ff', 'banner_blue', 37);
-
-      // ---- the midfield, mirrored: this is the spacing the card is about
-      for (var m = -1; m <= 1; m += 2) {
-        // the cutting: a sunken road with a bridge you fight on top of
-        box([m * 19, 2.4, 0], [2.6, 4.8, 17], '#8b9198', { st: 1 });
-        box([m * 19, 5.1, 0], [4.8, 0.7, 19], '#c3c9ce');
-        box([m * 19, 6, -9], [4.8, 1, 0.7], '#9aa0a6');
-        box([m * 19, 6, 9], [4.8, 1, 0.7], '#9aa0a6');
-        // the depot, set back off the road: roller door lit from inside,
-        // an awning over it and crates stacked outside.  It is the nearest
-        // thing to the camera on this side, so it is kept small and given a
-        // roof in a different colour -- a big pale box this close reads as
-        // nothing at all.
-        box([m * 30, 2.6, 13], [10, 5.2, 8], '#c3c9ce', { st: 1 });
-        box([m * 30, 5.5, 13], [11, 0.8, 9], '#7d6047');
-        box([m * 30, 1.9, 8.9], [4.4, 3.6, 0.5], '#ffd79a', { m: 'neon' });
-        box([m * 30, 4.1, 8.2], [6, 0.4, 1.8], '#5c4633');
-        box([m * 23.5, 1.1, 11], [2.6, 2.2, 2.6], '#9a6a3c', { st: 1 });
-        box([m * 23.5, 3.1, 11], [2.2, 1.8, 2.2], '#9a6a3c', { st: 1 });
-        // bunker and pillbox on the far flank, both looking at the road
-        bunker(m * 27, -15);
-        box([m * 11, 1.4, -14], [7, 2.8, 6], '#8b9198', { st: 1 });
-        box([m * 11, 3.1, -14], [7.8, 0.6, 6.8], '#c3c9ce');
-        box([m * 11, 2.1, -10.9], [3.6, 0.9, 0.4], '#20242a');
-        lamp(m * 8, 6.6, 8);
-        lamp(m * 24, 6.6, 8);
-        tree(m * 33, -13, 0.95, '#2a5f3c');
-        tree(m * 15, -10, 0.7, '#2f6b42');
-        tree(m * 33, 19, 0.8, '#2a5f3c');
-        tree(m * 5, 18, 0.7, '#2f6b42');
-      }
-
-      // the relay itself, the tallest thing on the card
-      box([0, 0.8, 0], [26, 1.6, 22], '#a8aeb4', { st: 1 });
-      box([0, 6.6, 0], [16, 10, 14.5], '#dfe4e8', { st: 1 });
-      box([0, 12.1, 0], [17.2, 1, 15.7], '#9aa0a6', { st: 1 });
-      windows(0, 7.6, 7.4, 4, 3.4, '#ffe6b0', 'x');
-      box([-10.3, 4.6, -5], [5, 6.2, 7.2], '#d8402f', { st: 1 });
-      box([10.3, 4.6, -5], [5, 6.2, 7.2], '#3f9adf', { st: 1 });
-      box([-10.3, 4.6, 5], [5, 6.2, 7.2], '#d8402f', { st: 1 });
-      box([10.3, 4.6, 5], [5, 6.2, 7.2], '#3f9adf', { st: 1 });
-      box([-10.3, 3.9, 8.7], [3.8, 1.4, 0.4], '#ff8d6e', { m: 'neon' });
-      box([10.3, 3.9, 8.7], [3.8, 1.4, 0.4], '#8ed2ff', { m: 'neon' });
-      box([-8.2, 8.1, 0], [0.4, 3.4, 7.6], '#ff6a54', { m: 'neon' });
-      box([8.2, 8.1, 0], [0.4, 3.4, 7.6], '#63c0ff', { m: 'neon' });
-      parts.push({ t: 'cyl', p: [0, 17.2, 0], s: [2, 9, 2], c: '#7a8188', m: 'metal' });
-      parts.push({ t: 'cyl', p: [0, 19.5, 0], s: [5.8, 0.5, 5.8], c: '#7a8188', m: 'metal' });
-      parts.push({ t: 'cone', p: [0, 21.8, 0], s: [6.6, 2.6, 6.6], c: '#ccd2d7' });
-      parts.push({ t: 'sph', p: [0, 23.5, 0], s: [1.6, 1.6, 1.6], c: '#ff7a3d', m: 'neon' });
-      parts.push({ t: 'sph', p: [-23, 0.5, 19], s: [4.6, 2, 3.8], c: '#6f757b' });
-      parts.push({ t: 'sph', p: [24, 0.5, 20], s: [3.8, 1.8, 3.4], c: '#6f757b' });
-      for (var q = built; q < parts.length; q++) parts[q].p[2] -= 2;
+      relayScene(parts, box, tree, lamp, windows, bunker, relayBase);
     } else if (kind === 'lastlight' || kind.indexOf('ll_') === 0) {
       lastLightScene(kind, parts, box, tree, lamp, windows);
     } else {
@@ -737,6 +670,188 @@
     return parts;
   }
 
+
+  /* ---- Ironvale Relay at dusk ---------------------------------------
+     The card is a moment from a round rather than a model of the map, shot
+     from the road the way the Last Light card is shot from Main Street: a
+     red runner coming straight at you with the blue flag on their back, a
+     teammate covering, two blue defenders behind them firing down the road,
+     and the Relay's mast and both keeps lit up at the far end of it.  The
+     ground runs to the horizon and hills close it off, so there is no edge
+     of the world to see. */
+  var RELAY_LOOKS = {
+    red: [{ head: '#f5cd30', torso: '#c4281c', arms: '#c4281c', legs: '#5a1a14' },
+          { head: '#c98b5e', torso: '#a82a1e', arms: '#c98b5e', legs: '#3a1410' }],
+    blue: [{ head: '#f2d6b6', torso: '#2f86cf', arms: '#2f86cf', legs: '#1b2a55' },
+           { head: '#8a5a3c', torso: '#2468a8', arms: '#8a5a3c', legs: '#16223f' }]
+  };
+
+  // Faces, so you can see which way each of them is facing: the runner
+  // grinning, the defenders not.  (Copies of face_grin and face_angry -- the
+  // card can draw before the catalogue has loaded.)
+  var RELAY_FACES = {
+    face_grin: { shapes: [
+      { k: 'ellipse', x: -0.22, y: -0.16, w: 0.11, h: 0.16, c: '#1a1a1a' },
+      { k: 'ellipse', x: 0.22, y: -0.16, w: 0.11, h: 0.16, c: '#1a1a1a' },
+      { k: 'arc', x: 0.02, y: 0.02, r: 0.34, a0: 0.05, a1: 0.45, w: 0.06, c: '#1a1a1a' },
+      { k: 'rect', x: 0.03, y: 0.12, w: 0.3, h: 0.07, c: '#ffffff' }] },
+    face_angry: { shapes: [
+      { k: 'rect', x: -0.22, y: -0.22, w: 0.24, h: 0.06, c: '#1a1a1a', rot: 0.35 },
+      { k: 'rect', x: 0.22, y: -0.22, w: 0.24, h: 0.06, c: '#1a1a1a', rot: -0.35 },
+      { k: 'ellipse', x: -0.22, y: -0.08, w: 0.11, h: 0.13, c: '#1a1a1a' },
+      { k: 'ellipse', x: 0.22, y: -0.08, w: 0.11, h: 0.13, c: '#1a1a1a' },
+      { k: 'arc', x: 0, y: 0.32, r: 0.26, a0: 0.58, a1: 0.92, w: 0.06, c: '#1a1a1a' }] }
+  };
+
+  function relayPlayer(parts, x, z, yaw, look, state, time, pitch, y, face) {
+    var faceId = face || 'face_angry';
+    var desc = { colors: { head: look.head, torso: look.torso, left_arm: look.arms,
+                           right_arm: look.arms, left_leg: look.legs, right_leg: look.legs,
+                           hips: look.legs },
+                 items: { face: { item_id: faceId, slot: 'face', data: RELAY_FACES[faceId] } } };
+    Avatar.build(desc, { position: [x, y === undefined ? 0.3 : y, z], yaw: yaw,
+                         pitch: pitch || 0, time: time,
+                         pose: Avatar.pose(state, time, state === 'run' ? 1 : 0, desc),
+                         holding: LL_GUN })
+      .forEach(function (part) { parts.push(part); });
+  }
+
+  /* A shot down the road: a thin lit streak from the muzzle towards the
+     target, stopping short of it, and the flash at the muzzle. */
+  function relayTracer(parts, from, to) {
+    var dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2];
+    var len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    var yaw = Math.atan2(dx, dz), pitch = -Math.asin(dy / len);
+    var streak = len * 0.55;
+    var mid = [from[0] + dx / len * (2 + streak / 2), from[1] + dy / len * (2 + streak / 2),
+               from[2] + dz / len * (2 + streak / 2)];
+    parts.push({ t: 'box', p: mid, s: [0.14, 0.14, streak], c: '#ffe7a0', m: 'neon', r: [pitch, yaw, 0] });
+    parts.push({ t: 'sph', p: [from[0] + dx / len * 1.2, from[1] + dy / len * 1.2, from[2] + dz / len * 1.2],
+                 s: [0.9, 0.9, 0.9], c: '#fff3c0', m: 'neon' });
+  }
+
+  function relayScene(parts, box, tree, lamp, windows, bunker, relayBase) {
+    var ground = parts[0];
+    ground.p = [0, -1, -120];
+    ground.s = [420, 2, 380];
+    ground.c = '#2f5a3a';
+    ground.st = 0;
+
+    /* Build something with the shared helpers, then move and scale every
+       part it made -- the keeps and the relay are modelled round the origin */
+    function placed(fn, dx, dz, k) {
+      var first = parts.length;
+      fn();
+      for (var i = first; i < parts.length; i++) {
+        var q = parts[i];
+        q.p = [dx + q.p[0] * k, q.p[1] * k, dz + q.p[2] * k];
+        q.s = [q.s[0] * k, q.s[1] * k, q.s[2] * k];
+      }
+    }
+    function pine(x, z, h, c) {
+      parts.push({ t: 'cyl', p: [x, h * 0.18, z], s: [h * 0.09, h * 0.36, h * 0.09], c: '#3a2a1e' });
+      parts.push({ t: 'cone', p: [x, h * 0.62, z], s: [h * 0.42, h * 0.78, h * 0.42], c: c || '#1f3d2a' });
+    }
+
+    // ---- the road you run, kerbs, the centre line, the verges
+    box([0, 0.15, -90], [13, 0.3, 300], '#474d55');
+    box([-7, 0.4, -90], [1, 0.8, 300], '#9aa0a6');
+    box([7, 0.4, -90], [1, 0.8, 300], '#9aa0a6');
+    for (var d = 44; d > -230; d -= 9) box([0, 0.33, d], [0.45, 0.06, 4.2], '#e8d070');
+    box([-13, 0.12, -40], [11, 0.24, 160], '#3a6a44');
+    box([13, 0.12, -40], [11, 0.24, 160], '#3a6a44');
+
+    // ---- the Relay at the end of the road, mast and beacon over everything
+    placed(function () {
+      box([0, 0.8, 0], [26, 1.6, 22], '#a8aeb4', { st: 1 });
+      box([0, 6.6, 0], [16, 10, 14.5], '#dfe4e8', { st: 1 });
+      box([0, 12.1, 0], [17.2, 1, 15.7], '#9aa0a6', { st: 1 });
+      windows(0, 7.6, 7.4, 4, 3.4, '#ffe6b0', 'x');
+      windows(0, 3.4, 7.4, 3, 4.6, '#ffd79a', 'x');
+      box([-10.3, 4.6, 0], [5, 6.2, 12], '#d8402f', { st: 1 });
+      box([10.3, 4.6, 0], [5, 6.2, 12], '#3f9adf', { st: 1 });
+      box([-10.3, 3.9, 6.1], [3.8, 1.4, 0.4], '#ff8d6e', { m: 'neon' });
+      box([10.3, 3.9, 6.1], [3.8, 1.4, 0.4], '#8ed2ff', { m: 'neon' });
+      parts.push({ t: 'cyl', p: [0, 18, 0], s: [2, 11, 2], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'cyl', p: [0, 21.5, 0], s: [6.4, 0.5, 6.4], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'cone', p: [0, 24, 0], s: [7, 2.8, 7], c: '#ccd2d7' });
+      parts.push({ t: 'cyl', p: [0, 28.5, 0], s: [0.5, 6, 0.5], c: '#7a8188', m: 'metal' });
+      parts.push({ t: 'sph', p: [0, 31.8, 0], s: [2.2, 2.2, 2.2], c: '#ff7a3d', m: 'neon' });
+    }, 0, -78, 1.45);
+
+    // ---- the keeps, one each side of the far end, team roofs and banners
+    placed(function () { relayBase(-1, '#cf4030', '#b9c0c6', '#ff8d6e', 'banner_red', 0); },
+           -62, -128, 1.35);
+    placed(function () { relayBase(1, '#2f86cf', '#b9c0c6', '#8ed2ff', 'banner_blue', 0); },
+           62, -128, 1.35);
+
+    // ---- hills closing the horizon off
+    [[-150, '#24403a', 180, 46], [-20, '#2a4a40', 150, 34], [120, '#24403a', 200, 52],
+     [260, '#2a4a40', 160, 40], [-280, '#2a4a40', 160, 38]].forEach(function (h) {
+      parts.push({ t: 'sph', p: [h[0], -6, -250], s: [h[2], h[3], 70], c: h[1] });
+    });
+
+    // ---- the left verge: the depot, its door lit, crates by the road
+    box([-21, 3.6, -8], [12, 7.2, 15], '#c3c9ce', { st: 1 });
+    box([-21, 7.6, -8], [13, 0.8, 16], '#7d6047');
+    box([-14.8, 2.5, -8], [0.4, 4.6, 6.4], '#ffd79a', { m: 'neon' });
+    box([-14, 5.3, -8], [2, 0.4, 8.6], '#5c4633');
+    box([-10.2, 1.2, 4], [2.4, 2.4, 2.4], '#9a6a3c', { st: 1 });
+    box([-10.4, 3.4, 4.2], [2, 2, 2], '#8a5a30', { st: 1 });
+    box([-11.6, 1.2, 7.2], [2.4, 2.4, 2.4], '#9a6a3c', { st: 1 });
+    // ---- the right verge: a bunker looking at the road, barriers along it
+    placed(function () { bunker(0, 0); }, 22, -22, 1.0);
+    for (var j = 0; j < 7; j++) {
+      parts.push({ t: 'rbox', p: [8.6, 0.9, 30 - j * 7.5], s: [0.9, 1.6, 6.6],
+                   c: j % 2 ? '#d8dde2' : '#c9ced3' });
+      box([8.2, 1.2, 30 - j * 7.5], [0.2, 0.36, 6.2], j % 2 ? '#c4281c' : '#2f86cf');
+    }
+    box([-8.4, 0.9, 20], [1.6, 1.8, 2.4], '#b8a070', { st: 1 });
+    box([-8.4, 0.9, 23], [1.6, 1.8, 2.4], '#a8905a', { st: 1 });
+
+    // ---- streetlights down both sides, already on: an arm over the road
+    // and a small warm head, not a lit box
+    [16, -14, -46, -80].forEach(function (z) {
+      [-1, 1].forEach(function (side) {
+        var x = side * 9.6;
+        parts.push({ t: 'cyl', p: [x, 4.5, z], s: [0.45, 9, 0.45], c: '#3e444b', m: 'metal' });
+        box([x - side * 1.3, 9, z], [2.8, 0.3, 0.3], '#3e444b', { m: 'metal' });
+        box([x - side * 2.5, 8.75, z], [1.3, 0.35, 0.8], '#ffd890', { m: 'neon' });
+      });
+    });
+
+    // ---- trees: dark pines behind the verges, a couple nearer
+    for (var t = 0; t < 9; t++) {
+      pine(-34 - (t % 3) * 6, 30 - t * 16, 13 + (t % 4) * 2.4, t % 2 ? '#1f3d2a' : '#24462f');
+      pine(36 + (t % 3) * 5, 22 - t * 17, 12 + (t % 3) * 2.6, t % 2 ? '#24462f' : '#1f3d2a');
+    }
+    tree(-27, 18, 0.9, '#2a5f3c');
+    tree(30, 10, 1.0, '#2a5f3c');
+
+    // ---- the run: the carrier with the blue flag, a teammate covering
+    var runner = [-1.6, 24];
+    relayPlayer(parts, runner[0], runner[1], 0.22, RELAY_LOOKS.red[0], 'run', 0.35, -0.1,
+                undefined, 'face_grin');
+    var fx = runner[0] - 0.5, fz = runner[1] - 1.0;
+    parts.push({ t: 'cyl', p: [fx, 8.2, fz], s: [0.22, 7.6, 0.22], c: '#e8e8e8', m: 'metal',
+                 r: [-0.22, 0, 0.12] });
+    box([fx - 1.9, 10.4, fz - 1.0], [3.6, 2.4, 0.16], '#2f86cf',
+        { dec: 'banner_blue', r: [-0.2, 0.25, 0.12] });
+    parts.push({ t: 'sph', p: [fx + 0.4, 12.1, fz - 0.85], s: [0.7, 0.7, 0.7], c: '#8ed2ff', m: 'neon' });
+    relayPlayer(parts, -6.4, 15, 0.55, RELAY_LOOKS.red[1], 'run', 0.9, 0, undefined, 'face_grin');
+    // ...and one dug in behind the barriers on the right, firing back up
+    // the road at the defenders
+    relayPlayer(parts, 11.2, 17, Math.PI - 0.32, RELAY_LOOKS.red[1], 'idle', 0.1, 0.02);
+
+    // ---- blue defenders behind them, firing down the road
+    relayPlayer(parts, 3.4, 3, -0.12, RELAY_LOOKS.blue[0], 'idle', 0.2, 0.05);
+    relayPlayer(parts, -3.6, -6, 0.1, RELAY_LOOKS.blue[1], 'run', 0.6, 0.05);
+    // and one on the bunker roof
+    relayPlayer(parts, 20.5, -19.5, -0.35, RELAY_LOOKS.blue[0], 'idle', 0.4, 0.1, 3.8);
+    relayTracer(parts, [4.1, 4.6, 5.2], [runner[0] + 0.6, 4.3, runner[1]]);
+    relayTracer(parts, [-2.8, 4.6, -3.8], [runner[0] - 1.2, 4.8, runner[1] - 1]);
+    relayTracer(parts, [10.6, 4.6, 15], [3.8, 4.4, 3.6]);
+  }
 
   /* ---- Last Light dioramas -------------------------------------------
      The world card and the four places on the world page.  Each is a corner
@@ -960,7 +1075,7 @@
   // because it is a long map and the run between the two keeps is the thing
   // its picture is selling.
   var WORLD_CAMERAS = {
-    relay: [[49, 38, 69], [0, 5, -2], 42],
+    relay: [[8.5, 6.4, 39], [-1.8, 6.4, 6], 46],
     lastlight: [[16, 14, 46], [6, 6, -4], 46],
     ll_town: [[34, 26, 62], [4, 6, -2], 44],
     ll_hospital: [[30, 24, 64], [2, 9, -4], 46],
@@ -973,7 +1088,7 @@
     ctf: { top: '#7fb2e5', horizon: '#e8f0f8', sun: [0.35, 0.7, -0.25], clouds: 0.5, tint: '#ffffff' },
     payload: { top: '#e8b46a', horizon: '#f7e4bd', sun: [0.5, 0.55, 0.2], clouds: 0.7, tint: '#ffe9c4' },
     burger: { top: '#8fc4ef', horizon: '#ffeec4', sun: [0.3, 0.75, 0.4], clouds: 0.42, tint: '#fff6e0' },
-    relay: { top: '#22406f', horizon: '#9b86a0', sun: [0.2, 0.62, 0.76], clouds: 0.5, tint: '#ffc89a' },
+    relay: { top: '#1d3463', horizon: '#e0875a', sun: [0.78, 0.17, -0.5], clouds: 0.5, tint: '#ffbf8a' },
     lastlight: { top: '#2c2748', horizon: '#d9805a', sun: [0.62, 0.22, -0.55], clouds: 0.5, tint: '#ffb27a' },
     ll_town: { top: '#2c2748', horizon: '#d9805a', sun: [0.62, 0.22, -0.55], clouds: 0.5, tint: '#ffb27a' },
     ll_hospital: { top: '#0f1a2c', horizon: '#4a6478', sun: [-0.35, 0.55, 0.6], clouds: 0.45, tint: '#c8d8ff' },
