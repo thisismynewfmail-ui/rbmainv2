@@ -124,6 +124,46 @@
       </div>
     </div>
 
+    {% if pinned or is_self %}
+    <div class="panel p-pinned">
+      <div class="panel-head purple">
+        <span>&#9733; Pinned items</span>
+        {% if is_self %}<span class="head-links"><a href="/profile-editor#pins">Change</a></span>
+        {% elif not show_inventory and pinned %}<span class="head-links">shown by {{ profile.username }}</span>{% endif %}
+      </div>
+      <div class="panel-body">
+        <div class="pinrow">
+          {% for it in pinned %}
+          <!-- hover (or focus, or tap) for the item turning on a stand,
+               draggable round, with what it is -- as the badges do -->
+          <div class="item tier-{{ it.tier }}" tabindex="0"
+               data-item-pop="{{ it.item_id }}" data-name="{{ it.name }}"
+               data-slot-label="{{ it.slot_label }}" data-serial="{{ it.serial }}"
+               data-tier="{{ it.tier }}" data-tier-label="{{ it.tier_label }}"
+               data-tier-color="{{ it.tier_color }}" data-tier-glow="{{ it.tier_glow }}"
+               data-effect="{{ it.effect }}" data-effect-name="{{ it.effect_name }}"
+               data-rarity="{{ it.rarity }}" data-description="{{ it.description }}">
+            <div class="thumb-wrap">
+              <canvas class="thumb item-thumb" width="216" height="216"
+                      data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"
+                      data-live-effect="1"></canvas>
+              <span class="tier-flag {{ it.tier }}">{{ it.tier_label }}</span>
+              {% if it.effect_name %}<span class="effect-flag">{{ it.effect_name }}</span>{% endif %}
+            </div>
+            <div class="meta">
+              <span class="iname" title="{{ it.name }}">{{ it.name }}</span>
+              <span class="islot">{{ it.slot_label }} &bull; #{{ it.serial }}</span>
+            </div>
+          </div>
+          {% endfor %}
+          {% for i in range(pinned_slots - len(pinned)) %}
+          <div class="pinslot">{% if is_self %}<a href="/profile-editor#pins">Pin an item</a>{% else %}empty{% endif %}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     {% if badge_cards or is_self %}
     <!-- Badges: the four the player chose (or their best four), each a 3D
          medal; hover one for it turning on a stand and what it is for. -->
@@ -154,43 +194,6 @@
       </div>
     </div>
     <script type="application/json" class="badge-data">{{& to_json({'cards': badge_cards}) }}</script>
-    {% endif %}
-
-    {% if pinned or is_self %}
-    <div class="panel p-pinned">
-      <div class="panel-head purple">
-        <span>&#9733; Pinned items</span>
-        {% if is_self %}<span class="head-links"><a href="/profile-editor#pins">Change</a></span>
-        {% elif not show_inventory and pinned %}<span class="head-links">shown by {{ profile.username }}</span>{% endif %}
-      </div>
-      <div class="panel-body">
-        <div class="pinrow">
-          {% for it in pinned %}
-          <div class="item tier-{{ it.tier }}" style="cursor:pointer"
-               data-item-peek="{{ it.item_id }}" data-name="{{ it.name }}"
-               data-slot-label="{{ it.slot_label }}" data-serial="{{ it.serial }}"
-               data-tier="{{ it.tier }}" data-effect="{{ it.effect }}"
-               data-effect-name="{{ it.effect_name }}" data-rarity="{{ it.rarity }}"
-               data-href="{{ '/inventory/' + profile.username if show_inventory else '' }}">
-            <div class="thumb-wrap">
-              <canvas class="thumb item-thumb" width="216" height="216"
-                      data-item="{{ it.item_id }}" data-effect="{{ it.effect }}"
-                      data-live-effect="1"></canvas>
-              <span class="tier-flag {{ it.tier }}">{{ it.tier_label }}</span>
-              {% if it.effect_name %}<span class="effect-flag">{{ it.effect_name }}</span>{% endif %}
-            </div>
-            <div class="meta">
-              <span class="iname" title="{{ it.name }}">{{ it.name }}</span>
-              <span class="islot">{{ it.slot_label }} &bull; #{{ it.serial }}</span>
-            </div>
-          </div>
-          {% endfor %}
-          {% for i in range(pinned_slots - len(pinned)) %}
-          <div class="pinslot">{% if is_self %}<a href="/profile-editor#pins">Pin an item</a>{% else %}empty{% endif %}</div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
     {% endif %}
 
     {% if posts_list %}

@@ -12,6 +12,8 @@
          hovering (or focusing, or tapping) it opens the pop-up: the badge
          turning on a stand, draggable round, with its one-line description,
          its rank and how far it is to the next one
+     <... data-item-pop="hat_crown" data-name=... data-tier=... data-effect=...>
+         the same pop-up for an item (a profile's pinned items)
 
    It also draws the toast that says a badge was earned (Badges.toast), with
    the emblem painted onto a medal in the tier's metal. */
@@ -121,46 +123,78 @@
     box.style.setProperty('--arrow', (r.left + r.width / 2 - x) + 'px');
   }
 
-  Badges.show = function (tile) {
-    var card = Badges.cards[tile.dataset.badgePop];
-    if (!card || document.body.classList.contains('bi-dragging')) return;
+  /* Open the pop-up over `tile`: the stage on top (start(canvas) draws into
+     it and returns the turntable job, if any), `info` under it. */
+  function openPop(tile, className, vars, infoHtml, start) {
+    if (document.body.classList.contains('bi-dragging')) return;
     if (pop && pop.tile === tile) { clearTimeout(pop.hide); return; }
     Badges.hide(true);
     var box = document.createElement('div');
-    box.className = 'badge-pop tier-' + card.tier + (card.earned ? '' : ' locked');
-    box.style.setProperty('--tier', card.color);
-    box.style.setProperty('--glow', card.glow);
+    box.className = 'badge-pop ' + className;
+    Object.keys(vars).forEach(function (k) { if (vars[k]) box.style.setProperty(k, vars[k]); });
     box.innerHTML =
       '<div class="bp-stage"><canvas width="320" height="320"></canvas>' +
       '<span class="bp-hint">drag to turn</span></div>' +
-      '<div class="bp-info">' +
+      '<div class="bp-info">' + infoHtml + '</div>';
+    document.body.appendChild(box);
+    place(box, tile);
+    requestAnimationFrame(function () { box.classList.add('in'); });
+    var canvas = box.querySelector('canvas');
+    pop = { box: box, tile: tile, canvas: canvas, job: null, hide: 0 };
+    pop.job = start(canvas) || null;
+    bindDrag(canvas);
+    box.addEventListener('pointerenter', function () { if (pop) clearTimeout(pop.hide); });
+    box.addEventListener('pointerleave', function () { Badges.hide(); });
+  }
+
+  Badges.show = function (tile) {
+    var card = Badges.cards[tile.dataset.badgePop];
+    if (!card) return;
+    openPop(tile, 'tier-' + card.tier + (card.earned ? '' : ' locked'),
+      { '--tier': card.color, '--glow': card.glow },
       '<b class="bp-name">' + esc(card.name) + '</b>' +
       '<span class="bp-tier">' + (card.earned
         ? esc(card.tier_label) + ' &bull; Rank ' + card.level + ': ' + esc(card.rank)
         : 'Not earned yet') + '</span>' +
       '<p>' + esc(card.description) + '</p>' +
       ladderHtml(card) + progressHtml(card) +
-      '<span class="bp-game">' + esc(card.game_name) + '</span>' +
-      '</div>';
-    document.body.appendChild(box);
-    place(box, tile);
-    requestAnimationFrame(function () { box.classList.add('in'); });
-    var canvas = box.querySelector('canvas');
-    var opts = view(card);
-    var job = null;
-    if (global.Thumbs && card.parts) {
-      Thumbs.renderPartsTo(canvas, card.parts, opts, null);
-      if (!reduced()) {
-        job = Thumbs.animateParts(canvas, card.parts, {
+      '<span class="bp-game">' + esc(card.game_name) + '</span>',
+      function (canvas) {
+        if (!global.Thumbs || !card.parts) return null;
+        var opts = view(card);
+        Thumbs.renderPartsTo(canvas, card.parts, opts, null);
+        if (reduced()) return null;
+        return Thumbs.animateParts(canvas, card.parts, {
           angle: opts.angle, tilt: opts.tilt, padding: opts.padding * 1.08,
           spin: 0.7, def: card.earned ? (GLINT[card.tier] || null) : null
         });
-      }
-    }
-    pop = { box: box, tile: tile, canvas: canvas, job: job, hide: 0 };
-    bindDrag(canvas);
-    box.addEventListener('pointerenter', function () { if (pop) clearTimeout(pop.hide); });
-    box.addEventListener('pointerleave', function () { Badges.hide(); });
+      });
+  };
+
+  /* An item (a profile's pinned items): the same pop-up, the piece turning
+     on the stand with its Unusual effect running, and what it is. */
+  var RARITY = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare',
+                 legendary: 'Legendary', limited: 'Limited' };
+  Badges.showItem = function (tile) {
+    var d = tile.dataset;
+    var unusual = d.tier === 'unusual';
+    var bits = [d.slotLabel, d.serial ? '#' + d.serial : '',
+                RARITY[d.rarity] || d.rarity].filter(Boolean);
+    openPop(tile, 'item-pop tier-' + (d.tier || 'normal'),
+      { '--tier': d.tierColor || (unusual ? '#8650ac' : '#f0bd45'),
+        '--glow': d.tierGlow || (unusual ? '#b77be0' : '#ffe08a') },
+      '<b class="bp-name">' + esc(d.name) + '</b>' +
+      '<span class="bp-tier">' + esc(d.tierLabel || (unusual ? 'Unusual' : 'Normal')) +
+        (d.effectName ? ' &bull; ' + esc(d.effectName) : '') + '</span>' +
+      (d.description ? '<p>' + esc(d.description) + '</p>' : '') +
+      '<span class="bp-game">' + esc(bits.join(' \u2022 ')) + '</span>',
+      function (canvas) {
+        if (!global.Thumbs) return null;
+        if (reduced()) { Thumbs.renderItem(canvas, d.itemPop, d.effect || ''); return null; }
+        // the job is made once the catalogue is in; drag looks it up per press
+        Thumbs.animateItem(canvas, d.itemPop, d.effect || '', { spin: 0.7 });
+        return null;
+      });
   };
 
   Badges.hide = function (now) {
@@ -262,24 +296,29 @@
   };
 
   // ----------------------------------------------------------------- boot
+  var POPS = '[data-badge-pop], [data-item-pop]';
+  function open(tile) {
+    if (tile.hasAttribute('data-item-pop')) Badges.showItem(tile); else Badges.show(tile);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     Badges.scan(document);
     document.addEventListener('pointerover', function (e) {
-      var tile = e.target.closest && e.target.closest('[data-badge-pop]');
-      if (tile) Badges.show(tile);
+      var tile = e.target.closest && e.target.closest(POPS);
+      if (tile) open(tile);
     });
     document.addEventListener('pointerout', function (e) {
-      var tile = e.target.closest && e.target.closest('[data-badge-pop]');
+      var tile = e.target.closest && e.target.closest(POPS);
       if (!tile || !pop || pop.tile !== tile) return;
       if (e.relatedTarget && tile.contains(e.relatedTarget)) return;
       Badges.hide();
     });
     document.addEventListener('focusin', function (e) {
-      var tile = e.target.closest && e.target.closest('[data-badge-pop]');
-      if (tile) Badges.show(tile);
+      var tile = e.target.closest && e.target.closest(POPS);
+      if (tile) open(tile);
     });
     document.addEventListener('focusout', function (e) {
-      var tile = e.target.closest && e.target.closest('[data-badge-pop]');
+      var tile = e.target.closest && e.target.closest(POPS);
       if (tile) Badges.hide();
     });
     global.addEventListener('scroll', function () { if (pop) Badges.hide(true); }, { passive: true });
