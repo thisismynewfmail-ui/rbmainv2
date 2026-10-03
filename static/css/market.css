@@ -619,3 +619,104 @@ body.cs-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .mk *, .mk *::before, .mk *::after, .cs-stage *, .cs-stage *::before { animation: none !important; transition: none !important; }
 }
+
+/* ==========================================================================
+   The inventory's crate shelf: stacked crate and key cards, carrying a key
+   to a crate (key mode), and the card that lands after an opening.
+   ========================================================================== */
+.inv-stash { margin: 2px 0 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: linear-gradient(var(--mk-steel-a), var(--mk-steel-b));
+  box-shadow: inset 0 1px 0 var(--btn-gloss), 0 3px 10px var(--shadow); }
+.inv-stash-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
+.inv-stash-head > b { font-size: 13px; color: var(--mk-ink); }
+.inv-stash-head a { margin-left: auto; font-weight: bold; }
+.inv-sub-head { margin: 4px 0 8px; font-size: 12px; color: var(--mk-ink); border-bottom: 1px dashed var(--line); padding-bottom: 4px; }
+.inv-stash-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+.stash-card { position: relative; transition: transform .2s, box-shadow .2s, opacity .25s, filter .25s; }
+.stash-card .thumb-wrap { cursor: pointer; overflow: hidden;
+  background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%), var(--tile-normal); }
+.stash-card.theme-halloween .thumb-wrap {
+  background: radial-gradient(circle at 50% 62%, rgba(255, 140, 26, .55), transparent 62%),
+              linear-gradient(#2a1840, #120a1e); }
+.stash-card.theme-halloween .thumb-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 78% 18%, rgba(255, 245, 210, .9) 0 7%, transparent 8%); opacity: .55; }
+.stash-card .thumb-wrap::after { content: ""; position: absolute; inset: -40%; pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0 20deg, rgba(255,255,255,.18) 30deg, transparent 40deg 110deg,
+    rgba(255,255,255,.14) 120deg, transparent 130deg 200deg, rgba(255,255,255,.18) 210deg, transparent 220deg);
+  animation: inv-rays 14s linear infinite; opacity: 0; transition: opacity .3s; }
+.stash-card:hover .thumb-wrap::after, .stash-card.pickable .thumb-wrap::after,
+.stash-card.openable .thumb-wrap::after { opacity: 1; }
+@keyframes inv-rays { to { transform: rotate(360deg); } }
+.stash-card .thumb { position: relative; z-index: 1; transition: transform .25s; }
+.stash-card:hover .thumb { transform: scale(1.06) rotate(-2deg); }
+.stash-card.openable { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+.stack-count { position: absolute; z-index: 2; right: 5px; bottom: 5px; padding: 1px 7px 1px 6px; border-radius: 10px;
+  font: bold 11px/16px Verdana, sans-serif; color: #fff; background: rgba(10, 20, 35, .78);
+  border: 1px solid rgba(255,255,255,.35); }
+.stack-count b { font-size: 13px; }
+.stack-count.pop { animation: mk-bump .5s; }
+.tier-flag.event { background: linear-gradient(#ff9a2e, #d4580a); color: #fff; border-color: #8a3200; opacity: 1; transform: none; z-index: 2; }
+.stash-pick-hint { position: absolute; z-index: 3; left: 50%; top: 8px; transform: translate(-50%, -8px); opacity: 0;
+  padding: 2px 8px; border-radius: 10px; font: bold 10px/16px Verdana, sans-serif; color: var(--mk-hot-ink);
+  background: linear-gradient(var(--mk-hot-a), var(--mk-hot-b)); white-space: nowrap; pointer-events: none;
+  transition: opacity .2s, transform .2s; }
+
+/* -- carrying a key */
+body.key-mode .itemgrid .item.dimmed { opacity: .28; filter: grayscale(.85); transform: scale(.97); }
+body.key-mode .stash-card.pickable { z-index: 2; border-color: var(--mk-hot-b);
+  animation: inv-beckon 1.1s ease-in-out infinite; cursor: none; }
+body.key-mode .stash-card.pickable * { cursor: none; }
+body.key-mode .stash-card.pickable .stash-pick-hint,
+.stash-card.armed .stash-pick-hint { opacity: 1; transform: translate(-50%, 0); }
+body.key-mode .stash-card.pickable:hover { transform: translateY(-4px) scale(1.05); }
+body.key-mode .stash-card.pickable:hover .thumb { transform: scale(1.12) rotate(3deg); }
+@keyframes inv-beckon {
+  0%, 100% { box-shadow: 0 0 0 2px var(--mk-hot-a), 0 0 12px 2px rgba(255, 190, 40, .55); }
+  50% { box-shadow: 0 0 0 3px var(--mk-hot-b), 0 0 26px 8px rgba(255, 160, 20, .8); } }
+.stash-card.armed { border-color: var(--mk-hot-b); border-style: dashed; }
+.stash-card.armed .thumb { opacity: .25; transform: scale(.9); }
+.stash-card.unlocking { z-index: 3; }
+.stash-card.jolt .thumb-wrap { animation: inv-jolt .38s cubic-bezier(.3, 1.8, .5, 1); }
+@keyframes inv-jolt { 0% { transform: none; } 25% { transform: translateY(3px) scale(.97, 1.04) rotate(-3deg); }
+  55% { transform: translateY(-4px) scale(1.04, .97) rotate(2deg); } 100% { transform: none; } }
+.stash-card.leaving { animation: inv-leave .45s ease-in forwards; pointer-events: none; }
+@keyframes inv-leave { to { transform: scale(.6) translateY(20px); opacity: 0; } }
+
+.key-ghost { position: fixed; z-index: 9000; left: 0; top: 0; width: 68px; height: 68px; pointer-events: none;
+  opacity: 0; filter: drop-shadow(0 6px 8px rgba(0,0,0,.45)) drop-shadow(0 0 8px rgba(255, 210, 74, .8));
+  transition: opacity .2s; will-change: transform; }
+.key-ghost.in { opacity: 1; }
+.key-ghost img { width: 100%; height: 100%; display: block; }
+.key-ghost span { font-size: 44px; line-height: 68px; }
+.key-ghost.flying { transition: transform .5s cubic-bezier(.5, -0.3, .4, 1.3), opacity .2s; }
+.key-ghost.turn img, .key-ghost.turn span { animation: inv-turn .35s ease-in-out forwards; }
+@keyframes inv-turn { to { transform: rotate(90deg) scale(.9); } }
+
+.key-banner { position: fixed; z-index: 8999; left: 50%; top: 10px; transform: translate(-50%, -140%);
+  display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); padding: 8px 12px 8px 10px;
+  border-radius: 10px; border: 1px solid #8a5a00; color: #fff;
+  background: linear-gradient(#2f4a6b, #16263a); box-shadow: 0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.2);
+  transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
+.key-banner.theme-halloween { background: linear-gradient(#4a2366, #1d0d2b); border-color: #ff8c1a; }
+.key-banner.in { transform: translate(-50%, 0); }
+.key-banner b { display: block; font-size: 12px; }
+.key-banner span { font-size: 11px; color: rgba(255,255,255,.82); }
+.key-banner span b { display: inline; color: var(--mk-hot-a); }
+.key-banner .kb-icon { font-size: 24px; animation: inv-wiggle 1.4s ease-in-out infinite; }
+.key-banner kbd { font: 9px Verdana, sans-serif; padding: 0 3px; border: 1px solid var(--line); border-radius: 3px; margin-left: 3px; }
+@keyframes inv-wiggle { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(14deg); } }
+
+/* -- what came out */
+.item.just-won { animation: inv-landed .8s cubic-bezier(.3, 1.6, .5, 1); border-color: var(--won);
+  box-shadow: 0 0 0 2px var(--won), 0 0 18px var(--won); }
+@keyframes inv-landed { 0% { transform: translateY(-30px) scale(.5); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.new-flag { position: absolute; z-index: 2; left: -4px; top: 8px; padding: 1px 8px; font: bold 10px/16px Verdana, sans-serif;
+  color: #fff; background: linear-gradient(#ff5a7a, #d81b48); border-radius: 0 8px 8px 0; text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0,0,0,.3); animation: mk-shimmer 2s infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stash-card .thumb-wrap::after, body.key-mode .stash-card.pickable, .key-banner .kb-icon,
+  .item.just-won, .new-flag { animation: none; }
+}

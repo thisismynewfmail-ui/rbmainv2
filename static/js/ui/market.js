@@ -221,18 +221,5 @@
       e.preventDefault();
       if (window.Crates) Crates.buy(b);
     });
-    // a crate opened from this page changes the feed and the counts
-    if (window.Crates) {
-      var open = Crates.open;
-      Crates.open = function (options) {
-        options = options || {};
-        var done = options.onResult;
-        options.onResult = function (res) {
-          document.dispatchEvent(new CustomEvent('crates:opened', { detail: res }));
-          if (done) done(res);
-        };
-        return open(options);
-      };
-    }
   });
 })();

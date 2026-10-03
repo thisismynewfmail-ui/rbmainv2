@@ -71,22 +71,50 @@ def market_page(req: Request):
 def inventory_page(req: Request):
     uid = int(req.user["id"])
     slot = req.query.get("slot", "all")
-    items = inventory.list_for_user(uid)
+    if slot not in [t[0] for t in INVENTORY_TABS]:
+        slot = "all"
+    owned = inventory.list_for_user(uid)
+    # Crates and keys stack: one card per kind with a count, rather than a
+    # wall of identical boxes.  They lead "Everything", so a new crate is never
+    # buried, and each series sits key-then-crate, the order you use them in.
+    stacks: dict = {}
+    for it in owned:
+        if not it["stash"]:
+            continue
+        stack = stacks.get(it["item_id"])
+        if stack is None:
+            stack = stacks[it["item_id"]] = db.AttrDict(it)
+            stack["ids"] = []
+        stack["ids"].append(int(it["inv_id"]))
+    numbers = {s["id"]: s["number"] for s in crates.SERIES.values()}
+
+    def _stack_order(st):
+        series = st["series"] or (st["opens"] or [""])[0]
+        return (numbers.get(series, 99), 0 if st["slot"] == "key" else 1, st["item_id"])
+
+    stash_cards = sorted(stacks.values(), key=_stack_order)
+    for st in stash_cards:
+        st["ids"].sort()
+        st["count"] = len(st["ids"])
+        st["series_key"] = st["series"] or (st["opens"] or [""])[0]
     if slot == "stash":
-        items = [i for i in items if i["stash"]]
-    elif slot != "all":
-        items = [i for i in items if i["slot"] == slot]
-    # crates and keys lead "Everything", so a new crate is never buried
-    items.sort(key=lambda i: (0 if i["stash"] else 1, -int(i["inv_id"])))
+        items = []
+    elif slot == "all":
+        items = [i for i in owned if not i["stash"]]
+    else:
+        items = [i for i in owned if i["slot"] == slot]
+        stash_cards = []
     raw = avatars.raw_avatar(uid)
     equipped_ids = set(raw["equipped"].values())
     hotbar_ids = set(x for x in raw["hotbar"] if x)
+    stash = crates.stash_counts(uid)
     return render(req, "inventory.html", page_title="Inventory",
-                  items=items, slot=slot, tabs=INVENTORY_TABS,
+                  items=items, stash_cards=stash_cards, slot=slot, tabs=INVENTORY_TABS,
                   summary=inventory.summary(uid),
                   equipped=equipped_ids, hotbar=hotbar_ids,
                   tiers=catalog.TIERS, ledger=economy.history(uid, 12),
-                  stash=crates.stash_counts(uid), series=crates.all_series(),
+                  stash=stash, series=crates.all_series(),
+                  series_by_id={s["id"]: s for s in crates.all_series()},
                   grades=crates.GRADES,
                   extra_scripts=["/static/js/ui/crates.js"])
 

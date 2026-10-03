@@ -272,6 +272,9 @@
     requestAnimationFrame(step);
   }
 
+  /* Other pages can borrow a sound: the inventory turns its key with it. */
+  Crates.sfx = function (name, opts) { Sfx.init(); Sfx.play(name, opts || {}); };
+
   Crates.setBalance = function (balance) {
     countTo(document.getElementById('wallet-amount'), balance);
     countTo(document.getElementById('mk-wallet'), balance);
@@ -927,6 +930,8 @@
       }
     });
     if (this.options.onResult) this.options.onResult(res);
+    // every page that shows crates, keys or a feed listens for this
+    document.dispatchEvent(new CustomEvent('crates:opened', { detail: res }));
     Crates.setStash(res.left);
     if (res.balance !== undefined) Crates.setBalance(res.balance);
   };

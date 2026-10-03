@@ -382,6 +382,8 @@ def open_crate(user_id: int, crate_inv: int, key_inv: int) -> Dict[str, Any]:
         "reel": build_reel(series, won),
         "win_index": REEL_WIN,
         "left": stash_counts(user_id),
+        # the two rows the opening used up, so a page can take them off its shelf
+        "used": {"crate": int(crate_inv), "key": int(key_inv)},
     }
 
 
