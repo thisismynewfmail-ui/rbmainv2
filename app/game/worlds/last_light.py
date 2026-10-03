@@ -506,8 +506,17 @@ class LastLight(GameInstance):
         arc = float(stats.get("arc", 0.55))
         origin = [player.pos[0], player.pos[1] + 3.4, player.pos[2]]
         weapon_name = (player.weapon() or {}).get("name", "Fists")
-        hits = 0
         moment = now()
+        # kills made by this swing bank souls (kill_infected looks for it)
+        player.extra["swinging"] = True
+        try:
+            self._swing(player, direction, stats, reach, arc, origin, weapon_name, moment)
+        finally:
+            player.extra.pop("swinging", None)
+
+    def _swing(self, player: Player, direction, stats: Dict[str, Any], reach: float,
+               arc: float, origin, weapon_name: str, moment: float) -> None:
+        hits = 0
         for z in list(self.horde.zombies.values()):
             if z.hidden:
                 continue
@@ -542,8 +551,8 @@ class LastLight(GameInstance):
         owner = self.players.get(proj.pid_owner)
         radius = float(proj.stats.get("splash", 8.0))
         splash = float(proj.stats.get("splash_damage", proj.stats.get("damage", 50)))
-        self._blast(proj.pos, radius, splash * 1.6, owner, "Blast Launcher",
-                    hurt_people=False)
+        self._blast(proj.pos, radius, splash * 1.6, owner,
+                    getattr(proj, "weapon", "") or "Blast Launcher", hurt_people=False)
 
     def _blast(self, centre: Sequence[float], radius: float, damage: float,
                owner: Optional[Player], weapon: str, hurt_people: bool = True,
@@ -725,6 +734,8 @@ class LastLight(GameInstance):
             killer.kills += 1
             stats = killer.extra.get("ll") or {}
             stats["kills"] = stats.get("kills", 0) + 1
+            if killer.extra.get("swinging"):
+                self.bank_soul(killer, centre)
             self.badge(killer, "ll_kills")
             if headshot:
                 self.badge(killer, "ll_headshots")

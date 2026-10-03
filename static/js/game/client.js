@@ -736,8 +736,13 @@
     });
     net.on('fx', function (msg) { self.onEffect(msg); });
     net.on('proj', function (msg) {
-      self.projectiles[msg.id] = { p: msg.p.slice(), v: msg.v.slice() };
-      self.audio.play('rocket', { volume: self.volumeAt(msg.p) });
+      self.projectiles[msg.id] = { p: msg.p.slice(), v: msg.v.slice(), k: msg.k || 'rocket',
+                                   born: performance.now() };
+      self.audio.play(msg.k === 'pumpkin' ? 'swing' : 'rocket', { volume: self.volumeAt(msg.p) });
+    });
+    // the Hollow Harvester's banked souls
+    net.on('souls', function (msg) {
+      if (self.hud.setSouls) self.hud.setSouls(msg.n || 0, msg.max || 3, msg.spent || 0);
     });
     net.on('vote', function (msg) { self.hud.updateVote(msg); });
     net.on('round_end', function (msg) {
@@ -947,8 +952,9 @@
     var live = {};
     (msg.pr || []).forEach(function (row) {
       live[row[0]] = true;
-      this.projectiles[row[0]] = this.projectiles[row[0]] || {};
+      this.projectiles[row[0]] = this.projectiles[row[0]] || { born: performance.now() };
       this.projectiles[row[0]].p = [row[1], row[2], row[3]];
+      if (row[4]) this.projectiles[row[0]].k = row[4];
     }, this);
     Object.keys(this.projectiles).forEach(function (id) {
       if (!live[id]) delete this.projectiles[id];
@@ -1014,9 +1020,23 @@
         : weapon.indexOf('rifle') >= 0 ? 'rifle' : 'pistol';
       this.audio.play(sound, { volume: this.volumeAt(origin) });
     } else if (msg.k === 'explode') {
-      this.particles.burst('explosion', msg.p, { radius: msg.r || 8 });
-      this.audio.play('explode', { volume: this.volumeAt(msg.p) });
+      if (msg.kind === 'pumpkin') {
+        this.particles.burst('candy', msg.p, { radius: msg.r || 8 });
+        this.audio.play('explode', { volume: this.volumeAt(msg.p) * 0.7 });
+      } else {
+        this.particles.burst('explosion', msg.p, { radius: msg.r || 8 });
+        this.audio.play('explode', { volume: this.volumeAt(msg.p) });
+      }
       delete this.projectiles[msg.id];
+    } else if (msg.k === 'soul') {
+      this.particles.burst('soul', msg.p);
+    } else if (msg.k === 'reap') {
+      var reaper = msg.id === this.myId ? this.local : this.players[msg.id];
+      if (reaper && reaper.pos) {
+        this.particles.burst('reap', [reaper.pos[0], reaper.pos[1] + 2.8, reaper.pos[2]],
+                             { count: msg.n || 1 });
+        this.audio.play('swing', { volume: this.volumeAt(reaper.pos) });
+      }
     } else if (msg.k === 'swing') {
       var player = this.players[msg.id];
       if (player) this.audio.play('swing', { volume: this.volumeAt(player.pos) });
@@ -1147,11 +1167,17 @@
   Client.prototype.updateAmmoHud = function () {
     if (this.stowed) {
       this.hud.setAmmo(null, null, '', false);
+      var hidden = document.querySelector('#ammo .souls');
+      if (hidden) hidden.style.display = 'none';
       return;
     }
     var item = this.currentWeapon();
     var stats = this.weaponStats();
     var reloading = performance.now() / 1000 < this.reloadUntil;
+    // the souls only mean anything with the blade that banks them in hand
+    var souls = document.querySelector('#ammo .souls');
+    if (souls) souls.style.display = stats.souls ? '' : 'none';
+    else if (stats.souls && this.hud.setSouls) this.hud.setSouls(0, stats.souls, 0);
     if (stats.kind === 'melee') {
       this.hud.setAmmo(null, null, item ? item.name : '', false);
     } else {
@@ -1384,6 +1410,21 @@
     Object.keys(this.projectiles).forEach(function (id) {
       var proj = self.projectiles[id];
       if (!proj.p) return;
+      if (proj.k === 'pumpkin') {
+        // a grinning pumpkin tumbling end over end, trailing sparks of candy
+        var spin = ((performance.now() - (proj.born || 0)) / 1000) * 9;
+        renderer.pushRaw('pumpkin', proj.p[0], proj.p[1], proj.p[2], spin, spin * 0.6, 0,
+                         1.5, 1.06, 1.5, [1, 0.55, 0.1], 1, 0, 0, 0.15, null);
+        renderer.pushRaw('cyl', proj.p[0], proj.p[1] + 0.6, proj.p[2], spin, spin * 0.6, 0,
+                         0.2, 0.45, 0.2, [0.3, 0.5, 0.15], 1, 0, 0, 0, null);
+        if (Settings.particles && Math.random() < 0.6) {
+          self.particles.spawn({
+            p: proj.p, v: [0, 0.6, 0], life: 0.5, size: 0.35, grow: -0.3,
+            gravity: -6, blend: 'add', shape: 'spark',
+            colors: ['#ffb000', '#ff6a00', '#ffe36b'] });
+        }
+        return;
+      }
       renderer.pushRaw('cyl', proj.p[0], proj.p[1], proj.p[2], 0, 0, 0,
                        0.8, 2.2, 0.8, [0.25, 0.25, 0.28], 1, 0, 1, 0, null);
       renderer.pushRaw('sph', proj.p[0], proj.p[1], proj.p[2], 0, 0, 0,

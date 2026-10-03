@@ -565,3 +565,15 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 .hud-badge b { display: block; font-size: 16px; }
 .hud-badge span { display: block; font-size: 11px; color: #c9d6e6; }
 .hud-badge.tier-mythic { border-color: #ff4fd8; box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 30px rgba(255, 79, 216, .6); }
+
+/* the Hollow Harvester's banked souls (hud.js setSouls) */
+#ammo .souls { display: flex; justify-content: flex-end; align-items: center; gap: 5px; margin-bottom: 4px; }
+#ammo .souls i { width: 14px; height: 18px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(160,255,190,.4); }
+#ammo .souls i.on { background: radial-gradient(circle at 50% 35%, #eaffef, #7dff9a 45%, #1fae56);
+  box-shadow: 0 0 10px #7dff9a; animation: souls-flicker 1.1s ease-in-out infinite; }
+#ammo .souls span { font-size: 11px; color: #b9ffcb; margin-left: 2px; }
+#ammo .souls.full i.on { animation-duration: .5s; }
+#ammo .souls.reap { animation: souls-reap .5s ease-out; }
+@keyframes souls-flicker { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.08); } }
+@keyframes souls-reap { 0% { transform: scale(1.4); filter: brightness(2); } 100% { transform: none; filter: none; } }

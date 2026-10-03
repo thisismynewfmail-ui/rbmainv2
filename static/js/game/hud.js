@@ -70,6 +70,33 @@
     wrap.querySelector('.wname').textContent = name || '';
   };
 
+  /* The Hollow Harvester's souls: three pips by the ammo counter that fill
+     green as kills are banked and flare out when a swing spends them. */
+  HUD.prototype.setSouls = function (n, max, spent) {
+    var wrap = el('ammo');
+    if (!wrap) return;
+    var box = wrap.querySelector('.souls');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'souls';
+      wrap.insertBefore(box, wrap.firstChild);
+    }
+    var html = '';
+    for (var i = 0; i < (max || 3); i++) html += '<i class="' + (i < n ? 'on' : '') + '"></i>';
+    box.innerHTML = html + '<span>' + (n ? n + ' soul' + (n === 1 ? '' : 's') : 'souls') + '</span>';
+    box.classList.toggle('full', n >= (max || 3));
+    box.style.display = '';
+    if (spent) {
+      box.classList.remove('reap'); void box.offsetWidth; box.classList.add('reap');
+      this.toast('Reaped ' + spent + ' soul' + (spent === 1 ? '' : 's') + '!', 'good');
+    }
+  };
+
+  HUD.prototype.hideSouls = function () {
+    var box = document.querySelector('#ammo .souls');
+    if (box) box.remove();
+  };
+
   HUD.prototype.buildHotbar = function (hotbar, activeIndex) {
     var wrap = el('hotbar-hud');
     if (!wrap) return;
