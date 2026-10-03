@@ -545,7 +545,8 @@
 
   Renderer.prototype.refreshAtlas = function () {
     if (Textures.version !== this.atlasVersion) {
-      Textures.uploadAtlas(this.gl, this.atlas);
+      // only the cells painted since this renderer's last upload
+      Textures.uploadAtlas(this.gl, this.atlas, this.atlasVersion);
       this.atlasVersion = Textures.version;
     }
   };

@@ -559,6 +559,19 @@ CPU core, and a busy match cannot slow the website down. Hosts push a heartbeat
 (instances, players, kills, visits) back to the web server every 2.5 seconds,
 and the supervisor restarts any host that dies.
 
+**Slow and quiet connections.** One thread ticks every round of a world, so
+nothing on it may wait on a player's network. Sends are queued and a writer
+thread per connection does the actual writing (`app/game/protocol.py`):
+snapshots replace one still waiting rather than queue behind it, so a player
+who hiccups gets the latest state rather than a backlog, and a connection that
+stops reading altogether is let go once 4 MB or 15 seconds have piled up for
+it -- without anybody else's game stopping while that happens. The host also
+pings every connection at the websocket level every 10 seconds; the browser
+answers those itself, so a player whose tab is in the background (where the
+page's own pings are throttled to one a minute) is not dropped by the
+45-second silence rule. `python3 tools/gametests.py stall` checks all of this
+in-process, with no server running.
+
 ### Server authority
 
 * **Noogets, items and inventory.** Clients send intents ("buy `hat_crown`"),
@@ -793,7 +806,11 @@ gaits on two different bodies is not a transition, it is a cut.
 ### Textures
 
 Every texture in the project is drawn at runtime on a 2D canvas into one
-1280×1280 atlas, so the platform ships without a single image asset. A decal
+2048×2048 atlas, so the platform ships without a single image asset. Cells
+are painted on demand (a face when its wearer turns up, an area's signs when
+the round gets there), and every paint is logged by cell, so a renderer sends
+the GPU only the 128×128 cells painted since its last upload rather than the
+whole 16 MB atlas each time. A decal
 normally lands on a part's own +Z face in object space, which is what keeps a
 face on the front of a head and a graphic on the front of a shirt however the
 character turns.
@@ -1436,7 +1453,9 @@ restaurant without building one first.
 `gametests.py` drives real websocket clients against the running servers and
 asserts on what the servers broadcast: flag captures, damage and the kill feed,
 fire-rate clamping, movement correction, cart pushing, tycoon buying and
-income, instance overflow, visit accounting and the end-of-round shuffle vote.
+income, instance overflow, visit accounting and the end-of-round shuffle vote,
+and (`stall`, in-process) that a connection which stops reading never holds up
+the tick.
 
 `mapcheck.py` needs no server; it builds each map and audits the geometry:
 

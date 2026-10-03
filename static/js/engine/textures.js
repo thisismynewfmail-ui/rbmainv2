@@ -16,15 +16,35 @@
     atlasCanvas: null,
     slots: {},                  // name -> {u, v, s}
     nextSlot: 1,                // slot 0 is a plain white square
-    version: 0
+    version: 0,
+    changes: []                 // {v, x, y}: which cell each version painted
   };
+
+  /* Re-sending the whole 2048x2048 atlas (16 MB, then its mipmaps) every time
+     one cell is painted -- a face for somebody who just joined, the signage
+     of the area a round moved to -- stalled a frame for every paint, and an
+     area change paints dozens.  So every paint is logged by cell, and a
+     renderer that is only a few versions behind sends just those cells
+     (uploadAtlas).  The log is short; one that has fallen further behind
+     than it reaches gets the whole atlas, as before. */
+  var CHANGE_LOG = 256;
+  var MAX_CELL_UPLOADS = 96;
+
+  function painted(slot) {
+    Textures.version++;
+    Textures.changes.push({ v: Textures.version, x: slot.x, y: slot.y });
+    if (Textures.changes.length > CHANGE_LOG) {
+      Textures.changes.splice(0, Textures.changes.length - CHANGE_LOG);
+    }
+  }
 
   function ensureCanvas() {
     if (Textures.atlasCanvas) return Textures.atlasCanvas;
     var canvas = document.createElement('canvas');
     canvas.width = SIZE;
     canvas.height = SIZE;
-    var ctx = canvas.getContext('2d');
+    // painted a cell at a time and read back a cell at a time (uploadAtlas)
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.clearRect(0, 0, SIZE, SIZE);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, CELL, CELL);
@@ -99,7 +119,7 @@
       ctx.restore();
     });
     ctx.restore();
-    Textures.version++;
+    painted(slot);
     return slot;
   };
 
@@ -1007,7 +1027,7 @@
       ctx.fillText(l, CELL / 2, startY + i * (fontSize || 20) * 1.05);
     });
     ctx.restore();
-    Textures.version++;
+    painted(slot);
     return slot;
   };
 
@@ -1058,7 +1078,7 @@
     var ctx = cellContext(slot, null);
     ctx.drawImage(scratch, 0, 0, w, h, 0, 0, CELL, CELL);
     ctx.restore();
-    Textures.version++;
+    painted(slot);
     return slot;
   }
 
@@ -1093,7 +1113,7 @@
     var ctx = cellContext(slot, null);
     fn(ctx);
     ctx.restore();
-    Textures.version++;
+    painted(slot);
     return slot;
   };
 
@@ -1158,17 +1178,45 @@
              aspect: canvas.width / canvas.height };
   };
 
-  Textures.uploadAtlas = function (gl, existing) {
+  /* The cells painted after version `since`, newest paint of each cell
+     first, or null when the log no longer reaches back that far (or so much
+     changed that one upload of everything is the cheaper way). */
+  function changedSince(since) {
+    var log = Textures.changes;
+    if (!log.length || log[0].v > since + 1) return null;
+    var seen = {}, cells = [];
+    for (var i = log.length - 1; i >= 0 && log[i].v > since; i--) {
+      var key = log[i].x + ',' + log[i].y;
+      if (seen[key]) continue;
+      seen[key] = true;
+      cells.push(log[i]);
+    }
+    return cells.length <= MAX_CELL_UPLOADS ? cells : null;
+  }
+
+  /* Upload the atlas to `existing` (or a new texture).  A renderer passes the
+     version it last uploaded as `since`, and gets only the cells painted
+     after it. */
+  Textures.uploadAtlas = function (gl, existing, since) {
     ensureCanvas();
+    var cells = (existing && since !== undefined) ? changedSince(since) : null;
     var texture = existing || gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE,
-                  Textures.atlasCanvas);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (cells) {
+      for (var i = 0; i < cells.length; i++) {
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, cells[i].x, cells[i].y, gl.RGBA,
+                         gl.UNSIGNED_BYTE,
+                         Textures.ctx.getImageData(cells[i].x, cells[i].y, CELL, CELL));
+      }
+    } else {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE,
+                    Textures.atlasCanvas);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
     gl.generateMipmap(gl.TEXTURE_2D);
     return texture;
   };
