@@ -761,6 +761,11 @@
     net.on('notice', function (msg) {
       self.hud.toast(msg.m, msg.bad ? 'bad' : '');
     });
+    // a badge earned or levelled up by something just done in this round
+    net.on('badge', function (msg) {
+      if (self.hud.badgeToast) self.hud.badgeToast(msg);
+      if (self.audio) self.audio.play('coin');
+    });
     net.on('coins', function (msg) {
       if (msg.gained) {
         self.hud.toast('+' + msg.gained.toLocaleString() + ' Noogets', 'good');

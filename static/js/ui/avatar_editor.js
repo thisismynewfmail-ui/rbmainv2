@@ -257,6 +257,7 @@
           panel.classList.toggle('hidden', panel.dataset.slotPanel !== slot);
         });
         if (window.Thumbs) Thumbs.rescan();
+        if (slot === 'badge' && window.Badges) Badges.scan();
       });
     });
 
@@ -305,6 +306,25 @@
           });
       });
     });
+
+    // -------------------------------------------------------------- badge
+    document.querySelectorAll('[data-wear-badge]').forEach(function (pick) {
+      pick.addEventListener('click', function () {
+        var id = pick.dataset.wearBadge || '';
+        Site.post('/api/avatar/badge', { badge_id: id }).then(function (res) {
+          if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+          document.querySelectorAll('[data-wear-badge]').forEach(function (other) {
+            other.classList.toggle('on', other === pick);
+          });
+          applyDescriptor(res.avatar);
+          Site.toast(id ? 'Badge pinned on.' : 'Badge taken off.');
+        });
+      });
+    });
+    if (location.hash === '#badge') {
+      var badgeTab = document.querySelector('[data-slot-tab="badge"]');
+      if (badgeTab) badgeTab.click();
+    }
 
     // -------------------------------------------------------------- hotbar
     document.querySelectorAll('[data-hotslot]').forEach(function (slot) {

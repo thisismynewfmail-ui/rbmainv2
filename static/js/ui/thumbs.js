@@ -388,7 +388,7 @@
                         sun: [0.45, 0.8, 0.35], clouds: 0, tint: '#ffffff' });
       renderer.buildStatic([]);
       renderer.beginFrame(dt);
-      if (job.spin) {
+      if (job.spin && !job.held) {
         job.angle += dt * job.spin;
         // a turntable bobs a little, so it reads as on show rather than parked
         job.bob = Math.sin(now / 900) * 0.04;
@@ -469,6 +469,68 @@
       live.push(job);
       if (!liveFrame) liveFrame = requestAnimationFrame(liveTick);
     });
+  };
+
+  /* ------------------------------------------------------------ any parts
+     Badges (and anything else that is not a catalogue item) hand over their
+     own part list.  ``prepParts`` resolves the authoring keys the server
+     sends (a decal by name) into what the renderer draws. */
+  Thumbs.prepParts = function (raw) {
+    return (raw || []).map(function (piece) {
+      return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
+               c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
+               decSlot: piece.decal ? Textures.decal(piece.decal) : null };
+    });
+  };
+
+  /* A still of a part list, cached under ``key``. */
+  Thumbs.renderPartsTo = function (canvas, raw, options, key) {
+    if (!canvas) return;
+    if (key && Thumbs.imageCache[key]) { blit(canvas, Thumbs.imageCache[key]); return; }
+    options = options || {};
+    var source = renderParts(Thumbs.prepParts(raw), {
+      angle: options.angle, tilt: options.tilt, padding: options.padding
+    });
+    if (!source) return;
+    var copy = snapshot(source);
+    if (key) Thumbs.imageCache[key] = copy;
+    blit(canvas, copy);
+  };
+
+  /* A turntable of a part list.  ``options.def`` is an effect definition
+     (not an id) to run round it; ``options.anchor`` where it emits from. */
+  Thumbs.animateParts = function (canvas, raw, options) {
+    options = options || {};
+    if (!canvas || !ensureRenderer()) return null;
+    Thumbs.stopLive(canvas);
+    if (live.length >= LIVE_MAX) Thumbs.stopLive(live[0].canvas);
+    var system = borrowParticles();
+    if (!system) return null;
+    var job = {
+      canvas: canvas,
+      parts: Thumbs.prepParts(raw),
+      angle: options.angle === undefined ? -0.4 : options.angle,
+      tilt: options.tilt === undefined ? 0.1 : options.tilt,
+      padding: options.padding || 1.1,
+      anchor: options.anchor || [0, 0, 0],
+      def: options.def || null,
+      particles: system,
+      spin: options.spin === undefined ? 0.6 : options.spin,
+      last: 0
+    };
+    for (var step = 0; job.def && step < 60; step++) {
+      system.setEmitter('fx', job.def, job.anchor);
+      system.update(1 / 60);
+    }
+    live.push(job);
+    if (!liveFrame) liveFrame = requestAnimationFrame(liveTick);
+    return job;
+  };
+
+  /* The running job for a canvas, so a page can let people turn it. */
+  Thumbs.liveJob = function (canvas) {
+    for (var i = 0; i < live.length; i++) if (live[i].canvas === canvas) return live[i];
+    return null;
   };
 
   Thumbs.renderAvatarFor = function (canvas, username) {

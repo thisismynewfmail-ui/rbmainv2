@@ -638,6 +638,12 @@ def create_batch(count: int, rng: random.Random,
         release_names(reserved)
     if not created:
         return []
+    for card in created:
+        try:
+            _badges(card, rng)
+        except Exception:
+            import traceback
+            traceback.print_exc()
     _after(created, rng, now)
     if job:
         _log(job, "created %d: %s%s" % (len(created),
@@ -865,6 +871,83 @@ def _outfit(card: Dict[str, Any], rows: Dict[str, List[Tuple[int, str]]],
     if showable and rng.random() < 0.55:
         pinned = [o[0] for o in showable[:rng.randint(1, 3)]]
     return equipped, hotbar, list(dict.fromkeys(pinned))
+
+
+def _badges(card: Dict[str, Any], rng: random.Random) -> None:
+    """Badges to match the history: a bot that has played two hundred rounds
+    of Last Light has revived somebody, and its profile should say so.  The
+    stats are booked the way a game host would (app/models/badges.py), so the
+    levels come out of the same ladders as everyone else's, and about half
+    of the bots that earned something wear their best one."""
+    from ..models import badges
+    traits = card["traits"]
+    skill = traits.get("skill", 0.5)
+    objective = traits.get("objective", 0.6)
+    changes: List[Tuple[str, int, str]] = []
+    ll = card["history"].get("last_light")
+    if ll and ll["rounds"]:
+        rounds, kills = ll["rounds"], ll["kills"]
+        best = int(min(46, 3 + skill * rng.uniform(8, 34) + min(10, rounds / 20)))
+        changes += [("ll_kills", kills, "add"),
+                    ("ll_headshots", int(kills * (0.08 + skill * 0.3)), "add"),
+                    ("ll_specials", int(kills * rng.uniform(0.03, 0.07)), "add"),
+                    ("ll_revives", int(rounds * rng.uniform(0.2, 2.2) * (0.5 + objective)), "add"),
+                    ("ll_waves", int(rounds * rng.uniform(3, 4 + skill * 10)), "add"),
+                    ("ll_best_wave", best, "max"),
+                    ("ll_tanks", int(rounds * rng.uniform(0.02, 0.25) * skill), "add"),
+                    ("ll_defuses", int(rounds * rng.uniform(0.0, 0.6) * skill), "add"),
+                    ("ll_untouched", int(rounds * rng.uniform(0.0, 0.3) * skill * skill), "add")]
+        if best >= 5:
+            areas = ["town", "hospital", "docks", "camp"]
+            rng.shuffle(areas)
+            for area in areas[:1 + min(3, int(rounds / rng.uniform(15, 60)))]:
+                changes.append(("ll_area_%s" % area, 1, "max"))
+    br = card["history"].get("blackout_relay")
+    if br and br["rounds"]:
+        rounds = br["rounds"]
+        captures = int(rounds * rng.uniform(0.1, 1.4) * (0.4 + objective))
+        changes += [("br_kills", br["kills"], "add"),
+                    ("br_captures", captures, "add"),
+                    ("br_returns", int(rounds * rng.uniform(0.1, 1.2) * (0.4 + objective)), "add"),
+                    ("br_carrier_kills", int(rounds * rng.uniform(0.05, 0.7) * (0.3 + skill)), "add"),
+                    ("br_wins", br["wins"], "add"),
+                    ("br_defends", int(br["kills"] * rng.uniform(0.04, 0.16)), "add"),
+                    ("br_clutch", int(captures * rng.uniform(0.0, 0.08)), "add"),
+                    ("br_sudden", int(rounds * rng.uniform(0.0, 0.02)), "add")]
+    if not changes:
+        return
+    badges.record_many(card["id"], [c for c in changes if c[1] > 0], notify=False)
+    held = badges.earned(card["id"])
+    if held and rng.random() < 0.55:
+        best = max(held.items(), key=lambda kv: (kv[1]["level"], rng.random()))[0]
+        badges.set_worn(card["id"], best)
+
+
+def backfill_badges(limit: int = 400) -> int:
+    """Give bots made before badges existed the badges their history earns.
+
+    Runs once when the director starts (and is a no-op after that): any bot
+    with game stats but no badge stats is booked from those stats."""
+    rows = db.query(
+        "SELECT u.id, bp.traits FROM users u JOIN bot_profiles bp ON bp.user_id=u.id"
+        " WHERE u.is_bot=1 AND NOT EXISTS (SELECT 1 FROM badge_stats s WHERE s.user_id=u.id)"
+        " AND EXISTS (SELECT 1 FROM game_stats g WHERE g.user_id=u.id) LIMIT ?", (int(limit),))
+    done = 0
+    for row in rows:
+        uid = int(row["id"])
+        history = {}
+        for g in db.query("SELECT * FROM game_stats WHERE user_id=?", (uid,)):
+            history[g["world_id"]] = {"kills": int(g["kills"]), "deaths": int(g["deaths"]),
+                                      "wins": int(g["wins"]), "rounds": int(g["rounds"])}
+        card = {"id": uid, "history": history,
+                "traits": personas.unpack_traits(row["traits"] or "")}
+        try:
+            _badges(card, random.Random(uid * 7919))
+            done += 1
+        except Exception:
+            import traceback
+            traceback.print_exc()
+    return done
 
 
 def _after(created: List[Dict[str, Any]], rng: random.Random, now: int) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 from ..http import router as R
 from ..http.router import Request
 from ..game import registry as game_registry
-from ..models import avatars, inventory, users, worlds
+from ..models import avatars, badges, inventory, users, worlds
 from ..social import comments, follows, friends, posts
 from .base import (api_error, api_ok, flash_redirect, login_required, render,
                    router)
@@ -50,9 +50,14 @@ def profile(req: Request, username: str = ""):
     # everything else goes in the smaller strip under Statistics
     rest = [row for row in inv if int(row["inv_id"]) not in pinned_ids]
 
+    shown_badges = badges.showcase(profile_user)
     return render(
         req, "profile.html",
         profile=profile_user,
+        badge_cards=shown_badges,
+        badge_slots=badges.MAX_SHOWN,
+        badge_count=len(badges.earned(pid)),
+        badge_total=len(badges.BADGES),
         avatar=avatars.descriptor(pid, profile_user["username"]),
         is_self=viewer == pid,
         online=users.is_online(profile_user) and show_online,
@@ -110,8 +115,15 @@ def edit_profile(req: Request):
             pins = [form.get("pin_%d" % index, 0)
                     for index in range(users.MAX_PINNED)]
         users.set_pinned(uid, pins)
+        shown = form.get("badges")
+        if not isinstance(shown, list):
+            shown = [form.get("badge_%d" % index, "")
+                     for index in range(badges.MAX_SHOWN)]
+        if any(shown) or "badge_0" in form or isinstance(form.get("badges"), list):
+            badges.set_shown(uid, shown)
         if req.wants_json:
-            return api_ok(pinned=users.pinned_of(users.get_by_id(uid)))
+            return api_ok(pinned=users.pinned_of(users.get_by_id(uid)),
+                          badges=badges.shown_of(users.get_by_id(uid)))
         return flash_redirect("/profile/%s" % req.user["username"],
                               "Profile updated.")
     fresh = users.get_by_id(uid)
@@ -121,7 +133,16 @@ def edit_profile(req: Request):
                   visibilities=users.VISIBILITIES,
                   pinned=users.pinned_of(fresh),
                   pin_slots=users.MAX_PINNED,
-                  owned=inventory.list_for_user(uid))
+                  owned=inventory.list_for_user(uid),
+                  badge_collection=badges.collection(uid),
+                  badges_shown=badges.shown_of(fresh),
+                  badge_slots=badges.MAX_SHOWN,
+                  badge_count=len(badges.earned(uid)),
+                  badge_total=len(badges.BADGES),
+                  badge_games=[("blackout_relay", "Blackout Relay"),
+                               ("last_light", "Last Light"),
+                               ("market", "Crates"), ("event", "Events")],
+                  worn_badge=badges.worn_of(uid))
 
 
 @router.post("/api/social/friend")

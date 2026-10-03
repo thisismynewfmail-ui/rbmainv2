@@ -368,6 +368,15 @@ def open_crate(user_id: int, crate_inv: int, key_inv: int) -> Dict[str, Any]:
         console.note("UNUSUAL %s unboxed by %s (%s)"
                      % (item["name"], username,
                         catalog.UNUSUAL_EFFECTS[won["effect"]]["name"]))
+    # badges: every crate counts, an Unusual counts twice over, and an event
+    # crate opened while its event runs counts towards that year's badge
+    from . import badges
+    changes = [("crates_opened", 1, "add")]
+    if won["tier"] == "unusual":
+        changes.append(("unusuals_unboxed", 1, "add"))
+    if series.get("event") == "halloween" and event_active("halloween"):
+        changes.append(("ev_harvest_2026", 1, "add"))
+    earned = badges.record_many(user_id, changes)
     decorated = inventory.decorate(inventory.get_row(user_id, inv_id) or {
         "id": inv_id, "item_id": won["item_id"], "tier": won["tier"],
         "effect": won["effect"], "serial": serial, "acquired_at": now,
@@ -384,6 +393,8 @@ def open_crate(user_id: int, crate_inv: int, key_inv: int) -> Dict[str, Any]:
         "left": stash_counts(user_id),
         # the two rows the opening used up, so a page can take them off its shelf
         "used": {"crate": int(crate_inv), "key": int(key_inv)},
+        "badges": [{k: e[k] for k in ("id", "name", "level", "tier_label", "rank",
+                                      "first", "emblem", "color")} for e in earned],
     }
 
 

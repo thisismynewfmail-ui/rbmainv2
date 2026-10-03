@@ -68,6 +68,7 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
           {% for slot in slots %}
           <a data-slot-tab="{{ slot }}" class="{{ 'on' if loop.first else '' }}">{{ slot_labels[slot] }}</a>
           {% endfor %}
+          <a data-slot-tab="badge">&#127894; Badge</a>
         </div>
         {% for slot in slots %}
         <div class="slotpanel {{ '' if loop.first else 'hidden' }}" data-slot-panel="{{ slot }}">
@@ -90,6 +91,31 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
           {% endif %}
         </div>
         {% endfor %}
+        <!-- the badge pinned to the right of the chest: small, but it is the
+             first thing another player's eye goes to after the hat -->
+        <div class="slotpanel hidden" data-slot-panel="badge">
+          <p class="tiny muted" style="margin:0 0 8px">Wear one of your badges on your character's chest.
+            It shows on your profile, in every world, and levels up on you as you play.</p>
+          <div class="bi-grid wear" id="wear-badges">
+            <div class="bi-card none-card {{ 'on' if not worn_badge else '' }}" data-wear-badge="" style="--tier:#9fb0c2;--glow:#9fb0c2">
+              <div class="bt-stage">None</div>
+              <b>No badge</b><span>a clean shirt</span>
+            </div>
+            {% for b in badge_cards %}
+            <div class="bi-card tier-{{ b.tier }} {{ 'on' if b.id == worn_badge else '' }}" data-wear-badge="{{ b.id }}"
+                 data-badge-pop="{{ b.id }}" style="--tier:{{ b.color }};--glow:{{ b.glow }}">
+              <div class="bt-stage"><canvas class="badge-3d" width="160" height="160" data-badge="{{ b.id }}"></canvas></div>
+              <b>{{ b.name }}</b><span>{{ b.tier_label }} &bull; {{ b.rank }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% if not badge_cards %}
+          <p class="muted" style="margin-top:8px">No badges yet &mdash; they are earned in
+            <a href="/worlds">Blackout Relay and Last Light</a> and by opening crates.
+            See them all in your <a href="/profile-editor#badges">Badge Inventory</a>.</p>
+          {% endif %}
+        </div>
+        <script type="application/json" class="badge-data">{{& to_json({'cards': badge_cards}) }}</script>
       </div>
     </div>
 

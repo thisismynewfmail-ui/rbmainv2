@@ -680,6 +680,7 @@ class LastLight(GameInstance):
                     if killer is not None:
                         killer.score += 3
                         killer.send({"t": "notice", "m": "Defused! Clean headshot."})
+                        self.badge(killer, "ll_defuses")
                 else:
                     self.broadcast({"t": "fx", "k": "explode", "p": centre, "r": 13.0,
                                     "id": -z.pid, "big": 1})
@@ -717,14 +718,21 @@ class LastLight(GameInstance):
                 player = self.players.get(pid)
                 if player is not None:
                     player.score += int(round(z.score_value * dealt / total))
+                    # Tank Buster: the last blow, or a real share of the work
+                    if player is killer or dealt >= total * 0.25:
+                        self.badge(player, "ll_tanks")
         if killer is not None:
             killer.kills += 1
             stats = killer.extra.get("ll") or {}
             stats["kills"] = stats.get("kills", 0) + 1
+            self.badge(killer, "ll_kills")
+            if headshot:
+                self.badge(killer, "ll_headshots")
             if z.kind != "tank":
                 killer.score += z.score_value
             if KINDS[z.kind].get("special"):
                 stats["specials"] = stats.get("specials", 0) + 1
+                self.badge(killer, "ll_specials")
                 self.broadcast({"t": "kill", "k": killer.username, "kid": killer.pid,
                                 "kteam": TEAM, "v": KINDS[z.kind]["name"],
                                 "vid": z.pid, "vteam": "infected",
@@ -877,6 +885,7 @@ class LastLight(GameInstance):
         player.extra.pop("using", None)
         stats = player.extra.get("ll") or {}
         stats["downs"] = stats.get("downs", 0) + 1
+        player.extra["wave_downs"] = player.extra.get("wave_downs", 0) + 1
         player.health = MAX_HEALTH
         pinner = self.horde.zombies.get(player.extra.get("pinned_by", 0))
         if pinner is not None:
@@ -899,6 +908,7 @@ class LastLight(GameInstance):
             by.score += 5
             stats = by.extra.get("ll") or {}
             stats["revives"] = stats.get("revives", 0) + 1
+            self.badge(by, "ll_revives")
             self.system_message("%s picked %s up." % (by.username, player.username))
             self.push_event("revived", by=by.username, what=player.username)
         player.send({"t": "heal", "hp": player.health, "amt": REVIVED_HEALTH,
@@ -1034,6 +1044,7 @@ class LastLight(GameInstance):
         for player in list(self.players.values()):
             if not player.alive or self.where(player) == "lobby":
                 self.deploy(player)
+            player.extra["wave_downs"] = 0
         self.plan = self._compose()
         self.phase = "active"
         self.wave_started = moment
@@ -1071,10 +1082,19 @@ class LastLight(GameInstance):
         alive = self.survivors()
         for player in alive:
             player.score += 10
+            flawless = not player.extra.get("wave_downs") and not player.extra.get("downed")
             if player.extra.get("downed"):
                 self.revive(player, None)
             stats = player.extra.get("ll") or {}
             stats["best"] = max(stats.get("best", 0), self.wave)
+            # badges: waves survived, the best wave, the areas toured, and a
+            # late wave cleared without once going down
+            self.badge(player, "ll_waves")
+            self.badge(player, "ll_best_wave", self.wave, "max")
+            if self.wave >= 5:
+                self.badge(player, "ll_area_%s" % self.area_id, 1, "max")
+            if self.wave >= 10 and flawless:
+                self.badge(player, "ll_untouched")
         self.broadcast({"t": "zwave", "wave": self.wave, "on": False,
                         "next": self.wave + 1, "in": BREATHER,
                         "kills": self.wave_kills,

@@ -718,6 +718,15 @@ class GameInstance:
                 continue
             player.send(payload)
 
+    def badge(self, player, stat: str, amount: int = 1, mode: str = "add") -> None:
+        """Count towards one of ``player``'s badges (app/models/badges.py).
+
+        The host batches these into its heartbeat; a host without badge
+        support (a test double, say) simply does not count them."""
+        report = getattr(self.host, "report_badge", None)
+        if report is not None and player is not None:
+            report(player, stat, amount, mode)
+
     def system_message(self, text: str, kind: str = "system") -> None:
         entry = {"t": "chat", "kind": kind, "m": text, "from": "", "id": 0,
                  "at": time.time()}

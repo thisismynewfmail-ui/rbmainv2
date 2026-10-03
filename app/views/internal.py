@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .. import config, db, security
 from ..game import registry as game_registry
@@ -75,14 +75,18 @@ def heartbeat(req: Request):
         console.note("%s: %d player%s (%+d)"
                      % (world["name"] if world else world_id, humans,
                         "" if humans == 1 else "s", humans - previous))
+    earned: List[Dict[str, Any]] = []
     for report in payload.get("reports", []) or []:
         try:
-            _apply_report(world_id, report)
+            earned.extend(_apply_report(world_id, report) or [])
         except Exception:
             if config.DEBUG:
                 import traceback
                 traceback.print_exc()
     reply: Dict[str, Any] = {"ok": True, "at": int(time.time())}
+    if earned:
+        # the host tells the players: a toast in game, a line in the chat
+        reply["badges"] = earned
     # the bot director answers too: bots arriving and leaving live rounds,
     # rounds that have gone to sleep, and the settings the host plays with
     from ..bots import director as bot_director
@@ -106,16 +110,23 @@ def _humans(payload: Dict[str, Any]) -> int:
     return total
 
 
-def _apply_report(world_id: str, report: Dict[str, Any]) -> None:
+def _apply_report(world_id: str, report: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Book one report from a game host; returns any badge level-ups."""
     kind = str(report.get("kind", ""))
     user_id = int(report.get("user_id", 0) or 0)
     if user_id <= 0:
-        return
+        return []
+    if kind == "badges":
+        from ..models import badges
+        stats = [s for s in report.get("stats") or []
+                 if isinstance(s, list) and len(s) == 3
+                 and str(s[2]) in ("add", "max")]
+        return badges.record_many(user_id, stats)
     if kind == "visit":
         key = "%s:%d" % (world_id, user_id)
         last = _visit_guard.get(key, 0.0)
         if time.time() - last < 25:
-            return
+            return []
         _visit_guard[key] = time.time()
         worlds.record_visit(world_id, user_id, int(report.get("seconds", 30)))
         db.execute("UPDATE users SET last_seen=? WHERE id=?",
@@ -132,3 +143,4 @@ def _apply_report(world_id: str, report: Dict[str, Any]) -> None:
     elif kind == "round":
         worlds.add_game_stats(user_id, world_id, rounds=1,
                               wins=1 if report.get("won") else 0)
+    return []

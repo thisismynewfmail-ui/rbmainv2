@@ -1051,7 +1051,42 @@
       var big = document.getElementById('wallet-big');
       if (big && res.credits !== undefined) big.textContent = Site.number(res.credits);
       if (res.theme && res.theme !== Site.theme()) Site.setTheme(res.theme, false);
+      if (res.notes && res.notes.length) showNotes(res.notes);
     }).catch(function () {});
+  }
+  Site.pollCounts = pollCounts;
+
+  /* Things that happened while you were not looking -- a badge earned in a
+     game, a crate an administrator dropped on you -- each shown once, then
+     marked seen so the next poll (or the next tab) does not repeat it. */
+  var notesShown = {};
+  var NOTES_AT_ONCE = 3;
+  function showNotes(notes) {
+    var ids = [];
+    var fresh = notes.filter(function (note) { ids.push(note.id); return !notesShown[note.id]; });
+    fresh.forEach(function (note) { notesShown[note.id] = 1; });
+    // a long game can earn a handful at once: show a few, then sum the rest up
+    if (fresh.length > NOTES_AT_ONCE) {
+      var more = fresh.length - (NOTES_AT_ONCE - 1);
+      var rest = fresh.slice(NOTES_AT_ONCE - 1);
+      fresh = fresh.slice(0, NOTES_AT_ONCE - 1);
+      var badgesLeft = rest.filter(function (n) { return n.kind === 'badge'; }).length;
+      fresh.push({ id: 0, kind: badgesLeft ? 'badge' : 'info',
+                   title: '+' + more + ' more ' + (badgesLeft ? 'badges' : 'updates') + '!',
+                   body: badgesLeft ? 'See them all in your Badge Inventory.' : '',
+                   data: rest[0].data || {} });
+    }
+    fresh.forEach(function (note, i) {
+      setTimeout(function () {
+        if (note.kind === 'badge' && global.Badges) { Badges.toast(note); return; }
+        if (note.kind === 'crate') {
+          Site.toast('\uD83D\uDCE6 ' + note.title + ' ' + (note.body || ''), 'info');
+          return;
+        }
+        Site.toast(note.title + (note.body ? ' -- ' + note.body : ''), 'info');
+      }, i * 900);
+    });
+    if (ids.length) Site.post('/api/notifications/seen', { ids: ids }).catch(function () {});
   }
 
   function updateBadge(href, value, cls, previous) {

@@ -717,6 +717,275 @@
     ctx.closePath(); ctx.fill();
   });
 
+  /* ------------------------------------------------------- badge emblems
+     The pictures struck on the face of a badge (app/models/badges.py names
+     them).  They are stickers -- transparent round the picture -- drawn in a
+     cream with a dark keyline so they read on any enamel and at the size of
+     a badge worn on a chest.  ``Textures.paintEmblem`` draws one straight
+     onto any 2D canvas, which is how the in-game toast shows it. */
+  var INK = 'rgba(16,10,4,0.82)', CREAM = '#fff4d6';
+
+  function inked(ctx, path, fill, width) {
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); path(ctx);
+    ctx.lineWidth = width || 8; ctx.strokeStyle = INK; ctx.stroke();
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.restore();
+  }
+  function stroked(ctx, path, colour, width) {
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); path(ctx);
+    ctx.lineWidth = (width || 6) + 6; ctx.strokeStyle = INK; ctx.stroke();
+    ctx.lineWidth = width || 6; ctx.strokeStyle = colour; ctx.stroke();
+    ctx.restore();
+  }
+  function poly(points) {
+    return function (g) {
+      g.moveTo(points[0][0], points[0][1]);
+      for (var i = 1; i < points.length; i++) g.lineTo(points[i][0], points[i][1]);
+      g.closePath();
+    };
+  }
+  function circlePath(x, y, r) { return function (g) { g.arc(x, y, r, 0, Math.PI * 2); }; }
+
+  var emblems = {};
+  function emblem(name, fn) { emblems[name] = fn; painter(name, fn); }
+
+  emblem('em_flag', function (ctx) {
+    stroked(ctx, function (g) { g.moveTo(38, 108); g.lineTo(38, 18); }, CREAM, 7);
+    inked(ctx, function (g) {
+      g.moveTo(42, 22); g.bezierCurveTo(62, 12, 78, 34, 104, 24);
+      g.lineTo(100, 62); g.bezierCurveTo(76, 72, 60, 50, 42, 60); g.closePath();
+    }, '#ff5a3c');
+    inked(ctx, poly([[74, 28], [62, 46], [70, 46], [64, 60], [80, 40], [72, 40], [78, 28]]), '#ffd24a', 4);
+    inked(ctx, function (g) { g.rect(26, 104, 26, 10); }, CREAM, 5);
+  });
+
+  emblem('em_return', function (ctx) {
+    stroked(ctx, function (g) { g.arc(64, 66, 42, -0.25 * Math.PI, 1.25 * Math.PI); }, '#7fd1ff', 8);
+    inked(ctx, poly([[96, 26], [108, 52], [80, 50]]), '#7fd1ff', 6);
+    stroked(ctx, function (g) { g.moveTo(54, 92); g.lineTo(54, 40); }, CREAM, 5);
+    inked(ctx, poly([[57, 42], [84, 48], [57, 62]]), '#ff5a3c', 6);
+  });
+
+  emblem('em_crosshair', function (ctx) {
+    stroked(ctx, circlePath(64, 64, 40), '#ff5a3c', 7);
+    stroked(ctx, circlePath(64, 64, 20), CREAM, 5);
+    [[64, 8, 64, 34], [64, 94, 64, 120], [8, 64, 34, 64], [94, 64, 120, 64]].forEach(function (l) {
+      stroked(ctx, function (g) { g.moveTo(l[0], l[1]); g.lineTo(l[2], l[3]); }, CREAM, 6);
+    });
+    inked(ctx, circlePath(64, 64, 6), '#ff5a3c', 4);
+  });
+
+  emblem('em_bolt', function (ctx) {
+    inked(ctx, poly([[76, 8], [34, 70], [60, 70], [48, 120], [96, 50], [68, 50], [86, 8]]), '#ffd24a', 9);
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.beginPath(); ctx.moveTo(74, 16); ctx.lineTo(48, 62); ctx.lineTo(56, 62); ctx.lineTo(80, 16); ctx.fill();
+  });
+
+  emblem('em_trophy', function (ctx) {
+    stroked(ctx, function (g) { g.arc(30, 44, 14, 0.5 * Math.PI, 1.6 * Math.PI); }, '#ffd24a', 6);
+    stroked(ctx, function (g) { g.arc(98, 44, 14, 1.4 * Math.PI, 0.5 * Math.PI); }, '#ffd24a', 6);
+    inked(ctx, function (g) {
+      g.moveTo(32, 22); g.lineTo(96, 22); g.bezierCurveTo(96, 62, 84, 78, 64, 80);
+      g.bezierCurveTo(44, 78, 32, 62, 32, 22); g.closePath();
+    }, '#ffd24a');
+    inked(ctx, function (g) { g.rect(56, 78, 16, 18); }, '#e2a10e', 6);
+    inked(ctx, function (g) { g.rect(38, 96, 52, 14); }, CREAM, 7);
+    inked(ctx, function (g) {
+      for (var i = 0; i < 10; i++) {
+        var rad = i % 2 ? 6 : 14, a = i * Math.PI / 5 - Math.PI / 2;
+        g[i ? 'lineTo' : 'moveTo'](64 + Math.cos(a) * rad, 46 + Math.sin(a) * rad);
+      }
+      g.closePath();
+    }, CREAM, 4);
+  });
+
+  emblem('em_tower', function (ctx) {
+    inked(ctx, poly([[30, 112], [30, 34], [40, 34], [40, 22], [52, 22], [52, 34], [58, 34],
+                     [58, 22], [70, 22], [70, 34], [76, 34], [76, 22], [88, 22], [88, 34],
+                     [98, 34], [98, 112]]), CREAM);
+    inked(ctx, function (g) { g.moveTo(52, 112); g.lineTo(52, 84); g.arc(64, 84, 12, Math.PI, 0); g.lineTo(76, 112); }, '#3b4a5c', 5);
+    inked(ctx, function (g) { g.rect(58, 48, 12, 16); }, '#7fd1ff', 4);
+  });
+
+  emblem('em_clock', function (ctx) {
+    inked(ctx, circlePath(64, 66, 44), CREAM);
+    for (var i = 0; i < 12; i++) {
+      var a = i * Math.PI / 6;
+      ctx.fillStyle = INK;
+      ctx.beginPath(); ctx.arc(64 + Math.sin(a) * 35, 66 - Math.cos(a) * 35, i % 3 ? 2.5 : 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    stroked(ctx, function (g) { g.moveTo(64, 66); g.lineTo(60, 36); }, '#1b2a35', 5);
+    stroked(ctx, function (g) { g.moveTo(64, 66); g.lineTo(86, 72); }, '#ff5a3c', 4);
+    inked(ctx, function (g) { g.rect(56, 10, 16, 10); }, '#ffd24a', 4);
+  });
+
+  emblem('em_hourglass', function (ctx) {
+    inked(ctx, function (g) { g.rect(28, 12, 72, 12); }, '#8a5226', 6);
+    inked(ctx, function (g) { g.rect(28, 104, 72, 12); }, '#8a5226', 6);
+    inked(ctx, poly([[36, 24], [92, 24], [66, 64], [92, 104], [36, 104], [62, 64]]), 'rgba(220,240,255,0.95)', 7);
+    inked(ctx, poly([[46, 38], [82, 38], [64, 60]]), '#ffb03a', 3);
+    inked(ctx, poly([[42, 102], [86, 102], [64, 80]]), '#ffb03a', 3);
+  });
+
+  emblem('em_sunrise', function (ctx) {
+    for (var i = 0; i < 9; i++) {
+      var a = Math.PI + (i + 0.5) * Math.PI / 9;
+      stroked(ctx, (function (a) { return function (g) {
+        g.moveTo(64 + Math.cos(a) * 36, 80 + Math.sin(a) * 36);
+        g.lineTo(64 + Math.cos(a) * 56, 80 + Math.sin(a) * 56); }; })(a), '#ffd24a', 5);
+    }
+    inked(ctx, function (g) { g.arc(64, 80, 30, Math.PI, 0); g.closePath(); }, '#ff8c1a');
+    stroked(ctx, function (g) { g.moveTo(10, 84); g.lineTo(118, 84); }, CREAM, 6);
+    stroked(ctx, function (g) { g.moveTo(30, 100); g.lineTo(98, 100); }, CREAM, 5);
+  });
+
+  emblem('em_cross', function (ctx) {
+    inked(ctx, circlePath(64, 64, 50), CREAM);
+    inked(ctx, poly([[50, 22], [78, 22], [78, 50], [106, 50], [106, 78], [78, 78], [78, 106],
+                     [50, 106], [50, 78], [22, 78], [22, 50], [50, 50]]), '#e8312a', 6);
+  });
+
+  emblem('em_hand', function (ctx) {
+    inked(ctx, function (g) {
+      g.moveTo(40, 112); g.lineTo(44, 70); g.lineTo(34, 52); g.lineTo(40, 48); g.lineTo(50, 60);
+      g.lineTo(48, 26); g.lineTo(56, 24); g.lineTo(60, 54); g.lineTo(62, 16); g.lineTo(70, 16);
+      g.lineTo(70, 54); g.lineTo(76, 22); g.lineTo(84, 24); g.lineTo(80, 58); g.lineTo(90, 36);
+      g.lineTo(97, 40); g.lineTo(86, 76); g.lineTo(84, 112); g.closePath();
+    }, '#8fcf5a');
+    ctx.strokeStyle = 'rgba(40,70,20,0.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(52, 84); ctx.lineTo(72, 92); ctx.stroke();
+    inked(ctx, function (g) { g.rect(14, 104, 100, 12); }, '#6b4a2a', 6);
+  });
+
+  emblem('em_skull', function (ctx) {
+    inked(ctx, function (g) {
+      g.moveTo(30, 64); g.bezierCurveTo(26, 18, 102, 18, 98, 64);
+      g.lineTo(90, 78); g.lineTo(88, 104); g.lineTo(40, 104); g.lineTo(38, 78); g.closePath();
+    }, CREAM);
+    ctx.fillStyle = '#1b130a';
+    ctx.beginPath(); ctx.ellipse(48, 62, 11, 13, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(80, 62, 11, 13, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(64, 74); ctx.lineTo(58, 86); ctx.lineTo(70, 86); ctx.fill();
+    for (var x = 48; x <= 80; x += 8) ctx.fillRect(x - 1.5, 92, 3, 12);
+    ctx.fillStyle = '#ff4d3a';
+    ctx.beginPath(); ctx.arc(48, 62, 4, 0, Math.PI * 2); ctx.arc(80, 62, 4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  emblem('em_fist', function (ctx) {
+    inked(ctx, function (g) {
+      g.moveTo(30, 54); g.quadraticCurveTo(30, 30, 50, 32); g.lineTo(92, 32);
+      g.quadraticCurveTo(104, 34, 104, 50); g.lineTo(104, 76); g.quadraticCurveTo(100, 96, 80, 98);
+      g.lineTo(80, 118); g.lineTo(42, 118); g.lineTo(42, 96); g.quadraticCurveTo(30, 88, 30, 72); g.closePath();
+    }, '#ffb46b');
+    ctx.strokeStyle = INK; ctx.lineWidth = 4;
+    [52, 70, 88].forEach(function (x) { ctx.beginPath(); ctx.moveTo(x, 33); ctx.lineTo(x, 56); ctx.stroke(); });
+    ctx.beginPath(); ctx.moveTo(32, 58); ctx.quadraticCurveTo(60, 54, 70, 72); ctx.stroke();
+    ctx.strokeStyle = '#ff5a3c'; ctx.lineWidth = 5;
+    [[18, 30, 8, 22], [16, 50, 4, 50], [22, 70, 10, 78]].forEach(function (l) {
+      ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke();
+    });
+  });
+
+  emblem('em_bomb', function (ctx) {
+    inked(ctx, circlePath(58, 74, 38), '#2b2f36');
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.ellipse(46, 60, 10, 6, -0.7, 0, Math.PI * 2); ctx.fill();
+    inked(ctx, function (g) { g.rect(74, 30, 16, 14); }, '#6d6e6c', 5);
+    stroked(ctx, function (g) { g.moveTo(84, 30); g.quadraticCurveTo(92, 16, 98, 22); }, '#c9b48a', 4);
+    stroked(ctx, function (g) { g.moveTo(104, 20); g.quadraticCurveTo(112, 14, 116, 20); }, '#c9b48a', 4);
+    stroked(ctx, function (g) { g.moveTo(98, 30); g.lineTo(108, 8); }, CREAM, 3);
+    stroked(ctx, function (g) { g.moveTo(92, 10); g.lineTo(114, 28); }, CREAM, 3);
+  });
+
+  emblem('em_scope', function (ctx) {
+    inked(ctx, circlePath(64, 64, 46), 'rgba(160,220,255,0.35)');
+    stroked(ctx, function (g) { g.moveTo(64, 22); g.lineTo(64, 106); g.moveTo(22, 64); g.lineTo(106, 64); }, CREAM, 3);
+    [-24, -12, 12, 24].forEach(function (d) {
+      ctx.fillStyle = CREAM;
+      ctx.beginPath(); ctx.arc(64 + d, 64, 3, 0, Math.PI * 2); ctx.arc(64, 64 + d, 3, 0, Math.PI * 2); ctx.fill();
+    });
+    inked(ctx, circlePath(64, 64, 5), '#ff3a3a', 3);
+    stroked(ctx, circlePath(64, 64, 46), '#1b2a35', 5);
+  });
+
+  emblem('em_waves', function (ctx) {
+    [[40, '#bfe9ff'], [66, '#5fb8ff'], [92, '#2d7ff9']].forEach(function (w) {
+      stroked(ctx, function (g) {
+        g.moveTo(10, w[0]);
+        for (var x = 10; x < 118; x += 27) g.bezierCurveTo(x + 7, w[0] - 16, x + 20, w[0] - 16, x + 27, w[0]);
+      }, w[1], 8);
+    });
+  });
+
+  emblem('em_shield', function (ctx) {
+    inked(ctx, function (g) {
+      g.moveTo(64, 12); g.lineTo(104, 26); g.bezierCurveTo(104, 74, 88, 100, 64, 116);
+      g.bezierCurveTo(40, 100, 24, 74, 24, 26); g.closePath();
+    }, '#7fd1ff');
+    stroked(ctx, function (g) { g.moveTo(44, 62); g.lineTo(58, 78); g.lineTo(86, 44); }, CREAM, 8);
+  });
+
+  emblem('em_compass', function (ctx) {
+    stroked(ctx, circlePath(64, 64, 44), CREAM, 5);
+    inked(ctx, poly([[64, 8], [74, 54], [120, 64], [74, 74], [64, 120], [54, 74], [8, 64], [54, 54]]), CREAM, 6);
+    inked(ctx, poly([[64, 8], [74, 54], [64, 64], [54, 54]]), '#ff5a3c', 4);
+    inked(ctx, circlePath(64, 64, 6), '#ffd24a', 3);
+  });
+
+  emblem('em_crate', function (ctx) {
+    inked(ctx, function (g) { g.rect(20, 26, 88, 82); }, '#b07a45');
+    ctx.strokeStyle = 'rgba(60,34,12,0.7)'; ctx.lineWidth = 3;
+    [46, 66, 86].forEach(function (y) { ctx.beginPath(); ctx.moveTo(22, y); ctx.lineTo(106, y); ctx.stroke(); });
+    stroked(ctx, function (g) { g.moveTo(26, 32); g.lineTo(102, 102); }, '#8a5226', 6);
+    inked(ctx, function (g) { g.rect(54, 18, 20, 22); }, '#ffd24a', 5);
+    ctx.fillStyle = '#1b130a';
+    ctx.beginPath(); ctx.arc(64, 27, 4, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(62, 28, 4, 8);
+  });
+
+  emblem('em_sparkle', function (ctx) {
+    function sparkle(x, y, r, c) {
+      inked(ctx, function (g) {
+        g.moveTo(x, y - r); g.quadraticCurveTo(x + r * 0.16, y - r * 0.16, x + r, y);
+        g.quadraticCurveTo(x + r * 0.16, y + r * 0.16, x, y + r);
+        g.quadraticCurveTo(x - r * 0.16, y + r * 0.16, x - r, y);
+        g.quadraticCurveTo(x - r * 0.16, y - r * 0.16, x, y - r); g.closePath();
+      }, c, 6);
+    }
+    sparkle(58, 66, 46, '#ffe36b');
+    sparkle(98, 28, 18, '#e2b8ff');
+    sparkle(100, 98, 12, '#ffffff');
+  });
+
+  emblem('em_pumpkin', function (ctx) {
+    stroked(ctx, function (g) { g.moveTo(64, 34); g.quadraticCurveTo(62, 18, 74, 12); }, '#4f8a2e', 7);
+    inked(ctx, function (g) { g.ellipse(64, 74, 50, 40, 0, 0, Math.PI * 2); }, '#ff8c1a');
+    ctx.strokeStyle = 'rgba(120,50,0,0.6)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(64, 74, 20, 39, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffe36b';
+    ctx.beginPath(); ctx.moveTo(38, 66); ctx.lineTo(54, 66); ctx.lineTo(46, 52); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(74, 66); ctx.lineTo(90, 66); ctx.lineTo(82, 52); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(34, 82); ctx.quadraticCurveTo(64, 108, 94, 82);
+    ctx.lineTo(84, 86); ctx.lineTo(78, 80); ctx.lineTo(70, 88); ctx.lineTo(62, 80); ctx.lineTo(54, 88);
+    ctx.lineTo(46, 80); ctx.lineTo(40, 86); ctx.closePath(); ctx.fill();
+  });
+
+  Textures.emblems = Object.keys(emblems);
+  /* Draw an emblem onto any 2D context, ``size`` pixels square. */
+  Textures.paintEmblem = function (ctx, name, x, y, size) {
+    var fn = emblems[name];
+    if (!fn) return false;
+    ctx.save();
+    ctx.translate(x || 0, y || 0);
+    ctx.scale((size || CELL) / CELL, (size || CELL) / CELL);
+    fn(ctx);
+    ctx.restore();
+    return true;
+  };
+
   Textures.drawText = function (key, text, background, colour, fontSize) {
     if (Textures.slots['text:' + key]) return Textures.slots['text:' + key];
     var slot = allocate('text:' + key);

@@ -899,6 +899,30 @@
              torsoTwist);
     }
 
+    /* A badge, pinned on the right of the chest -- the character's right,
+       which is -X.  It is authored about a unit across and facing +Z
+       (app/models/badges.py), so here it is shrunk to a pin and stood just
+       proud of whichever torso segment is at that height: one model fits
+       both builds, and it turns and leans with the shoulders like the
+       shirt it is pinned to. */
+    var badge = descriptor.badge;
+    if (badge && badge.parts && badge.parts.length && opts.badge !== false) {
+      var slim = body.id === 'female';
+      var bs = slim ? 0.30 : 0.34;
+      var by = slim ? 3.66 : 3.64;
+      var bx = slim ? -0.40 : -0.52;
+      var bz = trunkAt(by)[1] / 2 + 0.075 * bs + 0.012;
+      badge.parts.forEach(function (piece) {
+        var pr = piece.r || [0, 0, 0];
+        var o = rotateY(bx + piece.p[0] * bs + torsoShift, bz + piece.p[2] * bs, torsoTwist);
+        place([o[0], by + piece.p[1] * bs, o[1]],
+              [piece.s[0] * bs, piece.s[1] * bs, piece.s[2] * bs], piece.c,
+              { t: piece.t || 'box', k: 'badge', m: piece.m, a: piece.a, dw: piece.dw,
+                decSlot: piece.decal ? Textures.decal(piece.decal) : null,
+                rx: pr[0] + lean, ry: pr[1] + torsoTwist, rz: pr[2] + chestRoll });
+      });
+    }
+
     // ---------------------------------------------------------- held item
     if (holding && holding.data && holding.data.parts) {
       var gripSwing = rightSwing;

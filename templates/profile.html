@@ -124,6 +124,38 @@
       </div>
     </div>
 
+    {% if badge_cards or is_self %}
+    <!-- Badges: the four the player chose (or their best four), each a 3D
+         medal; hover one for it turning on a stand and what it is for. -->
+    <div class="panel p-badges">
+      <div class="panel-head navy">
+        <span>&#127894; Badges</span>
+        <span class="head-links">{{ badge_count }} of {{ badge_total }} earned
+          {% if is_self %} &bull; <a href="/profile-editor#badges">Change</a>{% endif %}</span>
+      </div>
+      <div class="panel-body">
+        <div class="badge-row">
+          {% for b in badge_cards %}
+          <div class="badge-tile tier-{{ b.tier }}" tabindex="0" data-badge-pop="{{ b.id }}"
+               style="--tier:{{ b.color }};--glow:{{ b.glow }}">
+            <div class="bt-stage"><canvas class="badge-3d" width="200" height="200" data-badge="{{ b.id }}"></canvas></div>
+            <b class="bt-name">{{ b.name }}</b>
+            <span class="bt-rank">{{ b.tier_label }} &bull; {{ b.rank }}</span>
+            <span class="bt-pips">{% for i in range(b.levels) %}<i class="{{ 'on' if i < b.level else '' }}"></i>{% endfor %}</span>
+          </div>
+          {% endfor %}
+          {% for i in range(badge_slots - len(badge_cards)) %}
+          <div class="badge-tile empty">
+            <div class="bt-stage"><span class="bt-hole"></span></div>
+            <span class="bt-rank">{{ 'Earn badges in Blackout Relay and Last Light' if is_self else 'empty' }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <script type="application/json" class="badge-data">{{& to_json({'cards': badge_cards}) }}</script>
+    {% endif %}
+
     {% if pinned or is_self %}
     <div class="panel p-pinned">
       <div class="panel-head purple">

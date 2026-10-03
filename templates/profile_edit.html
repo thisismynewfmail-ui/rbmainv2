@@ -3,6 +3,52 @@
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <div class="row">
   <div class="col">
+    <!-- The Badge Inventory: every badge there is, earned ones in their
+         metal and the rest locked with how far there is to go.  Four slots
+         along the top are the four shown on your profile; drag one in (or
+         click it), drag it back out to take it down. -->
+    <div class="panel" id="badges">
+      <div class="panel-head navy">
+        <span>&#127894; Badge Inventory</span>
+        <span class="head-links">{{ badge_count }} of {{ badge_total }} earned &bull; show {{ badge_slots }} on your profile</span>
+      </div>
+      <div class="panel-body">
+        <p class="muted bi-intro">Drag a badge into a slot to show it on your profile, or just click it.
+          Hover any badge to turn it over and read what it is for. To wear one on your
+          character's chest, pick it in <a href="/avatar#badge">Edit Avatar</a>.</p>
+        <div class="bi-slots" id="badge-slots">
+          {% for i in range(badge_slots) %}
+          <div class="bi-slot" data-badge-slot="{{ i }}">
+            <span class="slot-n">{{ i + 1 }}</span><span class="slot-hint">drag a badge here</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="bi-filter" id="badge-filter">
+          <button type="button" class="btn small on" data-game="">All</button>
+          {% for g in badge_games %}<button type="button" class="btn small" data-game="{{ g[0] }}">{{ g[1] }}</button>{% endfor %}
+        </div>
+        <div class="bi-grid" id="badge-pool">
+          {% for b in badge_collection %}
+          <div class="bi-card tier-{{ b.tier }} {{ '' if b.earned else 'locked' }} {{ 'worn' if b.id == worn_badge else '' }}"
+               data-badge-pick="{{ b.id if b.earned else '' }}" data-badge-pop="{{ b.id }}"
+               data-game="{{ b.game }}" data-name="{{ b.name }}"
+               style="--tier:{{ b.color }};--glow:{{ b.glow }}">
+            <div class="bt-stage"><canvas class="badge-3d" width="160" height="160" data-badge="{{ b.id }}"></canvas></div>
+            <b>{{ b.name }}</b>
+            <span>{% if b.earned %}{{ b.tier_label }} &bull; {{ b.rank }}{% else %}Locked{% endif %}</span>
+            <span class="bi-prog"><i style="width:{{ b.pct }}%"></i></span>
+          </div>
+          {% endfor %}
+        </div>
+        {% for i in range(badge_slots) %}
+        <input type="hidden" name="badge_{{ i }}" id="badge-field-{{ i }}"
+               value="{{ badges_shown[i] if i < len(badges_shown) else '' }}">
+        {% endfor %}
+      </div>
+      <div class="panel-foot"><span id="badge-status" class="muted">Earn badges by playing Blackout Relay and Last Light, and by opening crates.</span></div>
+    </div>
+    <script type="application/json" class="badge-data">{{& to_json({'cards': badge_collection}) }}</script>
+
     <div class="panel">
       <div class="panel-head">
         <span>Edit profile</span>

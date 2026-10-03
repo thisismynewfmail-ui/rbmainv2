@@ -932,6 +932,9 @@
     if (this.options.onResult) this.options.onResult(res);
     // every page that shows crates, keys or a feed listens for this
     document.dispatchEvent(new CustomEvent('crates:opened', { detail: res }));
+    // an opening can earn a badge (Unboxer, Lucky Star, the event's own):
+    // the site's notification poll shows it, so ask it now
+    if (res.badges && res.badges.length && Site.pollCounts) setTimeout(Site.pollCounts, 1600);
     Crates.setStash(res.left);
     if (res.balance !== undefined) Crates.setBalance(res.balance);
   };

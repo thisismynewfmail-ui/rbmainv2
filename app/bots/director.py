@@ -1343,6 +1343,12 @@ class Director:
             self.loaded = True
         self.started = time.time()
         try:
+            # bots from before badges existed get the ones their record earns
+            from . import factory
+            factory.backfill_badges()
+        except Exception:
+            traceback.print_exc()
+        try:
             from . import llm
             threading.Thread(target=lambda: llm.client().probe(True),
                              daemon=True, name="bots-probe").start()

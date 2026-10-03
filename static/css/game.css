@@ -549,3 +549,19 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
   100% { transform: scale(1); } }
 .ll-after { opacity: 0; transition: opacity .4s; }
 .ll-after.on { opacity: 1; }
+
+/* a badge earned mid-round (hud.js badgeToast) */
+.hud-badge { position: fixed; z-index: 60; left: 50%; top: 84px; display: flex; align-items: center; gap: 12px;
+  padding: 8px 18px 8px 8px; border-radius: 40px; color: #fff; pointer-events: none;
+  background: linear-gradient(#2a3d58, #142033); border: 2px solid #ffcf4a;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 24px rgba(255, 207, 74, .45);
+  transform: translate(-50%, -160px) scale(.8); opacity: 0;
+  transition: transform .55s cubic-bezier(.3, 1.5, .5, 1), opacity .3s; font-family: Verdana, sans-serif; }
+.hud-badge.in { transform: translate(-50%, 0) scale(1); opacity: 1; }
+.hud-badge.out { transform: translate(-50%, -40px) scale(.9); opacity: 0; }
+.hud-badge canvas { width: 64px; height: 64px; animation: hud-badge-spin 1.6s ease-in-out infinite; }
+@keyframes hud-badge-spin { 0%, 100% { transform: rotateY(0); } 50% { transform: rotateY(35deg) scale(1.06); } }
+.hud-badge small { display: block; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #ffcf4a; }
+.hud-badge b { display: block; font-size: 16px; }
+.hud-badge span { display: block; font-size: 11px; color: #c9d6e6; }
+.hud-badge.tier-mythic { border-color: #ff4fd8; box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 30px rgba(255, 79, 216, .6); }

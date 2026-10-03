@@ -425,6 +425,61 @@
     }, big ? 4200 : 2600);
   };
 
+  /* A badge earned in the middle of play: a medal drops in at the top of
+     the screen with the tier's metal and the badge's emblem, holds for a
+     few seconds and lifts away.  Several queue rather than stack. */
+  var TIER_METAL = { bronze: '#b8743a', silver: '#c9d2da', gold: '#f0bd45',
+                     platinum: '#f1eef8', diamond: '#8fe6ff', mythic: '#2c1440' };
+  var FAMILY_FACE = { cog: '#173a66', shield: '#3a140c', star: '#2b1450', moon: '#1a0d26' };
+  HUD.prototype.badgeToast = function (msg) {
+    var self = this;
+    this._badgeQueue = this._badgeQueue || [];
+    this._badgeQueue.push(msg);
+    if (this._badgeBusy) return;
+    (function next() {
+      var item = self._badgeQueue.shift();
+      if (!item) { self._badgeBusy = false; return; }
+      self._badgeBusy = true;
+      var node = document.createElement('div');
+      node.className = 'hud-badge tier-' + (item.tier || 'bronze') + (item.first ? ' first' : '');
+      node.innerHTML = '<canvas width="128" height="128"></canvas><div>' +
+        '<small>' + (item.first ? 'Badge earned!' : 'Badge levelled up!') + '</small>' +
+        '<b>' + escapeHtml(item.name || '') + '</b>' +
+        '<span>' + escapeHtml((item.tier_label || '') + ' \u2022 ' + (item.rank || '')) + '</span></div>';
+      document.body.appendChild(node);
+      drawMedal(node.querySelector('canvas'), item);
+      requestAnimationFrame(function () { node.classList.add('in'); });
+      setTimeout(function () {
+        node.classList.remove('in');
+        node.classList.add('out');
+        setTimeout(function () { node.remove(); next(); }, 450);
+      }, 4200);
+    })();
+  };
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+  }
+
+  function drawMedal(canvas, info) {
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    var w = canvas.width, h = canvas.height, r = w / 2 - 3;
+    var metal = TIER_METAL[info.tier] || info.color || '#f0bd45';
+    var g = ctx.createRadialGradient(w * 0.38, h * 0.32, r * 0.1, w / 2, h / 2, r);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, metal); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = FAMILY_FACE[info.family] || '#173a66';
+    ctx.beginPath(); ctx.arc(w / 2, h / 2, r * 0.74, 0, Math.PI * 2); ctx.fill();
+    if (window.Textures && Textures.paintEmblem && info.emblem) {
+      var s = r * 1.2;
+      Textures.paintEmblem(ctx, info.emblem, w / 2 - s / 2, h / 2 - s / 2, s);
+    }
+  }
+
   HUD.prototype.flashDamage = function () {
     var flash = el('damage-flash');
     if (!flash) return;
