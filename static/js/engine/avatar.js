@@ -219,6 +219,59 @@
     return [y * c - z * s, y * s + z * c];
   }
 
+  /* Turning a piece that already has a turn of its own.
+
+     The renderer reads a part's rotation as an euler triple composed
+     R = Ry * Rx * Rz (column major).  Adding two triples together is only
+     the same as turning by one and then the other when the turns share an
+     axis -- so a held item's pieces were right while they were turned only
+     about X or Z, and wrong for any piece turned about Y: the Jack-o'-
+     Launcher's face is printed on the side of its pumpkin (a quarter turn
+     about Y), and as the hands pitched up and down with the look, the eyes
+     and the grin spun in place instead of staying on the gun.
+
+     composeEuler(outer, inner) is the triple for "turn by inner, then by
+     outer", done properly through the matrices.  The common case -- a
+     piece with no Y turn inside a frame with no Z turn -- needs no matrix:
+     Ry(a)Rx(b) . Rx(c)Rz(d) is Ry(a)Rx(b+c)Rz(d), so it adds exactly. */
+  function eulerMatrix(r) {
+    var cx = Math.cos(r[0]), sx = Math.sin(r[0]);
+    var cy = Math.cos(r[1]), sy = Math.sin(r[1]);
+    var cz = Math.cos(r[2]), sz = Math.sin(r[2]);
+    return [cy * cz + sy * sx * sz, cx * sz, -sy * cz + cy * sx * sz,
+            -cy * sz + sy * sx * cz, cx * cz, sy * sz + cy * sx * cz,
+            sy * cx, -sx, cy * cx];
+  }
+
+  function matrixProduct(a, b) {
+    var out = new Array(9);
+    for (var col = 0; col < 3; col++) {
+      for (var row = 0; row < 3; row++) {
+        out[col * 3 + row] = a[row] * b[col * 3] + a[3 + row] * b[col * 3 + 1] +
+                             a[6 + row] * b[col * 3 + 2];
+      }
+    }
+    return out;
+  }
+
+  function matrixEuler(m) {
+    var sx = -m[7];
+    if (sx > 0.999999 || sx < -0.999999) {
+      // pitched straight up or down: Y and Z turn about the same axis, so
+      // put the whole of it in Y
+      return [sx > 0 ? Math.PI / 2 : -Math.PI / 2, Math.atan2(-m[2], m[0]), 0];
+    }
+    return [Math.asin(sx), Math.atan2(m[6], m[8]), Math.atan2(m[1], m[4])];
+  }
+
+  function composeEuler(outer, inner) {
+    if (!inner) return [outer[0], outer[1], outer[2]];
+    if (!inner[1] && !outer[2]) {
+      return [outer[0] + (inner[0] || 0), outer[1], inner[2] || 0];
+    }
+    return matrixEuler(matrixProduct(eulerMatrix(outer), eulerMatrix(inner)));
+  }
+
   /* A point ``down`` units down a limb from its joint, ``forward`` units in
      front of it and ``lateral`` units out to its side, carried through the
      limb's own roll and then its swing.  The renderer composes Ry * Rx * Rz,
@@ -913,13 +966,14 @@
       var bx = slim ? -0.40 : -0.52;
       var bz = trunkAt(by)[1] / 2 + 0.075 * bs + 0.012;
       badge.parts.forEach(function (piece) {
-        var pr = piece.r || [0, 0, 0];
+        // the trunk's own turn (placeTrunk's), then the piece's inside it
+        var turn = composeEuler([lean, torsoTwist, chestRoll], piece.r);
         var o = rotateY(bx + piece.p[0] * bs + torsoShift, bz + piece.p[2] * bs, torsoTwist);
         place([o[0], by + piece.p[1] * bs, o[1]],
               [piece.s[0] * bs, piece.s[1] * bs, piece.s[2] * bs], piece.c,
               { t: piece.t || 'box', k: 'badge', m: piece.m, a: piece.a, dw: piece.dw,
                 decSlot: piece.decal ? Textures.decal(piece.decal) : null,
-                rx: pr[0] + lean, ry: pr[1] + torsoTwist, rz: pr[2] + chestRoll });
+                rx: turn[0], ry: turn[1], rz: turn[2] });
       });
     }
 
@@ -937,9 +991,8 @@
           p: [pos[0] + xz[0], pos[1] + local[1] + bob, pos[2] + xz[1]],
           s: piece.s.slice(),
           c: piece.c,
-          r: [(piece.r ? piece.r[0] : 0) + gripSwing + Math.PI / 2,
-              yaw + torsoTwist + (piece.r ? piece.r[1] : 0),
-              (piece.r ? piece.r[2] : 0)],
+          // the hand's frame, then the piece's own turn inside it
+          r: composeEuler([gripSwing + Math.PI / 2, yaw + torsoTwist, 0], piece.r),
           m: piece.m
         });
       });
@@ -1050,9 +1103,7 @@
           s: [piece.s[0] * VIEW_MODEL_SCALE, piece.s[1] * VIEW_MODEL_SCALE,
               piece.s[2] * VIEW_MODEL_SCALE],
           c: piece.c,
-          r: [PITCH_SIGN * pitch + (piece.r ? piece.r[0] : 0),
-              yaw + (piece.r ? piece.r[1] : 0),
-              (piece.r ? piece.r[2] : 0)],
+          r: composeEuler([PITCH_SIGN * pitch, yaw, 0], piece.r),
           m: piece.m
         });
       });
