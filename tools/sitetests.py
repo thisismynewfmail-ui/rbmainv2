@@ -17,7 +17,6 @@ import random
 import re
 import ssl
 import string
-import sys
 from http.client import HTTPConnection, HTTPSConnection
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
@@ -156,12 +155,25 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("register: short passwords are refused", b"at least" in data, status)
 
     print("\n== market rules ==")
-    result = client.api("/api/market/buy", {"item_id": "hat_traffic_cone"})
+    catalog_items = client.get_api("/api/catalog").get("items", [])
+    shelf = sorted((i for i in catalog_items
+                    if i.get("for_sale") and i.get("slot") in ("face", "shirt", "pants")
+                    and int(i.get("price", 0)) > 0),
+                   key=lambda i: int(i["price"]))
+    check("market: the catalogue lists items for sale", bool(shelf), len(catalog_items))
+    cheap = shelf[0] if shelf else {"id": "face_smile", "price": 0}
+    balance = 2000
+    result = client.api("/api/market/buy", {"item_id": cheap["id"]})
     check("market: buying charges the catalogue price",
-          result.get("ok") and result.get("balance") == 2000 - 90, result)
+          result.get("ok") and result.get("balance") == balance - int(cheap["price"]), result)
     check("market: a purchase always has a tier",
           result.get("tier") in ("normal", "unusual"), result.get("tier"))
-    expensive = client.api("/api/market/buy", {"item_id": "hat_halo"})
+    if result.get("ok"):
+        balance = result["balance"]
+    hat = client.api("/api/market/buy", {"item_id": "hat_traffic_cone"})
+    check("market: hats are not sold on the shelf any more -- they come from crates",
+          not hat.get("ok") and "crate" in hat.get("error", ""), hat)
+    expensive = client.api("/api/market/buy", {"item_id": "key_standard", "qty": 9})
     check("market: you cannot buy what you cannot afford",
           not expensive.get("ok") and "Noogets" in expensive.get("error", ""),
           expensive)
@@ -170,11 +182,101 @@ def run(host: str, port: int, tls: bool = False) -> int:
     free_again = client.api("/api/market/buy", {"item_id": "use_pistol"})
     check("market: free starter items cannot be farmed",
           not free_again.get("ok"), free_again)
+    exclusive = client.api("/api/market/buy", {"item_id": "hat_hexed_witch"})
+    check("market: event cosmetics only come out of the event crate",
+          not exclusive.get("ok") and "crate" in exclusive.get("error", ""), exclusive)
+    status, event_html = client.get("/market?slot=event")
+    check("market: the event aisle sells the event's weapons while it runs",
+          status == 200 and 'data-buy="use_hollow_harvester"' in event_html
+          and 'data-buy="use_jack_o_launcher"' in event_html, status)
+
+    print("\n== crates and keys ==")
+    keys = client.api("/api/market/buy", {"item_id": "key_standard", "qty": 2})
+    check("crates: keys stack -- two bought in one go",
+          keys.get("ok") and len(keys.get("inv_ids", [])) == 2
+          and keys.get("balance") == balance - 1000, keys)
+    if keys.get("ok"):
+        balance = keys["balance"]
+    crate = client.api("/api/market/buy", {"item_id": "crate_classic"})
+    check("crates: a crate costs 500 and goes to the inventory",
+          crate.get("ok") and crate.get("balance") == balance - 500, crate)
+    if crate.get("ok"):
+        balance = crate["balance"]
+    stash = client.get_api("/api/crates/stash").get("counts", {})
+    check("crates: the stash counts one crate and two keys",
+          stash.get("classic") == {"crates": 1, "keys": 2}, stash)
+    everything = client.get_api("/api/inventory").get("items", [])
+    check("crates: crates and keys show up under Everything",
+          {"crate_classic", "key_standard"} <= {i["item_id"] for i in everything})
+    status, inv_html = client.get("/inventory")
+    check("crates: the inventory page has the crate shelf",
+          status == 200 and "stash-card" in inv_html and "data-use-key" in inv_html, status)
+    contents = client.get_api("/api/crates/contents?series=classic")
+    odds = sum(g.get("chance", 0) for g in contents.get("grades", []))
+    check("crates: the published odds add up to 100%", abs(odds - 100) < 0.5, odds)
+    opened = client.api("/api/crates/open", {"series": "classic"})
+    won = opened.get("item") or {}
+    reel = opened.get("reel") or []
+    check("crates: opening a crate hands over a hat", opened.get("ok")
+          and won.get("slot") == "hat", opened.get("error") or won.get("item_id"))
+    check("crates: the reel lands on what was won",
+          len(reel) > 40 and 0 <= opened.get("win_index", -1) < len(reel)
+          and reel[opened["win_index"]].get("item_id") == won.get("item_id"),
+          len(reel))
+    check("crates: the crate and one key were used up",
+          opened.get("left", {}).get("classic") == {"crates": 0, "keys": 1},
+          opened.get("left"))
+    again = client.api("/api/crates/open", {"series": "classic"})
+    check("crates: no crate, no opening", not again.get("ok"), again)
+    feed = client.get_api("/api/crates/feed")
+    check("crates: the opening is on the live drop feed",
+          any(d.get("username") == name for d in feed.get("feed", [])),
+          [d.get("username") for d in feed.get("feed", [])][:5])
+    sold = client.api("/api/market/sell", {"inv_id": (keys.get("inv_ids") or [0])[-1]})
+    check("crates: a spare key sells back for 40%",
+          sold.get("ok") and sold.get("refund") == 200, sold)
+    if sold.get("ok"):
+        balance = sold["balance"]
+
+    print("\n== badges ==")
+    counts = client.get_api("/api/social/counts")
+    notes = counts.get("notes") or []
+    check("badges: opening a first crate earns Unboxer, with a notification",
+          any(n.get("kind") == "badge" and (n.get("data") or {}).get("badge") == "mk_unboxer"
+              for n in notes), [n.get("title") for n in notes])
+    seen = client.api("/api/notifications/seen", {"ids": [n["id"] for n in notes]})
+    check("badges: notifications can be marked seen",
+          seen.get("ok") and not client.get_api("/api/social/counts").get("notes"), seen)
+    status, editor_html = client.get("/profile-editor")
+    check("badges: the Badge Inventory is on the profile editor",
+          status == 200 and 'id="badge-pool"' in editor_html and "Unboxer" in editor_html,
+          status)
+    status, data, _ = client.request("POST", "/profile-editor", json.dumps(
+        {"blurb": "", "location": "", "badges": ["mk_unboxer", "ll_medic"]}), True,
+        {"X-Requested-With": "fetch"})
+    try:
+        shown = json.loads(data.decode())
+    except ValueError:
+        shown = {"ok": False, "status": status}
+    check("badges: only earned badges can be put on show",
+          shown.get("ok") and shown.get("badges") == ["mk_unboxer"], shown)
+    worn = client.api("/api/avatar/badge", {"badge_id": "mk_unboxer"})
+    check("badges: an earned badge can be worn",
+          worn.get("ok") and (worn.get("avatar", {}).get("badge") or {}).get("id") == "mk_unboxer"
+          and len((worn["avatar"]["badge"] or {}).get("parts", [])) >= 3,
+          worn.get("error") or (worn.get("avatar") or {}).get("badge"))
+    unearned = client.api("/api/avatar/badge", {"badge_id": "ll_medic"})
+    check("badges: a badge you have not earned cannot be worn",
+          not unearned.get("ok"), unearned)
+    status, profile_html = client.get("/profile/%s" % name)
+    check("badges: the profile shows the badge row",
+          status == 200 and "badge-tile" in profile_html and "Unboxer" in profile_html,
+          status)
 
     print("\n== avatar ownership checks ==")
     inventory = client.get_api("/api/inventory")
-    cone = next((i for i in inventory["items"] if i["item_id"] == "hat_traffic_cone"),
-                None)
+    cone = next((i for i in inventory["items"] if i["item_id"] == won.get("item_id")),
+                None) or {"inv_id": 0}
     equip = client.api("/api/avatar/equip", {"slot": "hat",
                                              "inv_id": cone["inv_id"]})
     check("avatar: you can wear something you own", equip.get("ok"), equip)
@@ -288,7 +390,7 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("admin: normal players cannot grant themselves Noogets",
           not denied.get("ok"), denied)
     balance_now = client.get_api("/api/inventory").get("balance")
-    check("admin: the balance really did not change", balance_now == 2000 - 90,
+    check("admin: the balance really did not change", balance_now == balance,
           balance_now)
 
     admin = Client(host, port, tls)
@@ -298,7 +400,9 @@ def run(host: str, port: int, tls: bool = False) -> int:
     granted = admin.api("/api/admin/credits", {"username": name, "amount": 500,
                                                "mode": "add", "reason": "test"})
     check("admin: administrators can adjust Noogets",
-          granted.get("ok") and granted.get("balance") == 2000 - 90 + 500, granted)
+          granted.get("ok") and granted.get("balance") == balance + 500, granted)
+    if granted.get("ok"):
+        balance = granted["balance"]
     unusual = admin.api("/api/admin/grant", {"username": name,
                                              "item_id": "hat_crown",
                                              "tier": "unusual",
@@ -309,23 +413,55 @@ def run(host: str, port: int, tls: bool = False) -> int:
                                                  "item_id": "shirt_tux",
                                                  "tier": "unusual"})
     check("admin: only hats can be Unusual", not bad_unusual.get("ok"), bad_unusual)
+    key_grant = admin.api("/api/admin/grant", {"username": name, "item_id": "key_halloween"})
+    check("admin: a Crate Key can be granted from the item picker",
+          key_grant.get("ok"), key_grant)
+    dropped = admin.api("/api/admin/drop-crate", {"username": name, "crate": "crate_halloween",
+                                                  "count": 2, "keys": True,
+                                                  "note": "Happy haunting!"})
+    check("admin: Drop A Crate gives a player crates and keys",
+          dropped.get("ok") and dropped.get("count") == 2, dropped)
+    stash = client.get_api("/api/crates/stash").get("counts", {})
+    check("admin: the dropped crates are in the player's stash",
+          stash.get("halloween") == {"crates": 2, "keys": 3}, stash)
+    crate_notes = [n for n in client.get_api("/api/social/counts").get("notes") or []
+                   if n.get("kind") == "crate"]
+    check("admin: the player is told about the drop", bool(crate_notes), crate_notes)
+    no_one = admin.api("/api/admin/drop-crate", {"username": "not_a_real_user_x",
+                                                 "crate": "crate_classic"})
+    check("admin: Drop A Crate refuses an unknown player", not no_one.get("ok"), no_one)
+    denied_drop = client.api("/api/admin/drop-crate", {"username": name,
+                                                       "crate": "crate_classic"})
+    check("admin: players cannot drop crates on themselves",
+          not denied_drop.get("ok"), denied_drop)
+
+    print("\n== bundles ==")
+    admin.api("/api/admin/credits", {"username": name, "amount": 1000, "mode": "add",
+                                     "reason": "bundle test"})
+    bundle = client.api("/api/market/bundle", {"offer_id": "offer_classic_pair"})
+    check("bundles: the Crate + Key pair can be bought",
+          bundle.get("ok") and client.get_api("/api/crates/stash").get("counts", {})
+          .get("classic") == {"crates": 1, "keys": 1}, bundle)
+    status, market_html = client.get("/market")
+    check("bundles: the market shows the Crate Hall and its bundles",
+          status == 200 and "Crate Hall" in market_html and "offer_classic_pair" in market_html,
+          status)
 
     print("\n== csrf ==")
     raw = Client(host, port, tls)
     raw.login(name, "hunter22")
     raw.csrf = "not-the-right-token"
-    forged = raw.api("/api/market/buy", {"item_id": "hat_pot"})
+    forged = raw.api("/api/market/buy", {"item_id": "key_standard"})
     check("csrf: a request with a bad token is rejected", not forged.get("ok"),
           forged)
 
     print("\n== page smoke test ==")
-    pages = ["/", "/worlds", "/market", "/users", "/help", "/inventory",
-             "/avatar", "/friends", "/messages", "/settings",
+    pages = ["/", "/worlds", "/market", "/market?slot=stash", "/market?slot=event",
+             "/users", "/help", "/inventory", "/inventory?slot=stash",
+             "/avatar", "/friends", "/messages", "/settings", "/profile-editor",
              "/profile/%s" % name, "/inventory/%s" % name,
-             "/worlds/capture_the_flag", "/worlds/burger_tycoon",
-             "/worlds/fortress_team_2", "/worlds/blackout_relay",
-             "/capture_the_flag", "/burger_tycoon",
-             "/fortress_team_2", "/blackout_relay",
+             "/worlds/blackout_relay", "/worlds/last_light",
+             "/blackout_relay", "/last_light",
              "/search?q=hat", "/api/catalog",
              "/api/worlds/status"]
     broken = []
@@ -334,6 +470,26 @@ def run(host: str, port: int, tls: bool = False) -> int:
         if status != 200:
             broken.append((page, status))
     check("pages: every page renders", not broken, broken)
+
+    print("\n== hidden worlds ==")
+    hidden = ["capture_the_flag", "burger_tycoon", "fortress_team_2"]
+    still_there = []
+    for world in hidden:
+        for page in ("/worlds/%s" % world, "/%s" % world):
+            status, html = client.get(page)
+            if status == 200:
+                still_there.append(page)
+    check("hidden: Capture the Flag, Fortress Team 2 and Burger Tycoon have no pages",
+          not still_there, still_there)
+    world_status = client.get_api("/api/worlds/status").get("worlds", {})
+    check("hidden: and are not in the world status",
+          not (set(hidden) & set(world_status)), sorted(world_status))
+    joins = [client.api("/api/worlds/join", {"world": w}) for w in hidden]
+    check("hidden: and cannot be joined", not any(j.get("ok") for j in joins),
+          [j.get("error") for j in joins])
+    status, worlds_html = client.get("/worlds")
+    check("hidden: the world browser does not list them",
+          not any(w in worlds_html for w in hidden), status)
 
     print("\n==================== %d passed, %d failed ===================="
           % (len(PASSED), len(FAILED)))
