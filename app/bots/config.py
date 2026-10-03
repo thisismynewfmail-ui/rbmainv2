@@ -44,8 +44,15 @@ DEFAULT_LOCATIONS = [
     "Scotland", "Ireland", "Norway", "Japan", "Chile", "Arizona",
 ]
 
+from ..models import worlds as _world_registry  # noqa: E402  (data only)
+
 WORLD_IDS = ["burger_tycoon", "capture_the_flag", "fortress_team_2",
              "blackout_relay", "last_light"]
+# Worlds a bot can actually be sent into.  Burger Tycoon, Capture The Flag
+# and Fortress Team 2 are hidden (app/models/worlds.py HIDDEN_WORLDS): they
+# keep their place in WORLD_IDS so stored preferences line up, but they are
+# never offered, weighted or joined.
+OPEN_WORLD_IDS = [w for w in WORLD_IDS if _world_registry.is_open(w)]
 WORLD_LABELS = {"burger_tycoon": "Burger Tycoon",
                 "capture_the_flag": "Capture The Flag",
                 "fortress_team_2": "Fortress Team 2",
@@ -53,7 +60,7 @@ WORLD_LABELS = {"burger_tycoon": "Burger Tycoon",
                 "last_light": "Last Light"}
 
 # ------------------------------------------------------------------ prompts
-PROMPT_COMMENT = """You are a player on BLOCKHAVEN, an online block-game platform with worlds like Burger Tycoon, Capture The Flag, Fortress Team 2, Blackout Relay and Last Light. You are leaving a comment on the comment section of {target}'s profile page. Profile comments are short, casual and public, like a guestbook: greetings, compliments on an avatar or hat, "gg earlier", inviting someone to play, inside jokes between friends, replying to what was said before.
+PROMPT_COMMENT = """You are a player on BLOCKHAVEN, an online block-game platform whose worlds are Blackout Relay (capture the flag at dusk) and Last Light (co-op zombie survival), with hats unboxed from crates, Unusual effects and badges. You are leaving a comment on the comment section of {target}'s profile page. Profile comments are short, casual and public, like a guestbook: greetings, compliments on an avatar or hat, "gg earlier", inviting someone to play, inside jokes between friends, replying to what was said before.
 
 Rules:
 - Write exactly ONE comment, as the character described below, in their typing style.
@@ -98,7 +105,7 @@ Rules for every name:
 
 Answer with a JSON array of strings and nothing else."""
 
-PROMPT_PROFILE = """You write the "About me" line and location for BLOCKHAVEN player profiles. BLOCKHAVEN is an online block-game platform (Burger Tycoon, Capture The Flag, Fortress Team 2, Blackout Relay, Last Light, hats, Unusual effects, trading). Real profiles are short and personal: a joke, what they play, a favourite hat, a friend's name, a song lyric, an age, "add me", or nothing profound at all.
+PROMPT_PROFILE = """You write the "About me" line and location for BLOCKHAVEN player profiles. BLOCKHAVEN is an online block-game platform (Blackout Relay, Last Light, hats unboxed from crates, Unusual effects, badges, trading). Real profiles are short and personal: a joke, what they play, a favourite hat, a friend's name, a song lyric, an age, "add me", or nothing profound at all.
 
 For each player described, write an about-me of 0 to 22 words in that player's own typing style, and a location (a country, a state, a city, something silly, or an empty string).
 
@@ -322,7 +329,7 @@ FIELDS: List[Field] = [
     F("worlds.world_weights", "World popularity", "weights",
       {w: 1.0 for w in WORLD_IDS}, "worlds",
       "Multiplies every bot's own preference for each world.", 0, 5, 0.1,
-      options=[[w, WORLD_LABELS[w]] for w in WORLD_IDS]),
+      options=[[w, WORLD_LABELS[w]] for w in OPEN_WORLD_IDS]),
     F("worlds.fill", "Instance fill", "range", [45, 92], "worlds",
       "How full bots let an instance get before they start another one.",
       10, 100, 1, "%"),

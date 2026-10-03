@@ -61,6 +61,9 @@ SNAPSHOT_MAX_AGE = 20 * 60
 
 WORLD_IDS: List[str] = [w["id"] for w in world_registry.WORLDS]
 WORLD_INDEX = {wid: i for i, wid in enumerate(WORLD_IDS)}
+# Hidden worlds keep their index (snapshots store worlds by position) but a
+# bot is never sent into one: their weight is always zero.
+OPEN_WORLDS = frozenset(wid for wid in WORLD_IDS if world_registry.is_open(wid))
 
 # per-bot traits the director itself reads, as float arrays
 TRAIT_ARRAYS = ("activity", "night", "weekend", "session", "gamer", "social",
@@ -702,7 +705,7 @@ class Director:
         weights = bot_config.get("worlds.world_weights") or {}
         out = []
         for w, wid in enumerate(WORLD_IDS):
-            if wid not in self._hosts_up:
+            if wid not in self._hosts_up or wid not in OPEN_WORLDS:
                 out.append(0.0)
                 continue
             base = self.wpref[w][i] * float(weights.get(wid, 1.0))
@@ -763,7 +766,8 @@ class Director:
         for fid in friend_ids[:40]:
             j = self.index_of(fid)
             if j >= 0:
-                if self.state[j] == PLAYING and self.world[j] != NO_WORLD:
+                if self.state[j] == PLAYING and self.world[j] != NO_WORLD \
+                        and WORLD_IDS[self.world[j]] in OPEN_WORLDS:
                     return WORLD_IDS[self.world[j]], int(self.inst[j])
                 continue
             where = registry.human_place(fid)
@@ -1096,7 +1100,7 @@ class Director:
         room is woken -- mid-round, busy, alive -- and failing that the host
         opens a fresh one.
         """
-        if world not in self.dormant:
+        if world not in self.dormant or world not in OPEN_WORLDS:
             return prefer
         now = _now()
         info = world_registry.get(world)
@@ -1461,7 +1465,8 @@ class Director:
 
     def _warm_join(self, i: int, now: int) -> None:
         weights = [self.wpref[w][i] * float((bot_config.get("worlds.world_weights") or {})
-                                            .get(wid, 1.0)) for w, wid in enumerate(WORLD_IDS)]
+                                            .get(wid, 1.0)) if wid in OPEN_WORLDS else 0.0
+                   for w, wid in enumerate(WORLD_IDS)]
         if sum(weights) <= 0:
             return
         world = self.rng.choices(WORLD_IDS, weights)[0]

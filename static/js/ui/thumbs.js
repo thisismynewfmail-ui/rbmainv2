@@ -55,6 +55,9 @@
       Thumbs.tiers = data.tiers || {};
       Thumbs.effects = data.effects || {};
       Thumbs.palette = data.palette || [];
+      // random looks draw from the trimmed palette (see
+      // catalog.RANDOM_EXCLUDED_COLORS); the editor keeps the full one
+      Thumbs.randomPalette = data.random_palette || [];
       return Thumbs.catalog;
     }).catch(function () { Thumbs.catalog = {}; return {}; });
     return Thumbs.catalogPromise;
@@ -1447,10 +1450,19 @@
 
   // Used for the very first character, before /api/catalog has answered.
   var FALLBACK_PALETTE = ['#f5cd30', '#c4281c', '#0d69ac', '#2f9e55', '#8b3fd6',
-                          '#d3592b', '#1b2a35', '#a3a2a5', '#f3cf9b', '#008f9c'];
+                          '#d3592b', '#6d6e6c', '#a3a2a5', '#f3cf9b', '#008f9c'];
+  // Never dealt to a random look, whatever the server's palette says.
+  var RANDOM_EXCLUDED = { '#cc8e69': 1, '#287f47': 1, '#1b2a35': 1,
+                          '#40292a': 1, '#7c503a': 1 };
 
   function paletteHex() {
-    var list = Thumbs.palette;
+    var list = (Thumbs.randomPalette && Thumbs.randomPalette.length)
+      ? Thumbs.randomPalette : Thumbs.palette;
+    if (list && list.length) {
+      list = list.filter(function (entry) {
+        return entry && entry.hex && !RANDOM_EXCLUDED[entry.hex.toLowerCase()];
+      });
+    }
     if (list && list.length) {
       var entry = pick(list);
       if (entry && entry.hex) return entry.hex;

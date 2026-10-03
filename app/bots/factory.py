@@ -41,9 +41,14 @@ from . import llm, names, personas, prompts, social, storage
 
 BOT_PASSWORD_HASH = "!bot"      # never verifies: bots cannot be signed in to
 
-SKIN = ["#f5cd30", "#f3cf9b", "#d7c59a", "#cc8e69", "#f0b47b", "#7c503a",
-        "#40292a", "#f5cd30", "#f3cf9b", "#cc8e69"]
-PALETTE = [e["hex"] for e in catalog.BODY_PALETTE]
+# Skin and outfit colours a new bot is dealt.  Both are drawn from the
+# random palette, which leaves out the five colours in
+# catalog.RANDOM_EXCLUDED_COLORS; the filter on SKIN keeps that true even if
+# somebody adds a tone back here by hand.
+SKIN = [c for c in ["#f5cd30", "#f3cf9b", "#d7c59a", "#f0b47b", "#f5cd30",
+                    "#f3cf9b", "#d7c59a", "#f0b47b"]
+        if c not in catalog.RANDOM_EXCLUDED_COLORS]
+PALETTE = [e["hex"] for e in catalog.RANDOM_PALETTE]
 
 _lock = threading.RLock()
 _job: Optional[Dict[str, Any]] = None
@@ -590,7 +595,8 @@ def _history(joined: int, traits: Dict[str, float], rng: random.Random,
     days = max(0.0, (now - joined) / 86400.0)
     minutes = days * rng.uniform(4, 34) * (0.3 + traits.get("gamer", 0.6))
     minutes = min(minutes, 60 * 24 * 365 * 0.25)
-    worlds = bot_config.WORLD_IDS
+    # only the worlds that are open: a new bot has no history in a retired one
+    worlds = bot_config.OPEN_WORLD_IDS
     prefs = [max(0.05, traits.get("w_" + w, 1.0)) for w in worlds]
     total = sum(prefs)
     skill = traits.get("skill", 0.5)

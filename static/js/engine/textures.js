@@ -4,7 +4,12 @@
   'use strict';
 
   var CELL = 128;
-  var GRID = 10;                // 10x10 cells -> 1280x1280 atlas
+  /* 16x16 cells -> a 2048x2048 atlas.  It was 10x10, which every decal
+     painter (they are all prewarmed), every face, and a Last Light area's
+     signage had to share -- and an overflowing atlas recycles cells, so the
+     next thing painted lands on top of something still in use.  2048 is a
+     power of two and inside every WebGL implementation's texture limit. */
+  var GRID = 16;
   var SIZE = CELL * GRID;
 
   var Textures = {
@@ -521,6 +526,177 @@
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
     ctx.fillRect(0, 0, CELL, 10);
+  });
+
+  // ------------------------------------------------ crate-era cosmetics
+  // paisley teardrops on a bandana: white and dark on transparent, so one
+  // print serves a red bandana and a blue one
+  painter('paisley', function (ctx) {
+    var rnd = scatter(13);
+    for (var i = 0; i < 11; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 5 + rnd() * 4, a = rnd() * Math.PI * 2;
+      around(ctx, x, y, function (g) {
+        g.rotate(a);
+        g.fillStyle = 'rgba(255,255,255,0.55)';
+        g.beginPath();
+        g.arc(0, 0, r, Math.PI * 0.5, Math.PI * 2.0);
+        g.quadraticCurveTo(r * 0.2, r * 1.9, -r * 0.9, r * 2.2);
+        g.quadraticCurveTo(0, r * 1.2, 0, r);
+        g.fill();
+        g.fillStyle = 'rgba(0,0,0,0.35)';
+        g.beginPath(); g.arc(0, 0, r * 0.45, 0, Math.PI * 2); g.fill();
+      });
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    for (i = 0; i < 40; i++) {
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 1.4, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // planks: a crate's boards, grain, gaps and nail heads
+  painter('planks', function (ctx) {
+    var rnd = scatter(29);
+    for (var b = 0; b < 4; b++) {
+      var y = b * 32;
+      ctx.fillStyle = b % 2 ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.06)';
+      ctx.fillRect(0, y, CELL, 32);
+      ctx.strokeStyle = 'rgba(0,0,0,0.16)'; ctx.lineWidth = 1;
+      for (var g = 0; g < 5; g++) {
+        var gy = y + 4 + rnd() * 24;
+        ctx.beginPath(); ctx.moveTo(0, gy);
+        ctx.bezierCurveTo(40, gy + rnd() * 6 - 3, 90, gy + rnd() * 6 - 3, CELL, gy);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.fillRect(0, y + 30, CELL, 2);
+      ctx.fillStyle = 'rgba(30,24,18,0.7)';
+      [10, CELL - 12].forEach(function (nx) {
+        ctx.beginPath(); ctx.arc(nx, y + 16, 2.4, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+  });
+
+  // a brass escutcheon with a keyhole, for a crate's lock plate
+  painter('keyhole', function (ctx) {
+    var g = ctx.createRadialGradient(54, 50, 6, 64, 64, 66);
+    g.addColorStop(0, '#fff3b0'); g.addColorStop(0.5, '#e0b23a'); g.addColorStop(1, '#8a6410');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = 'rgba(70,46,6,0.7)'; ctx.lineWidth = 5;
+    ctx.strokeRect(6, 6, CELL - 12, CELL - 12);
+    ctx.fillStyle = '#1b130a';
+    ctx.beginPath(); ctx.arc(64, 50, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(56, 56); ctx.lineTo(72, 56); ctx.lineTo(77, 98); ctx.lineTo(51, 98);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    [[18, 18], [110, 18], [18, 110], [110, 110]].forEach(function (q) {
+      ctx.beginPath(); ctx.arc(q[0], q[1], 5, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  // the ace of hearts, tucked into a top hat's band
+  painter('card_ace', function (ctx) {
+    ctx.fillStyle = '#fbfaf5'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#c9c2b0'; ctx.lineWidth = 4; ctx.strokeRect(4, 4, CELL - 8, CELL - 8);
+    ctx.fillStyle = '#c4281c';
+    ctx.font = 'bold 30px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('A', 22, 24); ctx.fillText('A', CELL - 22, CELL - 24);
+    ctx.beginPath();
+    ctx.moveTo(64, 92);
+    ctx.bezierCurveTo(30, 68, 36, 38, 64, 52);
+    ctx.bezierCurveTo(92, 38, 98, 68, 64, 92);
+    ctx.fill();
+  });
+
+  // linen bandages: overlapping strips of old cloth, stained at the edges
+  painter('linen', function (ctx) {
+    var rnd = scatter(37);
+    for (var i = 0; i < 9; i++) {
+      var y = i * 15 - 4;
+      ctx.save();
+      ctx.translate(0, y); ctx.rotate((rnd() - 0.5) * 0.12);
+      ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+      ctx.fillRect(-10, 0, CELL + 20, 15);
+      ctx.fillStyle = 'rgba(80,60,30,0.28)';
+      ctx.fillRect(-10, 13, CELL + 20, 2);
+      ctx.restore();
+    }
+    for (i = 0; i < 300; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(90,70,40,0.10)' : 'rgba(255,255,255,0.10)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 2, 1);
+    }
+  });
+
+  // rosebuds on china, for the teacup
+  painter('rosebuds', function (ctx) {
+    var rnd = scatter(43);
+    for (var i = 0; i < 8; i++) {
+      var x = (i % 4) * 32 + 16 + (i > 3 ? 16 : 0), y = i > 3 ? 92 : 38;
+      around(ctx, x, y, function (g) {
+        g.fillStyle = '#3f8a4a';
+        g.beginPath(); g.ellipse(-9, 6, 7, 3, -0.6, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.ellipse(9, 6, 7, 3, 0.6, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#e46a8a';
+        g.beginPath(); g.arc(0, 0, 7.5, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#b8385e'; g.lineWidth = 1.6;
+        g.beginPath(); g.arc(0, 0, 4, 0.5, 5.2); g.stroke();
+      });
+    }
+    ctx.fillStyle = 'rgba(214,170,60,0.9)';
+    ctx.fillRect(0, 2, CELL, 5); ctx.fillRect(0, CELL - 7, CELL, 5);
+  });
+
+  // the stencil on a Blockhaven crate
+  painter('crate_logo', function (ctx) {
+    ctx.fillStyle = 'rgba(25,18,10,0.78)';
+    ctx.font = 'bold 44px Verdana, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('BH', 64, 52);
+    ctx.font = 'bold 15px Verdana, sans-serif';
+    ctx.fillText('HAT CRATE', 64, 88);
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(25,18,10,0.7)';
+    ctx.strokeRect(10, 18, 108, 92);
+  });
+
+  // ...and on a Hallowed Harvest crate
+  painter('crate_hallowed', function (ctx) {
+    ctx.fillStyle = 'rgba(255,140,30,0.92)';
+    ctx.font = 'bold 22px Georgia, serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('HALLOWED', 64, 30);
+    ctx.fillText('HARVEST', 64, 98);
+    ctx.save(); ctx.translate(64, 64);
+    ctx.fillStyle = 'rgba(255,140,30,0.92)';
+    ctx.beginPath(); ctx.ellipse(0, 2, 22, 17, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(20,10,4,0.9)';
+    ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(-4, -2); ctx.lineTo(-8, -10); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(12, -2); ctx.lineTo(4, -2); ctx.lineTo(8, -10); ctx.fill();
+    ctx.fillRect(-12, 6, 24, 5);
+    ctx.restore();
+  });
+
+  // stitched seams, for leather masks and patches
+  painter('stitches', function (ctx) {
+    ctx.strokeStyle = 'rgba(40,24,10,0.55)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (var row = 0; row < 3; row++) {
+      var y = 24 + row * 40;
+      for (var x = 6; x < CELL; x += 14) {
+        ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x + 6, y + 4); ctx.stroke();
+      }
+    }
+  });
+
+  // a full moon over a bat, for the event's banners and badges
+  painter('moonbat', function (ctx) {
+    var g = ctx.createRadialGradient(64, 64, 10, 64, 64, 60);
+    g.addColorStop(0, '#fff6c8'); g.addColorStop(0.7, '#ffcf5a'); g.addColorStop(1, '#e08a1a');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(64, 64, 58, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1024';
+    ctx.beginPath();
+    ctx.moveTo(64, 56);
+    [[78, 46], [96, 50], [108, 66], [94, 62], [86, 72], [76, 64], [64, 80], [52, 64],
+     [42, 72], [34, 62], [20, 66], [32, 50], [50, 46]].forEach(function (q) { ctx.lineTo(q[0], q[1]); });
+    ctx.closePath(); ctx.fill();
   });
 
   Textures.drawText = function (key, text, background, colour, fontSize) {

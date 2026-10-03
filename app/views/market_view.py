@@ -94,7 +94,8 @@ def sell(req: Request):
 def catalog_json(req: Request):
     return api_ok(items=market.listing(req.query.get("slot", "all")),
                   tiers=catalog.TIERS, effects=catalog.UNUSUAL_EFFECTS,
-                  palette=catalog.BODY_PALETTE)
+                  palette=catalog.BODY_PALETTE,
+                  random_palette=catalog.RANDOM_PALETTE)
 
 
 @router.get("/api/inventory")
