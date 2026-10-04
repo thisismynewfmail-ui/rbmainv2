@@ -869,8 +869,12 @@ Pinning something is the owner saying "look at this", so the three pins stay on
 the profile even when the rest of the collection is set to friends-only or
 private — the strip, the counts and the `/inventory/<name>` page are still
 gated. An Unusual in a pinned slot runs its effect live rather than as a still,
-scaled to the piece it is sitting on, and so does the item preview you get by
-clicking any item tile.
+scaled to the piece it is sitting on. Hovering (or focusing, or tapping) a
+pinned item opens the same pop-up a badge does: the piece turning on a stand,
+draggable round, with its effect running, its tier, description, slot, serial
+and rarity (`Badges.showItem` in `static/js/ui/badges.js`). On a profile the
+pins sit above the badges, on a phone as well as on a desktop. Other item
+tiles still open the item preview when clicked.
 
 ---
 

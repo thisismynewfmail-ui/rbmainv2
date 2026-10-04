@@ -1462,12 +1462,13 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .profile-row .p-character { order: 1; }
   .profile-row .p-bio       { order: 2; }
   .profile-row .p-pinned    { order: 3; }
-  .profile-row .p-stats     { order: 4; }
-  .profile-row .p-items     { order: 5; }
-  .profile-row .p-friends   { order: 6; }
-  .profile-row .p-fav       { order: 7; }
-  .profile-row .p-posts     { order: 8; }
-  .profile-row .p-wall      { order: 9; }
+  .profile-row .p-badges    { order: 4; }
+  .profile-row .p-stats     { order: 5; }
+  .profile-row .p-items     { order: 6; }
+  .profile-row .p-friends   { order: 7; }
+  .profile-row .p-fav       { order: 8; }
+  .profile-row .p-posts     { order: 9; }
+  .profile-row .p-wall      { order: 10; }
 
   /* Avatar editor: the character, then the build, then the things you put on
      it -- the item picker and the hotbar -- and the colour swatches last.
