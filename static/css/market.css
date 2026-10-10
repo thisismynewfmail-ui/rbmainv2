@@ -549,6 +549,21 @@ body.cs-open { overflow: hidden; }
 /* @@ stpatricks backdrops go above this line @@ */
 
 /* Easter backdrops (the opening themes of the Easter crates) */
+/* The Eggstravaganza (2022): a spring morning, the big painted egg on the
+   village green, and petals coming down */
+.theme-ea_eggfair .cs-bg { background: linear-gradient(#5fb0ec 0%, #a9d8ff 45%, #ffe3f1 72%, #b5e88a 72.3%, #7fcf5a 100%); }
+.theme-ea_eggfair .cs-art { display: block !important; }
+.theme-ea_eggfair .cs-stars, .theme-ea_eggfair .cs-vignette { opacity: .25; }
+.theme-ea_eggfair .cs-art.a { left: 7%; bottom: 22%; width: 170px; height: 230px; opacity: .92;
+  filter: drop-shadow(0 6px 18px rgba(80, 40, 120, .35));
+  background: no-repeat center bottom/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 135'%3E%3Cpath d='M50 4C78 4 92 64 90 88 88 114 72 130 50 130S12 114 10 88C8 64 22 4 50 4z' fill='%23c7a8f0'/%3E%3Cpath d='M12 74l9-8 9 8 9-8 9 8 9-8 9 8 9-8 9 8 6-5v10l-6 5-9-8-9 8-9-8-9 8-9-8-9 8-9-8-9 8z' fill='%23ffe58a'/%3E%3Cpath d='M11 96h78v8H11z' fill='%238fe3c0'/%3E%3Cg fill='%23ff9cc9'%3E%3Ccircle cx='34' cy='40' r='5'/%3E%3Ccircle cx='60' cy='30' r='4'/%3E%3Ccircle cx='70' cy='52' r='5'/%3E%3Ccircle cx='44' cy='58' r='4'/%3E%3C/g%3E%3Cpath d='M50 4c-6 0-11 3-15 8 6 2 10 1 15-3 5 4 9 5 15 3-4-5-9-8-15-8z' fill='%23ff9cc9'/%3E%3C/svg%3E"); }
+.theme-ea_eggfair .cs-art.b { inset: 0; opacity: .85; animation: cs-fall 11s linear infinite;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='320'%3E%3Cg fill='%23ffb3d8'%3E%3Cellipse cx='30' cy='40' rx='7' ry='4' transform='rotate(30 30 40)'/%3E%3Cellipse cx='130' cy='150' rx='6' ry='3.5' transform='rotate(-40 130 150)'/%3E%3C/g%3E%3Cellipse cx='80' cy='250' rx='6' ry='3.5' fill='%23fff3b0' transform='rotate(60 80 250)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='320'%3E%3Cellipse cx='50' cy='80' rx='6' ry='3.5' fill='%23ffffff' transform='rotate(-20 50 80)'/%3E%3Cellipse cx='170' cy='200' rx='7' ry='4' fill='%23c7a8f0' transform='rotate(45 170 200)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='320'%3E%3Cpath d='M60 120c4-8 10-8 12 0-6 2-6 2-12 0z' fill='%23ffe58a'/%3E%3Cpath d='M200 40c4-8 10-8 12 0-6 2-6 2-12 0z' fill='%238fe3c0'/%3E%3C/svg%3E"); }
+.theme-ea_eggfair .cs-title b { color: #ff6fae; }
+
 /* @@ easter backdrops go above this line @@ */
 
 /* Fourth of July backdrops (the opening themes of the Fourth of July crates) */

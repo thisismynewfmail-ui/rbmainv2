@@ -1252,6 +1252,20 @@
   // @@ stpatricks shapes go above this line @@
 
   /* ---- Easter meshes (any the Easter events needed that were not here) */
+  /* The top of an egg broken along the very zig-zag 'crackedshell' is cut
+     on: placed with the same anchor (the egg's bottom, the origin) and the
+     same scale, the two close into one whole egg -- the Eggstravaganza
+     crate's lid, a cracked-egg hat, a hatching egg's cap. */
+  add('ea_eggtop', sheet(function (u, v) {
+    var th = u * TAU;
+    var zig = Math.abs(((u * 9) % 1) - 0.5) * 2;
+    var rim = 0.52 + 0.16 * zig;
+    var t = rim + v * (1 - rim);
+    var a = -Math.PI / 2 + t * Math.PI;
+    var y = 0.5 + Math.sin(a) * 0.5;
+    var r = Math.max(0.001, Math.cos(a) * 0.5 * (1.0 - 0.16 * y));
+    return [Math.cos(th) * r, y * 1.30, Math.sin(th) * r];
+  }, 54, 10, 0.03, true));
   // @@ easter shapes go above this line @@
 
   /* ---- Fourth of July meshes (any the Fourth of July events needed that were not here) */
