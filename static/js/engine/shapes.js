@@ -904,6 +904,350 @@
     return [-Math.cos(a) * 0.5, Math.sin(a) * 0.5, 0];
   }, function () { return 0.06; }, 20, 10));
 
+  /* ================================================== the holiday shapes
+     The event crates (app/models/holidays/) brought a whole year of
+     occasions with them -- New Year, St. Patrick's Day, Easter, the Fourth
+     of July, Halloween and Christmas -- and each one has silhouettes of its
+     own that boxes and domes cannot fake: an egg, a shamrock, a holly leaf,
+     a snowflake, a firework rocket, a flag in the wind, a leprechaun's
+     beard.  Same rules as everything above: every mesh normalised into the
+     unit cube, its native size and centre recorded so app/models/modeling.py
+     can place a point on it (``python3 tools/shapes_table.py`` rewrites the
+     Python copy of those numbers). */
+
+  /* An egg: fuller at the bottom than the top, the way a real one sits. */
+  function eggProfile(n) {
+    var prof = [[0, 0]];
+    for (var k = 1; k < n; k++) {
+      var a = -Math.PI / 2 + (k / n) * Math.PI;
+      var y = 0.5 + Math.sin(a) * 0.5;
+      // the top narrows: a hair of taper on an ellipse is what reads as egg
+      var r = Math.cos(a) * 0.5 * (1.0 - 0.16 * y);
+      prof.push([r, y * 1.30]);
+    }
+    prof.push([0, 1.30]);
+    return prof;
+  }
+  add('egg', lathe(eggProfile(18), { segs: 32 }));
+
+  /* The bottom of a hatched egg: a shell cup whose rim is a jagged crack.
+     A sheet rather than a lathe, so the rim can zig-zag round the cup. */
+  add('crackedshell', sheet(function (u, v) {
+    var th = u * TAU;
+    var zig = Math.abs(((u * 9) % 1) - 0.5) * 2;            // 0..1 saw tooth
+    var rim = 0.52 + 0.16 * zig;                            // crack height, 0..1 of the egg
+    var t = v * rim;                                        // up the egg from the bottom
+    var a = -Math.PI / 2 + t * Math.PI;
+    var y = 0.5 + Math.sin(a) * 0.5;
+    var r = Math.max(0.001, Math.cos(a) * 0.5 * (1.0 - 0.16 * y));
+    return [Math.cos(th) * r, y * 1.30, Math.sin(th) * r];
+  }, 54, 10, 0.03, true));
+
+  /* The lobes of a clover: ``leaves`` hearts round the middle, each with the
+     notch at its tip, and a stem out of the bottom. */
+  function clover(leaves, notch, stem) {
+    var out = [];
+    var steps = 26 * leaves;
+    var half = Math.PI / leaves;
+    var start = -Math.PI / 2;                     // the stem points down
+    for (var i = 0; i < steps; i++) {
+      var th = start + (i / steps) * TAU;
+      // angle measured from the nearest leaf's middle (leaves sit between
+      // the stem and its opposite)
+      var rel = (((th - start) % (2 * half)) + 2 * half) % (2 * half) - half;
+      var lobe = Math.pow(Math.max(0, Math.cos(rel * leaves / 2)), 0.55);
+      var dip = 1 - notch * Math.exp(-Math.pow(rel / 0.10, 2));
+      var r = 0.5 * lobe * dip;
+      if (i === 0 && stem) {
+        out.push([-0.035, -0.04], [-0.05, -0.5], [0.02, -0.5], [0.035, -0.04]);
+        continue;
+      }
+      out.push([Math.cos(th) * Math.max(r, 0.035), Math.sin(th) * Math.max(r, 0.035)]);
+    }
+    return out;
+  }
+  add('shamrock', extrude(clover(3, 0.22, true), { depth: 0.10, bevel: 0.03, smooth: 0.9 }));
+  add('clover4', extrude(clover(4, 0.20, true), { depth: 0.10, bevel: 0.03, smooth: 0.9 }));
+
+  /* A holly leaf: long, waxy, five spines a side. */
+  (function () {
+    var top = [], bottom = [];
+    var spines = 5;
+    for (var k = 0; k <= spines * 2; k++) {
+      var x = -0.5 + k / (spines * 2);
+      var env = 0.20 * Math.sqrt(Math.max(0, 1 - Math.pow(x * 2, 2)));
+      var w = (k % 2) ? env * 0.62 : env + 0.05;
+      if (k === 0 || k === spines * 2) w = 0;
+      top.push([x, w]);
+      bottom.push([x, -w]);
+    }
+    add('holly', extrude(top.concat(bottom.reverse().slice(1, -1)),
+                         { depth: 0.05, bevel: 0.015, smooth: 0.4 }));
+  })();
+
+  /* A six-armed snowflake, each arm with a pair of branches. */
+  (function () {
+    var pts = [];
+    var arm = [[0.10, 0.045], [0.27, 0.045], [0.37, 0.15], [0.39, 0.12], [0.32, 0.045],
+               [0.50, 0.03], [0.50, -0.03], [0.32, -0.045], [0.39, -0.12], [0.37, -0.15],
+               [0.27, -0.045], [0.10, -0.045]].reverse();
+    for (var k = 0; k < 6; k++) {
+      var a = Math.PI / 2 + k * TAU / 6;
+      var c = Math.cos(a), s = Math.sin(a);
+      arm.forEach(function (q) { pts.push([q[0] * c - q[1] * s, q[0] * s + q[1] * c]); });
+    }
+    add('snowflake', extrude(pts, { depth: 0.06, bevel: 0.015, smooth: 0.3 }));
+  })();
+
+  // A rabbit's ear: long, rounded, a little wider below the tip.
+  add('bunnyear', extrude(spline([[0, 0.5], [0.15, 0.40], [0.20, 0.08], [0.16, -0.30],
+                                  [0.10, -0.5], [-0.10, -0.5], [-0.16, -0.30],
+                                  [-0.20, 0.08], [-0.15, 0.40]], 6),
+                          { depth: 0.08, bevel: 0.025, smooth: 0.9 }));
+
+  // A gingerbread man, arms out.
+  add('gingerman', extrude(spline([[0, 0.5], [0.12, 0.46], [0.14, 0.33], [0.09, 0.25],
+                                   [0.30, 0.23], [0.40, 0.14], [0.33, 0.05], [0.13, 0.07],
+                                   [0.15, -0.14], [0.29, -0.43], [0.20, -0.5], [0.09, -0.44],
+                                   [0, -0.26], [-0.09, -0.44], [-0.20, -0.5], [-0.29, -0.43],
+                                   [-0.15, -0.14], [-0.13, 0.07], [-0.33, 0.05],
+                                   [-0.40, 0.14], [-0.30, 0.23], [-0.09, 0.25], [-0.14, 0.33],
+                                   [-0.12, 0.46]], 4),
+                           { depth: 0.12, bevel: 0.035, smooth: 1.0 }));
+
+  /* A flag in a breeze, its pole edge at the left (x -0.5).  The face takes
+     a decal across its whole width through its own UVs. */
+  add('flag', sheet(function (u, v) {
+    var x = u - 0.5;
+    var wave = Math.sin(u * TAU * 1.15 - 0.4) * 0.07 * Math.pow(u, 0.8);
+    return [x, (v - 0.5) * 0.64 - u * 0.04, wave];
+  }, 24, 8, 0.02, false));
+
+  // A horseshoe, open at the bottom, nail holes left to a decal.
+  add('horseshoe', tube(function (t) {
+    var a = (-0.30 + t * 1.60) * Math.PI;
+    var r = 0.40 + 0.05 * Math.pow(Math.abs(t - 0.5) * 2, 3);
+    return [Math.cos(a) * r, Math.sin(a) * r, 0];
+  }, function () { return 0.09; }, 30, 12));
+
+  // A coil: a slinky, a streamer, a curly tail, a corkscrew curl of hair.
+  add('spiral', tube(function (t) {
+    var a = t * TAU * 4.5;
+    return [Math.cos(a) * 0.42, t * 1.0, Math.sin(a) * 0.42];
+  }, function () { return 0.06; }, 140, 10));
+
+  // A champagne flute: foot, stem and a tall bowl.
+  add('flute', lathe([[0, 0], [0.30, 0, 1], [0.30, 0.03, 1], [0.05, 0.06], [0.035, 0.12],
+                      [0.035, 0.42], [0.08, 0.48], [0.15, 0.58], [0.19, 0.78], [0.21, 1.0, 1],
+                      [0, 1.0]], { segs: 28 }));
+
+  // A carrot: a tapering root, ridged, round at the shoulder.
+  add('carrot', lathe([[0, 0], [0.05, 0.08], [0.12, 0.35], [0.17, 0.70], [0.18, 0.86],
+                       [0.14, 0.96], [0.06, 1.0], [0, 1.0]],
+                      { segs: 24, ribs: 7, ribDepth: 0.06 }));
+
+  // A mitten, thumb out to the left.
+  add('mitten', extrude(spline([[-0.20, 0.50], [0.10, 0.50], [0.24, 0.36], [0.26, -0.08],
+                                [0.22, -0.30], [0.22, -0.50], [-0.20, -0.50], [-0.22, -0.26],
+                                [-0.24, -0.08], [-0.40, 0.02], [-0.44, 0.14], [-0.36, 0.20],
+                                [-0.26, 0.14], [-0.26, 0.36]], 5),
+                        { depth: 0.20, bevel: 0.07, smooth: 1.0 }));
+
+  // A fir tree in three tiers, the way a child draws one.
+  add('tree', lathe([[0, 0], [0.50, 0.02, 1], [0.14, 0.38, 1], [0.40, 0.33, 1],
+                     [0.10, 0.66, 1], [0.28, 0.61, 1], [0, 1.0]], { segs: 24 }));
+
+  // A firework rocket: nozzle, tube and a sharp nose.
+  add('rocket', lathe([[0, 0], [0.10, 0, 1], [0.14, 0.10, 1], [0.14, 0.72, 1],
+                       [0.10, 0.84], [0.04, 0.95], [0, 1.0]], { segs: 20 }));
+
+  // A lightning bolt.
+  add('bolt', extrude([[-0.10, 0.50], [0.22, 0.50], [0.06, 0.10], [0.24, 0.10],
+                       [-0.18, -0.50], [-0.04, -0.06], [-0.22, -0.06]],
+                      { depth: 0.10, bevel: 0.025 }));
+
+  /* One loop of a gift bow: a flat ribbon band bent into a loop, its root
+     at the origin and its far end out at x = 1.  Width runs along Z. */
+  add('bowloop', sheet(function (u, v) {
+    var a = u * TAU;
+    var x = 0.5 - Math.cos(a) * 0.5;
+    var y = Math.sin(a) * 0.28 * (0.6 + 0.4 * x);
+    return [x, y, (v - 0.5) * 0.34];
+  }, 32, 3, 0.03, true));
+
+  // A Christmas stocking, toe to the right.
+  add('stocking', extrude(spline([[-0.22, 0.50], [0.10, 0.50], [0.10, 0.02], [0.30, -0.12],
+                                  [0.36, -0.30], [0.26, -0.46], [0.02, -0.50], [-0.18, -0.40],
+                                  [-0.24, -0.20], [-0.22, 0.10]], 5),
+                          { depth: 0.16, bevel: 0.05, smooth: 1.0 }));
+
+  // A handlebar moustache, twirled at both ends.
+  add('mustache', extrude(spline([[0, 0.10], [0.14, 0.18], [0.30, 0.10], [0.42, 0.14],
+                                  [0.50, 0.30], [0.48, 0.06], [0.34, -0.06], [0.16, -0.06],
+                                  [0, -0.02], [-0.16, -0.06], [-0.34, -0.06], [-0.48, 0.06],
+                                  [-0.50, 0.30], [-0.42, 0.14], [-0.30, 0.10], [-0.14, 0.18]], 5),
+                          { depth: 0.10, bevel: 0.035, smooth: 1.0 }));
+
+  /* A full beard, flat behind where it lies on the jaw, rounded in front,
+     with a parting for the mouth near the top. */
+  add('beard', extrude(spline([[-0.50, 0.50], [-0.30, 0.40], [-0.10, 0.36], [0, 0.40],
+                               [0.10, 0.36], [0.30, 0.40], [0.50, 0.50], [0.46, 0.10],
+                               [0.30, -0.26], [0.10, -0.50], [0, -0.40], [-0.10, -0.50],
+                               [-0.30, -0.26], [-0.46, 0.10]], 5),
+                       { depth: 0.30, bevel: 0.12, smooth: 1.2 }));
+
+  // A bow tie.
+  add('bowtie', extrude(spline([[0, 0.10], [0.20, 0.30], [0.46, 0.38], [0.50, 0.0],
+                                [0.46, -0.38], [0.20, -0.30], [0, -0.10], [-0.20, -0.30],
+                                [-0.46, -0.38], [-0.50, 0.0], [-0.46, 0.38], [-0.20, 0.30]], 4),
+                        { depth: 0.12, bevel: 0.04, smooth: 1.0 }));
+
+  // A candy cane: a straight shaft and its crook, the crook to the right.
+  add('cane', tube(function (t) {
+    if (t < 0.68) return [0, (t / 0.68) * 0.80, 0];
+    var a = ((t - 0.68) / 0.32) * Math.PI * 1.05;
+    return [0.16 - Math.cos(a) * 0.16, 0.80 + Math.sin(a) * 0.16, 0];
+  }, function () { return 0.06; }, 40, 12));
+
+  // A hand bell: a flared mouth, a waist and a knob to hold it by.
+  add('handbell', lathe([[0, 0], [0.50, 0, 1], [0.48, 0.07], [0.34, 0.20], [0.27, 0.45],
+                         [0.24, 0.66], [0.14, 0.74], [0.07, 0.78], [0.06, 0.86], [0.10, 0.92],
+                         [0.08, 0.99], [0, 1.0]], { segs: 28 }));
+
+  // A masquerade mask: swept wings either side, the bridge of the nose cut out.
+  add('mask', extrude(spline([[0, 0.20], [0.20, 0.30], [0.40, 0.34], [0.50, 0.48],
+                              [0.48, 0.12], [0.36, -0.16], [0.18, -0.22], [0.06, -0.10],
+                              [0, -0.02], [-0.06, -0.10], [-0.18, -0.22], [-0.36, -0.16],
+                              [-0.48, 0.12], [-0.50, 0.48], [-0.40, 0.34], [-0.20, 0.30]], 5),
+                      { depth: 0.08, bevel: 0.025, smooth: 1.0 }));
+
+  // A party horn (and a trumpet's bell): a thin tube flaring at the top.
+  add('trumpet', lathe([[0, 0], [0.07, 0.0, 1], [0.06, 0.50], [0.09, 0.74], [0.20, 0.90],
+                        [0.50, 0.99, 1], [0.47, 1.0, 1], [0, 0.98]], { segs: 26 }));
+
+  // A pinwheel: four curled blades round a pin.
+  add('pinwheel', extrude((function () {
+    var pts = [];
+    for (var k = 0; k < 4; k++) {
+      var a = k * TAU / 4;
+      [[0.05, 0.0], [0.50, 0.04], [0.42, 0.22], [0.05, 0.05]].forEach(function (q) {
+        var c = Math.cos(a), s = Math.sin(a);
+        pts.push([q[0] * c - q[1] * s, q[0] * s + q[1] * c]);
+      });
+    }
+    return pts;
+  })(), { depth: 0.05, bevel: 0.015 }));
+
+  // A four-pointed twinkle.
+  add('sparkle', extrude(starOutline(4, 0.5, 0.11), { depth: 0.10, bevel: 0.03 }));
+
+  /* A rainbow: a half ring of band standing in the XY plane, the bands run
+     across its width (v), so a stripe decal printed through its UVs lies in
+     arcs. */
+  add('rainbowarc', sheet(function (u, v) {
+    var a = u * Math.PI;
+    var r = 0.30 + 0.20 * v;
+    return [Math.cos(a) * r, Math.sin(a) * r, 0];
+  }, 36, 6, 0.10, true));
+
+  // A balloon, knot at the bottom.
+  add('balloon', lathe([[0, 0], [0.06, 0.0, 1], [0.05, 0.05], [0.10, 0.10], [0.30, 0.24],
+                       [0.46, 0.46], [0.50, 0.64], [0.44, 0.84], [0.26, 0.97], [0, 1.0]],
+                      { segs: 28 }));
+
+  // A ruff: a pleated ring collar.
+  add('ruffle', sheet(function (u, v) {
+    var a = u * TAU;
+    var r = 0.30 + 0.20 * v;
+    var pleat = Math.sin(u * TAU * 14) * 0.06 * v;
+    return [Math.cos(a) * r, pleat, Math.sin(a) * r];
+  }, 112, 4, 0.02, false));
+
+  // A tentacle, curling at its tip.
+  add('tentacle', tube(function (t) {
+    var curl = Math.pow(t, 2.2);
+    return [Math.sin(curl * Math.PI * 1.6) * 0.30 * t, t * 0.9 - curl * 0.12,
+            Math.cos(curl * Math.PI * 1.6) * 0.06 - 0.06];
+  }, function (t) { return 0.13 * Math.pow(1 - t, 0.8) + 0.008; }, 30, 12));
+
+  // A sharp drop of ice, point down.
+  add('icicle', lathe([[0, 0], [0.12, 0.40], [0.34, 0.80], [0.50, 0.96], [0.40, 1.0], [0, 1.0]],
+                      { segs: 10, facets: true }));
+
+  // A folding fan, pleated, its pin at the origin end (bottom).
+  add('fan', sheet(function (u, v) {
+    var a = (u - 0.5) * 2.2;
+    var r = 0.10 + 0.40 * v;
+    var pleat = (Math.abs(((u * 18) % 1) - 0.5) - 0.25) * 0.07 * v;
+    return [Math.sin(a) * r, Math.cos(a) * r, pleat];
+  }, 72, 6, 0.015, false));
+
+  // A pointer: a clock hand, a sign, a compass needle.
+  add('arrow', extrude([[0, 0.5], [0.22, 0.18], [0.07, 0.20], [0.07, -0.5], [-0.07, -0.5],
+                        [-0.07, 0.20], [-0.22, 0.18]], { depth: 0.08, bevel: 0.02 }));
+
+  // A five-petalled blossom.
+  add('flower', extrude((function () {
+    var pts = [];
+    for (var i = 0; i < 80; i++) {
+      var th = (i / 80) * TAU;
+      var r = 0.5 * (0.42 + 0.58 * Math.pow(Math.abs(Math.cos(th * 2.5)), 0.7));
+      pts.push([Math.cos(th + Math.PI / 2) * r, Math.sin(th + Math.PI / 2) * r]);
+    }
+    return pts;
+  })(), { depth: 0.08, bevel: 0.025, smooth: 0.8 }));
+
+  /* A cup of petals (a tulip, a crown of leaves): a bowl whose rim rises in
+     five rounded points. */
+  add('petalcup', sheet(function (u, v) {
+    var th = u * TAU;
+    var lobe = Math.pow(Math.abs(Math.cos(th * 2.5)), 0.6);
+    var h = 0.62 + 0.38 * lobe;
+    var y = v * h;
+    var r = 0.22 + 0.28 * Math.sin(Math.min(1, y / 0.75) * Math.PI * 0.5);
+    return [Math.cos(th) * r, y, Math.sin(th) * r];
+  }, 60, 10, 0.03, true));
+
+  // A skull, front on, for stickers and stencils that need a solid one.
+  add('skullface', extrude(spline([[0, 0.5], [0.30, 0.44], [0.44, 0.20], [0.42, -0.06],
+                                   [0.26, -0.18], [0.24, -0.44], [0.08, -0.5], [-0.08, -0.5],
+                                   [-0.24, -0.44], [-0.26, -0.18], [-0.42, -0.06],
+                                   [-0.44, 0.20], [-0.30, 0.44]], 5),
+                           { depth: 0.14, bevel: 0.05, smooth: 1.0 }));
+
+  /* A cloud: a row of puffs over a flat underside.  The top edge is the
+     upper envelope of four circles, walked right to left, so the outline
+     stays one simple loop however much the puffs overlap. */
+  add('cloud', extrude((function () {
+    var bumps = [[0.34, -0.04, 0.17], [0.13, 0.06, 0.23], [-0.12, 0.05, 0.21],
+                 [-0.33, -0.04, 0.17]];
+    var out = [[0.5, -0.18]];
+    for (var i = 0; i <= 60; i++) {
+      var x = 0.5 - i / 60;
+      var y = -0.16;
+      bumps.forEach(function (b) {
+        var d = x - b[0];
+        if (Math.abs(d) < b[2]) y = Math.max(y, b[1] + Math.sqrt(b[2] * b[2] - d * d));
+      });
+      out.push([x, y]);
+    }
+    out.push([-0.5, -0.18]);
+    return out;
+  })(), { depth: 0.30, bevel: 0.11, smooth: 1.2 }));
+
+  // A cracker (the Christmas kind) and a firecracker: a tube with frilled ends.
+  add('cracker', lathe([[0, 0], [0.30, 0.0, 1], [0.24, 0.06], [0.14, 0.20], [0.20, 0.24, 1],
+                        [0.20, 0.76, 1], [0.14, 0.80], [0.24, 0.94], [0.30, 1.0, 1], [0, 1.0]],
+                       { segs: 22, ribs: 10, ribDepth: 0.08 }));
+
+  // A crown of points: a band whose top edge rises in seven spikes.
+  add('spikecrown', sheet(function (u, v) {
+    var th = u * TAU;
+    var spike = Math.abs(((u * 7) % 1) - 0.5) * 2;           // 0 at a point
+    var h = 0.40 + 0.60 * (1 - spike);
+    return [Math.cos(th) * 0.5, v * h, Math.sin(th) * 0.5];
+  }, 84, 8, 0.03, true));
+
   Shapes.lathe = lathe;
   Shapes.extrude = extrude;
   Shapes.sheet = sheet;
