@@ -1970,6 +1970,176 @@
 
   /* ----------------------------------------------------------- Christmas
      The decals of the Christmas crates, 2022 to 2026. */
+  /* -- 2022 Frostfall: snow, knitwear and a lacquered snow globe */
+
+  // packed snow: soft blue-grey hollows and glints over white
+  painter('xm_snow', function (ctx) {
+    var rnd = scatter(211);
+    for (var k = 0; k < 34; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 6 + rnd() * 14;
+      around(ctx, x, y, function (g) {
+        var grad = g.createRadialGradient(0, 0, 1, 0, 0, r);
+        grad.addColorStop(0, 'rgba(150,180,215,0.20)'); grad.addColorStop(1, 'rgba(150,180,215,0)');
+        g.fillStyle = grad; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+      });
+    }
+    for (k = 0; k < 70; k++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.9)' : 'rgba(190,225,255,0.7)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 1.6, 1.6);
+    }
+  });
+
+  // gilt scrollwork for a lacquered music box: gold curls and dots in a band
+  painter('xm_giltscroll', function (ctx) {
+    ctx.strokeStyle = 'rgba(242,194,48,0.95)'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.fillStyle = 'rgba(255,226,120,0.95)';
+    ctx.fillRect(0, 10, CELL, 3); ctx.fillRect(0, 115, CELL, 3);
+    for (var col = 0; col < 4; col++) {
+      var x = col * 32 + 16;
+      around(ctx, x, 64, function (g) {
+        g.beginPath(); g.arc(-7, -10, 9, Math.PI * 0.2, Math.PI * 1.6); g.stroke();
+        g.beginPath(); g.arc(7, 10, 9, Math.PI * 1.2, Math.PI * 2.6); g.stroke();
+        g.beginPath(); g.moveTo(-14, 24); g.quadraticCurveTo(0, 0, 14, -24); g.stroke();
+        g.beginPath(); g.arc(0, 0, 3, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(0, -38, 2.4, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(0, 38, 2.4, 0, Math.PI * 2); g.fill();
+      });
+    }
+  });
+
+  /* Knitting: one stitch is a little V of two loops; a pattern is a grid of
+     them.  ``grid`` rows are strings, one character a stitch, looked up in
+     ``colours`` ('.' is the garment's own colour, drawn as shading only). */
+  function xmStitch(ctx, x, y, size, colour) {
+    var w = size / 2;
+    ctx.fillStyle = colour;
+    ctx.save(); ctx.translate(x + w * 0.55, y + size / 2); ctx.rotate(-0.42);
+    ctx.beginPath(); ctx.ellipse(0, 0, w * 0.48, size * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.save(); ctx.translate(x + w * 1.45, y + size / 2); ctx.rotate(0.42);
+    ctx.beginPath(); ctx.ellipse(0, 0, w * 0.48, size * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function xmKnit(ctx, grid, colours, size, ox, oy) {
+    size = size || 8; ox = ox || 0; oy = oy || 0;
+    for (var r = 0; r < grid.length; r++) {
+      for (var c = 0; c < grid[r].length; c++) {
+        var ch = grid[r][c];
+        var colour = colours[ch] || (r % 2 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.10)');
+        xmStitch(ctx, ox + c * size, oy + r * size, size, colour);
+      }
+    }
+  }
+  var XM_FLAKE7 = ['W..W..W', '.W.W.W.', '..WWW..', 'WWW.WWW', '..WWW..', '.W.W.W.', 'W..W..W'];
+
+  // a Fair Isle sweater: a red band, a row of snowflakes, a zigzag, plain knit
+  painter('xm_fairisle', function (ctx) {
+    var rows = ['RRRRRRRRRRRRRRRR', 'W.W.W.W.W.W.W.W.'];
+    for (var r = 0; r < 7; r++) rows.push('.' + XM_FLAKE7[r] + '.' + XM_FLAKE7[r]);
+    rows.push('.W.W.W.W.W.W.W.W');
+    rows.push('R...R...R...R...');
+    rows.push('.R.R.R.R.R.R.R.R');
+    rows.push('..R...R...R...R.');
+    rows.push('................');
+    rows.push('................');
+    rows.push('................');
+    xmKnit(ctx, rows, { R: '#c4283a', W: '#f4ecdc' }, 8);
+  });
+
+  // the sweater's chest: a yoke of zigzags and stars, and a big snowflake
+  painter('xm_tee_yoke', function (ctx) {
+    var rows = [];
+    for (var r = 0; r < 16; r++) {
+      var line = '';
+      for (var c = 0; c < 16; c++) {
+        var ch = '.';
+        if (r === 0) ch = 'R';
+        else if (r === 1) ch = c % 2 ? '.' : 'W';
+        else if (r === 2) ch = (c + 1) % 4 === 0 ? 'R' : '.';
+        else {
+          var dx = Math.abs(c - 7.5), dy = Math.abs(r - 9.5);
+          var cx = c - 7.5, cy = r - 9.5;
+          var arm = (dx < 1 && dy < 5.6) || (dy < 1 && dx < 5.6) ||
+                    (Math.abs(Math.abs(cx) - Math.abs(cy)) < 0.8 && dx < 4.2 && dy < 4.2);
+          if (arm && !(dx < 1 && dy < 1)) ch = 'W';
+          else if (dx < 1 && dy < 1) ch = 'R';
+        }
+        line += ch;
+      }
+      rows.push(line);
+    }
+    xmKnit(ctx, rows, { R: '#c4283a', W: '#f4ecdc' }, 8);
+  });
+
+  // a puffer's quilting: padded bands, each lit on top and shaded beneath
+  painter('xm_quilt', function (ctx) {
+    for (var y = 0; y < CELL; y += 16) {
+      var g = ctx.createLinearGradient(0, y, 0, y + 16);
+      g.addColorStop(0, 'rgba(255,255,255,0.22)'); g.addColorStop(0.45, 'rgba(255,255,255,0.04)');
+      g.addColorStop(1, 'rgba(0,0,0,0.26)');
+      ctx.fillStyle = g; ctx.fillRect(0, y, CELL, 16);
+      ctx.fillStyle = 'rgba(10,20,40,0.45)';
+      for (var x = 0; x < CELL; x += 6) ctx.fillRect(x, y + 15, 3, 1.4);
+    }
+  });
+
+  // an umbrella's panels: red and cream, a snowflake on every cream one
+  painter('xm_umbrella', function (ctx) {
+    for (var k = 0; k < 8; k++) {
+      ctx.fillStyle = k % 2 ? '#f4ecdc' : '#c4281c';
+      ctx.fillRect(k * 16, 0, 16, CELL);
+      if (k % 2) {
+        ctx.strokeStyle = '#3a6fb0'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+        for (var a = 0; a < 3; a++) {
+          var ang = a * Math.PI / 3;
+          ctx.beginPath();
+          ctx.moveTo(k * 16 + 8 - Math.cos(ang) * 5, 64 - Math.sin(ang) * 5);
+          ctx.lineTo(k * 16 + 8 + Math.cos(ang) * 5, 64 + Math.sin(ang) * 5);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    for (k = 0; k < 8; k++) ctx.fillRect(k * 16, 0, 1, CELL);
+  });
+
+  // a cocoa mug's print: a red band of snowflakes between green rules
+  painter('xm_mug', function (ctx) {
+    ctx.fillStyle = '#c4281c'; ctx.fillRect(0, 40, CELL, 48);
+    ctx.fillStyle = '#2a8a4a'; ctx.fillRect(0, 34, CELL, 4); ctx.fillRect(0, 90, CELL, 4);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    for (var k = 0; k < 4; k++) {
+      var x = k * 32 + 16;
+      for (var a = 0; a < 3; a++) {
+        var ang = a * Math.PI / 3;
+        ctx.beginPath();
+        ctx.moveTo(x - Math.cos(ang) * 11, 64 - Math.sin(ang) * 11);
+        ctx.lineTo(x + Math.cos(ang) * 11, 64 + Math.sin(ang) * 11);
+        ctx.stroke();
+      }
+    }
+  });
+
+  // woven wicker: over-and-under strands in honey and brown
+  painter('xm_wicker', function (ctx) {
+    ctx.fillStyle = 'rgba(60,34,14,0.55)'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 8; row++) {
+      for (var col = 0; col < 8; col++) {
+        var x = col * 16, y = row * 16, across = (row + col) % 2 === 0;
+        var g = across ? ctx.createLinearGradient(0, y, 0, y + 16) : ctx.createLinearGradient(x, 0, x + 16, 0);
+        g.addColorStop(0, 'rgba(120,80,40,0.9)'); g.addColorStop(0.5, 'rgba(232,190,120,0.95)');
+        g.addColorStop(1, 'rgba(120,80,40,0.9)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x + 1, y + 1, 14, 14, 4); else ctx.rect(x + 1, y + 1, 14, 14);
+        ctx.fill();
+      }
+    }
+  });
+
+  painter('stencil_xm22', stencil({ top: 'FROSTFALL', bottom: 'FIRST SNOW 2022', icon: 'snowflake',
+                                    ink: 'rgba(16,30,62,0.9)',
+                                    frame: 'round', size2: 13 }));
   // @@ christmas painters go above this line @@
 
   Textures.emblems = Object.keys(emblems);

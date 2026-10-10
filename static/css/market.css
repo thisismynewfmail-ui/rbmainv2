@@ -555,6 +555,17 @@ body.cs-open { overflow: hidden; }
 /* @@ july4 backdrops go above this line @@ */
 
 /* Christmas backdrops (the opening themes of the Christmas crates) */
+/* Frostfall (2022): the first snow coming down on a village of lit cabins */
+.theme-xm_snowfall .cs-bg { background: radial-gradient(circle at 50% 66%, #3a5a8a, #13264a 55%, #050a18 100%); }
+.theme-xm_snowfall .cs-art { display: block !important; }
+.theme-xm_snowfall .cs-art.a { left: 0; right: 0; bottom: 0; height: 30%; opacity: .95;
+  background: no-repeat center bottom/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100' preserveAspectRatio='none'%3E%3Cpath fill='%23dbe9f7' d='M0 100V58q60-22 120-6t110-12q70-18 170 10v50z'/%3E%3Cpath fill='%23b9cfe6' d='M0 100V74q80-14 170 0t230-8v34z'/%3E%3Cg fill='%230d1d38'%3E%3Cpath d='M40 62l10-26 10 26zM58 58l8-20 8 20zM318 58l10-28 10 28zM338 62l8-20 8 20zM362 60l7-17 7 17z'/%3E%3Crect x='150' y='44' width='34' height='22'/%3E%3Cpath d='M146 46l21-16 21 16z'/%3E%3Crect x='224' y='50' width='26' height='18'/%3E%3Cpath d='M220 52l17-13 17 13z'/%3E%3C/g%3E%3Cg fill='%23ffd36a'%3E%3Crect x='156' y='50' width='7' height='7'/%3E%3Crect x='171' y='50' width='7' height='7'/%3E%3Crect x='232' y='55' width='6' height='6'/%3E%3C/g%3E%3Cg fill='%23f7fbff'%3E%3Cpath d='M146 46l21-16 21 16-21-10zM220 52l17-13 17 13-17-8z'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-xm_snowfall .cs-art.b { inset: 0; opacity: .9; animation: cs-fall 11s linear infinite;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='320'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='20' cy='30' r='3'/%3E%3Ccircle cx='120' cy='90' r='2.5'/%3E%3Ccircle cx='70' cy='200' r='3.5'/%3E%3Ccircle cx='150' cy='260' r='2'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='320'%3E%3Cg stroke='%23e8f6ff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M60 52v16M52 56l16 8M52 64l16-8M170 160v14M163 163l14 8M163 171l14-8'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='320'%3E%3Cg fill='%23dff0ff' opacity='.7'%3E%3Ccircle cx='60' cy='120' r='1.6'/%3E%3Ccircle cx='200' cy='40' r='2'/%3E%3Ccircle cx='150' cy='230' r='1.8'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-xm_snowfall .cs-title b { color: #f2faff; text-shadow: 0 0 22px rgba(143,208,255,.65), 0 3px 0 rgba(0,0,0,.5); }
 /* @@ christmas backdrops go above this line @@ */
 
 .cs-gl { position: absolute; inset: 0; width: 100%; height: 100%; }
