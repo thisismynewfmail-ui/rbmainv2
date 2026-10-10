@@ -764,6 +764,12 @@
     // @@ easter particles go above this line @@
 
     // ---- Fourth of July particle shapes
+    ['jl_pennant', function (c) {
+      c.fillStyle = '#9a9a9a'; c.fillRect(8, 18, 112, 6);
+      c.fillStyle = '#ffffff'; poly(c, [[18, 24], [110, 24], [64, 116]]);
+      c.fillStyle = '#c8c8c8'; poly(c, [[40, 24], [88, 24], [64, 70]]);
+      c.fillStyle = '#ffffff'; dot(c, 64, 42, 7);
+    }],
     // @@ july4 particles go above this line @@
 
     // ---- Christmas particle shapes
