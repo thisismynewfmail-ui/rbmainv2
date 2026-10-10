@@ -746,12 +746,25 @@ BELTS: List[Dict[str, Any]] = [
 # Crates and keys are items like any other -- owned copies, serials, a price,
 # a model -- in two slots of their own that nothing can be worn in.  Which key
 # opens which crate, and what is inside, is app/models/crates.py.
-from .cosmetics import (CRATES, HALLOWEEN_COSMETICS,  # noqa: E402
-                        HALLOWEEN_WEAPONS, KEYS)
+from .cosmetics import CRATES, KEYS  # noqa: E402
 
-ALL_ITEMS: List[Dict[str, Any]] = (KEYS + CRATES + HATS + HALLOWEEN_COSMETICS
-                                   + FACES + HAIRS + SHIRTS + PANTS + BELTS
-                                   + BACK_ITEMS + USABLES + HALLOWEEN_WEAPONS)
+# Every event Blockhaven has run, 2022 to now -- New Year, St. Patrick's Day,
+# Easter, the Fourth of July, Halloween and Christmas -- each brought a crate,
+# a key, cosmetics, weapons and held items (app/models/holidays/).  The
+# Hallowed Harvest's original set (cosmetics.HALLOWEEN_*) comes in with the
+# 2026 Halloween event.
+from . import holidays  # noqa: E402
+
+EVENT_ITEMS: List[Dict[str, Any]] = holidays.all_items()
+_EVENT_IDS = {it["id"] for it in EVENT_ITEMS}
+UNUSUAL_EFFECTS.update(holidays.all_effects())
+EFFECT_IDS = list(UNUSUAL_EFFECTS.keys())
+
+ALL_ITEMS: List[Dict[str, Any]] = (
+    [k for k in KEYS if k["id"] not in _EVENT_IDS]
+    + [c for c in CRATES if c["id"] not in _EVENT_IDS]
+    + HATS + FACES + HAIRS + SHIRTS + PANTS + BELTS + BACK_ITEMS + USABLES
+    + EVENT_ITEMS)
 
 
 def _normalise_parts(items: List[Dict[str, Any]]) -> None:
@@ -764,10 +777,13 @@ def _normalise_parts(items: List[Dict[str, Any]]) -> None:
     """
     renames = (("mat", "m"), ("alpha", "a"), ("studs", "st"), ("wrap", "dw"))
     for item in items:
-        for piece in (item.get("data") or {}).get("parts", []):
-            for source, target in renames:
-                if source in piece and target not in piece:
-                    piece[target] = piece.pop(source)
+        data = item.get("data") or {}
+        # a weapon also carries the model of what it fires and what it places
+        for key in ("parts", "proj", "deploy"):
+            for piece in data.get(key) or []:
+                for source, target in renames:
+                    if source in piece and target not in piece:
+                        piece[target] = piece.pop(source)
 
 
 _normalise_parts(ALL_ITEMS)

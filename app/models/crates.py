@@ -24,7 +24,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .. import db
-from . import catalog, inventory, notifications
+from . import catalog, holidays, inventory, notifications
 
 
 class CrateError(Exception):
@@ -57,6 +57,8 @@ HALLOWEEN_EFFECTS = ["phantom_procession", "trick_or_treat", "floating_bones",
                      "candlelight_vigil"]
 
 # --------------------------------------------------------------- series
+# Series #1 has been on the shelf since opening day.  Every other series is an
+# event's (app/models/holidays/), numbered in the order the events ran.
 SERIES: Dict[str, Dict[str, Any]] = {
     "classic": {
         "id": "classic", "number": 1,
@@ -71,49 +73,9 @@ SERIES: Dict[str, Dict[str, Any]] = {
         "effects": CLASSIC_EFFECTS,
         "loot": [it["id"] for it in catalog.HATS],
     },
-    "halloween": {
-        "id": "halloween", "number": 2,
-        "name": "Hallowed Harvest Crate",
-        "crate": "crate_halloween", "key": "key_halloween",
-        "tagline": "Dug up at midnight. Something inside is still moving.",
-        "theme": "halloween",
-        "event": "halloween",
-        "colors": {"accent": "#ff8c1a", "deep": "#1a0f24", "glow": "#6bff9a"},
-        "starts": _date("2026-10-01"), "ends": _date("2026-11-09"),
-        "grades": {"uncommon": 40, "rare": 40, "legendary": 13, "mythic": 7},
-        "unusual_chance": 0.04,
-        "effects": HALLOWEEN_EFFECTS,
-        # the two effects made for this crate turn up three times as often as
-        # the older crypt set
-        "effect_weights": {"phantom_procession": 3.0, "trick_or_treat": 3.0},
-        "loot": ["hat_mummy", "hat_plague_doctor", "hat_tagalong_ghost",
-                 "back_nightwing_cloak", "hat_hexed_witch",
-                 "use_hollow_harvester", "use_jack_o_launcher"],
-        # graded by hand where the catalogue rarity is not the drop grade
-        "grade_of": {"use_hollow_harvester": "mythic", "use_jack_o_launcher": "mythic"},
-    },
 }
 
-# Events: a name and a window, so the market can put up a banner and count
-# down to the end.  A series names its event; so does any catalogue item that
-# is only sold while it runs.
-EVENTS: Dict[str, Dict[str, Any]] = {
-    "halloween": {
-        "id": "halloween", "name": "Hallowed Harvest",
-        "title": "The Hallowed Harvest",
-        "blurb": "The lamps are going out across Harrow County. A crate of things "
-                 "that should have stayed buried, a key with fangs, and two weapons "
-                 "that only exist until the first of November is long gone.",
-        "starts": SERIES["halloween"]["starts"], "ends": SERIES["halloween"]["ends"],
-        "colors": SERIES["halloween"]["colors"],
-        # the series the market's event hero sells, and the Unusual effect
-        # that curls round its crate on the pedestal
-        "series": "halloween", "hero_effect": "haunted_wisps",
-    },
-}
-
-# Bundles: several crates and keys for less than they cost on their own,
-# granted together in one transaction.
+EVENTS: Dict[str, Dict[str, Any]] = {}
 OFFERS: List[Dict[str, Any]] = [
     {"id": "offer_classic_pair", "name": "Crate + Key", "series": "classic",
      "contents": {"crate_classic": 1, "key_standard": 1}, "price": 950,
@@ -121,27 +83,57 @@ OFFERS: List[Dict[str, Any]] = [
     {"id": "offer_classic_five", "name": "Collector's Five", "series": "classic",
      "contents": {"crate_classic": 5, "key_standard": 5}, "price": 4500,
      "blurb": "Five crates, five keys, five chances at a Halo -- or an Unusual."},
-    {"id": "offer_halloween_pair", "name": "Hallowed Pair", "series": "halloween",
-     "contents": {"crate_halloween": 1, "key_halloween": 1}, "price": 1050,
-     "blurb": "A Hallowed Harvest crate and the key with fangs."},
-    {"id": "offer_trick_or_treat", "name": "Trick-or-Treat Bag", "series": "halloween",
-     "contents": {"crate_halloween": 3, "key_halloween": 3}, "price": 3000,
-     "blurb": "Three crates, three keys and a bag to carry them in. Save 300."},
 ]
-OFFERS_BY_ID = {o["id"]: o for o in OFFERS}
 
-# How many of one stackable thing can be bought in one go.
-MAX_QTY = 10
+for _number, _ev in enumerate(holidays.EVENTS, 2):
+    # an event's effects: the ones it brought, then its family's older set
+    _effects = list(_ev.effects) + [e for e in _ev.family_effects if e not in _ev.effects]
+    if _ev.id == "halloween":
+        _effects = HALLOWEEN_EFFECTS
+    SERIES[_ev.id] = {
+        "id": _ev.id, "number": _number,
+        "name": _ev.crate["name"], "crate": _ev.crate["id"], "key": _ev.key["id"],
+        "tagline": _ev.tagline, "theme": _ev.id, "theme_def": _ev.theme,
+        "event": _ev.id, "holiday": _ev.holiday, "year": _ev.year,
+        "colors": _ev.colors, "starts": _ev.starts, "ends": _ev.ends,
+        "grades": dict(_ev.grades), "unusual_chance": _ev.unusual_chance,
+        "effects": _effects, "effect_weights": dict(_ev.effect_weights),
+        "loot": list(_ev.loot), "grade_of": dict(_ev.grade_of),
+    }
+    EVENTS[_ev.id] = {
+        "id": _ev.id, "name": _ev.name, "title": _ev.title, "blurb": _ev.blurb,
+        "holiday": _ev.holiday, "year": _ev.year,
+        "edition": getattr(_ev, "edition", 1),
+        "starts": _ev.starts, "ends": _ev.ends, "colors": _ev.colors,
+        # the series the market's event hero sells, and the Unusual effect
+        # that curls round its crate on the pedestal
+        "series": _ev.id, "hero_effect": _ev.hero_effect,
+        "badge": (_ev.badge or {}).get("id", "ev_harvest_2026" if _ev.id == "halloween"
+                                       else ""),
+    }
+    OFFERS.extend(_ev.offers)
+
+OFFERS_BY_ID = {o["id"]: o for o in OFFERS}
 
 # ------------------------------------------------------------- lookups
 CRATE_SERIES = {s["crate"]: s for s in SERIES.values()}
 KEY_SERIES = {s["key"]: s for s in SERIES.values()}
 
-# Items that only ever come out of a crate: never on the market shelf.
+# Hats only ever come out of a crate, from any series, at any time: they are
+# what an Unusual can be.  While an event is on, everything else in its crate
+# is crate-only too, apart from its weapons and held items; once it is over,
+# its collection sells those cosmetics outright (see ``for_sale``).
+HATS_ONLY_IN_CRATES = frozenset(it["id"] for it in catalog.ALL_ITEMS if it["slot"] == "hat")
 CRATE_EXCLUSIVE = frozenset(
-    [it["id"] for it in catalog.ALL_ITEMS if it["slot"] == "hat"]
+    list(HATS_ONLY_IN_CRATES)
     + [i for s in SERIES.values() for i in s["loot"]
        if (catalog.get(i) or {}).get("slot") != "usable"])
+ITEM_SERIES: Dict[str, str] = {}
+for _s in SERIES.values():
+    if _s["id"] == "classic":
+        continue
+    for _i in _s["loot"]:
+        ITEM_SERIES.setdefault(_i, _s["id"])
 
 
 def events_forced() -> bool:
@@ -149,40 +141,86 @@ def events_forced() -> bool:
     return os.environ.get("BLOCKHAVEN_EVENTS", "").lower() in ("all", "1", "on")
 
 
-def event_active(event_id: str, now: Optional[int] = None) -> bool:
+def event_state(event_id: str, now: Optional[int] = None) -> str:
+    """'always' (not an event), 'live', 'past' (its collection is in the
+    archive) or 'upcoming' (announced, not on sale yet)."""
     if not event_id:
-        return True
+        return "always"
     event = EVENTS.get(event_id)
     if event is None:
-        return False
+        return "past"
     if events_forced():
-        return True
+        return "live"
     now = int(now if now is not None else time.time())
-    return (not event["starts"] or now >= event["starts"]) and \
-        (not event["ends"] or now < event["ends"])
+    if event["starts"] and now < event["starts"]:
+        return "upcoming"
+    if event["ends"] and now >= event["ends"]:
+        return "past"
+    return "live"
+
+
+def event_active(event_id: str, now: Optional[int] = None) -> bool:
+    """Is the event running right now (not merely in the archive)?"""
+    return event_state(event_id, now) in ("always", "live")
+
+
+def series_state(series: Dict[str, Any], now: Optional[int] = None) -> str:
+    return event_state(series.get("event", ""), now)
 
 
 def series_active(series: Dict[str, Any], now: Optional[int] = None) -> bool:
-    return event_active(series.get("event", ""), now)
+    """Can its crate and key be bought?  While its event runs, and from the
+    archive once it is over -- never before it starts."""
+    return series_state(series, now) != "upcoming"
+
+
+def series_live(series: Dict[str, Any], now: Optional[int] = None) -> bool:
+    return series_state(series, now) in ("always", "live")
 
 
 def active_events(now: Optional[int] = None) -> List[Dict[str, Any]]:
+    """The events running right now, the one that started most recently
+    first (with every event forced on, that puts the newest at the front)."""
     now = int(now if now is not None else time.time())
     out = []
     for event in EVENTS.values():
         if event_active(event["id"], now):
             out.append(dict(event, seconds_left=max(0, event["ends"] - now)
                             if event["ends"] else 0))
+    if events_forced():
+        # forced on for development: the real current event (by date) leads
+        out.sort(key=lambda e: (not (e["starts"] <= now < e["ends"]), -e["starts"]))
+    else:
+        out.sort(key=lambda e: -e["starts"])
     return out
 
 
+def upcoming_events(now: Optional[int] = None) -> List[Dict[str, Any]]:
+    now = int(now if now is not None else time.time())
+    return sorted([dict(e, seconds_until=max(0, e["starts"] - now)) for e in EVENTS.values()
+                   if event_state(e["id"], now) == "upcoming"], key=lambda e: e["starts"])
+
+
 def for_sale(item: Dict[str, Any], now: Optional[int] = None) -> bool:
-    """Whether the market sells this item right now."""
-    if item["id"] in CRATE_EXCLUSIVE or item.get("hidden"):
+    """Whether the market sells this item right now.
+
+    * hats never: they come out of crates
+    * an event's own things only once it has started
+    * while the event runs, its crate cosmetics are crate-only (the weapons
+      and held items are sold, as they always were)
+    * once it is over, its collection sells everything but its hats"""
+    if item.get("hidden") or int(item.get("price", 0)) < 0:
         return False
-    if int(item.get("price", 0)) < 0:
+    if item["id"] in HATS_ONLY_IN_CRATES:
         return False
-    return event_active(item.get("event", ""), now)
+    event = item.get("event", "")
+    state = event_state(event, now) if event else "always"
+    if state == "upcoming":
+        return False
+    if item["id"] in CRATE_EXCLUSIVE:
+        series = SERIES.get(ITEM_SERIES.get(item["id"], ""))
+        return bool(series) and series_state(series, now) == "past"
+    return True
 
 
 def grade_of(series: Dict[str, Any], item_id: str) -> str:
@@ -245,15 +283,22 @@ def contents(series_id: str) -> Dict[str, Any]:
 def public_series(series: Dict[str, Any]) -> Dict[str, Any]:
     crate = catalog.get(series["crate"]) or {}
     key = catalog.get(series["key"]) or {}
+    event = EVENTS.get(series.get("event", "")) or {}
+    state = series_state(series)
     return {
         "id": series["id"], "number": series["number"], "name": series["name"],
         "tagline": series["tagline"], "theme": series["theme"],
+        "theme_def": series.get("theme_def") or {},
         "colors": series["colors"], "crate": series["crate"], "key": series["key"],
         "crate_name": crate.get("name", ""), "key_name": key.get("name", ""),
         "crate_price": int(crate.get("price", 0)), "key_price": int(key.get("price", 0)),
         "event": series.get("event", ""), "active": series_active(series),
-        "ends": series.get("ends", 0),
+        "live": state in ("always", "live"), "state": state,
+        "holiday": series.get("holiday", ""), "year": series.get("year", 0),
+        "edition": event.get("edition", 0), "event_name": event.get("name", ""),
+        "starts": series.get("starts", 0), "ends": series.get("ends", 0),
         "unusual_chance": round(series["unusual_chance"] * 100.0, 2),
+        "loot_count": len(series["loot"]),
     }
 
 
@@ -269,7 +314,8 @@ def event_feature(event_id: str) -> Optional[Dict[str, Any]]:
     if event is None or series is None:
         return None
     order = {g: i for i, g in enumerate(("mythic", "legendary", "rare", "uncommon", "common"))}
-    loot = sorted(series["loot"], key=lambda i: order.get(grade_of(series, i), 9))
+    loot = sorted(series["loot"], key=lambda i: (order.get(grade_of(series, i), 9),
+                                                 (catalog.get(i) or {}).get("slot") != "usable"))
     weights = series.get("effect_weights") or {}
     featured = [e for e in series["effects"] if weights.get(e, 1.0) > 1.0] or series["effects"][:2]
     return {"series": public_series(series), "loot": loot,
@@ -277,6 +323,34 @@ def event_feature(event_id: str) -> Optional[Dict[str, Any]]:
                         if e in catalog.UNUSUAL_EFFECTS],
             "hero_effect": event.get("hero_effect", ""),
             "glow": series["colors"].get("glow", "#ffffff")}
+
+
+def collections(now: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Every holiday's run of events, oldest first, for the market's
+    Collections: each year's series, what it held, and what is buyable."""
+    now = int(now if now is not None else time.time())
+    out = []
+    for holiday in holidays.HOLIDAYS:
+        editions = []
+        for ev in [e for e in holidays.EVENTS if e.holiday == holiday["id"]]:
+            series = SERIES[ev.id]
+            items = []
+            for item_id in series["loot"]:
+                item = catalog.get(item_id)
+                if not item:
+                    continue
+                items.append({"id": item_id, "name": item["name"], "slot": item["slot"],
+                              "slot_label": catalog.SLOT_LABELS.get(item["slot"], item["slot"]),
+                              "rarity": item.get("rarity", "common"),
+                              "grade": grade_of(series, item_id),
+                              "color": GRADES[grade_of(series, item_id)]["color"],
+                              "price": int(item.get("price", 0)),
+                              "buyable": for_sale(item, now)})
+            editions.append(dict(public_series(series), items=items,
+                                 title=ev.title, blurb=ev.blurb,
+                                 ordinal=holidays.ordinal(getattr(ev, "edition", 1))))
+        out.append(dict(holiday, editions=editions))
+    return out
 
 
 # ------------------------------------------------------------- rolling
@@ -395,8 +469,9 @@ def open_crate(user_id: int, crate_inv: int, key_inv: int) -> Dict[str, Any]:
     changes = [("crates_opened", 1, "add")]
     if won["tier"] == "unusual":
         changes.append(("unusuals_unboxed", 1, "add"))
-    if series.get("event") == "halloween" and event_active("halloween"):
-        changes.append(("ev_harvest_2026", 1, "add"))
+    event = EVENTS.get(series.get("event", ""))
+    if event and event.get("badge") and event_active(event["id"]):
+        changes.append((event["badge"], 1, "add"))
     earned = badges.record_many(user_id, changes)
     decorated = inventory.decorate(inventory.get_row(user_id, inv_id) or {
         "id": inv_id, "item_id": won["item_id"], "tier": won["tier"],
@@ -558,10 +633,14 @@ def bot_unbox(user_id: int, rng: Optional[random.Random] = None) -> Optional[Dic
     a person would -- same prices, same odds, same ledger -- so the market's
     drop feed has a crowd in it.  Returns None when it cannot afford it."""
     rng = rng or random.Random()
+    # the crowd follows the event: a live series is far likelier than the
+    # archive, and nobody can open what is not on sale yet
     choices = [s for s in SERIES.values() if series_active(s)]
     if not choices:
         return None
-    series = rng.choice(choices)
+    weights = [6.0 if series_state(s) == "live" else (2.0 if s["id"] == "classic" else 0.25)
+               for s in choices]
+    series = rng.choices(choices, weights)[0]
     crate, key = catalog.get(series["crate"]), catalog.get(series["key"])
     price = int(crate["price"]) + int(key["price"])
     now = int(time.time())
