@@ -1129,6 +1129,20 @@ class Gear:
             self.apply(player, "might", _num(m.get("secs"), 6), _num(m.get("value"), 0.25), player)
 
     def _consume(self, player, eat: Dict[str, Any], item) -> None:
+        if eat.get("random"):
+            # a lucky dip: one of the treats, at random (each may carry a
+            # "name" for the notice)
+            pick = self.rng.choice(list(eat["random"]))
+            if pick.get("name"):
+                player.send({"t": "notice", "m": str(pick["name"])})
+            rest = {k: v for k, v in eat.items() if k != "random"}
+            rest.update({k: v for k, v in pick.items() if k != "name"})
+            eat = rest
+            if pick.get("trick"):
+                # the trick: something that happens to you
+                for name, spec in pick["trick"].items():
+                    v, s = _pair(spec, 0.3, 2.0)
+                    self.apply(player, name, s, v, None)
         if "heal" in eat and not eat.get("over"):
             self.inst.heal(player, _num(eat["heal"]), player)
         if eat.get("over"):
@@ -1940,9 +1954,8 @@ class Gear:
         gs = player.extra.get("gear")
         if gs:
             for st in gs.get("w", {}).values():
-                st.pop("streak", None)
-                st.pop("combo", None)
-                st.pop("ricochets", None)
+                for key in ("streak", "combo", "ricochets", "count", "lit_until", "fuse_spent"):
+                    st.pop(key, None)
 
     def reset(self) -> None:
         for m in list(self.minions.values()):

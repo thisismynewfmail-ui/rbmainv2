@@ -1248,6 +1248,18 @@
     return [Math.cos(th) * 0.5, v * h, Math.sin(th) * 0.5];
   }, 84, 8, 0.03, true));
 
+  /* ---- St. Patrick's meshes (any the St. Patrick's events needed that were not here) */
+  // @@ stpatricks shapes go above this line @@
+
+  /* ---- Easter meshes (any the Easter events needed that were not here) */
+  // @@ easter shapes go above this line @@
+
+  /* ---- Fourth of July meshes (any the Fourth of July events needed that were not here) */
+  // @@ july4 shapes go above this line @@
+
+  /* ---- Christmas meshes (any the Christmas events needed that were not here) */
+  // @@ christmas shapes go above this line @@
+
   Shapes.lathe = lathe;
   Shapes.extrude = extrude;
   Shapes.sheet = sheet;

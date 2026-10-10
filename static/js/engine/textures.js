@@ -1710,6 +1710,268 @@
   painter('stencil_ny26', stencil({ top: 'CRYSTAL', bottom: 'COUNTDOWN 2026', icon: 'crystal',
                                     ink: 'rgba(223,242,255,0.95)', glow: '#9fd8ff', size2: 13 }));
 
+  /* ----------------------------------------------------------- Halloween
+     The decals of the Halloween crates, 2022 to 2025 (2026's are above). */
+
+  // R.I.P. cut into weathered stone, with a crack and some lichen
+  painter('tombstone', function (ctx) {
+    var rnd = scatter(71);
+    ctx.fillStyle = '#9a9ea3'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 140; k++) {
+      ctx.fillStyle = 'rgba(' + (rnd() > 0.5 ? '255,255,255' : '40,44,48') + ',' + (0.05 + rnd() * 0.1) + ')';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 2 + rnd() * 5, 2 + rnd() * 5);
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 30px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillText('R.I.P.', 65, 47);
+    ctx.fillStyle = '#3f4347'; ctx.fillText('R.I.P.', 64, 46);
+    ctx.font = 'bold 12px Georgia, serif';
+    ctx.fillText('HERE LIES', 64, 76);
+    ctx.fillText('???', 64, 92);
+    ctx.strokeStyle = '#3f4347'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(98, 8); ctx.lineTo(90, 30); ctx.lineTo(96, 42); ctx.lineTo(88, 60); ctx.stroke();
+    ctx.fillStyle = 'rgba(110,140,70,0.55)';
+    for (k = 0; k < 9; k++) {
+      ctx.beginPath(); ctx.arc(8 + rnd() * 30, 100 + rnd() * 26, 3 + rnd() * 5, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // a cobweb: spokes and a spiral, on nothing (drawn with a = -1)
+  painter('cobweb', function (ctx) {
+    ctx.strokeStyle = 'rgba(240,244,248,0.85)'; ctx.lineWidth = 1.5;
+    var cx = 10, cy = 10, spokes = 7;
+    for (var k = 0; k < spokes; k++) {
+      var a = (k / (spokes - 1)) * Math.PI / 2;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * 130, cy + Math.sin(a) * 130); ctx.stroke();
+    }
+    for (var r = 18; r < 130; r += 14) {
+      ctx.beginPath();
+      for (k = 0; k < spokes; k++) {
+        var b = (k / (spokes - 1)) * Math.PI / 2;
+        var sag = k % 2 ? 0.92 : 1;
+        var x = cx + Math.cos(b) * r * sag, y = cy + Math.sin(b) * r * sag;
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  });
+
+  // a ribcage in glow ink, on a black tee
+  painter('tee_ribs', function (ctx) {
+    ctx.fillStyle = '#e8fff0'; ctx.strokeStyle = '#e8fff0';
+    ctx.shadowColor = '#9fe870'; ctx.shadowBlur = 6;
+    ctx.fillRect(60, 14, 8, 92);
+    ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (var k = 0; k < 5; k++) {
+      var y = 26 + k * 15, w = 40 - Math.abs(k - 1.5) * 4;
+      ctx.beginPath(); ctx.moveTo(60, y); ctx.quadraticCurveTo(60 - w, y - 4, 64 - w - 4, y + 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(68, y); ctx.quadraticCurveTo(68 + w, y - 4, 64 + w + 4, y + 12); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(64, 112, 12, Math.PI, 0); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  painter('stencil_hw22', stencil({ top: 'GRAVEYARD', bottom: 'SHIFT  2022', icon: 'coffin',
+                                    ink: 'rgba(159,232,112,0.9)', glow: '#6bff9a', frame: 'box' }));
+
+  // the night sky inside a cloak: deep purple, scattered stars, a few bright
+  painter('starfield', function (ctx) {
+    var rnd = scatter(83);
+    var g = ctx.createLinearGradient(0, 0, 0, CELL);
+    g.addColorStop(0, '#1a0d2a'); g.addColorStop(1, '#2a1640');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 70; k++) {
+      var big = rnd() > 0.88;
+      ctx.fillStyle = big ? '#fff3b0' : 'rgba(233,220,255,' + (0.4 + rnd() * 0.5) + ')';
+      var x = rnd() * CELL, y = rnd() * CELL, r = big ? 2.2 : 0.6 + rnd();
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#fff3b0';
+    ctx.beginPath(); ctx.arc(92, 30, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a0d2a';
+    ctx.beginPath(); ctx.arc(98, 26, 11, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // a crescent moon and stars on a robe
+  painter('tee_moon', function (ctx) {
+    ctx.fillStyle = '#fff3b0';
+    ctx.beginPath(); ctx.arc(64, 58, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3a1f5a';
+    ctx.beginPath(); ctx.arc(78, 50, 28, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9ccd8';
+    [[30, 24, 5], [100, 92, 4], [40, 100, 3], [96, 18, 3], [22, 70, 3]].forEach(function (st) {
+      ctx.beginPath();
+      for (var k = 0; k < 10; k++) {
+        var a = k * Math.PI / 5 - Math.PI / 2, r = k % 2 ? st[2] * 0.45 : st[2];
+        ctx.lineTo(st[0] + Math.cos(a) * r * 2, st[1] + Math.sin(a) * r * 2);
+      }
+      ctx.closePath(); ctx.fill();
+    });
+  });
+
+  // a witch's stockings: purple and black, round and round
+  painter('witch_stripes', function (ctx) {
+    for (var y = 0; y < CELL; y += 16) {
+      ctx.fillStyle = '#4a2470'; ctx.fillRect(0, y, CELL, 8);
+      ctx.fillStyle = '#16101e'; ctx.fillRect(0, y + 8, CELL, 8);
+    }
+  });
+
+  painter('stencil_hw23', stencil({ top: 'WITCHING', bottom: 'HOUR  2023', icon: 'cauldron',
+                                    ink: 'rgba(178,107,255,0.92)', glow: '#b26bff',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
+  // slate roof shingles: fish-scale rows, each tile a slightly different slate
+  painter('shingles', function (ctx) {
+    var rnd = scatter(97);
+    ctx.fillStyle = '#211c27'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 9; row++) {
+      var y = row * 16 - 4, off = row % 2 ? 8 : 0;
+      for (var x = -16 + off; x < CELL + 16; x += 16) {
+        var v = 52 + Math.floor(rnd() * 22);
+        ctx.fillStyle = 'rgb(' + v + ',' + (v - 6) + ',' + (v + 10) + ')';
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x + 16, y); ctx.lineTo(x + 16, y + 12);
+        ctx.arc(x + 8, y + 12, 8, 0, Math.PI);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(10,8,14,0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x + 2, y + 2, 4, 9);
+      }
+    }
+    // moss in the gaps
+    ctx.fillStyle = 'rgba(96,120,70,0.35)';
+    for (var k = 0; k < 12; k++) {
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 1.5 + rnd() * 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // old soot-dark brick: staggered courses, crumbling mortar
+  painter('bricks', function (ctx) {
+    var rnd = scatter(101);
+    ctx.fillStyle = '#6d6259'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 8; row++) {
+      var off = row % 2 ? 16 : 0;
+      for (var x = -32 + off; x < CELL; x += 32) {
+        var r = 92 + Math.floor(rnd() * 40), g = 38 + Math.floor(rnd() * 18);
+        ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + (g - 6) + ')';
+        ctx.fillRect(x + 2, row * 16 + 2, 28, 12);
+        ctx.fillStyle = 'rgba(20,12,10,' + (0.15 + rnd() * 0.3) + ')';
+        ctx.fillRect(x + 2, row * 16 + 2 + rnd() * 6, 28, 6);
+      }
+    }
+    var soot = ctx.createLinearGradient(0, 0, 0, CELL);
+    soot.addColorStop(0, 'rgba(10,8,8,0.55)'); soot.addColorStop(0.5, 'rgba(10,8,8,0)');
+    ctx.fillStyle = soot; ctx.fillRect(0, 0, CELL, CELL);
+  });
+
+  // black mourning lace: a net of fine threads round little roses, on nothing
+  painter('lace', function (ctx) {
+    ctx.strokeStyle = 'rgba(132,116,142,0.85)'; ctx.lineWidth = 1;
+    for (var d = -CELL; d < CELL * 2; d += 10) {
+      ctx.beginPath(); ctx.moveTo(d, 0); ctx.lineTo(d + CELL, CELL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(d, CELL); ctx.lineTo(d + CELL, 0); ctx.stroke();
+    }
+    ctx.lineWidth = 1.8; ctx.strokeStyle = 'rgba(176,160,186,0.95)';
+    [[24, 24], [88, 24], [56, 64], [24, 104], [88, 104]].forEach(function (c) {
+      for (var k = 0; k < 6; k++) {
+        var a = k * Math.PI / 3;
+        ctx.beginPath();
+        ctx.ellipse(c[0] + Math.cos(a) * 7, c[1] + Math.sin(a) * 7, 6, 3.5, a, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(c[0], c[1], 3, 0, Math.PI * 2); ctx.stroke();
+    });
+    // a scalloped edge along the bottom
+    ctx.beginPath();
+    for (var x = 0; x < CELL; x += 12) ctx.arc(x + 6, CELL - 6, 6, Math.PI, 0);
+    ctx.stroke();
+  });
+
+  // an ancestor in oils, whose eyes have been following you round the room
+  painter('portrait', function (ctx) {
+    var g = ctx.createRadialGradient(64, 54, 6, 64, 64, 80);
+    g.addColorStop(0, '#4a3a2a'); g.addColorStop(1, '#120d0a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    // coat and cravat
+    ctx.fillStyle = '#17141c';
+    ctx.beginPath(); ctx.moveTo(14, 128); ctx.quadraticCurveTo(22, 88, 64, 84);
+    ctx.quadraticCurveTo(106, 88, 114, 128); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e8e0cc';
+    ctx.beginPath(); ctx.moveTo(56, 86); ctx.lineTo(72, 86); ctx.lineTo(64, 106); ctx.closePath(); ctx.fill();
+    // a long pale face
+    ctx.fillStyle = '#cdb79a';
+    ctx.beginPath(); ctx.ellipse(64, 56, 20, 28, 0, 0, Math.PI * 2); ctx.fill();
+    // hair and side whiskers
+    ctx.fillStyle = '#3a2c22';
+    ctx.beginPath(); ctx.ellipse(64, 32, 22, 10, 0, Math.PI, 0); ctx.fill();
+    ctx.fillRect(43, 32, 6, 34); ctx.fillRect(79, 32, 6, 34);
+    // the eyes: whites, and pupils turned to look straight out
+    ctx.fillStyle = '#f2ead8';
+    ctx.beginPath(); ctx.ellipse(56, 52, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(72, 52, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = '#ff3b3b'; ctx.shadowBlur = 5; ctx.fillStyle = '#7a0f0f';
+    ctx.beginPath(); ctx.arc(56, 52, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(72, 52, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // a thin unsmiling mouth
+    ctx.strokeStyle = '#6a4434'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(57, 70); ctx.lineTo(71, 70); ctx.stroke();
+    // craquelure over the varnish
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.6;
+    var rnd = scatter(103);
+    for (var k = 0; k < 18; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + rnd() * 14 - 7, y + rnd() * 14 - 7); ctx.stroke();
+    }
+  });
+
+  // a smoking jacket's front: a quilted shawl collar and gold frogging
+  painter('tee_frogging', function (ctx) {
+    ctx.fillStyle = '#2a0a14';
+    ctx.beginPath(); ctx.moveTo(30, 0); ctx.quadraticCurveTo(40, 60, 62, 92); ctx.lineTo(62, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(98, 0); ctx.quadraticCurveTo(88, 60, 66, 92); ctx.lineTo(66, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+    for (var q = 8; q < 90; q += 10) {
+      ctx.beginPath(); ctx.moveTo(36, q); ctx.lineTo(60, q + 8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(92, q); ctx.lineTo(68, q + 8); ctx.stroke();
+    }
+    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (var k = 0; k < 4; k++) {
+      var y = 52 + k * 17;
+      ctx.beginPath(); ctx.moveTo(38, y); ctx.lineTo(90, y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(38, y, 4, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(90, y, 4, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+      ctx.fillStyle = '#e8c24a';
+      ctx.beginPath(); ctx.arc(64, y, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // pinstripes: fine chalk lines, on nothing, all the way round
+  painter('pinstripe', function (ctx) {
+    ctx.fillStyle = 'rgba(220,214,200,0.55)';
+    for (var x = 4; x < CELL; x += 16) ctx.fillRect(x, 0, 1.5, CELL);
+  });
+
+  painter('stencil_hw24', stencil({ top: 'WHISPER', bottom: 'MANOR  2024', icon: 'manor',
+                                    ink: 'rgba(255,211,106,0.92)', glow: '#ffd36a',
+                                    font: 'Georgia, serif', frame: 'box' }));
+
+  /* ----------------------------------------------------------- St. Patrick's
+     The decals of the St. Patrick's crates, 2022 to 2026. */
+  // @@ stpatricks painters go above this line @@
+
+  /* ----------------------------------------------------------- Easter
+     The decals of the Easter crates, 2022 to 2026. */
+  // @@ easter painters go above this line @@
+
+  /* ----------------------------------------------------------- Fourth of July
+     The decals of the Fourth of July crates, 2022 to 2026. */
+  // @@ july4 painters go above this line @@
+
+  /* ----------------------------------------------------------- Christmas
+     The decals of the Christmas crates, 2022 to 2026. */
+  // @@ christmas painters go above this line @@
+
   Textures.emblems = Object.keys(emblems);
   /* Draw an emblem onto any 2D context, ``size`` pixels square. */
   Textures.paintEmblem = function (ctx, name, x, y, size) {

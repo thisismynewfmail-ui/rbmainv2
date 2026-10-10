@@ -756,7 +756,20 @@
     ['icicle', function (c) {
       poly(c, [[34, 10], [94, 10], [76, 26], [70, 120], [60, 30], [50, 22]]);
       c.fillStyle = '#ffffff'; poly(c, [[60, 14], [70, 14], [66, 70]]);
-    }]
+    }],
+    // ---- St. Patrick's particle shapes
+    // @@ stpatricks particles go above this line @@
+
+    // ---- Easter particle shapes
+    // @@ easter particles go above this line @@
+
+    // ---- Fourth of July particle shapes
+    // @@ july4 particles go above this line @@
+
+    // ---- Christmas particle shapes
+    // @@ christmas particles go above this line @@
+
+    ['_end', function () {}]
   ];
 
   var ATLAS_ROWS = Math.ceil(SHAPE_CELLS.length / ATLAS_COLS);
