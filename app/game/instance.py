@@ -29,6 +29,7 @@ import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..models import catalog
+from .gear import GEAR_KINDS, Gear, Minion
 
 TICK_RATE = 20
 TICK_DT = 1.0 / TICK_RATE
@@ -273,7 +274,7 @@ class Player:
 
 class Projectile:
     __slots__ = ("pid_owner", "team", "pos", "vel", "stats", "born", "kind",
-                 "ident", "weapon")
+                 "ident", "weapon", "data")
     _next_id = 1
 
     def __init__(self, owner: Player, pos, vel, stats, kind="rocket",
@@ -288,6 +289,9 @@ class Projectile:
         self.weapon = weapon
         self.ident = Projectile._next_id
         Projectile._next_id += 1
+        # what the gear (gear.py) keeps on it: stuck to whom, on its way
+        # back, which item fired it
+        self.data: Dict[str, Any] = {}
 
 
 class GameInstance:
@@ -327,6 +331,9 @@ class GameInstance:
         # pays for it.
         self.bots = None
         self.sleep_at = 0.0
+        # what event weapons do beyond damage: statuses, minions, turrets,
+        # zones, strikes (app/game/gear.py)
+        self.gear = Gear(self)
         self.setup()
 
     # ------------------------------------------------------------ lifecycle
@@ -591,6 +598,7 @@ class GameInstance:
         player.grounded = True
         player.airborne_since = 0.0
         player.spawn_protect_until = now() + 2.0
+        self.gear.respawned(player)
         player.reset_ammo()
         player.reload_until = 0.0
         # Putting something away belongs to the life you did it in: coming
@@ -709,6 +717,7 @@ class GameInstance:
             player.connected = False
             if self.bots is not None:
                 self.bots.forget(pid)
+            self.gear.forget(pid)
             self.on_player_leave(player)
             self.flush_player_stats(player, final=True)
             self.broadcast({"t": "leave", "id": pid})
@@ -804,8 +813,17 @@ class GameInstance:
             dx = pos[0] - player.pos[0]
             dz = pos[2] - player.pos[2]
             travelled = math.hypot(dx, dz)
-            allowance = self.max_speed(player) * dt * 1.9 + 2.0
-            if travelled > allowance:
+            allowance = self.max_speed(player) * self.gear.speed_cap(player) * dt * 1.9 + 2.0
+            if self.gear.launched(player):
+                allowance *= 2.5             # a dash, a launch, a glide
+            grace = self.gear.grace(player)  # just teleported: the old spot is still in flight
+            if not grace and not self.gear.can_move(player) and travelled > 1.5:
+                # rooted, stunned or frozen: stay put
+                self.correct(player)
+                return
+            if grace:
+                pass
+            elif travelled > allowance:
                 player.corrections += 1
                 if player.corrections > 2:
                     self.correct(player)
@@ -818,7 +836,8 @@ class GameInstance:
 
             # Vertical: rising faster than a jump, or hovering, is rejected.
             dy = pos[1] - player.pos[1]
-            if dy > JUMP_SPEED * dt * 1.9 + 1.5:
+            if dy > JUMP_SPEED * dt * 1.9 + 1.5 and not self.gear.launched(player) \
+                    and not grace:
                 self.correct(player)
                 return
             grounded = bool(message.get("g"))
@@ -828,7 +847,7 @@ class GameInstance:
             else:
                 if player.airborne_since == 0.0:
                     player.airborne_since = moment
-                elif moment - player.airborne_since > 9.0:
+                elif moment - player.airborne_since > (20.0 if self.gear.launched(player) else 9.0):
                     player.pos = list(player.last_ground_pos)
                     player.airborne_since = 0.0
                     self.correct(player)
@@ -944,6 +963,9 @@ class GameInstance:
             # too; this is the half that a modified client cannot skip.
             if player.stowed:
                 return
+            # stunned, frozen solid or a toad: nothing works
+            if not self.gear.can_fire(player):
+                return
             moment = now()
             if moment < player.next_fire or moment < player.reload_until:
                 return
@@ -963,13 +985,26 @@ class GameInstance:
                 return
 
             origin = [player.pos[0], player.pos[1] + EYE_HEIGHT, player.pos[2]]
+            item = player.weapon() or {}
+            weapon_name = item.get("name", "Unknown")
+            item_id = item.get("item_id", "")
+            # the event weapons' own kinds: beams, cones, strikes, turrets,
+            # summons, abilities, things to eat (app/game/gear.py)
+            if kind in GEAR_KINDS:
+                self.gear.fire(player, slot, stats, direction, origin)
+                return
             if kind == "melee":
                 reaping = self.spend_souls(player, stats)
                 if reaping is not None:
                     stats = reaping
-                self.do_melee(player, direction, stats)
+                stats = self.gear.prepare(player, stats)
+                with self.gear.using(player, stats, weapon_name, item_id) as ctx:
+                    self.do_melee(player, direction, stats)
+                self.gear.after(player, stats, ctx)
                 self.broadcast({"t": "fx", "k": "swing", "id": player.pid},
                                exclude=player.pid)
+                if self.gear.has(player, "cloak"):
+                    self.gear.remove(player, "cloak")
                 return
             if kind == "support":
                 if player.ammo[slot] <= 0:
@@ -986,29 +1021,23 @@ class GameInstance:
                 return
             player.ammo[slot] -= 1
             player.spawn_protect_until = 0.0
+            if self.gear.has(player, "cloak"):
+                self.gear.remove(player, "cloak")
             player.send({"t": "you", "ammo": player.ammo[slot],
                          "reserve": player.reserve[slot], "slot": slot})
+            stats = self.gear.prepare(player, stats)
 
             if kind == "projectile":
-                speed = float(stats.get("speed", 70))
-                proj = Projectile(player,
-                                  [origin[0] + direction[0] * 2.0,
-                                   origin[1] + direction[1] * 2.0,
-                                   origin[2] + direction[2] * 2.0],
-                                  [direction[0] * speed, direction[1] * speed,
-                                   direction[2] * speed], stats,
-                                  str(stats.get("projectile", "rocket")),
-                                  (player.weapon() or {}).get("name", "Blast Launcher"))
-                self.projectiles.append(proj)
-                self.broadcast({"t": "proj", "id": proj.ident,
-                                "p": proj.pos, "v": proj.vel,
-                                "o": player.pid, "k": proj.kind})
+                self.gear.launch(player, stats, origin, direction, weapon_name, item_id)
                 return
 
-            self.do_hitscan(player, origin, direction, stats)
+            direction = self.gear.aim(player, stats, origin, direction)
+            with self.gear.using(player, stats, weapon_name, item_id) as ctx:
+                self.do_hitscan(player, origin, direction, stats)
+            self.gear.after(player, stats, ctx)
             self.broadcast({"t": "fx", "k": "shot", "id": player.pid,
                             "o": origin, "d": direction,
-                            "w": (player.weapon() or {}).get("item_id", "")},
+                            "w": item_id, "c": stats.get("tracer") or ""},
                            exclude=player.pid)
 
     def do_hitscan(self, player: Player, origin, direction,
@@ -1026,19 +1055,28 @@ class GameInstance:
                 pitch_off = rng.gauss(0, spread * 0.5)
                 aim = self._offset_direction(direction, yaw_off, pitch_off)
             wall = self.ray_world(origin, aim, max_range)
-            victim, distance, headshot = self.nearest_player_hit(
-                player, origin, aim, min(wall, max_range))
-            if victim is None:
-                continue
-            damage = float(stats.get("damage", 20))
-            if headshot:
-                damage *= float(stats.get("headshot", 1.0))
-            falloff = float(stats.get("falloff", 0.0))
-            if falloff > 0:
-                ratio = clamp(distance / max_range, 0.0, 1.0)
-                damage *= (1.0 - falloff * ratio)
-            hits += 1
-            self.apply_damage(victim, player, damage, weapon_name, headshot)
+            # a piercing round goes on through whoever it hits, up to
+            # ``pierce`` more, each a little weaker
+            through = int(stats.get("pierce", 0) or 0)
+            start, gone = list(origin), 0.0
+            for depth in range(through + 1):
+                victim, distance, headshot = self.nearest_player_hit(
+                    player, start, aim, min(wall, max_range) - gone)
+                if victim is None:
+                    break
+                damage = float(stats.get("damage", 20)) * (0.8 ** depth)
+                if headshot:
+                    damage *= float(stats.get("headshot", 1.0))
+                falloff = float(stats.get("falloff", 0.0))
+                if falloff > 0:
+                    ratio = clamp((gone + distance) / max_range, 0.0, 1.0)
+                    damage *= (1.0 - falloff * ratio)
+                hits += 1
+                self.apply_damage(victim, player, damage, weapon_name, headshot)
+                step = distance + 1.6
+                gone += step
+                start = [start[0] + aim[0] * step, start[1] + aim[1] * step,
+                         start[2] + aim[2] * step]
         if hits:
             player.send({"t": "hit", "n": hits})
 
@@ -1070,6 +1108,10 @@ class GameInstance:
             best_victim = other
             best_dist = distance
             best_head = head_hit is not None
+        if self.gear.minions:
+            minion, distance = self.gear.ray_minions(shooter, origin, direction, best_dist)
+            if minion is not None:
+                return minion, distance, False
         return best_victim, best_dist, best_head
 
     # ------------------------------------------------------------- souls
@@ -1144,6 +1186,9 @@ class GameInstance:
             if knock:
                 other.send({"t": "knock", "v": [unit[0] * knock, knock * 0.35,
                                                 unit[2] * knock]})
+        if self.gear.minions:
+            hit_any += self.gear.melee_minions(player, origin, direction, reach, arc,
+                                               float(stats.get("damage", 30)), weapon_name)
         if hit_any:
             player.send({"t": "hit", "n": hit_any})
 
@@ -1189,11 +1234,16 @@ class GameInstance:
     def apply_damage(self, victim: Player, attacker: Optional[Player],
                      amount: float, weapon_name: str,
                      headshot: bool = False) -> None:
+        if isinstance(victim, Minion):
+            self.gear.hurt_minion(victim, attacker, amount, weapon_name)
+            return
         if not victim.alive or amount <= 0:
             return
         if now() < victim.spawn_protect_until:
             return
-        amount = float(amount)
+        amount = self.gear.adjust(victim, attacker, float(amount), headshot)
+        if amount <= 0:
+            return
         victim.health -= amount
         victim.last_damage_from = attacker.pid if attacker else None
         victim.last_damage_at = now()
@@ -1210,6 +1260,7 @@ class GameInstance:
                 victim.brain.hurt_by(attacker)
         if victim.health <= 0:
             self.kill(victim, attacker, weapon_name, headshot)
+        self.gear.landed(victim, attacker, amount, headshot)
 
     def kill(self, victim: Player, killer: Optional[Player],
              weapon_name: str, headshot: bool = False) -> None:
@@ -1378,6 +1429,7 @@ class GameInstance:
         self.round_number += 1
         self.phase = "active"
         self.projectiles.clear()
+        self.gear.reset()
         for player in self.players.values():
             player.vote = None
             player.kills = 0
@@ -1403,6 +1455,7 @@ class GameInstance:
             if self.vote_open else 0.0,
         }
         state.update(self.round_state())
+        state["gear"] = self.gear.state()
         return state
 
     def snapshot(self) -> Dict[str, Any]:
@@ -1414,20 +1467,37 @@ class GameInstance:
                 round(player.pos[2], 2),
                 round(player.yaw, 3), round(player.pitch, 3),
                 player.anim, int(player.health), player.held_slot(),
-                1 if player.alive else 0,
+                1 if player.alive else 0, self.gear.bits(player),
             ])
         payload: Dict[str, Any] = {"t": "snap", "k": self.tick_count, "ps": rows}
         if self.projectiles:
             payload["pr"] = [[p.ident, round(p.pos[0], 2), round(p.pos[1], 2),
-                              round(p.pos[2], 2)] + (["pumpkin"] if p.kind == "pumpkin" else [])
+                              round(p.pos[2], 2)] + ([p.kind] if p.kind != "rocket" else [])
                              for p in self.projectiles]
+        self.gear.snapshot(payload)
         return payload
 
     def step_projectiles(self, dt: float) -> None:
         if not self.projectiles:
             return
         alive: List[Projectile] = []
-        for proj in self.projectiles:
+        batch = self.projectiles
+        # anything launched while these move (bomblets, splits, a volley's
+        # next round) lands in a fresh list and flies from the next tick
+        self.projectiles = []
+        for proj in batch:
+            steer = self.gear.steer(proj, dt) if (proj.data or proj.stats.get("homing")
+                                                  or proj.stats.get("guided")
+                                                  or proj.stats.get("split")) else None
+            if steer == "stuck":
+                alive.append(proj)
+                continue
+            if steer == "gone":
+                self.broadcast({"t": "fx", "k": "gone", "id": proj.ident})
+                continue
+            if steer == "boom":
+                self._detonate(proj)
+                continue
             proj.vel[1] -= GRAVITY * 0.35 * float(proj.stats.get("gravity_scale", 1.0)) * dt
             start = list(proj.pos)
             proj.pos[0] += proj.vel[0] * dt
@@ -1443,23 +1513,37 @@ class GameInstance:
                 victim, distance, _ = self.nearest_player_hit(
                     self._owner(proj), start, direction, min(wall, travel))
                 if victim is not None:
-                    proj.pos = [start[0] + direction[0] * distance,
-                                start[1] + direction[1] * distance,
-                                start[2] + direction[2] * distance]
-                    exploded = True
+                    point = [start[0] + direction[0] * distance,
+                             start[1] + direction[1] * distance,
+                             start[2] + direction[2] * distance]
+                    proj.pos = point
+                    exploded = not self.gear.impact(proj, victim, point, False)
                 elif wall < travel:
-                    proj.pos = [start[0] + direction[0] * wall,
-                                start[1] + direction[1] * wall,
-                                start[2] + direction[2] * wall]
-                    exploded = True
+                    point = [start[0] + direction[0] * wall,
+                             start[1] + direction[1] * wall,
+                             start[2] + direction[2] * wall]
+                    proj.pos = point
+                    exploded = not self.gear.impact(proj, None, point, True)
             if proj.pos[1] < self.map.get("kill_y", -60) or \
-                    now() - proj.born > 8.0:
+                    (now() - proj.born > 8.0 and "stuck" not in proj.data):
                 exploded = True
             if exploded:
-                self.explode(proj)
+                self._detonate(proj)
             else:
                 alive.append(proj)
-        self.projectiles = alive
+        self.projectiles = alive + self.projectiles
+
+    def _detonate(self, proj: Projectile) -> None:
+        """A projectile going off, with whoever fired it as the one doing
+        the damage (so a burning round sets fire to what it hits)."""
+        owner = self.players.get(proj.pid_owner)
+        if owner is not None:
+            with self.gear.using(owner, proj.stats, proj.weapon or "",
+                                 proj.data.get("item", "")):
+                self.explode(proj)
+        else:
+            self.explode(proj)
+        self.gear.exploded(proj)
 
     def _owner(self, proj: Projectile) -> Player:
         owner = self.players.get(proj.pid_owner)
@@ -1494,6 +1578,8 @@ class GameInstance:
             else:
                 damage = splash * falloff
             knock = float(stats.get("knockback", 20)) * falloff
+            if stats.get("pull"):
+                knock = -abs(knock)          # a magnet: everything comes in
             if player is owner:
                 # the owner gets a stronger shove than a bystander, which is
                 # what makes a floor-aimed rocket a usable jump
@@ -1507,6 +1593,8 @@ class GameInstance:
                                    push[2] * knock]})
             if damage > 0.5:
                 self.apply_damage(player, owner, damage, weapon_name, False)
+        if self.gear.minions:
+            self.gear.blast_minions(proj.pos, radius, splash, owner, weapon_name)
 
     def treat(self, proj: Projectile, owner: Optional[Player]) -> None:
         """The Jack-o'-Launcher's candy: every teammate in the blast -- the
@@ -1554,6 +1642,7 @@ class GameInstance:
                 self._stage("bots", self.bots.tick, TICK_DT)
             self._stage("silent", self.drop_silent, moment)
             self._stage("projectiles", self.step_projectiles, TICK_DT)
+            self._stage("gear", self.gear.tick, TICK_DT)
             self._stage("world", self.on_tick, TICK_DT)
             self._stage("phase", self._tick_phase, moment)
             self._stage("snapshot", self._send_snapshot)

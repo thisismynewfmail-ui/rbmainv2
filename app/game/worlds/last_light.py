@@ -38,6 +38,7 @@ from ..instance import (EYE_HEIGHT, MAX_HEALTH, GameInstance, Player, now,
                         ray_aabb, vec_len)
 from ..maps import lastlight
 from ...models import catalog
+from ..gear import Minion
 from .infected import (KIND_INDEX, KINDS, SPECIALS, UNLOCK, WEIGHT, Horde,
                        NpcShot, Zombie)
 
@@ -483,8 +484,10 @@ class LastLight(GameInstance):
 
     def apply_damage(self, victim, attacker, amount: float, weapon_name: str,
                      headshot: bool = False) -> None:
-        if isinstance(victim, Zombie):
-            self.damage_infected(victim, attacker, amount, weapon_name, headshot)
+        if isinstance(victim, Minion):
+            self.gear.hurt_minion(victim, attacker, amount, weapon_name)
+        elif isinstance(victim, Zombie):
+            self._hit_infected(victim, attacker, amount, weapon_name, headshot)
         elif isinstance(victim, Dummy):
             if attacker is not None:
                 attacker.send({"t": "dealt", "a": round(amount, 1), "hs": headshot,
@@ -495,7 +498,28 @@ class LastLight(GameInstance):
                 if victim.health <= 0:
                     self.detonate(victim, attacker)
         else:
+            amount = self.gear.adjust(victim, attacker, amount, headshot)
             self.hurt_survivor(victim, attacker, amount, weapon_name, headshot)
+
+    def _hit_infected(self, z: Zombie, attacker, amount: float, weapon: str,
+                      headshot: bool = False, **how) -> None:
+        """Damage to one of the infected, through the gear (a weapon's
+        bonuses going in, its burning, slowing or freezing left behind)."""
+        amount = self.gear.adjust(z, attacker, amount, headshot)
+        self.damage_infected(z, attacker, amount, weapon, headshot, **how)
+        self.gear.landed(z, attacker, amount, headshot)
+
+    def gear_hostiles(self, owner, origin, reach: float):
+        """What summoned things, turrets and homing rounds go for here: the
+        infected in the area, never people."""
+        if isinstance(owner, Player) and self.where(owner) != "field":
+            return []
+        out = []
+        for z in self.horde.zombies.values():
+            if z.alive and not z.hidden and z.state != "rise" and \
+                    math.dist(z.pos, origin) <= reach:
+                out.append(z)
+        return out
 
     def do_melee(self, player: Player, direction, stats: Dict[str, Any]) -> None:
         """Swing at the infected; a swing at a Leaper knocks it off whoever
@@ -541,7 +565,7 @@ class LastLight(GameInstance):
                 z.state = "stun"
                 z.state_until = moment + (1.4 if z.kind == "riot" else 0.6)
                 z.data["shoved"] = moment
-            self.damage_infected(z, player, float(stats.get("damage", 30)),
+            self._hit_infected(z, player, float(stats.get("damage", 30)),
                                  weapon_name, False, melee=True)
         if hits:
             player.send({"t": "hit", "n": hits})
@@ -562,7 +586,7 @@ class LastLight(GameInstance):
             if d > radius + 1.0 or z.hidden:
                 continue
             falloff = max(0.35, 1.0 - (d / (radius + 1.0)) ** 1.5)
-            self.damage_infected(z, owner, damage * falloff * zombie_scale, weapon,
+            self._hit_infected(z, owner, damage * falloff * zombie_scale, weapon,
                                  False, blast=True)
         for barrel in self.barrels:
             if barrel.alive and math.dist(barrel.pos, centre) < radius * 0.8:

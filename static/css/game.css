@@ -124,6 +124,12 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
   box-shadow: 0 0 10px rgba(255,217,94,.5); }
 #hotbar-hud .slot.empty { opacity: .38; }
 #hotbar-hud .slot canvas { width: 56px; height: 56px; }
+/* the event gear (game/gear.js): a cooldown sweeping down over a slot */
+#hotbar-hud .slot .gcd { position: absolute; inset: 0; pointer-events: none; }
+#hotbar-hud .slot .gcd i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.62);
+  border-top: 2px solid rgba(255,217,94,.8); }
+#hotbar-hud .slot .gcd b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font: bold 18px Verdana, sans-serif; color: #fff; text-shadow: 0 2px 3px #000; }
 #hotbar-hud .slot .k { position: absolute; top: 1px; left: 4px; font-size: 10px; opacity: .8; }
 #hotbar-hud .slot .n { position: absolute; bottom: 1px; left: 0; right: 0; text-align: center;
   font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
@@ -577,3 +583,49 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 #ammo .souls.reap { animation: souls-reap .5s ease-out; }
 @keyframes souls-flicker { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.08); } }
 @keyframes souls-reap { 0% { transform: scale(1.4); filter: brightness(2); } 100% { transform: none; filter: none; } }
+
+/* ------------------------------------------------------------- event gear
+   Statuses by the health bar, a meter over the ammo counter, the screen
+   blinded or frosted.  (game/gear.js) */
+#gear-hud { position: absolute; left: 0; right: 0; bottom: 0; height: 0; pointer-events: none; }
+.gear-status { position: absolute; left: 14px; bottom: 66px; display: flex; gap: 4px; flex-wrap: wrap;
+  max-width: 300px; }
+.gear-status .gs { position: relative; min-width: 34px; height: 30px; padding: 0 5px; border-radius: 5px;
+  display: inline-flex; align-items: center; gap: 3px; font-size: 16px; color: #fff;
+  background: rgba(10,14,20,.72); border: 2px solid rgba(255,90,70,.85); text-shadow: 0 1px 2px #000; }
+.gear-status .gs.good { border-color: rgba(120,230,140,.9); }
+.gear-status .gs em { font: bold 11px Verdana, sans-serif; font-style: normal; }
+.gear-status .gs sup { position: absolute; right: -4px; top: -6px; font: bold 10px Verdana, sans-serif;
+  background: #ff4d3d; border-radius: 8px; padding: 0 4px; }
+.gear-meter { position: absolute; right: 16px; bottom: 112px; width: 170px; display: none; text-align: right;
+  color: #fff; font: bold 11px Verdana, sans-serif; text-shadow: 0 1px 2px #000; }
+.gear-meter i { display: block; height: 9px; margin-top: 3px; background: rgba(10,14,20,.72);
+  border: 1px solid rgba(255,255,255,.4); border-radius: 5px; overflow: hidden; }
+.gear-meter b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffd96b, #ff8c1a);
+  transition: width .1s linear; }
+.gear-meter.on b { background: linear-gradient(90deg, #ff4fa0, #ff3b4e); animation: gear-hot .4s infinite alternate; }
+@keyframes gear-hot { to { filter: brightness(1.5); } }
+.gear-toad { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); display: none;
+  font: bold 20px Verdana, sans-serif; color: #b6ff8a; text-shadow: 0 2px 6px #000; }
+.gear-vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s; }
+.gear-vignette.frost { opacity: 1; box-shadow: inset 0 0 120px 30px rgba(170,225,255,.55); }
+.gear-vignette.burn { opacity: 1; box-shadow: inset 0 0 120px 30px rgba(255,120,30,.45); }
+.gear-vignette.poison { opacity: 1; box-shadow: inset 0 0 120px 30px rgba(120,230,80,.4); }
+.gear-vignette.stun { opacity: 1; box-shadow: inset 0 0 160px 50px rgba(255,255,255,.35); }
+.gear-blind { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.gear-blind.on { animation: gear-blind 1.5s ease-out forwards; }
+.gear-blind.style-flash { background: radial-gradient(circle, #fff, rgba(255,250,220,.92) 60%, rgba(255,240,200,.85)); }
+.gear-blind.style-confetti { background-color: rgba(255,255,255,.35);
+  background-image: radial-gradient(#ff4fa0 2px, transparent 3px), radial-gradient(#3cc8ff 2px, transparent 3px),
+    radial-gradient(#f2c230 2px, transparent 3px), radial-gradient(#7dff9a 2px, transparent 3px);
+  background-size: 22px 26px, 30px 22px, 26px 30px, 34px 28px;
+  background-position: 0 0, 9px 13px, 17px 5px, 4px 19px; }
+.gear-blind.style-ink { background: radial-gradient(circle at 40% 45%, rgba(10,8,20,.97), rgba(10,8,20,.9) 55%, rgba(10,8,20,.6)); }
+.gear-blind.style-light { background: radial-gradient(circle, #fffbe0, rgba(255,214,110,.9) 50%, rgba(255,180,60,.75)); }
+.gear-blind.style-snow { background: radial-gradient(circle, rgba(255,255,255,.96), rgba(220,240,255,.9) 60%, rgba(200,230,255,.8)); }
+.gear-blind.style-smoke { background: radial-gradient(circle, rgba(140,140,150,.95), rgba(110,110,120,.88)); }
+.gear-blind.style-glitter { background-color: rgba(30,20,10,.55);
+  background-image: radial-gradient(#ffe9a8 1.5px, transparent 2.5px), radial-gradient(#fff 1px, transparent 2px);
+  background-size: 14px 16px, 19px 13px; }
+@keyframes gear-blind { 0% { opacity: 1; } 70% { opacity: .92; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .gear-meter.on b { animation: none; } }

@@ -1726,7 +1726,7 @@ NY25.pants("glow_leggings", "Glow Leggings",
               {"kind": "deploy", "cooldown": 22, "sound": "throw",
                "deploy": {"type": "turret", "thrown": True, "secs": 7.0, "hp": 60,
                           "range": 22.0, "rpm": 300, "damage": 7, "float": 3.0,
-                          "tracer": "#ff2bd6", "limit": 1}},
+                          "tracer": "#ff2bd6", "limit": 1, "scale": 2.2}},
               [["+", "Hangs in the air for 7 seconds firing lasers at enemies within 22 "
                      "studs"],
                ["+", "Five lasers a second"],
@@ -1747,15 +1747,15 @@ def _():
 @NY25.weapon("synth_laser", "Synth Laser",
              "A keytar that fires a continuous beam. Hold it on one target and it climbs "
              "the scale -- until it overheats.",
-             {"kind": "beam", "damage": 6, "headshot": 1.0, "rpm": 600, "mag": 0,
+             {"kind": "beam", "damage": 4, "headshot": 1.0, "rpm": 600, "mag": 0,
               "range": 90, "auto": True, "sound": "laser", "recoil": 0.1, "spread": 0.2,
               "beam": "#ff2bd6",
               "ramp": {"per_sec": 0.9, "max": 2.5},
-              "heat": {"per_shot": 0.012, "cool": 0.35, "lock": 2.5, "label": "Heat"}},
+              "heat": {"per_shot": 0.025, "cool": 0.15, "lock": 2.5, "label": "Heat"}},
              [["+", "A continuous beam, no ammunition"],
               ["+", "Damage climbs while it stays on the same target: up to 2.5x after a "
                     "second and a half"],
-              ["-", "Overheats: locks up for 2.5 seconds when the gauge fills"],
+              ["-", "Overheats after about ten seconds of fire, and locks up for 2.5"],
               ["-", "90 stud reach"]], rarity="legendary")
 def _():
     return [
