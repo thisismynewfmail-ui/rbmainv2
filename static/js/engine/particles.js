@@ -758,6 +758,34 @@
       c.fillStyle = '#ffffff'; poly(c, [[60, 14], [70, 14], [66, 70]]);
     }],
     // ---- St. Patrick's particle shapes
+    // Lucky Lep's brogue, side on: heel, sole, a toe that curls up, a buckle
+    ['sp_brogue', function (c) {
+      c.beginPath();
+      c.moveTo(16, 92); c.lineTo(16, 52); c.quadraticCurveTo(30, 44, 50, 50);
+      c.lineTo(66, 62); c.quadraticCurveTo(92, 66, 104, 56);
+      c.quadraticCurveTo(116, 46, 112, 34); c.quadraticCurveTo(124, 40, 120, 60);
+      c.quadraticCurveTo(116, 84, 96, 92); c.closePath(); c.fill();
+      c.fillRect(16, 92, 26, 12);
+      c.fillStyle = '#9a9a9a'; c.fillRect(12, 88, 100, 6);
+      c.fillStyle = '#d8d8d8'; c.fillRect(54, 60, 18, 16);
+      punch(c, function () { c.fillRect(58, 64, 10, 8); });
+    }],
+    // a leprechaun's gold piece: a beaded rim and a shamrock struck in it
+    ['sp_coin', function (c) {
+      dot(c, 64, 64, 46);
+      c.fillStyle = '#a8a8a8'; dot(c, 64, 64, 37);
+      c.fillStyle = '#ffffff';
+      for (var k = 0; k < 3; k++) {
+        var a = -Math.PI / 2 + k * Math.PI * 2 / 3;
+        dot(c, 64 + Math.cos(a) * 13, 62 + Math.sin(a) * 13, 11);
+      }
+      bar(c, 64, 64, 72, 92, 5);
+      for (var b = 0; b < 16; b++) {
+        var t = b / 16 * Math.PI * 2;
+        dot(c, 64 + Math.cos(t) * 41.5, 64 + Math.sin(t) * 41.5, 2.2);
+      }
+      c.beginPath(); c.ellipse(46, 40, 9, 4, -0.7, 0, Math.PI * 2); c.fill();
+    }],
     // @@ stpatricks particles go above this line @@
 
     // ---- Easter particle shapes
