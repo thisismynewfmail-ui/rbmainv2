@@ -25,6 +25,7 @@ import math
 import random
 import threading
 import time
+import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..models import catalog
@@ -119,6 +120,7 @@ class Player:
     __slots__ = ("pid", "user_id", "username", "avatar", "ws", "team",
                  "pos", "vel", "yaw", "pitch", "anim", "grounded", "health",
                  "alive", "respawn_at", "kills", "deaths", "score", "assists",
+                 "pk", "zk", "pd",
                  "slot", "stowed", "ammo", "reserve", "reload_until",
                  "next_fire",
                  "joined_at", "last_input", "last_pos_time", "playtime",
@@ -151,6 +153,13 @@ class Player:
         self.deaths = 0
         self.score = 0
         self.assists = 0
+        # What goes on the player's record (host.report_player), counted
+        # apart from the scoreboard's kills and deaths, which a world may
+        # reset every round and which Last Light also runs up on the
+        # infected: players killed, infected killed, deaths -- this session.
+        self.pk = 0
+        self.zk = 0
+        self.pd = 0
         self.slot = 0
         # Hands empty, weapon still chosen.  Keeping the slot means the ammo
         # and the reload state survive putting something away and taking it
@@ -1209,10 +1218,12 @@ class GameInstance:
         victim.alive = False
         victim.health = 0
         victim.deaths += 1
+        victim.pd += 1
         victim.streak = 0
         victim.respawn_at = now() + self.respawn_seconds
         if killer is not None and killer is not victim:
             killer.kills += 1
+            killer.pk += 1
             killer.score += 10
             killer.streak += 1
             if weapon_name == (killer.weapon() or {}).get("name"):
@@ -1523,38 +1534,73 @@ class GameInstance:
             owner.send({"t": "hit", "n": 0, "heal": healed})
 
     def tick(self) -> None:
+        """One step of the round.
+
+        Every stage runs on its own guard (``_stage``).  A stage that throws
+        -- a world's rule tripping over a player who left mid-step, a bot
+        with a bad path -- used to unwind the whole tick before the snapshot
+        went out, every tick, so the world froze for everybody in it: you
+        could still walk about (movement is predicted locally) but nothing
+        else moved until you rejoined.  Now the stage is skipped for that
+        tick, the error is logged, and the snapshot always goes out."""
         with self.lock:
             self.tick_count += 1
             moment = now()
             for player in list(self.players.values()):
                 if not player.connected:
                     continue
-                if not player.alive and moment >= player.respawn_at:
-                    if self.phase in ("active", "setup"):
-                        self.spawn_player(player)
-                if player.reload_until and moment >= player.reload_until:
-                    self.finish_reload(player)
-                if not player.visit_recorded and \
-                        (moment - player.joined_at) >= VISIT_SECONDS:
-                    player.visit_recorded = True
-                    self.host.report_visit(self, player)
+                self._stage("player", self._tick_player, player, moment)
             if self.bots is not None:
-                self.bots.tick(TICK_DT)
-            self.drop_silent(moment)
-            self.step_projectiles(TICK_DT)
-            self.on_tick(TICK_DT)
-            if self.phase == "ended" and moment >= self.phase_until:
-                self.start_vote()
-            elif self.phase == "voting" and moment >= self.vote_ends:
-                self.resolve_vote()
-            elif self.phase == "restarting" and moment >= self.phase_until:
-                self.restart_round()
-            self.broadcast(self.snapshot())
+                self._stage("bots", self.bots.tick, TICK_DT)
+            self._stage("silent", self.drop_silent, moment)
+            self._stage("projectiles", self.step_projectiles, TICK_DT)
+            self._stage("world", self.on_tick, TICK_DT)
+            self._stage("phase", self._tick_phase, moment)
+            self._stage("snapshot", self._send_snapshot)
             if moment - self.last_broadcast_state > 1.0:
                 self.last_broadcast_state = moment
-                self.broadcast({"t": "state", "s": self.full_state()})
-                if self.vote_open:
-                    self.broadcast_vote()
+                self._stage("state", self._send_state)
+
+    def _tick_player(self, player: Player, moment: float) -> None:
+        if not player.alive and moment >= player.respawn_at:
+            if self.phase in ("active", "setup"):
+                self.spawn_player(player)
+        if player.reload_until and moment >= player.reload_until:
+            self.finish_reload(player)
+        if not player.visit_recorded and \
+                (moment - player.joined_at) >= VISIT_SECONDS:
+            player.visit_recorded = True
+            self.host.report_visit(self, player)
+
+    def _tick_phase(self, moment: float) -> None:
+        if self.phase == "ended" and moment >= self.phase_until:
+            self.start_vote()
+        elif self.phase == "voting" and moment >= self.vote_ends:
+            self.resolve_vote()
+        elif self.phase == "restarting" and moment >= self.phase_until:
+            self.restart_round()
+
+    def _send_snapshot(self) -> None:
+        self.broadcast(self.snapshot())
+
+    def _send_state(self) -> None:
+        self.broadcast({"t": "state", "s": self.full_state()})
+        if self.vote_open:
+            self.broadcast_vote()
+
+    def _stage(self, name: str, fn, *args) -> None:
+        try:
+            fn(*args)
+        except Exception:
+            # log the first time and then now and again, not twenty times a
+            # second for as long as whatever it is lasts
+            errors = self.__dict__.setdefault("_stage_errors", {})
+            count = errors.get(name, 0) + 1
+            errors[name] = count
+            if count == 1 or count % 600 == 0:
+                print("[game] %s/%s: tick stage %r failed (%d so far)"
+                      % (self.world_id, self.instance_id, name, count))
+                traceback.print_exc()
 
     def drop_silent(self, moment: float) -> None:
         """Let go of connections that have stopped saying anything.

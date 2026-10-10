@@ -939,6 +939,134 @@ def test_stall() -> None:
     peer.close()
 
 
+def test_proxy_stall() -> None:
+    """The site's websocket proxy (app/http/server.py ``_pump``), in-process
+    on socket pairs with tiny buffers: bytes go both ways, including what
+    the request parser had already buffered; a page that stops reading is
+    hung up on rather than left holding a socket that looks open and
+    carries nothing (the "frozen world": you can walk, nothing else moves);
+    and the host hanging up reaches the page even while the proxy is
+    holding bytes for it."""
+    import io
+    import socket
+    import threading
+    from app.http import server as http_server
+
+    print("\n== the websocket proxy ==")
+
+    class Stub:
+        def __init__(self, conn, buffered=b""):
+            self.connection = conn
+            # what the header parser had read past the request line
+            self.rfile = io.BufferedReader(_Prefixed(buffered, conn), 65536)
+
+    class _Prefixed(io.RawIOBase):
+        def __init__(self, first, sock):
+            self.first, self.sock = bytearray(first), sock
+        def readable(self):
+            return True
+        def readinto(self, b):
+            if self.first:
+                n = min(len(b), len(self.first))
+                b[:n] = self.first[:n]
+                del self.first[:n]
+                return n
+            return self.sock.recv_into(b)
+
+    def run(stub, upstream):
+        done = threading.Event()
+        def go():
+            try:
+                http_server.ConnectionHandler._pump(stub, upstream)
+            finally:
+                done.set()
+        threading.Thread(target=go, daemon=True).start()
+        return done
+
+    saved = http_server.STALL_SECONDS
+    http_server.STALL_SECONDS = 2.0
+    try:
+        # 1. both directions, and the bytes buffered ahead of the pump
+        page, proxy_client = socket.socketpair()
+        proxy_up, host = socket.socketpair()
+        done = run(Stub(proxy_client, b"early"), proxy_up)
+        host.settimeout(3)
+        page.settimeout(3)
+        got = b""
+        page.sendall(b"-late")
+        while len(got) < 10:
+            got += host.recv(64)
+        host.sendall(b"snapshot")
+        back = page.recv(64)
+        check("proxy: bytes go both ways, the parser's buffered ones first",
+              got == b"early-late" and back == b"snapshot", (got, back))
+        page.close()
+        done.wait(5)
+        check("proxy: the page hanging up ends the pump", done.is_set())
+        host.close()
+
+        # 2. a page that stops reading
+        page, proxy_client = socket.socketpair()
+        page.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2048)
+        proxy_client.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+        proxy_up, host = socket.socketpair()
+        done = run(Stub(proxy_client), proxy_up)
+        started = time.monotonic()
+        host.settimeout(0.2)
+        hung_up = False
+        while time.monotonic() - started < 15:
+            try:
+                host.sendall(b"x" * 8192)
+            except socket.timeout:
+                pass
+            except OSError:
+                hung_up = True
+                break
+            if done.is_set():
+                break
+        done.wait(5)
+        took = time.monotonic() - started
+        check("proxy: a page that stopped reading is let go (%.1fs)" % took,
+              done.is_set() and took < 10, took)
+        page.settimeout(3)
+        closed = False
+        try:
+            while page.recv(65536):
+                pass
+            closed = True
+        except socket.timeout:
+            closed = False
+        except OSError:
+            closed = True
+        check("proxy: ...and the page sees its socket close", closed)
+        page.close()
+        host.close()
+
+        # 3. the host hangs up while the page is slow
+        page, proxy_client = socket.socketpair()
+        proxy_up, host = socket.socketpair()
+        done = run(Stub(proxy_client), proxy_up)
+        host.sendall(b"y" * 50000)
+        host.close()
+        page.settimeout(3)
+        total, closed = 0, False
+        try:
+            while True:
+                chunk = page.recv(65536)
+                if not chunk:
+                    closed = True
+                    break
+                total += len(chunk)
+        except OSError:
+            pass
+        check("proxy: the host's hang-up reaches the page after what it sent",
+              closed and total == 50000, (closed, total))
+        done.wait(5)
+        page.close()
+    finally:
+        http_server.STALL_SECONDS = saved
+
+
 # Scenarios for worlds that are hidden now (Capture the Flag, Fortress Team 2
 # and Burger Tycoon do not run as instances any more).  They are kept for the
 # day those worlds come back, and skipped unless named on the command line.
@@ -959,6 +1087,7 @@ SCENARIOS = {
     "visits": test_visits,
     "survival": test_survival,
     "stall": test_stall,
+    "proxystall": test_proxy_stall,
 }
 
 

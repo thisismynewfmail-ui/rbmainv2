@@ -15,7 +15,16 @@
     this.ping = 0;
     this.closedByUs = false;
     this.retries = 0;
+    // When anything last arrived.  The host sends a snapshot twenty times a
+    // second and answers our pings, so a socket that has carried nothing
+    // for STALL_MS is not quiet, it is stuck: it is closed, and the client
+    // rejoins (client.js) instead of showing a world frozen round a player
+    // who can still walk.
+    this.lastHeard = 0;
+    this.stalled = false;
   }
+
+  Net.STALL_MS = 8000;
 
   Net.prototype.on = function (kind, fn) {
     (this.handlers[kind] || (this.handlers[kind] = [])).push(fn);
@@ -55,11 +64,14 @@
     socket.onopen = function () {
       self.connected = true;
       self.retries = 0;
+      self.lastHeard = performance.now();
       self.emit('open');
       while (self.queue.length) socket.send(self.queue.shift());
       self.pingTimer = setInterval(function () { self.sendPing(); }, 2500);
+      self.watchTimer = setInterval(function () { self.watch(); }, 1000);
     };
     socket.onmessage = function (event) {
+      self.lastHeard = performance.now();
       var message;
       try { message = JSON.parse(event.data); } catch (e) { return; }
       if (message.t === 'pong') {
@@ -72,9 +84,32 @@
     socket.onclose = function () {
       self.connected = false;
       clearInterval(self.pingTimer);
-      self.emit('close', { byUs: self.closedByUs });
+      clearInterval(self.watchTimer);
+      self.emit('close', { byUs: self.closedByUs, stalled: self.stalled });
     };
     socket.onerror = function () { self.emit('error'); };
+  };
+
+  /* The watchdog.  Only judged while the page is on screen: a background
+     tab's timers are throttled and some browsers park its socket, and that
+     is not a stall until somebody comes back to look at it -- at which
+     point a dead connection is caught within a couple of seconds. */
+  Net.prototype.watch = function () {
+    if (!this.connected || !this.socket) return;
+    if (document.visibilityState !== 'visible') return;
+    if (performance.now() - this.lastHeard < Net.STALL_MS) return;
+    this.stalled = true;
+    try { this.socket.close(); } catch (e) { /* onclose follows */ }
+    // some browsers take a long time to fire onclose on a dead link
+    var self = this;
+    setTimeout(function () {
+      if (self.connected) {
+        self.connected = false;
+        clearInterval(self.pingTimer);
+        clearInterval(self.watchTimer);
+        self.emit('close', { byUs: false, stalled: true });
+      }
+    }, 1500);
   };
 
   Net.prototype.send = function (payload) {
@@ -91,6 +126,7 @@
   Net.prototype.close = function () {
     this.closedByUs = true;
     clearInterval(this.pingTimer);
+    clearInterval(this.watchTimer);
     if (this.socket) { try { this.socket.close(); } catch (e) {} }
   };
 

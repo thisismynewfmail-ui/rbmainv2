@@ -851,13 +851,39 @@
 
     net.on('close', function (info) {
       if (info && info.byUs) return;
-      if (self.kicked) return;
+      if (self.kicked || self.closeHandled) return;
+      self.closeHandled = true;
       document.getElementById('loading').classList.remove('hide');
+      if (self.rejoin()) {
+        document.getElementById('load-msg').innerHTML =
+          '<b>' + (info && info.stalled ? 'The connection stalled.' : 'Lost the connection.') +
+          '</b><br>Rejoining your server&hellip;';
+        return;
+      }
       document.getElementById('load-msg').innerHTML =
         'Disconnected from the game host.<br>' +
         '<a href="/' + self.world.id + '" style="color:#ffd95e">Rejoin</a> &bull; ' +
         '<a href="/worlds" style="color:#ffd95e">World browser</a>';
     });
+  };
+
+  /* Back into the same server after the connection dropped or stalled: the
+     page reloads onto the instance it was in, which rebuilds everything
+     from a clean welcome.  Three tries in two minutes, then it stops and
+     offers the links instead of looping. */
+  Client.prototype.rejoin = function () {
+    var key = 'blockhaven.rejoins';
+    var now = Date.now();
+    var recent = [];
+    try { recent = JSON.parse(sessionStorage.getItem(key) || '[]'); } catch (e) { recent = []; }
+    recent = (recent || []).filter(function (t) { return now - t < 120000; });
+    if (recent.length >= 3) return false;
+    recent.push(now);
+    try { sessionStorage.setItem(key, JSON.stringify(recent)); } catch (e) { /* private mode */ }
+    var url = '/' + this.world.id;
+    if (this.instanceId) url += '?instance=' + encodeURIComponent(this.instanceId);
+    setTimeout(function () { window.location.replace(url); }, 1200);
+    return true;
   };
 
   Client.prototype.onWelcome = function (msg) {
@@ -896,6 +922,7 @@
     this.onState(this.state);
     var badge = document.getElementById('instance-badge');
     if (badge) badge.textContent = 'instance #' + msg.world.instance;
+    this.instanceId = msg.world.instance;
     if (this.pendingTycoonInit) {
       this.applyTycoonInit(this.pendingTycoonInit);
       this.pendingTycoonInit = null;

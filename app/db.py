@@ -208,12 +208,13 @@ CREATE INDEX IF NOT EXISTS idx_visits_world ON world_visits(world_id, id DESC);
 CREATE TABLE IF NOT EXISTS game_stats (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     world_id   TEXT NOT NULL,
-    kills      INTEGER NOT NULL DEFAULT 0,
+    kills      INTEGER NOT NULL DEFAULT 0,  -- players (and bots) only
     deaths     INTEGER NOT NULL DEFAULT 0,
     wins       INTEGER NOT NULL DEFAULT 0,
     rounds     INTEGER NOT NULL DEFAULT 0,
     playtime   INTEGER NOT NULL DEFAULT 0,
     score      INTEGER NOT NULL DEFAULT 0,
+    zkills     INTEGER NOT NULL DEFAULT 0,  -- the infected, in Last Light
     PRIMARY KEY (user_id, world_id)
 );
 
@@ -380,7 +381,20 @@ MIGRATIONS = [
     # they wear on the right of the chest.
     ("users", "badges_shown", "TEXT NOT NULL DEFAULT '[]'"),
     ("avatars", "badge", "TEXT NOT NULL DEFAULT ''"),
+    # The profile's Kills are other players; the infected cut down in Last
+    # Light are counted on their own (see AFTER_ADDING below).
+    ("game_stats", "zkills", "INTEGER NOT NULL DEFAULT 0"),
 ]
+
+# Data to move when a column first appears.  Until zkills existed every
+# infected a survivor put down was booked as a kill, so the day it arrives
+# Last Light's kills move across to it (Last Light is co-operative: nobody
+# there has ever killed another player).
+AFTER_ADDING = {
+    ("game_stats", "zkills"): [
+        "UPDATE game_stats SET zkills=zkills+kills, kills=0 WHERE world_id='last_light'",
+    ],
+}
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -396,7 +410,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute("ALTER TABLE %s ADD COLUMN %s %s"
                          % (table, column, decl))
         except sqlite3.Error:
-            pass
+            continue
+        for sql in AFTER_ADDING.get((table, column), ()):
+            try:
+                conn.execute(sql)
+            except sqlite3.Error:
+                pass
 
 
 def init_db() -> None:

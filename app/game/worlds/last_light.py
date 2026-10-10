@@ -731,7 +731,8 @@ class LastLight(GameInstance):
                     if player is killer or dealt >= total * 0.25:
                         self.badge(player, "ll_tanks")
         if killer is not None:
-            killer.kills += 1
+            killer.kills += 1          # the round's scoreboard
+            killer.zk += 1             # the record: an infected, not a player
             stats = killer.extra.get("ll") or {}
             stats["kills"] = stats.get("kills", 0) + 1
             if killer.extra.get("swinging"):
@@ -942,6 +943,7 @@ class LastLight(GameInstance):
         victim.alive = False
         victim.health = 0
         victim.deaths += 1
+        victim.pd += 1
         victim.streak = 0
         victim.respawn_at = NEVER
         pinner = self.horde.zombies.get(victim.extra.get("pinned_by", 0))

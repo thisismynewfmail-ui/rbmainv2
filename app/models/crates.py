@@ -115,6 +115,9 @@ for _number, _ev in enumerate(holidays.EVENTS, 2):
 
 OFFERS_BY_ID = {o["id"]: o for o in OFFERS}
 
+# How many of one stackable thing can be bought in one go.
+MAX_QTY = 10
+
 # ------------------------------------------------------------- lookups
 CRATE_SERIES = {s["crate"]: s for s in SERIES.values()}
 KEY_SERIES = {s["key"]: s for s in SERIES.values()}

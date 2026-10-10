@@ -439,11 +439,57 @@
     });
   }
 
-  function lockPoint(parts) {
+  // the key's size on the stage (the crate's is 1.25)
+  var KEY_SCALE = 0.95;
+
+  /* Where the key's tip goes in: the crate's own ``keyhole`` when its model
+     names one, otherwise the middle of the lock part's front face. */
+  function keyholeOf(crateItem, parts) {
+    var named = crateItem && crateItem.data && crateItem.data.keyhole;
+    if (named && named.length === 3) return named.slice();
     for (var i = 0; i < parts.length; i++) {
-      if (parts[i].lock) return parts[i].p.slice();
+      if (parts[i].lock) {
+        var q = parts[i];
+        return [q.p[0], q.p[1], q.p[2] + (q.s ? q.s[2] / 2 : 0)];
+      }
     }
-    return [0, 0.1, 0.6];
+    return [0, 0.1, 0.62];
+  }
+
+  /* How far a key goes in: its ``shoulder``, the X (key lying along X, bit
+     towards +X) where the blade meets the bow.  A key without one is
+     measured: the blade is the long thin part along X, and its back end is
+     the shoulder. */
+  function shoulderOf(keyItem, parts) {
+    var named = keyItem && keyItem.data && keyItem.data.shoulder;
+    if (typeof named === 'number') return named;
+    var best = null;
+    for (var i = 0; i < parts.length; i++) {
+      var q = parts[i];
+      if (!q.s || !q.p) continue;
+      var r = q.r || [0, 0, 0];
+      var alongX = Math.abs(Math.abs(r[2]) - Math.PI / 2) < 0.2 ? q.s[1] : q.s[0];
+      var thin = Math.min(q.s[0], q.s[1], q.s[2]);
+      if (alongX > 0.6 && thin < 0.2 && (!best || alongX > best.len)) {
+        best = { len: alongX, back: q.p[0] - alongX / 2 };
+      }
+    }
+    return best ? best.back : -0.3;
+  }
+
+  /* The crate's bounds (lid left out), for the light inside it. */
+  function bodyBounds(parts) {
+    var lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (var i = 0; i < parts.length; i++) {
+      var q = parts[i];
+      if (q.lid || !q.s || q.a === -1) continue;
+      for (var a = 0; a < 3; a++) {
+        lo[a] = Math.min(lo[a], q.p[a] - q.s[a] / 2);
+        hi[a] = Math.max(hi[a], q.p[a] + q.s[a] / 2);
+      }
+    }
+    if (lo[0] > hi[0]) return { lo: [-0.8, -0.5, -0.55], hi: [0.8, 0.5, 0.55] };
+    return { lo: lo, hi: hi };
   }
 
   var THEMES = {
@@ -475,11 +521,30 @@
     }
   };
 
+  /* An event's opening show comes with its series (app/models/holidays,
+     ``Event.opening``): its sky, light, what flies out, the effects that
+     seep and linger, the beam, the backdrop art and the two titles.
+     Anything it leaves out comes from the classic show. */
+  function themeFrom(def) {
+    var base = THEMES.classic, T = {};
+    Object.keys(base).forEach(function (k) { T[k] = base[k]; });
+    Object.keys(def || {}).forEach(function (k) { if (def[k] != null) T[k] = def[k]; });
+    if (!def || !def.shapes) T.shapes = (T.pieces || []).map(function (p) { return p.shape; });
+    return T;
+  }
+
   function Stage(options) {
     this.options = options;
     this.series = options.series;
-    this.theme = THEMES[options.theme] ? options.theme : 'classic';
-    this.T = THEMES[this.theme];
+    var def = options.themeDef;
+    if (def && Object.keys(def).length) {
+      this.T = themeFrom(def);
+      // the backdrop family names the CSS art behind the stage
+      this.theme = def.backdrop || options.theme || 'classic';
+    } else {
+      this.theme = THEMES[options.theme] ? options.theme : 'classic';
+      this.T = THEMES[this.theme];
+    }
     this.skipped = false;
     this.done = false;
     this.phase = 'intro';
@@ -492,7 +557,7 @@
     var root = document.createElement('div');
     root.className = 'cs-stage theme-' + this.theme;
     root.innerHTML =
-      '<div class="cs-bg"><i class="cs-rays"></i><i class="cs-moon"></i><i class="cs-stars"></i>' +
+      '<div class="cs-bg"><i class="cs-moon"></i><i class="cs-stars"></i><i class="cs-art a"></i><i class="cs-art b"></i>' +
       '<i class="cs-fog a"></i><i class="cs-fog b"></i><i class="cs-vignette"></i>' +
       '<span class="cs-bats"><b></b><b></b><b></b><b></b></span></div>' +
       '<canvas class="cs-gl"></canvas>' +
@@ -503,6 +568,11 @@
       '<div class="cs-flash"></div>' +
       '<div class="cs-tools"><button type="button" class="cs-mute" title="Sound"></button>' +
       '<button type="button" class="cs-skip">Skip &#9654;&#9654;</button></div>';
+    // the sky's colours carry through to the backdrop behind the canvas
+    var sky = this.T.sky || {};
+    if (sky.top) root.style.setProperty('--cs-top', sky.top);
+    if (sky.horizon) root.style.setProperty('--cs-mid', sky.horizon);
+    if (this.T.beam) root.style.setProperty('--cs-glow', this.T.beam);
     document.body.appendChild(root);
     document.body.classList.add('cs-open');
     this.root = root;
@@ -584,13 +654,32 @@
     var at = [Math.sin(t * 43) * 0.05 * shake, y + Math.sin(t * 1.7) * 0.04 + Math.abs(Math.sin(t * 37)) * 0.04 * shake,
               Math.cos(t * 31) * 0.03 * shake];
     var yaw = s.yaw + Math.sin(t * 0.9) * 0.06 + Math.sin(t * 29) * 0.05 * shake;
-    var parts = transform(this.crateParts, at, [Math.sin(t * 23) * 0.03 * shake, yaw, Math.sin(t * 27) * 0.04 * shake],
-                          1.25, -(s.lid || 0), this.hinge, s.seam);
+    var crateRot = [Math.sin(t * 23) * 0.03 * shake, yaw, Math.sin(t * 27) * 0.04 * shake];
+    // remembered for the key, which rides on the crate once it is in the lock
+    this.crateAt = at;
+    this.crateR = eulerMat(crateRot);
+    var parts = transform(this.crateParts, at, crateRot, 1.25, -(s.lid || 0), this.hinge, s.seam);
     for (var i = 0; i < parts.length; i++) r.push(parts[i]);
-    // the key
+    // the key: flying in on its own, or in the lock and moving with the crate
     if (s.key) {
-      var kp = transform(this.keyParts, s.key.at, s.key.rot, s.key.k);
+      var place = s.key.attached ? this.keyInLock(s.key.out, s.key.turn) : s.key;
+      var kp = transform(this.keyParts, place.at, place.rot, place.k);
       for (var j = 0; j < kp.length; j++) r.push(kp[j]);
+    }
+    // the light inside, as the lid comes up: a glowing pool just under the
+    // rim and a softer one filling the box
+    if (s.inner) {
+      var B = this.bounds, g = s.inner;
+      var w = (B.hi[0] - B.lo[0]) * 0.86, d = (B.hi[2] - B.lo[2]) * 0.82;
+      var top = B.hi[1] - 0.05, mid = (B.lo[1] + B.hi[1]) / 2;
+      var cx = (B.lo[0] + B.hi[0]) / 2, cz = (B.lo[2] + B.hi[2]) / 2;
+      var R = this.crateR, rgb = GLX.mat.hexToRgb(this.T.beam), e = toEuler(R);
+      var pool = apply(R, [cx * 1.25, top * 1.25, cz * 1.25]);
+      r.pushRaw('box', at[0] + pool[0], at[1] + pool[1], at[2] + pool[2], e[0], e[1], e[2],
+                w * 1.25, 0.05, d * 1.25, rgb, Math.min(0.95, 0.95 * g), 0, 2, 0, null);
+      var fill = apply(R, [cx * 1.25, mid * 1.25, cz * 1.25]);
+      r.pushRaw('box', at[0] + fill[0], at[1] + fill[1], at[2] + fill[2], e[0], e[1], e[2],
+                w * 1.2, (B.hi[1] - B.lo[1]) * 1.05, d * 1.2, [1, 1, 1], 0.18 * g, 0, 2, 0, null);
     }
     // a column of light once the lid is up
     if (s.beam) {
@@ -614,6 +703,27 @@
     if (this.particles) this.particles.draw(r);
   };
 
+  /* The key seated in the lock: its shoulder ``out`` short of the keyhole
+     (0 = all the way in), turned ``turn`` about its own length, and moving
+     with the crate -- its sway, bob and rattle -- so it never floats off
+     the lock it is in. */
+  Stage.prototype.keyInLock = function (out, turn) {
+    var R = this.crateR || eulerMat([0, this.scene.yaw, 0]);
+    var at = this.crateAt || [0, 0, 0];
+    var h = this.keyhole, k = KEY_SCALE;
+    var face = apply(R, [h[0] * 1.25, h[1] * 1.25, h[2] * 1.25]);
+    var dir = apply(R, [0, 0, 1]);
+    // the shoulder (x = shoulder < 0 on the key) sits ``out`` in front of
+    // the face; the key's origin is further in along the blade
+    var reach = out + this.shoulder * k;
+    return {
+      at: [at[0] + face[0] + dir[0] * reach, at[1] + face[1] + dir[1] * reach,
+           at[2] + face[2] + dir[2] * reach],
+      rot: toEuler(mul(R, eulerMat([turn || 0, Math.PI / 2, 0]))),
+      k: k
+    };
+  };
+
   /* Run the whole show.  ``result`` is a promise of the server's answer. */
   Stage.prototype.run = function (crateItem, keyItem, result) {
     var self = this;
@@ -621,9 +731,11 @@
     this.keyParts = modelParts(keyItem);
     var hinge = (crateItem.data && crateItem.data.hinge) || [0, 0.5, -0.55];
     this.hinge = hinge;
-    var lock = lockPoint(this.crateParts);
+    this.keyhole = keyholeOf(crateItem, this.crateParts);
+    this.shoulder = shoulderOf(keyItem, this.keyParts);
+    this.bounds = bodyBounds(this.crateParts);
     this.scene = { yaw: -0.38, dropT: 0, lid: 0, shake: 0, seam: undefined };
-    this.setTitle(this.theme === 'halloween' ? 'Something stirs inside...' : 'Unlocking',
+    this.setTitle(this.T.title_wait || (this.theme === 'halloween' ? 'Something stirs inside...' : 'Unlocking'),
                   crateItem.name);
     Sfx.init();
     var answer = null, failed = null;
@@ -631,12 +743,7 @@
       if (res && res.ok) answer = res; else failed = (res && res.error) || 'The crate would not open.';
     }, function () { failed = 'Lost the connection to the server.'; });
 
-    // where the lock is in world space at rest
-    function lockWorld() {
-      var R = eulerMat([0, self.scene.yaw, 0]);
-      var w = apply(R, [lock[0] * 1.25, lock[1] * 1.25, lock[2] * 1.25]);
-      return w;
-    }
+    var INSERT_FROM = 0.45;      // how far out the shoulder starts its push in
 
     var timeline = [
       // [start, end, fn(progress)]
@@ -647,52 +754,52 @@
       }],
       [0.9, 2.0, function (p) {
         if (!self._whoosh) { self._whoosh = 1; Sfx.play('whoosh', { theme: self.theme }); }
-        var L = lockWorld();
         var e = easeInOut(p);
+        // it arrives exactly where the push into the lock begins, already
+        // lined up with it
+        var start = self.keyInLock(INSERT_FROM, 0);
         var from = [4.2, 3.2, 3.6];
-        var aim = [L[0] + 0.0, L[1], L[2] + 1.05];
+        var aim = start.at;
         var mid = [2.2, 3.4, 3.0];
         var u = 1 - e;
         var pos = [u * u * from[0] + 2 * u * e * mid[0] + e * e * aim[0],
                    u * u * from[1] + 2 * u * e * mid[1] + e * e * aim[1],
                    u * u * from[2] + 2 * u * e * mid[2] + e * e * aim[2]];
-        self.scene.key = { at: pos, rot: [lerp(4.0, 0, e), self.scene.yaw + Math.PI / 2 + lerp(2.6, 0, e), 0],
-                           k: lerp(0.4, 0.95, e) };
+        var R = self.crateR || eulerMat([0, self.scene.yaw, 0]);
+        self.scene.key = { at: pos, rot: toEuler(mul(R, eulerMat([lerp(4.0, 0, e), Math.PI / 2 + lerp(2.6, 0, e), 0]))),
+                           k: lerp(0.4, KEY_SCALE, e) };
         if (self.particles && Math.random() < 0.9) {
           self.particles.spawn({ p: pos, v: [0, 0.2, 0], life: 0.5, size: 0.22, grow: -0.3, gravity: 0,
             spin: 2, blend: 'add', shape: 'spark', colors: self.T.burst });
         }
       }],
       [2.0, 2.35, function (p) {
-        var L = lockWorld();
         if (!self._insert) { self._insert = 1; Sfx.play('insert'); }
-        var dir = apply(eulerMat([0, self.scene.yaw, 0]), [0, 0, 1]);
-        var d = lerp(1.05, 0.62, easeOut(p));
-        self.scene.key = { at: [L[0] + dir[0] * d, L[1], L[2] + dir[2] * d],
-                           rot: [0, self.scene.yaw + Math.PI / 2, 0], k: 0.95 };
+        // pushed home: the shoulder ends flush with the keyhole
+        self.scene.key = { attached: true, out: lerp(INSERT_FROM, 0, easeOut(p)), turn: 0 };
       }],
       [2.35, 2.75, function (p) {
-        var L = lockWorld();
-        var dir = apply(eulerMat([0, self.scene.yaw, 0]), [0, 0, 1]);
-        self.scene.key = { at: [L[0] + dir[0] * 0.62, L[1], L[2] + dir[2] * 0.62],
-                           rot: [easeOutBack(p) * Math.PI / 2, self.scene.yaw + Math.PI / 2, 0], k: 0.95 };
+        self.scene.key = { attached: true, out: 0, turn: easeOutBack(p) * Math.PI / 2 };
         if (p >= 0.6 && !self._turn) {
           self._turn = 1; Sfx.play('turn', { theme: self.theme });
           self.flash(self.T.beam, 0.25);
-          self.burst(L, 10, 1.2);
+          var hole = self.keyInLock(0, 0).at;
+          self.burst(hole, 10, 1.2);
         }
       }],
       [2.75, 3.9, function (p) {
         self.scene.shake = 0.2 + p * 1.1;
-        self.scene.seam = 0.6 + 0.4 * Math.sin(p * 30);
+        // the light straining at the seam, brighter as it goes
+        self.scene.seam = Math.min(1, 0.45 + p * 0.45 + 0.25 * Math.sin(p * 30));
         self.scene.seep = p > 0.25;
         if (!self._rattle) {
           self._rattle = 1; Sfx.play('rattle', { theme: self.theme });
-          self.setTitle(self.theme === 'halloween' ? 'It is trying to get out...' : 'Here it comes...',
+          self.setTitle(self.T.title_shake ||
+                        (self.theme === 'halloween' ? 'It is trying to get out...' : 'Here it comes...'),
                         crateItem.name);
         }
-        // the key fades as the lock lets go
-        if (p > 0.7) self.scene.key = null;
+        // the key stays turned in the lock, rattling with the crate
+        self.scene.key = { attached: true, out: 0, turn: Math.PI / 2 };
       }]
     ];
 
@@ -700,6 +807,7 @@
     var waitStart = 0;
     function frame(now) {
       if (self.done) return;
+      if (self.paused) { last = now; requestAnimationFrame(frame); return; }
       var dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       self.t += dt;
@@ -726,6 +834,8 @@
         if (!self._boom) {
           self._boom = 1;
           self.scene.shake = 0; self.scene.seep = false; self.scene.key = null;
+          // the light inside at full strength, skipped to or not
+          self.scene.seam = 1;
           Sfx.play('open', { theme: self.theme });
           self.flash('#ffffff', 0.9);
           self.shakeScreen(true);
@@ -737,6 +847,7 @@
         }
         self.scene.lid = easeOutBack(q) * 1.95;
         self.scene.beam = easeOut(q);
+        self.scene.inner = Math.min(1, q * 1.6);
         if (q >= 1 && !self._reel) {
           self._reel = 1;
           self.startReel(answer);
@@ -856,7 +967,6 @@
     var wearable = WEARABLE[it.slot];
     this.revealBox.innerHTML =
       '<div class="cs-card" style="--g:' + colour + '">' +
-      '<i class="cs-card-rays"></i>' +
       (unusual ? '<div class="cs-unusual-banner">&#9733; UNUSUAL &#9733;</div>' : '') +
       '<div class="cs-card-art"><canvas id="cs-won" width="420" height="420"></canvas></div>' +
       '<div class="cs-card-grade">' + esc(GRADE_LABELS[grade] || grade) + '</div>' +
@@ -970,13 +1080,14 @@
       var crateId = options.crateItem || info.crate;
       var keyId = options.keyItem || info.key;
       // the page may not know the series yet (an inventory row was clicked):
-      // ask the answer, but start the show with what we can guess
-      if (!crateId) crateId = series === 'halloween' ? 'crate_halloween' : 'crate_classic';
-      if (!keyId) keyId = series === 'halloween' ? 'key_halloween' : 'key_standard';
+      // ask the answer, but start the show with what we can guess -- every
+      // series' crate and key are named after it, bar the first one's key
+      if (!crateId) crateId = 'crate_' + (series || 'classic');
+      if (!keyId) keyId = !series || series === 'classic' ? 'key_standard' : 'key_' + series;
       var crate = itemOf(crateId), key = itemOf(keyId);
       return new Promise(function (resolve) {
         var stage = new Stage({
-          series: series, theme: info.theme || series,
+          series: series, theme: info.theme || series, themeDef: info.theme_def,
           onClose: function (answer) { Crates.busy = false; resolve(answer); if (options.onClose) options.onClose(answer); },
           onResult: options.onResult
         });
@@ -989,6 +1100,7 @@
           });
           return;
         }
+        Crates.stage = stage;      // the show in progress (tools/cratestage.js watches it)
         stage.run(crate || { name: 'Crate', data: { parts: [] } }, key || { data: { parts: [] } }, request);
       });
     });

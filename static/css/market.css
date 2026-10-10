@@ -3,7 +3,7 @@
    The Crate Hall, the event hero, the live drop feed, the aisles, and the
    opening stage.  It keeps the site's own manners -- bevels, gradient heads,
    Verdana -- and lets the things on sale move: cards lean towards the
-   pointer, a sheen follows it, rays turn behind the crates, the event sky
+   pointer, a sheen follows it, the event sky
    has bats in it.  Everything that moves stops for prefers-reduced-motion.
    ========================================================================== */
 
@@ -286,12 +286,6 @@
 .mk-show-art canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
   transition: transform .4s cubic-bezier(.2,1.4,.4,1); }
 .mk-show:hover .mk-show-art canvas { transform: scale(1.08) translateZ(30px) rotate(-2deg); }
-.mk-show-rays { position: absolute; left: 50%; top: 55%; width: 340px; height: 340px; margin: -170px 0 0 -170px;
-  background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.22) 0deg 8deg, transparent 8deg 22deg);
-  border-radius: 50%; animation: mk-rays 18s linear infinite; opacity: .55;
-  -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 68%); mask-image: radial-gradient(circle, #000 20%, transparent 68%); }
-.mk-show:hover .mk-show-rays { animation-duration: 6s; opacity: .9; }
-@keyframes mk-rays { to { transform: rotate(360deg); } }
 .mk-shine { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
   background: radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,.55), transparent 45%); mix-blend-mode: soft-light; }
 .tilting .mk-shine { opacity: 1; }
@@ -347,9 +341,6 @@
 .mk-spot-stage { position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 1;
   background: radial-gradient(circle at 50% 60%, #5b2a8a, #1d0d33 70%); border: 1px solid #2a1149;
   box-shadow: inset 0 0 40px rgba(178,107,255,.35); grid-row: span 2; }
-.mk-spot-stage::before { content: ""; position: absolute; left: 50%; top: 55%; width: 300px; height: 300px;
-  margin: -150px 0 0 -150px; border-radius: 50%; animation: mk-rays 22s linear infinite;
-  background: repeating-conic-gradient(rgba(199,139,255,.18) 0deg 6deg, transparent 6deg 18deg); }
 .mk-spot-stage canvas { position: relative; width: 100%; height: 100%; display: block; }
 .mk-spot-fx { position: absolute; left: 8px; right: 8px; bottom: 8px; text-align: center; font-size: 11px;
   color: #e7d4ff; background: rgba(20, 6, 40, .7); border-radius: 12px; padding: 3px 6px; }
@@ -464,14 +455,14 @@ body.cs-open { overflow: hidden; }
 .cs-stage.leaving { opacity: 0; }
 .cs-bg { position: absolute; inset: 0; }
 .cs-bg i, .cs-bg span { position: absolute; display: block; }
+/* Any series: its own sky colours (crates.js sets them from the theme).  The
+   families below add their art on top. */
+.cs-bg { background: radial-gradient(circle at 50% 60%, var(--cs-mid, #2a2f4a), var(--cs-top, #11131f) 58%, #040408 100%); }
+.cs-art { display: none !important; pointer-events: none; }
+.cs-title b { color: color-mix(in srgb, var(--cs-glow, #ffe9a8) 55%, #fff); }
 .theme-classic .cs-bg { background: radial-gradient(circle at 50% 58%, #6a4320, #2b1a0c 55%, #0c0704 100%); }
 .theme-halloween .cs-bg { background: radial-gradient(circle at 50% 62%, #3a1a5a, #160b26 55%, #050209 100%); }
-.cs-rays { left: 50%; top: 58%; width: 1600px; height: 1600px; margin: -800px 0 0 -800px; border-radius: 50%;
-  background: repeating-conic-gradient(rgba(255, 220, 140, .14) 0deg 7deg, transparent 7deg 20deg);
-  animation: mk-rays 40s linear infinite; -webkit-mask-image: radial-gradient(circle, #000 10%, transparent 60%);
-  mask-image: radial-gradient(circle, #000 10%, transparent 60%); }
-.theme-halloween .cs-rays { background: repeating-conic-gradient(rgba(107, 255, 154, .08) 0deg 5deg, transparent 5deg 24deg); }
-.cs-moon { display: none !important; }
+.theme-halloween .cs-moon { display: none !important; }
 .theme-halloween .cs-moon { display: block !important; right: 8%; top: 7%; width: 150px; height: 150px; border-radius: 50%;
   background: radial-gradient(circle at 38% 36%, #fff8d8, #ffd77a 55%, #f2a03a 100%);
   box-shadow: 0 0 60px 20px rgba(255, 196, 92, .35); opacity: .85; }
@@ -494,6 +485,66 @@ body.cs-open { overflow: hidden; }
 .cs-bats b:nth-child(1) { top: 14%; } .cs-bats b:nth-child(2) { top: 24%; animation-delay: -4s; }
 .cs-bats b:nth-child(3) { top: 9%; animation-delay: -7s; animation-duration: 14s; }
 .cs-bats b:nth-child(4) { top: 32%; animation-delay: -2s; animation-duration: 12s; }
+/* ---------------------------------------------------------------------------
+   Opening-stage backdrops for the holiday series.  Each family is art painted
+   behind the 3D canvas: a sky, a landmark, and something drifting through it.
+   (Everything here stops for prefers-reduced-motion, with the rest.)
+   --------------------------------------------------------------------------- */
+@keyframes cs-fall { from { background-position: 0 -320px, 60px -160px, 120px 0; } to { background-position: 0 320px, 60px 480px, 120px 640px; } }
+@keyframes cs-rise { from { background-position: 0 0, 40px 0; } to { background-position: 0 -400px, 40px -560px; } }
+@keyframes cs-pulse { 0%, 100% { transform: scale(.82); opacity: .35; } 50% { transform: scale(1.08); opacity: .95; } }
+@keyframes cs-grid { from { background-position: 0 0; } to { background-position: 0 64px; } }
+
+/* New Year: the first midnight -- a great clock at a minute to twelve and
+   gold confetti coming down */
+.theme-newyear .cs-art { display: block !important; }
+.theme-newyear .cs-art.a { right: 6%; top: 6%; width: 190px; height: 190px; opacity: .85;
+  filter: drop-shadow(0 0 24px rgba(255, 220, 120, .45));
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23101a48' stroke='%23f2c230' stroke-width='4'/%3E%3Cg stroke='%23fff3b0' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M50 9v8M50 83v8M9 50h8M83 50h8M29 14l3 6M71 14l-3 6M14 29l6 3M86 29l-6 3M14 71l6-3M86 71l-6-3M29 86l3-6M71 86l-3-6'/%3E%3C/g%3E%3Cpath d='M50 50L49 24' stroke='%23f2c230' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M50 50L48.5 15' stroke='%23fff' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='4' fill='%23f2c230'/%3E%3C/svg%3E"); }
+.theme-newyear .cs-art.b, .theme-skyline .cs-art.b { inset: 0; opacity: .8; animation: cs-fall 9s linear infinite;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='320'%3E%3Crect x='20' y='30' width='7' height='12' fill='%23f2c230' transform='rotate(20 23 36)'/%3E%3Crect x='120' y='90' width='6' height='10' fill='%23ff4fa0' transform='rotate(-30 123 95)'/%3E%3Crect x='70' y='200' width='7' height='11' fill='%233cc8ff' transform='rotate(50 73 205)'/%3E%3Crect x='150' y='260' width='5' height='9' fill='%23fff3b0'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='320'%3E%3Crect x='40' y='60' width='6' height='10' fill='%237dff9a' transform='rotate(-15 43 65)'/%3E%3Crect x='170' y='150' width='7' height='12' fill='%23f2c230' transform='rotate(35 173 156)'/%3E%3Crect x='100' y='280' width='6' height='10' fill='%23b26bff'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='320'%3E%3Ccircle cx='60' cy='120' r='3' fill='%23fff3b0'/%3E%3Ccircle cx='200' cy='40' r='2.5' fill='%23f2c230'/%3E%3Ccircle cx='150' cy='230' r='3' fill='%23ffffff'/%3E%3C/svg%3E"); }
+
+/* The gala: a chandelier over a black-tie ballroom, and bubbles rising */
+.theme-gala .cs-bg { background: radial-gradient(circle at 50% 62%, #3a2a12, #140e08 55%, #030202 100%); }
+.theme-gala .cs-art { display: block !important; }
+.theme-gala .cs-art.a { left: 50%; top: -10px; width: 360px; height: 190px; margin-left: -180px; opacity: .8;
+  filter: drop-shadow(0 0 30px rgba(255, 214, 140, .55));
+  background: no-repeat center top/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cpath d='M100 0v22' stroke='%23e8c46a' stroke-width='2'/%3E%3Cpath d='M30 40q70 40 140 0M50 30q50 28 100 0M70 22q30 16 60 0' fill='none' stroke='%23e8c46a' stroke-width='2.5'/%3E%3Cg fill='%23fff6d0'%3E%3Cpath d='M30 40l-3 10 3 6 3-6zM170 40l-3 10 3 6 3-6zM65 55l-3 10 3 6 3-6zM135 55l-3 10 3 6 3-6zM100 62l-3 12 3 7 3-7zM50 30l-2 8 2 5 2-5zM150 30l-2 8 2 5 2-5z'/%3E%3C/g%3E%3Cg fill='%23ffd96b'%3E%3Ccircle cx='70' cy='22' r='2.5'/%3E%3Ccircle cx='130' cy='22' r='2.5'/%3E%3Ccircle cx='100' cy='30' r='3'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-gala .cs-art.b { inset: 0; opacity: .55; animation: cs-rise 7s linear infinite;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='400'%3E%3Cg fill='none' stroke='%23ffe9b0' stroke-width='1.5'%3E%3Ccircle cx='30' cy='60' r='4'/%3E%3Ccircle cx='120' cy='170' r='3'/%3E%3Ccircle cx='80' cy='300' r='5'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='560'%3E%3Cg fill='none' stroke='%23fff6d0' stroke-width='1.2'%3E%3Ccircle cx='60' cy='100' r='3'/%3E%3Ccircle cx='180' cy='330' r='4'/%3E%3C/g%3E%3C/svg%3E"); }
+
+/* Fireworks: bursts going off over a smoky field */
+.theme-fireworks .cs-art { display: block !important; }
+.theme-fireworks .cs-art.a { left: 8%; top: 6%; width: 230px; height: 230px; animation: cs-pulse 2.4s ease-in-out infinite;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Cg stroke='%23ff3b4e' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M0-12V-40M0 12V40M-12 0H-40M12 0H40M8-8L28-28M-8 8L-28 28M8 8L28 28M-8-8L-28-28'/%3E%3C/g%3E%3Cg fill='%23ffcf3a'%3E%3Ccircle cy='-44' r='2.5'/%3E%3Ccircle cy='44' r='2.5'/%3E%3Ccircle cx='-44' r='2.5'/%3E%3Ccircle cx='44' r='2.5'/%3E%3Ccircle cx='31' cy='31' r='2.5'/%3E%3Ccircle cx='-31' cy='-31' r='2.5'/%3E%3Ccircle cx='31' cy='-31' r='2.5'/%3E%3Ccircle cx='-31' cy='31' r='2.5'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-fireworks .cs-art.b { right: 7%; top: 12%; width: 190px; height: 190px; animation: cs-pulse 3.1s ease-in-out -1.2s infinite;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Cg stroke='%233cc8ff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M0-10V-36M0 10V36M-10 0H-36M10 0H36M7-7L25-25M-7 7L-25 25M7 7L25 25M-7-7L-25-25M4-9L12-34M-4 9L-12 34M9 4L34 12M-9-4L-34-12'/%3E%3C/g%3E%3Ccircle r='5' fill='%23fff'/%3E%3C/svg%3E"); }
+.theme-fireworks .cs-fog { background: radial-gradient(ellipse, rgba(200, 200, 210, .22), transparent 70%); }
+
+/* Synthwave: a striped sun on the horizon over a neon grid */
+.theme-synthwave .cs-bg { background: linear-gradient(#12002a 0%, #3a0a5a 42%, #ff2bd6 58%, #1a0030 58.4%, #0a0018 100%); }
+.theme-synthwave .cs-art { display: block !important; }
+.theme-synthwave .cs-art.a { left: 50%; top: 22%; width: 300px; height: 300px; margin-left: -150px; opacity: .9;
+  filter: drop-shadow(0 0 40px rgba(255, 43, 214, .6));
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffd36a'/%3E%3Cstop offset='1' stop-color='%23ff2bd6'/%3E%3C/linearGradient%3E%3Cmask id='m'%3E%3Crect width='100' height='100' fill='%23fff'/%3E%3Cg fill='%23000'%3E%3Crect y='58' width='100' height='3'/%3E%3Crect y='66' width='100' height='4'/%3E%3Crect y='75' width='100' height='5'/%3E%3Crect y='85' width='100' height='6'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='46' fill='url(%23g)' mask='url(%23m)'/%3E%3C/svg%3E"); }
+.theme-synthwave .cs-art.b { left: -30%; right: -30%; bottom: 0; height: 42%; opacity: .75;
+  transform: perspective(300px) rotateX(58deg); transform-origin: 50% 100%; animation: cs-grid 1.2s linear infinite;
+  background-image: linear-gradient(rgba(25, 240, 255, .9) 2px, transparent 2px),
+                    linear-gradient(90deg, rgba(255, 43, 214, .9) 2px, transparent 2px);
+  background-size: 64px 64px; }
+.theme-synthwave .cs-stars { opacity: .9; }
+
+/* The ball drop: a city skyline at midnight, silver confetti coming down */
+.theme-skyline .cs-bg { background: radial-gradient(circle at 50% 30%, #2a3c66, #0e1630 55%, #03050c 100%); }
+.theme-skyline .cs-art { display: block !important; }
+.theme-skyline .cs-art.a { left: 0; right: 0; bottom: 0; height: 34%; opacity: .95;
+  background: no-repeat center bottom/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100' preserveAspectRatio='none'%3E%3Cpath fill='%23060a18' d='M0 100V62h18V40h14v22h10V30h20v32h8V48h16v14h12V20h6V8h4v12h6v42h10V44h22v18h8V34h18v28h10V54h14V26h8V14h8v12h6v36h12V46h20v16h10V36h16v26h12V52h14v10h10V28h18v34h12V44h16v56z'/%3E%3Cg fill='%23ffd96b' opacity='.7'%3E%3Crect x='24' y='46' width='3' height='3'/%3E%3Crect x='66' y='36' width='3' height='3'/%3E%3Crect x='66' y='46' width='3' height='3'/%3E%3Crect x='110' y='30' width='3' height='3'/%3E%3Crect x='110' y='44' width='3' height='3'/%3E%3Crect x='150' y='50' width='3' height='3'/%3E%3Crect x='186' y='40' width='3' height='3'/%3E%3Crect x='232' y='32' width='3' height='3'/%3E%3Crect x='232' y='48' width='3' height='3'/%3E%3Crect x='276' y='52' width='3' height='3'/%3E%3Crect x='330' y='36' width='3' height='3'/%3E%3Crect x='372' y='50' width='3' height='3'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-skyline .cs-art.b { filter: hue-rotate(160deg) saturate(.4) brightness(1.3); }
 .cs-gl { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cs-title { position: absolute; top: 6%; left: 0; right: 0; text-align: center; pointer-events: none;
   transition: opacity .3s; }
@@ -558,10 +609,6 @@ body.cs-open { overflow: hidden; }
 .cs-card { position: relative; width: min(460px, 92vw); padding: 18px 20px 20px; border-radius: 16px; text-align: center;
   background: linear-gradient(rgba(20, 24, 34, .92), rgba(10, 12, 18, .95));
   border: 2px solid var(--g); box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 0 60px var(--g), 0 30px 60px rgba(0,0,0,.6); overflow: hidden; }
-.cs-card-rays { position: absolute; left: 50%; top: 38%; width: 900px; height: 900px; margin: -450px 0 0 -450px;
-  background: repeating-conic-gradient(color-mix(in srgb, var(--g) 35%, transparent) 0deg 9deg, transparent 9deg 22deg);
-  animation: mk-rays 14s linear infinite; opacity: .55; -webkit-mask-image: radial-gradient(circle, #000 5%, transparent 45%);
-  mask-image: radial-gradient(circle, #000 5%, transparent 45%); }
 .cs-card > * { position: relative; }
 .cs-unusual-banner { display: inline-block; margin-bottom: 4px; padding: 4px 16px; border-radius: 20px;
   font: bold 14px Verdana, sans-serif; letter-spacing: 4px; color: #fff;
@@ -625,13 +672,6 @@ body.cs-open { overflow: hidden; }
               linear-gradient(#2a1840, #120a1e); }
 .stash-card.theme-halloween .thumb-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(circle at 78% 18%, rgba(255, 245, 210, .9) 0 7%, transparent 8%); opacity: .55; }
-.stash-card .thumb-wrap::after { content: ""; position: absolute; inset: -40%; pointer-events: none;
-  background: conic-gradient(from 0deg, transparent 0 20deg, rgba(255,255,255,.18) 30deg, transparent 40deg 110deg,
-    rgba(255,255,255,.14) 120deg, transparent 130deg 200deg, rgba(255,255,255,.18) 210deg, transparent 220deg);
-  animation: inv-rays 14s linear infinite; opacity: 0; transition: opacity .3s; }
-.stash-card:hover .thumb-wrap::after, .stash-card.pickable .thumb-wrap::after,
-.stash-card.openable .thumb-wrap::after { opacity: 1; }
-@keyframes inv-rays { to { transform: rotate(360deg); } }
 .stash-card .thumb { position: relative; z-index: 1; transition: transform .25s; }
 .stash-card:hover .thumb { transform: scale(1.06) rotate(-2deg); }
 .stash-card.openable { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }

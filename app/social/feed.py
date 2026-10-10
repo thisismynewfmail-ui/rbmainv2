@@ -8,14 +8,9 @@ from .. import db
 
 
 def recent_activity(limit: int = 18) -> List[Dict[str, Any]]:
+    # Status posts are not shown anywhere since the timeline was retired, so
+    # they are not news here either.
     events: List[Dict[str, Any]] = []
-    for row in db.query(
-            "SELECT p.id, p.body, p.created_at, u.username FROM posts p"
-            " JOIN users u ON u.id=p.user_id WHERE p.hidden=0"
-            " ORDER BY p.id DESC LIMIT ?", (limit,)):
-        events.append({"kind": "post", "username": row["username"],
-                       "text": row["body"], "at": row["created_at"],
-                       "link": "/profile/%s" % row["username"]})
     seen_finds = set()
     # Only finds worth reading about reach the feed: an Unusual pull, or an
     # uncommon-or-better item.  Routine purchases are left out of it.

@@ -111,8 +111,6 @@ class Engine:
             if not self.comment_at[i]:
                 self.comment_at[i] = now + self.rng.randint(
                     60, max(120, self._interval("chatter.interval_hours", i, [1, 5]) // 2))
-            if not self.post_at[i]:
-                self.post_at[i] = now + self._interval("chatter.post_interval_hours", i, [8, 72]) // 2
             if not self.friend_at[i]:
                 self.friend_at[i] = now + self.rng.randint(60, 1800)
             self._file(i, now + self.rng.randint(30, 600))
@@ -181,10 +179,8 @@ class Engine:
             else:
                 self.comment_at[i] = now + self.rng.randint(300, 1800)
                 self.stats["deferred"] += 1
-        if bot_config.get("chatter.posts") and now >= self.post_at[i]:
-            self.post_at[i] = now + self._interval("chatter.post_interval_hours", i, [8, 72])
-            self._post(i, uid)
-        nxt = min(self.comment_at[i], self.post_at[i], self.friend_at[i])
+        # (status posts went with the timeline: bots no longer write them)
+        nxt = min(self.comment_at[i], self.friend_at[i])
         with self.lock:
             self._file(i, max(now + 60, nxt))
 
@@ -559,34 +555,6 @@ class Engine:
 
         # typing takes time too
         return llm.client().submit("dm", llm.P_DM, build, done, ttl=3600, bot=bot)
-
-    # ---------------------------------------------------------------- posts
-    def _post(self, i: int, uid: int) -> None:
-        if not llm.client().available() or llm.client().pressure() > 0.5:
-            return
-        card = self.d.card(uid)
-        world, _inst = self.d.bot_place(uid)
-        doing = ""
-        if world:
-            doing = "playing %s right now" % bot_config.WORLD_LABELS.get(world, world)
-
-        def build():
-            earlier = [e.get("text", "") for e in storage.tail(uid, card["name"],
-                                                               storage.POSTS_LOG, 8)]
-            earlier = earlier or social.recent_posts(uid, 8)
-            return prompts.post(card, earlier, doing)
-
-        def done(text: Optional[str], error: Optional[str]) -> None:
-            text = prompts.tidy(text, "post", card["name"])
-            if not text:
-                return
-            if social.post(uid, text):
-                storage.append(uid, card["name"], storage.POSTS_LOG,
-                               [{"at": _now(), "who": card["name"], "text": text}])
-                self.stats["posts"] += 1
-                self._remember("post", card["name"], "", text)
-
-        llm.client().submit("post", llm.P_POST, build, done, ttl=3600, bot=uid)
 
     # ---------------------------------------------------------------- misc
     def _remember(self, kind: str, who: str, where: str, text: str) -> None:

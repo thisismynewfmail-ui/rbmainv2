@@ -549,10 +549,6 @@ FIELDS: List[Field] = [
     F("chatter.max_per_minute", "Comment budget", "int", 12, "chatter",
       "Most comments all bots together write in a minute (keeps the model "
       "free for chat and DMs).", 0, 600, 1, "/min"),
-    F("chatter.posts", "Status posts", "bool", True, "chatter",
-      "Bots post a status update now and then."),
-    F("chatter.post_interval_hours", "Time between posts", "range", [8, 72],
-      "chatter", "", 0.5, 720, 0.5, "h", scope="per-bot"),
     F("chatter.likes", "Likes", "bool", True, "chatter",
       "Bots like posts from friends and associated bots."),
 
@@ -1042,6 +1038,120 @@ def public_values() -> Dict[str, Any]:
     if values.get("llm.api_key"):
         values["llm.api_key"] = "•" * 8
     return values
+
+
+# ------------------------------------------------- saved model configurations
+# Named snapshots of the whole Language Models tab -- endpoint, key, model,
+# prompt format, context and culling, sampling, stops, reasoning effort and
+# thinking allowance -- so switching between, say, a local llama.cpp box and
+# a hosted API is one click rather than twenty fields.  They live beside the
+# settings in the meta table; the key is stored the way the live setting is,
+# and never sent back to the dashboard.
+PROFILES_KEY = "bots.llm_profiles"
+MAX_PROFILES = 40
+
+
+class ProfileError(ValueError):
+    pass
+
+
+def _profiles_stored() -> Dict[str, Dict[str, Any]]:
+    try:
+        data = json.loads(db.get_meta(PROFILES_KEY, "{}") or "{}")
+    except (TypeError, ValueError):
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+def _llm_fields() -> List[Field]:
+    return [f for f in FIELDS if f.section == "llm"]
+
+
+def _profile_name(name: Any) -> str:
+    name = re.sub(r"\s+", " ", str(name or "")).strip()
+    if not name:
+        raise ProfileError("Give the configuration a name.")
+    if len(name) > 48:
+        raise ProfileError("Keep the name under 48 characters.")
+    return name
+
+
+def _profile_summary(name: str, entry: Dict[str, Any]) -> Dict[str, Any]:
+    values = entry.get("values") or {}
+    return {"name": name, "saved_at": int(entry.get("saved_at") or 0),
+            "saved_by": entry.get("saved_by") or "",
+            "base_url": values.get("llm.base_url") or "",
+            "model": values.get("llm.model") or "",
+            "mode": values.get("llm.mode") or "",
+            "context_limit": values.get("llm.context_limit"),
+            "reasoning_effort": values.get("llm.reasoning_effort") or "",
+            "reasoning_tokens": values.get("llm.reasoning_tokens"),
+            "has_key": bool(values.get("llm.api_key")),
+            "fields": len(values)}
+
+
+def llm_profiles() -> List[Dict[str, Any]]:
+    """Every saved configuration, newest first, without its key."""
+    stored = _profiles_stored()
+    rows = [_profile_summary(name, entry) for name, entry in stored.items()
+            if isinstance(entry, dict)]
+    rows.sort(key=lambda r: (-r["saved_at"], r["name"].lower()))
+    return rows
+
+
+def save_llm_profile(name: Any, pending: Optional[Dict[str, Any]] = None,
+                     by: str = "") -> Dict[str, Any]:
+    """Store the Language Models settings in force -- with ``pending`` (the
+    dashboard's unsaved edits on that tab) laid over them -- as ``name``,
+    replacing a configuration of that name."""
+    name = _profile_name(name)
+    current = load()
+    values: Dict[str, Any] = {}
+    for field in _llm_fields():
+        value = current.get(field.key)
+        if pending and field.key in pending:
+            raw = pending[field.key]
+            masked = field.kind == "secret" and str(raw or "") and \
+                str(raw or "").strip("•") == ""
+            if not masked:
+                value = clean(field, raw)
+        values[field.key] = value
+    with _lock:
+        stored = _profiles_stored()
+        if name not in stored and len(stored) >= MAX_PROFILES:
+            raise ProfileError("That is %d saved configurations already; delete one first."
+                               % MAX_PROFILES)
+        stored[name] = {"values": values, "saved_at": int(time.time()), "saved_by": by}
+        db.set_meta(PROFILES_KEY, json.dumps(stored, separators=(",", ":")))
+    return _profile_summary(name, stored[name])
+
+
+def load_llm_profile(name: Any) -> Dict[str, Any]:
+    """Put a saved configuration into force.  Settings it does not mention
+    (one saved before a setting existed) go back to their defaults, so what
+    runs is exactly what was saved."""
+    name = _profile_name(name)
+    entry = _profiles_stored().get(name)
+    if not isinstance(entry, dict):
+        raise ProfileError("There is no configuration called %s." % name)
+    values = entry.get("values") or {}
+    changes = {}
+    for field in _llm_fields():
+        changes[field.key] = values.get(field.key, field.default)
+    if not changes.get("llm.api_key"):
+        changes["llm.api_key"] = ""
+    return save(changes)
+
+
+def delete_llm_profile(name: Any) -> bool:
+    name = _profile_name(name)
+    with _lock:
+        stored = _profiles_stored()
+        if name not in stored:
+            return False
+        stored.pop(name)
+        db.set_meta(PROFILES_KEY, json.dumps(stored, separators=(",", ":")))
+    return True
 
 
 def ingame_section() -> Dict[str, Any]:

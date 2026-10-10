@@ -60,6 +60,10 @@
           <div><dt>Rounds</dt><dd>{{ fmt_num(stats.total.rounds) }}</dd></div>
           <div><dt>Score</dt><dd>{{ fmt_num(stats.total.score) }}</dd></div>
         </dl>
+        {% if stats.total.zkills %}
+        <p class="p-horde tiny muted">Kills count other players only. Infected put down in
+          Last Light: <b>{{ fmt_num(stats.total.zkills) }}</b></p>
+        {% endif %}
         {% else %}
         <p class="muted tiny">{{ profile.username }} keeps their combat record private.</p>
         {% endif %}
@@ -170,7 +174,7 @@
     <div class="panel p-badges">
       <div class="panel-head navy">
         <span>&#127894; Badges</span>
-        <span class="head-links">{{ badge_count }} of {{ badge_total }} earned
+        <span class="head-links">{{ badge_count }} earned
           {% if is_self %} &bull; <a href="/profile-editor#badges">Change</a>{% endif %}</span>
       </div>
       <div class="panel-body">
@@ -194,15 +198,6 @@
       </div>
     </div>
     <script type="application/json" class="badge-data">{{& to_json({'cards': badge_cards}) }}</script>
-    {% endif %}
-
-    {% if posts_list %}
-    <div class="panel p-posts">
-      <div class="panel-head">Posts</div>
-      <div class="panel-body">
-        {% for p in posts_list %}{% set post = p %}{% include "partials/post.html" %}{% endfor %}
-      </div>
-    </div>
     {% endif %}
 
     <div class="panel p-wall">

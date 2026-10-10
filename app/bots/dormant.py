@@ -491,6 +491,10 @@ class Dormant:
             score = kills * 2 + int(minutes * 6)
         rounds = max(0, self.rounds_ended - member.rounds)
         wins = sum(1 for _ in range(rounds) if self.rng.random() < 0.35 + member.skill * 0.3)
+        if self.mode == "survival":
+            # the horde, not players: booked apart from the profile's kills
+            return {"kills": 0, "zkills": kills, "deaths": deaths, "score": score,
+                    "playtime": int(minutes * 60), "rounds": rounds, "wins": wins}
         return {"kills": kills, "deaths": deaths, "score": score,
                 "playtime": int(minutes * 60), "rounds": rounds, "wins": wins}
 

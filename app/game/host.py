@@ -242,14 +242,18 @@ class GameHost:
 
     def report_player(self, instance: GameInstance, player,
                       final: bool = False) -> None:
-        kills, deaths, score = player.kills, player.deaths, player.score
+        # Kills on the record are players only: an infected cut down in Last
+        # Light is booked as a zkill.  The session counters (pk, zk, pd)
+        # start at nought for everybody, a bot woken mid-round included, and
+        # survive the round resets that clear the scoreboard.
+        kills, zkills, deaths, score = player.pk, player.zk, player.pd, player.score
         if player.brain is not None:
             # a woken bot arrived with a score line the director has already
             # booked: only what it did in this live stretch is new
-            kills, deaths, score = player.brain.stats_delta()
+            score = player.brain.stats_delta()[2]
         self.queue_report({
             "kind": "stats", "world": self.world_id,
-            "user_id": player.user_id, "kills": kills,
+            "user_id": player.user_id, "kills": kills, "zkills": zkills,
             "deaths": deaths, "score": score,
             "playtime": int(player.playtime), "final": bool(final),
         })

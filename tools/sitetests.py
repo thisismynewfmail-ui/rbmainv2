@@ -325,12 +325,10 @@ def run(host: str, port: int, tls: bool = False) -> int:
 
     print("\n== social features ==")
     post = client.api("/api/social/post", {"body": "hello from the site tests"})
-    check("social: posting works", post.get("ok"), post)
-    post_id = (post.get("post") or {}).get("id")
-    like = client.api("/api/social/post/like", {"id": post_id})
-    check("social: liking works", like.get("ok") and like.get("likes") == 1, like)
-    comment = client.api("/api/social/post/comment", {"id": post_id, "body": "nice"})
-    check("social: commenting works", comment.get("ok"), comment)
+    check("social: status posts are retired with the timeline", not post.get("ok"), post)
+    _status, home = client.get("/")
+    check("social: the home page has no timeline and no post box",
+          "Your timeline" not in home and 'id="post-form"' not in home)
     friend = client.api("/api/social/friend", {"action": "request",
                                                "username": "builderman_x"})
     check("social: a friend request is recorded",

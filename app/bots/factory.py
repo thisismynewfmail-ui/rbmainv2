@@ -614,7 +614,10 @@ def _history(joined: int, traits: Dict[str, float], rng: random.Random,
             kills = int(share * (2.5 + skill * 6.0))
             deaths = int(share * 0.05 * (1.6 - skill))
             rounds = int(share / 26)
-        out[world] = {"kills": kills, "deaths": deaths, "rounds": rounds,
+        zkills = 0
+        if world == "last_light":
+            kills, zkills = 0, kills      # the infected are not kills
+        out[world] = {"kills": kills, "zkills": zkills, "deaths": deaths, "rounds": rounds,
                       "wins": int(rounds * (0.3 + skill * 0.35)),
                       "playtime": int(share * 60),
                       "score": int(kills * 10 + share * (6 + traits.get("objective", 0.6) * 12)),
@@ -823,9 +826,9 @@ def _write(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
             for world, h in card["history"].items():
                 conn.execute(
                     "INSERT INTO game_stats(user_id,world_id,kills,deaths,wins,rounds,"
-                    "playtime,score) VALUES(?,?,?,?,?,?,?,?)",
+                    "playtime,score,zkills) VALUES(?,?,?,?,?,?,?,?,?)",
                     (uid, world, h["kills"], h["deaths"], h["wins"], h["rounds"],
-                     h["playtime"], h["score"]))
+                     h["playtime"], h["score"], h.get("zkills", 0)))
                 visits_per_world[world] = visits_per_world.get(world, 0) + h["visits"]
             created.append(card)
         for world, count in visits_per_world.items():
@@ -886,7 +889,7 @@ def _badges(card: Dict[str, Any], rng: random.Random) -> None:
     changes: List[Tuple[str, int, str]] = []
     ll = card["history"].get("last_light")
     if ll and ll["rounds"]:
-        rounds, kills = ll["rounds"], ll["kills"]
+        rounds, kills = ll["rounds"], ll["kills"] + ll.get("zkills", 0)
         best = int(min(46, 3 + skill * rng.uniform(8, 34) + min(10, rounds / 20)))
         changes += [("ll_kills", kills, "add"),
                     ("ll_headshots", int(kills * (0.08 + skill * 0.3)), "add"),
@@ -938,6 +941,7 @@ def backfill_badges(limit: int = 400) -> int:
         history = {}
         for g in db.query("SELECT * FROM game_stats WHERE user_id=?", (uid,)):
             history[g["world_id"]] = {"kills": int(g["kills"]), "deaths": int(g["deaths"]),
+                                      "zkills": int(g["zkills"] or 0),
                                       "wins": int(g["wins"]), "rounds": int(g["rounds"])}
         card = {"id": uid, "history": history,
                 "traits": personas.unpack_traits(row["traits"] or "")}

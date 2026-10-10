@@ -39,6 +39,13 @@ MAX_BODY_BYTES = 2 * 1024 * 1024
 KEEPALIVE_TIMEOUT = 45
 # A handshake is a couple of round trips; anything slower is not a browser.
 TLS_HANDSHAKE_TIMEOUT = 12
+# The websocket proxy: bytes moved per send, the most it holds for either
+# direction before it stops reading that side, and how long it waits on a
+# side that will not take what it is holding before it hangs up on both.
+PUMP_CHUNK = 16 * 1024
+PUMP_BUFFER = 1024 * 1024
+STALL_SECONDS = 12.0
+PUMP_SNDBUF = 256 * 1024
 SERVER_NAME = "BlockhavenHTTP/1.0"
 
 GZIP_TYPES = ("text/", "application/javascript", "application/json",
@@ -290,6 +297,13 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
         try:
             upstream.settimeout(None)
             self.connection.settimeout(None)
+            try:
+                # a game stream needs a little slack, not megabytes of it: a
+                # page that stops reading is noticed in seconds (see _pump)
+                self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF,
+                                           PUMP_SNDBUF)
+            except OSError:
+                pass
             rebuilt = [request_line]
             for key, value in headers.items():
                 rebuilt.append("%s: %s" % (key, value))
@@ -303,57 +317,175 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
                 pass
 
     def _pump(self, upstream: socket.socket) -> None:
-        """Shuttle bytes both ways until either side hangs up.
+        """Shuttle bytes both ways until either side hangs up -- or stalls.
 
-        The client -> upstream direction reads through ``self.rfile`` with
-        ``read1`` so anything the buffered reader already swallowed while
-        parsing the request headers is forwarded rather than lost, and it never
-        blocks waiting for data that has not arrived.
+        One thread, non-blocking sockets and ``select``.  The proxy used to
+        read the browser on one thread and write to it on another; on the
+        TLS listener that is two threads inside one OpenSSL connection at
+        once, which it does not support, and a ``sendall`` to a browser that
+        had stopped reading (a sleeping laptop, a frozen tab, a dead Wi-Fi
+        link) blocked for ever.  The game host gives up on a client like
+        that after a few seconds and hangs up, but the proxy, stuck in that
+        write, never passed the hang-up on: the page kept a socket that
+        looked open and received nothing, so the world froze round a player
+        who could still walk (movement is predicted locally) until they
+        reloaded.
+
+        Now each direction has a bounded buffer.  A full buffer stops the
+        reading side (back-pressure) rather than growing; if bytes wait on
+        a side that will not take them for STALL_SECONDS, both sockets are
+        shut and the page's reconnect takes over (static/js/game/net.js).
         """
         client = self.connection
-        stop = threading.Event()
+        is_tls = isinstance(client, ssl.SSLSocket)
+        # whatever the header parser already pulled off the socket goes up
+        # first; a tiny timeout makes the peek return the buffered bytes and
+        # never wait for more
+        up = bytearray()
+        try:
+            client.settimeout(0.001)
+            head = self.rfile.peek(65536)
+            if head:
+                up += self.rfile.read(len(head))
+        except (OSError, ValueError):
+            pass
+        client.setblocking(False)
+        upstream.setblocking(False)
+        down = bytearray()
+        down_chunk = b""        # a TLS write must be retried with the same bytes
+        up_chunk = b""
+        client_read_wants_write = False
+        client_closed = upstream_closed = False
+        moved = {"down": time.monotonic(), "up": time.monotonic()}
 
-        def client_to_upstream():
+        def read(sock: socket.socket) -> Optional[bytes]:
+            """Bytes, b"" at end of stream, None when nothing is ready."""
             try:
-                while not stop.is_set():
-                    data = self.rfile.read1(65536)
-                    if not data:
-                        break
-                    upstream.sendall(data)
-            except (OSError, ValueError):
-                pass
-            finally:
-                stop.set()
+                return sock.recv(PUMP_CHUNK)
+            except (BlockingIOError, InterruptedError, ssl.SSLWantReadError):
+                return None
+            except ssl.SSLWantWriteError:
+                raise _WantWrite()
+
+        def write(sock: socket.socket, chunk: bytes) -> int:
+            try:
+                return sock.send(chunk)
+            except (BlockingIOError, InterruptedError, ssl.SSLWantWriteError,
+                    ssl.SSLWantReadError):
+                return 0
+
+        try:
+            while True:
+                moment = time.monotonic()
+                if (down or down_chunk) and moment - moved["down"] > STALL_SECONDS:
+                    break           # the browser has stopped reading
+                if (up or up_chunk) and moment - moved["up"] > STALL_SECONDS:
+                    break           # the host has stopped reading
+                if upstream_closed and not down and not down_chunk:
+                    break
+                if client_closed and not up and not up_chunk:
+                    break
+                readers, writers = [], []
+                if not client_closed and len(up) < PUMP_BUFFER:
+                    readers.append(client)
+                if not upstream_closed and len(down) < PUMP_BUFFER:
+                    readers.append(upstream)
+                if up or up_chunk:
+                    writers.append(upstream)
+                if down or down_chunk or client_read_wants_write:
+                    writers.append(client)
+                # TLS can hold decrypted bytes that select() cannot see
+                wait = 0.0 if (is_tls and client in readers and client.pending()) else 1.0
                 try:
-                    upstream.shutdown(socket.SHUT_WR)
+                    readable, writable, _ = select.select(readers, writers, [], wait)
+                except (OSError, ValueError):
+                    break
+                if is_tls and client in readers and client.pending() and client not in readable:
+                    readable.append(client)
+                if client_read_wants_write and client in writable and client not in readable:
+                    readable.append(client)
+                # --- read
+                if client in readable:
+                    client_read_wants_write = False
+                    try:
+                        data = read(client)
+                    except _WantWrite:
+                        client_read_wants_write = True
+                        data = None
+                    except OSError:
+                        data = b""
+                    if data == b"":
+                        client_closed = True
+                    elif data:
+                        if not up and not up_chunk:
+                            moved["up"] = time.monotonic()
+                        up += data
+                if upstream in readable:
+                    try:
+                        data = read(upstream)
+                    except (_WantWrite, OSError):
+                        data = b""
+                    if data == b"":
+                        upstream_closed = True
+                    elif data:
+                        if not down and not down_chunk:
+                            moved["down"] = time.monotonic()
+                        down += data
+                # --- write
+                if upstream in writable and (up or up_chunk):
+                    if not up_chunk:
+                        up_chunk = bytes(up[:PUMP_CHUNK])
+                        del up[:len(up_chunk)]
+                    try:
+                        sent = write(upstream, up_chunk)
+                    except OSError:
+                        break
+                    if sent:
+                        up_chunk = up_chunk[sent:]
+                        moved["up"] = time.monotonic()
+                if client in writable and (down or down_chunk):
+                    if not down_chunk:
+                        down_chunk = bytes(down[:PUMP_CHUNK])
+                        del down[:len(down_chunk)]
+                    try:
+                        sent = write(client, down_chunk)
+                    except OSError:
+                        break
+                    if sent:
+                        # TLS sends all of a chunk or none of it; plain TCP
+                        # may take part, and the rest goes next time
+                        down_chunk = down_chunk[sent:]
+                        moved["down"] = time.monotonic()
+                if client_closed and not upstream_closed and not up and not up_chunk:
+                    try:
+                        upstream.shutdown(socket.SHUT_WR)
+                    except OSError:
+                        pass
+        finally:
+            for sock in (upstream, client):
+                try:
+                    sock.setblocking(True)
+                    sock.settimeout(2.0)
                 except OSError:
                     pass
-
-        pump = threading.Thread(target=client_to_upstream, daemon=True,
-                                name="ws-up")
-        pump.start()
-        try:
-            while not stop.is_set():
-                try:
-                    data = upstream.recv(65536)
-                except (ConnectionResetError, OSError):
-                    break
-                if not data:
-                    break
-                try:
-                    client.sendall(data)
-                except OSError:
-                    break
-        finally:
-            stop.set()
             try:
                 upstream.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
             try:
+                if is_tls:
+                    client.unwrap()
+            except (OSError, ValueError):
+                pass
+            try:
                 client.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
+
+
+class _WantWrite(Exception):
+    """A TLS read that has to write first (a key update): retry when the
+    socket is writable."""
 
 
 def _is_loopback(address: str) -> bool:

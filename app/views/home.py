@@ -42,7 +42,6 @@ def home(req: Request):
         req, "home.html",
         show_spotlight=show_spotlight,
         worlds=world_rows,
-        timeline=posts.timeline(uid, 12),
         friends_list=friends.list_friends(uid, 12),
         friend_count=friends.count_friends(uid),
         requests=friends.incoming_requests(uid)[:5],

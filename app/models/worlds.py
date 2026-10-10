@@ -388,28 +388,36 @@ def is_favourite(world_id: str, user_id: int) -> bool:
 
 # ------------------------------------------------------------- player stats
 
+# Worlds whose enemies are the infected rather than other players: what dies
+# there is booked as ``zkills``, never as a kill.
+HORDE_WORLDS = ("last_light",)
+
+
 def add_game_stats(user_id: int, world_id: str, kills: int = 0, deaths: int = 0,
                    wins: int = 0, rounds: int = 0, playtime: int = 0,
-                   score: int = 0) -> None:
+                   score: int = 0, zkills: int = 0) -> None:
+    """Add to a player's record in one world.  ``kills`` are players (bots
+    included) and only players; ``zkills`` are the infected."""
     db.execute(
         "INSERT INTO game_stats(user_id,world_id,kills,deaths,wins,rounds,"
-        "playtime,score) VALUES(?,?,?,?,?,?,?,?)"
+        "playtime,score,zkills) VALUES(?,?,?,?,?,?,?,?,?)"
         " ON CONFLICT(user_id,world_id) DO UPDATE SET"
         " kills=kills+excluded.kills, deaths=deaths+excluded.deaths,"
         " wins=wins+excluded.wins, rounds=rounds+excluded.rounds,"
-        " playtime=playtime+excluded.playtime, score=score+excluded.score",
-        (user_id, world_id, kills, deaths, wins, rounds, playtime, score))
+        " playtime=playtime+excluded.playtime, score=score+excluded.score,"
+        " zkills=zkills+excluded.zkills",
+        (user_id, world_id, kills, deaths, wins, rounds, playtime, score, zkills))
 
 
 def player_stats(user_id: int) -> Dict[str, Any]:
     rows = db.rows_to_dicts(db.query(
         "SELECT * FROM game_stats WHERE user_id=?", (user_id,)))
     total = {"kills": 0, "deaths": 0, "wins": 0, "rounds": 0, "playtime": 0,
-             "score": 0}
+             "score": 0, "zkills": 0}
     per_world = {}
     for row in rows:
         for key in total:
-            total[key] += int(row.get(key, 0))
+            total[key] += int(row.get(key, 0) or 0)
         per_world[row["world_id"]] = row
     total["kdr"] = round(total["kills"] / max(1, total["deaths"]), 2)
     return {"total": total, "worlds": per_world}
