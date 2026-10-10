@@ -770,6 +770,31 @@
       c.fillStyle = '#c8c8c8'; poly(c, [[40, 24], [88, 24], [64, 70]]);
       c.fillStyle = '#ffffff'; dot(c, 64, 42, 7);
     }],
+    ['jl_ant', function (c) {
+      c.beginPath(); c.ellipse(34, 64, 16, 13, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(62, 64, 11, 10, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(90, 64, 14, 12, 0, 0, Math.PI * 2); c.fill();
+      [44, 62, 80].forEach(function (x, i) {
+        bar(c, x - 6, 64, x - 14 + i * 6, 34, 4); bar(c, x - 6, 64, x - 14 + i * 6, 94, 4);
+      });
+      bar(c, 100, 56, 118, 36, 3); bar(c, 100, 72, 118, 92, 3);
+    }],
+    ['jl_burger', function (c) {
+      c.beginPath(); c.moveTo(14, 60); c.bezierCurveTo(14, 18, 114, 18, 114, 60); c.closePath(); c.fill();
+      c.fillStyle = '#7a7a7a'; c.fillRect(10, 62, 108, 18);
+      c.fillStyle = '#d8d8d8'; poly(c, [[12, 80], [116, 80], [108, 90], [96, 82], [84, 92], [70, 82],
+                                         [56, 92], [42, 82], [28, 92], [16, 84]]);
+      c.fillStyle = '#ffffff'; c.fillRect(16, 90, 96, 18);
+      c.fillStyle = '#e0e0e0'; [34, 54, 74, 92].forEach(function (x) { dot(c, x, 38, 3); });
+    }],
+    ['jl_hotdog', function (c) {
+      c.beginPath(); c.ellipse(64, 74, 54, 20, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#8a8a8a'; c.beginPath(); c.ellipse(64, 60, 58, 11, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(16, 58);
+      for (var x = 16; x <= 112; x += 12) c.lineTo(x, (x / 12) % 2 ? 52 : 64);
+      c.stroke();
+    }],
     // @@ july4 particles go above this line @@
 
     // ---- Christmas particle shapes

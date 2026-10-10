@@ -2151,6 +2151,144 @@
   painter('stencil_jl22', stencil({ top: 'STAR-SPANGLED', bottom: 'BLAST  1st 2022', icon: 'spangle',
                                     ink: 'rgba(34,48,110,0.92)', frame: 'box', size: 14,
                                     size2: 12, colour: true }));
+  /* --- 2023, the Backyard Cookout --- */
+  // red gingham: the picnic blanket, the tablecloth, the scrunchie
+  painter('jl_gingham', function (ctx) {
+    ctx.fillStyle = '#f6f1e3'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(196,40,28,0.55)';
+    for (var k = 0; k < CELL; k += 32) { ctx.fillRect(k, 0, 16, CELL); ctx.fillRect(0, k, CELL, 16); }
+    ctx.fillStyle = 'rgba(160,20,14,0.5)';
+    for (var x = 0; x < CELL; x += 32) for (var y = 0; y < CELL; y += 32) ctx.fillRect(x, y, 16, 16);
+  });
+
+  // a watermelon's rind: dark wavy stripes on green
+  painter('jl_melon', function (ctx) {
+    ctx.fillStyle = 'rgba(16,52,16,0.75)';
+    for (var x = 0; x < CELL; x += 21.33) {
+      ctx.beginPath(); ctx.moveTo(x, 0);
+      for (var y = 0; y <= CELL; y += 8) ctx.lineTo(x + Math.sin(y * 0.15 + x) * 3, y);
+      for (y = CELL; y >= 0; y -= 8) ctx.lineTo(x + 8 + Math.sin(y * 0.15 + x + 1) * 3, y);
+      ctx.closePath(); ctx.fill();
+    }
+  });
+
+  // a corn cob: rows of fat yellow kernels
+  painter('jl_kernels', function (ctx) {
+    ctx.fillStyle = '#c99a10'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 12; row++) {
+      for (var col = 0; col < 10; col++) {
+        var x = col * 12.8 + (row % 2 ? 6.4 : 0), y = row * 10.67 + 5;
+        around(ctx, x, y, function (g) {
+          g.fillStyle = '#ffd84a'; g.beginPath(); g.ellipse(0, 0, 5.4, 4.6, 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(-1.6, -1.4, 1.4, 0, Math.PI * 2); g.fill();
+        });
+      }
+    }
+  });
+
+  // a patty's edge: browned, bumpy, a char line or two
+  painter('jl_patty', function (ctx) {
+    var rnd = scatter(229);
+    for (var k = 0; k < 160; k++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,190,140,0.18)' : 'rgba(20,8,4,0.30)';
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 1 + rnd() * 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(20,8,4,0.55)';
+    for (var x = 8; x < CELL; x += 24) ctx.fillRect(x, 0, 5, CELL);
+  });
+
+  // a lawn: blades of grass, light over dark
+  painter('jl_grass', function (ctx) {
+    var rnd = scatter(233);
+    ctx.lineCap = 'round';
+    for (var k = 0; k < 220; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, h = 5 + rnd() * 8, lean = (rnd() - 0.5) * 5;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(170,240,120,0.45)' : 'rgba(10,50,10,0.35)';
+      ctx.lineWidth = 1.5;
+      around(ctx, x, y, function (g) { g.beginPath(); g.moveTo(0, 0); g.lineTo(lean, -h); g.stroke(); });
+    }
+  });
+
+  // the pleats of a chef's toque
+  painter('jl_pleats', function (ctx) {
+    for (var x = 0; x < CELL; x += 16) {
+      var g = ctx.createLinearGradient(x, 0, x + 16, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.14)'); g.addColorStop(0.5, 'rgba(255,255,255,0.10)');
+      g.addColorStop(1, 'rgba(0,0,0,0.14)');
+      ctx.fillStyle = g; ctx.fillRect(x, 0, 16, CELL);
+    }
+  });
+
+  // the toque's band, lettered
+  painter('jl_grillband', function (ctx) {
+    ctx.fillStyle = '#c4281c'; ctx.fillRect(0, 34, CELL, 60);
+    ctx.fillStyle = '#f6f1e3'; ctx.font = 'bold 20px Verdana, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('GRILL', 64, 52); ctx.font = 'bold 15px Verdana, sans-serif';
+    ctx.fillText('MASTER', 64, 76);
+  });
+
+  // a slice of lemon
+  painter('jl_lemon', function (ctx) {
+    ctx.fillStyle = '#f5d000'; ctx.beginPath(); ctx.arc(64, 64, 60, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.arc(64, 64, 52, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffe24a';
+    for (var k = 0; k < 8; k++) {
+      var a = k * Math.PI / 4;
+      ctx.beginPath(); ctx.moveTo(64, 64);
+      ctx.arc(64, 64, 46, a + 0.08, a + Math.PI / 4 - 0.08); ctx.closePath(); ctx.fill();
+    }
+  });
+
+  // lawn-chair webbing: green and white straps woven over and under
+  painter('jl_webbing', function (ctx) {
+    for (var k = 0; k < 8; k++) {
+      ctx.fillStyle = k % 2 ? '#f4f6f8' : '#2f8a4a'; ctx.fillRect(0, k * 16 + 1, CELL, 14);
+    }
+    for (k = 0; k < 8; k++) {
+      ctx.fillStyle = k % 2 ? 'rgba(245,197,24,0.85)' : 'rgba(244,246,248,0.85)';
+      for (var r = 0; r < 8; r++) if ((r + k) % 2) ctx.fillRect(k * 16 + 1, r * 16, 14, 16);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    for (k = 0; k <= 8; k++) { ctx.fillRect(k * 16, 0, 1, CELL); ctx.fillRect(0, k * 16, CELL, 1); }
+  });
+
+  // a spatula's slots
+  painter('jl_slots', function (ctx) {
+    ctx.fillStyle = 'rgba(20,20,24,0.85)';
+    for (var k = 0; k < 5; k++) ctx.fillRect(22 + k * 19, 20, 8, 80);
+  });
+
+  // an apron over a white tee
+  painter('jl_tee_apron', function (ctx) {
+    ctx.fillStyle = '#c4281c';
+    ctx.beginPath(); ctx.moveTo(38, 10); ctx.lineTo(90, 10); ctx.lineTo(92, 46); ctx.lineTo(112, 56);
+    ctx.lineTo(110, 128); ctx.lineTo(18, 128); ctx.lineTo(16, 56); ctx.lineTo(36, 46); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#c4281c'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(40, 12); ctx.lineTo(24, 0); ctx.moveTo(88, 12); ctx.lineTo(104, 0); ctx.stroke();
+    ctx.fillStyle = '#f6f1e3'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 13px Verdana, sans-serif'; ctx.fillText('LICENSED', 64, 64);
+    ctx.font = 'bold 11px Verdana, sans-serif'; ctx.fillText('TO', 64, 80);
+    ctx.font = 'bold 17px Verdana, sans-serif'; ctx.fillText('GRILL', 64, 98);
+    ctx.fillStyle = 'rgba(110,30,10,0.55)';
+    ctx.beginPath(); ctx.ellipse(86, 116, 9, 5, 0.4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // cut-off denim, a grass stain at the knee
+  painter('jl_jorts', function (ctx) {
+    var rnd = scatter(239);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+    for (var k = -CELL; k < CELL; k += 4) { ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k + CELL, CELL); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(70,140,40,0.45)';
+    for (k = 0; k < 6; k++) {
+      ctx.beginPath(); ctx.ellipse(40 + rnd() * 50, 90 + rnd() * 24, 10 + rnd() * 8, 5 + rnd() * 4, rnd(), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  painter('stencil_jl23', stencil({ top: 'BACKYARD', bottom: 'COOKOUT  2023', icon: 'grill',
+                                    ink: 'rgba(242,183,5,0.95)', frame: 'round', size2: 13,
+                                    colour: true }));
   // @@ july4 painters go above this line @@
 
   /* ----------------------------------------------------------- Christmas

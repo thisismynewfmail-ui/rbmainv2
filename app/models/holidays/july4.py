@@ -73,6 +73,17 @@ def _rosette(at, k=1.0, yaw=0.0, colours=(RED, WHITE, NAVY), tails=True):
     return out
 
 
+def _rod(a, b, w, c, t="cyl", **kw):
+    """A rod from point ``a`` to point ``b``, ``w`` thick: a straw, a strut,
+    a tube."""
+    d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+    length = math.sqrt(sum(v * v for v in d)) or 1e-6
+    rx = math.acos(max(-1.0, min(1.0, d[1] / length)))
+    ry = math.atan2(d[0], d[2])
+    mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]
+    return part(t, mid, [w, length, w], c, [rx, ry, 0], **kw)
+
+
 def _cracker(at, k=1.0, c=RED, r=None, lit=False):
     """A firecracker: a paper tube with frilled ends and a fuse."""
     x, y, z = at
@@ -598,4 +609,572 @@ JL22.bundle("pair", "Keg and Key", 1, 1050, "One Powder Keg Crate, one Liberty S
 JL22.bundle("cheers", "Three Cheers", 3, 3000, "Three kegs, three keys. Saves 300.")
 
 
-EVENTS = [JL22]
+# ============================================================ 2023
+CHAR = "#26272b"
+BUN = "#d9944a"
+MUSTARD = "#f2b705"
+KETCHUP = "#c4281c"
+GRASS = "#4f9e3a"
+JL23 = Event(
+    "july4_2023", "july4", 2023, "jl23",
+    name="Backyard Cookout", title="The Backyard Cookout",
+    blurb="For the second Fourth the whole server came round to the same back yard. "
+          "Somebody wheeled out a kettle grill, somebody else brought far too many "
+          "hot dogs, and the ants arrived before anybody. Nobody has seen the "
+          "spatula since.",
+    tagline="Who wants a burger? Everybody wants a burger.",
+    starts="2023-06-27", ends="2023-07-11",
+    colors={"accent": "#ff8c1a", "deep": "#1e1410", "glow": "#ffcf6a"},
+    family_effects=["scorching", "ember_storm", "sunbeam", "bubbly"],
+    hero_effect="burger_flip", stencil="stencil_jl23")
+
+
+def _hot_dog(at, k=1.0, yaw=0.0, mustard=True):
+    """A hot dog in its bun, lying along X turned by ``yaw``."""
+    x, y, z = at
+    out = []
+    for side in (1, -1):
+        off = rotate([0, 0, 0.13 * side * k], [0, yaw, 0])
+        out.append(place("capsule", [x + off[0], y, z + off[2]], [0.40 * k, 0.56 * k, 0.40 * k],
+                         BUN, r=[0, yaw, PI / 2]))
+    out.append(place("capsule", [x, y + 0.14 * k, z], [0.28 * k, 0.70 * k, 0.28 * k], "#b0452a",
+                     r=[0, yaw, PI / 2]))
+    if mustard:
+        for n in range(9):
+            t = (n - 4) / 4.0
+            off = rotate([t * 0.80 * k, 0.29 * k, 0.0], [0, yaw, 0])
+            out.append(part("rbox", [x + off[0], y + off[1], z + off[2]],
+                            [0.06 * k, 0.05 * k, 0.24 * k], MUSTARD,
+                            [0, yaw + (0.55 if n % 2 else -0.55), 0]))
+    return out
+
+
+def _burger(at, k=1.0, patties=1):
+    """A burger with everything, sitting at ``at`` (its base)."""
+    x, y, z = at
+    out = [part("cyl", [x, y + 0.10 * k, z], [1.30 * k, 0.20 * k, 1.30 * k], BUN)]
+    h = y + 0.20 * k
+    for n in range(patties):
+        out.append(part("cyl", [x, h + 0.08 * k, z], [1.40 * k, 0.16 * k, 1.40 * k], "#5a2e1a",
+                        decal="jl_patty", wrap=True))
+        out.append(part("rbox", [x, h + 0.18 * k, z], [1.24 * k, 0.04 * k, 1.24 * k], MUSTARD,
+                        [0, 0.78 + n * 0.3, 0]))
+        for c in range(4):
+            a = 0.78 + n * 0.3 + c * PI / 2 + PI / 4
+            out.append(place("teardrop", [x + math.sin(a) * 0.80 * k, h + 0.10 * k,
+                                          z + math.cos(a) * 0.80 * k],
+                             [0.10 * k, 0.20 * k, 0.10 * k], MUSTARD, r=[PI, 0, 0]))
+        h += 0.20 * k
+    out += [place("ruffle", [x, h + 0.02 * k, z], [1.56 * k, 2.0 * k, 1.56 * k], "#6abf4b"),
+            part("cyl", [x, h + 0.07 * k, z], [1.20 * k, 0.08 * k, 1.20 * k], "#e2483a"),
+            place("hemi", [x, h + 0.11 * k, z], [1.40 * k, 1.0 * k, 1.40 * k], BUN,
+                  anchor=[0, 0, 0])]
+    top = h + 0.11 * k
+    for n in range(14):
+        a = n * 2.4
+        rr = 0.18 + (n % 4) * 0.12
+        yy = top + 0.5 * k * math.sqrt(max(0.0, 1 - (rr / 0.70) ** 2)) + 0.01 * k
+        out.append(part("sph", [x + math.sin(a) * rr * k, yy, z + math.cos(a) * rr * k],
+                        [0.07 * k, 0.03 * k, 0.04 * k], "#fff3d6", [0, a, 0]))
+    return out
+
+
+@JL23.crate_model("Kettle Grill Crate",
+                  "A black kettle grill on three legs, the coals still glowing, smoke "
+                  "curling out of the vent and something sizzling under the lid. Holds the "
+                  "Backyard Cookout set. Needs a Corn-Cob Key.",
+                  hinge=[0, 0.24, -0.86], keyhole=[0, -0.10, 0.90])
+def _():
+    steel = "#9aa0a8"
+    parts = [
+        place("bowl", [0, -0.56, 0], [1.66, 1.30, 1.66], CHAR, anchor=[0, 0, 0], m="metal"),
+        part("torus", [0, 0.20, 0], [1.70, 0.08, 1.70], "#3a3b40", m="metal"),
+        # the coals and the grate, and dinner on it
+        part("cyl", [0, 0.00, 0], [1.40, 0.04, 1.40], "#ff6a1a", m="neon"),
+        part("cyl", [0, 0.13, 0], [1.56, 0.02, 1.56], "#3a3b40", m="metal", a=0.0),
+    ]
+    for n in range(9):
+        x = -0.64 + n * 0.16
+        parts.append(part("rbox", [x, 0.13, 0], [0.03, 0.03, 2 * math.sqrt(0.78 ** 2 - x * x)],
+                          steel, m="metal"))
+    for n in range(7):
+        a = n * 2.1
+        parts.append(part("sph", [math.sin(a) * 0.40, 0.04, math.cos(a) * 0.40],
+                          [0.20, 0.12, 0.20], "#ffb347" if n % 2 else "#e8481a", m="neon"))
+    parts += _hot_dog([-0.24, 0.20, 0.30], 0.30, yaw=0.2, mustard=False)
+    parts += _hot_dog([-0.28, 0.20, -0.10], 0.30, yaw=-0.1, mustard=False)
+    parts += at_frame(_burger([0, 0, 0], 1.0)[1:2], [0.32, 0.12, 0.14], k=0.36)
+    parts += at_frame(_burger([0, 0, 0], 1.0)[1:2], [0.28, 0.12, -0.32], k=0.32)
+    parts += [
+        # the lid, its handle, the vent and the smoke
+        place("hemi", [0, 0.22, 0], [1.72, 1.16, 1.72], CHAR, anchor=[0, 0, 0], m="metal",
+              lid=1),
+        part("torus", [0, 0.24, 0], [1.74, 0.07, 1.74], "#3a3b40", m="metal", lid=1),
+        part("cyl", [0, 0.80, 0], [0.42, 0.05, 0.42], steel, m="metal", lid=1),
+        part("rbox", [0.06, 0.83, 0], [0.18, 0.03, 0.06], steel, m="metal", lid=1),
+        part("rbox", [0, 0.60, 0.66], [0.64, 0.04, 0.18], steel, [-0.55, 0, 0], m="metal", lid=1),
+        part("rbox", [0, 0.68, 0.72], [0.62, 0.10, 0.12], "#3a2414", decal="leather", lid=1),
+        part("rbox", [0.25, 0.63, 0.68], [0.05, 0.12, 0.10], steel, m="metal", lid=1),
+        part("rbox", [-0.25, 0.63, 0.68], [0.05, 0.12, 0.10], steel, m="metal", lid=1),
+        part("sph", [0.04, 1.02, 0.02], [0.30, 0.24, 0.28], "#c9ccd2", a=0.6, lid=1),
+        part("sph", [0.12, 1.24, -0.04], [0.24, 0.20, 0.22], "#d9dce2", a=0.48, lid=1),
+        part("sph", [0.04, 1.44, 0.02], [0.18, 0.15, 0.17], "#e3e6ea", a=0.35, lid=1),
+        # the lock on the bowl's front, the badge at the back
+        part("rbox", [0, -0.10, 0.84], [0.34, 0.36, 0.10], BRASS, m="metal", decal="keyhole",
+             lock=1),
+        part("rbox", [0, -0.10, -0.82], [0.64, 0.42, 0.04], steel, m="metal"),
+        part("box", [0, -0.10, -0.85], [0.60, 0.40, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_jl23", a=-1),
+        # side handles
+        part("rbox", [0.90, 0.08, 0], [0.12, 0.06, 0.40], "#3a2414"),
+        part("rbox", [-0.90, 0.08, 0], [0.12, 0.06, 0.40], "#3a2414"),
+        # the ash pan slung between the legs
+        place("bowl", [0, -0.84, 0], [0.70, 0.30, 0.70], steel, anchor=[0, 0, 0], m="metal"),
+    ]
+    feet = []
+    for n, a in enumerate((0.0, 2 * PI / 3, -2 * PI / 3)):
+        top = [math.sin(a) * 0.50, -0.42, math.cos(a) * 0.50]
+        foot = [math.sin(a) * 0.80, -0.98, math.cos(a) * 0.80]
+        feet.append(foot)
+        parts.append(_rod(top, foot, 0.08, steel, m="metal"))
+        if n:
+            parts += [part("cyl", foot, [0.30, 0.08, 0.30], "#2b2b30", [0, a, PI / 2]),
+                      part("cyl", foot, [0.12, 0.10, 0.12], steel, [0, a, PI / 2], m="metal")]
+        else:
+            parts.append(part("sph", foot, [0.12, 0.08, 0.12], "#2b2b30"))
+    for n in range(3):
+        a, b = feet[n], feet[(n + 1) % 3]
+        mid = lambda p: [p[0] * 0.75, -0.82, p[2] * 0.75]
+        parts.append(_rod(mid(a), mid(b), 0.04, steel, m="metal"))
+    # the spatula, hung off the right handle
+    parts += [part("rbox", [0.96, -0.12, 0.10], [0.05, 0.40, 0.06], steel, m="metal"),
+              part("rbox", [0.96, -0.42, 0.10], [0.03, 0.24, 0.20], steel, m="metal"),
+              part("rbox", [0.96, 0.12, 0.10], [0.07, 0.16, 0.08], "#3a2414")]
+    return parts
+
+
+@JL23.key_model("Corn-Cob Key",
+                "A buttered corn cob for a bow, a corn-holder for a blade, and kernels "
+                "for teeth. Opens one Kettle Grill Crate. Mind it does not melt.",
+                shoulder=-0.32)
+def _():
+    parts = [
+        place("capsule", [-0.66, 0.0, 0], [0.32, 0.21, 0.32], "#f5c518", r=[0, 0, PI / 2],
+              decal="jl_kernels", wrap=True),
+        part("rbox", [-0.72, 0.17, 0.0], [0.18, 0.06, 0.14], "#fff3a0", [0, 0.3, 0.08]),
+        place("teardrop", [-0.62, 0.11, 0.08], [0.08, 0.12, 0.08], "#fff3a0", r=[PI, 0, 0]),
+        part("rbox", [-0.30, 0.0, 0], [0.10, 0.22, 0.22], "#2f9a4a"),
+        part("cyl", [0.12, 0, 0], [0.07, 0.84, 0.07], SILVER, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0.40, -0.10, 0], [0.09, 0.14, 0.09], "#f5c518"),
+        part("rbox", [0.52, -0.13, 0], [0.09, 0.20, 0.09], "#f5c518"),
+        part("rbox", [0.62, -0.09, 0], [0.09, 0.12, 0.09], "#f5c518"),
+    ]
+    for n, (tilt, z) in enumerate(((2.3, 0.10), (2.6, -0.08), (2.0, 0.0))):
+        parts.append(place("leaf", [-0.36, 0.02 * n, z], [0.9, 0.62, 1.0], "#6aa84f",
+                           anchor=[0, -0.5, 0], r=[0.25 * (n - 1), 0, tilt]))
+    return parts
+
+
+@JL23.hat("chef_toque", "Grill Master's Toque",
+          "A chef's hat two feet tall, pleated, starched and labelled, with the tongs "
+          "tucked in the band where they belong. The person in this hat is in charge "
+          "of the grill. That is not up for discussion.", "legendary")
+def _():
+    parts = [
+        band(-0.10, 0.32, WHITE, grow=0.04, decal="linen", wrap=True),
+        part("cyl", [0, 0.38, 0], [1.50, 0.66, 1.44], WHITE, decal="jl_pleats", wrap=True),
+        part("sph", [0, 0.86, 0], [1.94, 0.78, 1.86], "#fbfbf8", decal="linen", wrap=True),
+        part("box", [0, -0.10, 0.795], [0.96, 0.24, 0.02], "#000000", decal="jl_grillband", a=-1),
+    ]
+    for n in range(6):
+        a = n * TAU / 6 + 0.3
+        parts.append(part("sph", [math.sin(a) * 0.62, 0.96, math.cos(a) * 0.60],
+                          [0.66, 0.50, 0.66], "#fbfbf8", decal="linen", wrap=True))
+    # tongs one side, a spatula the other
+    parts += [part("rbox", [0.74, 0.20, 0.30], [0.05, 0.86, 0.06], SILVER, [0.10, 0, -0.22],
+                   m="metal"),
+              part("rbox", [0.78, 0.20, 0.36], [0.05, 0.86, 0.06], SILVER, [0.30, 0, -0.22],
+                   m="metal"),
+              part("rbox", [0.84, 0.66, 0.40], [0.10, 0.10, 0.20], KETCHUP, [0.2, 0, -0.22]),
+              part("rbox", [-0.74, 0.14, 0.20], [0.06, 0.66, 0.06], "#3a2414", [0, 0, 0.18]),
+              part("rbox", [-0.86, 0.62, 0.20], [0.04, 0.34, 0.30], SILVER, [0, 0, 0.18],
+                   m="metal"),
+              part("sph", [0.30, 1.42, -0.10], [0.36, 0.26, 0.32], "#c9ccd2", a=0.5),
+              part("sph", [0.42, 1.66, -0.18], [0.24, 0.20, 0.22], "#d9dce2", a=0.38)]
+    return parts
+
+
+@JL23.hat("sprinkler", "Backyard Sprinkler",
+          "A square of the back lawn, worn as a hat, with the sprinkler going round "
+          "and round on top of it. Coolest person at the cookout. Also the wettest.",
+          "legendary")
+def _():
+    water = "#8fd8ff"
+    parts = [
+        cap(-0.26, 0.10, GRASS, decal="jl_grass", wrap=True),
+        band(-0.22, 0.10, "#6a4a2a", grow=0.04),
+        part("cyl", [0, 0.16, 0], [0.34, 0.12, 0.34], "#2f6a2a"),
+        part("cyl", [0, 0.30, 0], [0.10, 0.30, 0.10], BRASS, m="metal"),
+        part("cyl", [0, 0.46, 0], [0.22, 0.10, 0.22], BRASS, m="metal", spin=4.0),
+        part("rbox", [0, 0.48, 0], [1.10, 0.06, 0.08], BRASS, m="metal", spin=4.0),
+        part("rbox", [0, 0.48, 0], [0.08, 0.06, 1.10], BRASS, m="metal", spin=4.0),
+        place("arch", [0, 0.50, 0], [2.2, 1.6, 2.0], water, anchor=[0, 0, 0], m="glass",
+              a=0.45, spin=4.0),
+        place("arch", [0, 0.50, 0], [2.2, 1.4, 2.0], water, anchor=[0, 0, 0], m="glass",
+              a=0.45, r=[0, PI / 2, 0], spin=4.0),
+    ]
+    for n in range(10):
+        a = n * TAU / 10
+        parts.append(place("cone", [math.sin(a) * 0.80, 0.10, math.cos(a) * 0.78],
+                           [0.12, 0.20, 0.12], "#5cbf4a", r=[math.cos(a) * 0.3, 0, -math.sin(a) * 0.3]))
+    for n, (x, y, z) in enumerate(((1.05, 0.30, 0.20), (-0.96, 0.40, -0.30), (0.30, 0.20, 1.00),
+                                   (-0.40, 0.10, -1.0), (0.80, 0.0, -0.70))):
+        parts.append(place("teardrop", [x, y, z], [0.10, 0.16, 0.10], water, r=[PI, 0, 0],
+                           m="glass", a=0.7))
+    return parts
+
+
+@JL23.hat("hot_dog", "Hot Dog Hat",
+          "A foot-long in a bun, with mustard, worn sideways. There is a little flag on "
+          "a toothpick in it because it is the Fourth and that is the law.", "rare")
+def _():
+    parts = _hot_dog([0, 0.20, 0], 1.0)
+    parts += [part("cyl", [0.52, 0.52, 0.0], [0.03, 0.40, 0.03], "#e8d4a0")]
+    parts += _flag([0.52, 0.52, 0.0], 0.42, yaw=0.2, pole=0.55, finial="#e8d4a0")[1:]
+    return parts
+
+
+@JL23.hat("burger_stack", "Double Stack",
+          "Two patties, two slices of cheese, lettuce, tomato and a sesame bun the "
+          "size of a hubcap. Worn with pride, eaten in instalments.", "rare")
+def _():
+    return _burger([0, 0.0, 0], 1.0, patties=2)
+
+
+@JL23.hat("lemonade_helmet", "Lemonade Hard Hat",
+          "A hard hat with a cup of lemonade either side and a straw from each of them "
+          "to your mouth. Fresh-squeezed, hands-free, no refills.", "rare")
+def _():
+    yellow, straw = "#f5c518", "#e8505b"
+    parts = [
+        dome(-0.30, 0.86, yellow, t="capcrown"),
+        ringband(-0.27, 0.07, shade(yellow, 0.9), margin=0.12),
+        part("box", [0, 0.06, 0.88], [0.44, 0.44, 0.02], "#000000", [-0.45, 0, 0],
+             decal="jl_lemon", a=-1),
+    ]
+    for side in (1, -1):
+        x = 1.02 * side
+        parts += [
+            part("rbox", [0.90 * side, 0.02, 0.0], [0.24, 0.08, 0.10], KETCHUP),
+            part("cyl", [x, 0.02, 0.0], [0.42, 0.36, 0.42], KETCHUP),
+            part("cyl", [x, 0.16, 0.0], [0.34, 0.52, 0.34], "#ffe680", m="glass", a=0.8),
+            part("cyl", [x, 0.42, 0.0], [0.30, 0.02, 0.30], "#fff6c0"),
+            part("cyl", [x + 0.10 * side, 0.44, 0.10], [0.20, 0.03, 0.20], "#f5e04a",
+                 [PI / 2, 0, 0.4 * side], decal="jl_lemon"),
+        ]
+        path = [(x, 0.30, 0.04), (x, 0.64, 0.04), (1.16 * side, 0.42, 0.14),
+                (1.06 * side, -0.60, 0.36), (0.78 * side, -0.86, 0.80), (0.10 * side, -0.86, 0.80)]
+        for a, b in zip(path, path[1:]):
+            parts.append(_rod(a, b, 0.05, straw))
+            parts.append(part("sph", list(b), [0.05, 0.05, 0.05], straw))
+    return parts
+
+
+@JL23.hat("melon_helmet", "Watermelon Helmet",
+          "Half a watermelon, scooped out and worn as a helmet. The seeds round the "
+          "rim are a design choice.", "uncommon")
+def _():
+    parts = [
+        dome(-0.26, 0.86, "#3c8a3c", decal="jl_melon", wrap=True),
+        ringband(-0.25, 0.05, "#eef4cf", margin=0.04),
+        ringband(-0.31, 0.08, "#ea4a5c", margin=0.03),
+    ]
+    for n in range(12):
+        a = n * TAU / 12 + 0.2
+        parts.append(place("teardrop", [math.sin(a) * 0.93, -0.33, math.cos(a) * 0.91],
+                           [0.06, 0.10, 0.04], "#1a1a1a", r=[PI, a, 0]))
+    return parts
+
+
+@JL23.hat("straw_hat", "Pitmaster's Straw Hat",
+          "A battered straw cowboy hat with a gingham band and a smell of hickory "
+          "smoke that will never, ever come out.", "uncommon")
+def _():
+    return [
+        place("cowbrim", [0, -0.04, 0], [2.52, 2.1, 2.52], STRAW, anchor=[0, 0, 0],
+              decal="jl_straw", wrap=True),
+        place("cask", [0, 0.0, 0], [1.38, 0.84, 1.30], STRAW, anchor=[0, 0, 0],
+              decal="jl_straw", wrap=True),
+        place("hemi", [0, 0.80, 0], [1.16, 0.42, 1.10], STRAW, anchor=[0, 0, 0],
+              decal="jl_straw", wrap=True),
+        part("rbox", [0, 0.98, -0.08], [0.14, 0.07, 0.80], shade(STRAW, 0.8), [0.12, 0, 0]),
+        part("sph", [0.30, 0.86, 0.38], [0.22, 0.20, 0.30], shade(STRAW, 0.85), [0.3, 0.6, -0.3]),
+        part("sph", [-0.30, 0.86, 0.38], [0.22, 0.20, 0.30], shade(STRAW, 0.85), [0.3, -0.6, 0.3]),
+        part("cyl", [0, 0.07, 0], [1.36, 0.15, 1.28], KETCHUP, decal="jl_gingham", wrap=True),
+        place("feather", [0.62, 0.10, 0.14], 0.50, "#6a4a2a", anchor=[0, -0.5, 0],
+              r=[0, 1.2, -0.5]),
+    ]
+
+
+@JL23.back("lawn_chair", "Folding Lawn Chair",
+           "A folding lawn chair in green and white webbing, carried on the back so "
+           "you always have somewhere to sit when the fireworks start.", "rare")
+def _():
+    alu = "#c9ced6"
+    parts = [
+        part("rbox", [0, 0.30, -0.30], [1.30, 1.26, 0.04], "#2f8a4a", decal="jl_webbing"),
+        part("rbox", [0, 0.20, -0.40], [1.30, 1.10, 0.04], "#2f8a4a", decal="jl_webbing"),
+        part("box", [0, 0.20, -0.425], [1.24, 1.04, 0.01], "#000000", [0, PI, 0],
+             decal="jl_webbing", a=-1),
+        *straps("#2b2b30", 0.34, 0.12),
+    ]
+    for x in (-0.66, 0.66):
+        parts += [part("cyl", [x, 0.28, -0.34], [0.07, 1.42, 0.07], alu, m="metal"),
+                  part("rbox", [x * 1.06, 0.62, -0.40], [0.10, 0.06, 0.40], "#e8e2d0"),
+                  part("cyl", [x, -0.44, -0.46], [0.07, 0.30, 0.07], alu, [0.5, 0, 0], m="metal")]
+    for y in (0.95, -0.37):
+        parts.append(part("cyl", [0, y, -0.34], [0.07, 1.36, 0.07], alu, [0, 0, PI / 2], m="metal"))
+    return parts
+
+
+@JL23.back("picnic_blanket", "Picnic Blanket",
+           "The red gingham picnic blanket, worn as a cape. Two ants are still on it, "
+           "walking very purposefully towards your sandwich.", "uncommon")
+def _():
+    parts = [
+        place("cape", [0, 0.98, -0.08], [1.70, 1.92, 1.5], KETCHUP, anchor=[0, 0, 0],
+              decal="jl_gingham", wrap=True),
+        part("rbox", [0, 0.96, -0.14], [1.40, 0.14, 0.16], "#8a1c14"),
+    ]
+    for n, (x, y) in enumerate(((0.30, 0.30), (0.42, 0.18))):
+        z = -0.29 - 0.12 * (0.98 - y)
+        for k in range(3):
+            parts.append(part("sph", [x - 0.05 * k, y + 0.03 * k, z - 0.03],
+                              [0.06, 0.05, 0.05], "#1a1a1a"))
+    return parts
+
+
+@JL23.hairdo("pompadour", "Cookout Pompadour",
+             "Combed up and rolled over in a wave you could surf on, held there by a "
+             "great deal of something from a jar.", "rare")
+def _():
+    c, hi = "#1c1612", "#3a2e24"
+    parts = [place("hairshort", [0, 0, 0], [1.02, 1.02, 1.02], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    parts += [part("sph", [0, 0.64, 0.16], [0.82, 0.36, 0.62], c, decal="strands", wrap=True),
+              part("sph", [0, 0.68, 0.38], [0.70, 0.34, 0.44], hi, [0.3, 0, 0], decal="strands",
+                   wrap=True),
+              place("spiral", [0.06, 0.46, 0.58], [0.10, 0.20, 0.10], c, r=[0.4, 0, 0.2])]
+    return parts
+
+
+@JL23.hairdo("gingham_ponytail", "Gingham Ponytail",
+             "A high ponytail with a red gingham scrunchie that matches the tablecloth "
+             "exactly. Coincidence. Probably.", "uncommon")
+def _():
+    c = "#c8913a"
+    return [
+        place("hairmid", [0, 0, 0], [1.02, 1.02, 1.02], c, anchor=[0, 0, 0], decal="strands",
+              wrap=True),
+        part("torus", [0, 0.50, -0.42], [0.30, 0.14, 0.30], KETCHUP, [1.0, 0, 0],
+             decal="jl_gingham", wrap=True),
+        place("teardrop", [0, 0.56, -0.48], [0.40, 0.90, 0.34], c, anchor=[0, 0.95, 0],
+              r=[2.6, 0, 0], decal="strands", wrap=True),
+    ]
+
+
+JL23.face("sunglasses_tan", "Sunglasses Tan",
+          "Six hours at the grill in sunglasses. The sunglasses are off now. The tan "
+          "is not.", [
+              {"k": "ellipse", "x": 0, "y": 0.02, "w": 0.86, "h": 0.66, "c": "rgba(255,96,72,0.45)"},
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.24, "h": 0.17, "c": "#fff1dc"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.24, "h": 0.17, "c": "#fff1dc"},
+              {"k": "rect", "x": 0, "y": -0.15, "w": 0.18, "h": 0.04, "c": "#fff1dc"},
+              {"k": "arc", "x": -0.20, "y": -0.11, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.11, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0, "y": 0.04, "r": 0.18, "a0": 0.10, "a1": 0.40, "w": 0.045,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": 0, "y": -0.01, "w": 0.08, "h": 0.06, "c": "#ff5a48"},
+          ])
+JL23.face("mustard_mustache", "Mustard Mustache",
+          "A big happy grin and a moustache of mustard from the last bite. Nobody has "
+          "told them. Nobody is going to.", [
+              {"k": "arc", "x": -0.20, "y": -0.10, "r": 0.07, "a0": 0.55, "a1": 0.95, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.10, "r": 0.07, "a0": 0.55, "a1": 0.95, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.22, 0.10], [0.22, 0.10], [0.14, 0.24], [-0.14, 0.24]],
+               "c": "#16171b"},
+              {"k": "rect", "x": 0, "y": 0.12, "w": 0.36, "h": 0.03, "c": "#ffffff"},
+              {"k": "poly", "pts": [[-0.26, 0.06], [-0.12, 0.03], [0.0, 0.07], [0.12, 0.03],
+                                    [0.27, 0.07], [0.20, 0.10], [0.05, 0.08], [-0.05, 0.09],
+                                    [-0.20, 0.10]], "c": "#f2b705"},
+              {"k": "ellipse", "x": 0.10, "y": 0.33, "w": 0.06, "h": 0.05, "c": "#c4281c"},
+          ], "rare")
+JL23.shirt("bbq_apron", "Licensed to Grill",
+           "A white tee under a red apron that says exactly what it means. Comes with "
+           "a sauce stain already on it, to save time.",
+           {"torso": "#f4f6f8", "arms": "#f4f6f8", "sleeves": 0.45, "decal": "jl_tee_apron",
+            "stripe": KETCHUP})
+JL23.pants("jorts", "Grass-Stained Jorts",
+           "Denim shorts, cut off at the knee, green at both knees from the tug-of-war.",
+           {"legs": "#4a6fa8", "weave": "jl_jorts", "length": 0.55})
+JL23.belt("condiment_belt", "Condiment Holster",
+          "A leather belt with two holsters: ketchup on the left, mustard on the right. "
+          "Quickest draw at the cookout.",
+          {"band": "#6a3a1a", "buckle": MUSTARD, "width": 0.22, "weave": "leather",
+           "pouch": KETCHUP, "metal": True})
+
+
+@JL23.weapon("grill_spatula", "Grill Master's Spatula",
+             "A spatula the length of your arm, built for flipping burgers and very good "
+             "at flipping people. Flip them up, then serve them on the way down.",
+             {"kind": "melee", "damage": 22, "headshot": 1.0, "rpm": 100, "range": 10.0,
+              "arc": 0.6, "sound": "swing", "knockback": 4,
+              "on_hit": {"knockup": 30}, "vs_airborne": 1.6},
+             [["+", "Flips whoever it hits up into the air"],
+              ["+", "60% more damage to anyone off the ground: flip, then serve"],
+              ["-", "Only 22 damage to anybody with both feet down"],
+              ["-", "Flip somebody too high and they sail out of reach"]], rarity="legendary")
+def _():
+    steel = "#c9ced6"
+    return [
+        part("cyl", [0, 0.0, -0.10], [0.16, 0.56, 0.16], "#3a2414", [PI / 2, 0, 0],
+             decal="leather", wrap=True),
+        part("torus", [0, 0.0, -0.44], [0.16, 0.04, 0.16], steel, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0, 0.0, 0.60], [0.08, 0.05, 1.20], steel, [-0.12, 0, 0], m="metal"),
+        part("rbox", [0, 0.10, 1.34], [0.66, 0.05, 0.70], steel, [-0.18, 0, 0], m="metal",
+             decal="jl_slots"),
+        part("rbox", [0, 0.13, 1.26], [0.40, 0.06, 0.08], "#5a2e1a", [-0.18, 0, 0]),
+    ]
+
+
+def _hot_dog_proj():
+    return [p for p in _hot_dog([0, 0, 0], 0.55, yaw=PI / 2)]
+
+
+@JL23.weapon("hot_dog_launcher", "Hot Dog Launcher",
+             "A stadium T-shirt cannon converted, at some expense, to hot dogs. Each one "
+             "lands with a splat and leaves two spares on the grass for your team.",
+             {"kind": "projectile", "projectile": "hotdog", "damage": 30, "splash": 3.5,
+              "splash_damage": 14, "rpm": 60, "mag": 4, "reload": 2.4, "speed": 76,
+              "range": 300, "auto": False, "sound": "pop", "recoil": 1.8, "reserve": 24,
+              "gravity_scale": 0.8, "self_damage": 0.0, "knockback": 8,
+              "pickups": {"count": 2, "spread": 4.0, "heal": 15, "color": "#d9763a",
+                          "secs": 12, "radius": 3.0}},
+             [["+", "Every hot dog leaves two more on the ground: a teammate who picks one "
+                    "up heals 15"],
+              ["+", "You can eat them too"],
+              ["-", "A lobbed shot with a small splash"],
+              ["-", "Four to a load"]], rarity="legendary",
+             proj=_hot_dog_proj)
+def _():
+    return [
+        part("cyl", [0, 0.06, 0.70], [0.56, 1.40, 0.56], KETCHUP, [PI / 2, 0, 0],
+             decal="jl_hstripes", wrap=True),
+        part("torus", [0, 0.06, 1.40], [0.62, 0.10, 0.62], MUSTARD, [PI / 2, 0, 0]),
+        part("cyl", [0, 0.06, 1.41], [0.44, 0.03, 0.44], "#2b2b30", [PI / 2, 0, 0]),
+        part("cyl", [0, -0.32, 0.36], [0.30, 0.70, 0.30], "#c9ced6", [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, -0.32, 0.74], [0.16, 0.06, 0.16], "#2b2b30", [PI / 2, 0, 0]),
+        part("rbox", [0, -0.34, -0.04], [0.18, 0.46, 0.24], "#2b2b30", [0.3, 0, 0]),
+        part("rbox", [0, 0.10, -0.24], [0.30, 0.28, 0.50], "#2b2b30"),
+    ] + at_frame(_hot_dog([0, 0, 0], 0.40, yaw=PI / 2, mustard=True), [0, 0.06, 1.44])
+
+
+@JL23.weapon("seed_spitter", "Watermelon Seed Spitter",
+             "A whole watermelon with a brass nozzle in one end and a pump in the other. "
+             "It spits seeds faster than anybody at the picnic, and they go straight "
+             "through the first person in the way.",
+             {"kind": "projectile", "projectile": "seed", "damage": 8, "splash": 0,
+              "splash_damage": 0, "rpm": 480, "mag": 30, "reload": 2.2, "speed": 140,
+              "range": 160, "auto": True, "sound": "pop", "recoil": 0.25, "reserve": 150,
+              "gravity_scale": 0.55, "self_damage": 0.0, "knockback": 1,
+              "pierce_players": 2, "tracer": "#1a1a1a"},
+             [["+", "Eight seeds a second"],
+              ["+", "Every seed goes on through up to two people"],
+              ["-", "8 damage a seed"],
+              ["-", "They drop off over distance"]], rarity="legendary",
+             proj=lambda: [place("teardrop", [0, 0, 0], [0.22, 0.34, 0.16], "#1a1a1a",
+                                 r=[PI / 2, 0, 0])])
+def _():
+    return [
+        part("sph", [0, 0.10, 0.50], [0.80, 0.76, 1.30], "#3c8a3c", decal="jl_melon", wrap=True),
+        part("cyl", [0, 0.48, 0.50], [0.50, 0.03, 0.80], "#ea4a5c"),
+        part("cyl", [0, 0.46, 0.50], [0.56, 0.02, 0.86], "#eef4cf"),
+        part("sph", [0.10, 0.50, 0.40], [0.04, 0.02, 0.06], "#1a1a1a"),
+        part("sph", [-0.12, 0.50, 0.62], [0.04, 0.02, 0.06], "#1a1a1a"),
+        part("cyl", [0, 0.10, 1.24], [0.12, 0.30, 0.12], BRASS, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.10, 1.40], [0.18, 0.06, 0.18], BRASS, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.10, -0.24], [0.14, 0.40, 0.14], BRASS, [PI / 2, 0, 0], m="metal"),
+        part("rbox", [0, -0.30, -0.04], [0.16, 0.44, 0.22], "#3a2414", [0.3, 0, 0]),
+    ]
+
+
+def _grill_model(k=1.0):
+    steel = "#9aa0a8"
+    out = [
+        place("bowl", [0, 1.0 * k, 0], [1.20 * k, 0.90 * k, 1.20 * k], CHAR, anchor=[0, 0, 0],
+              m="metal"),
+        part("torus", [0, 1.54 * k, 0], [1.24 * k, 0.06 * k, 1.24 * k], "#3a3b40", m="metal"),
+        part("cyl", [0, 1.40 * k, 0], [1.00 * k, 0.03 * k, 1.00 * k], "#ff6a1a", m="neon"),
+        place("hemi", [0, 1.56 * k, -0.62 * k], [1.24 * k, 0.84 * k, 1.24 * k], CHAR,
+              anchor=[0, 0, -0.5], r=[-1.3, 0, 0], m="metal"),
+        part("sph", [0, 2.10 * k, 0], [0.50 * k, 0.40 * k, 0.48 * k], "#c9ccd2", a=0.5),
+        part("sph", [0.10 * k, 2.50 * k, 0], [0.36 * k, 0.30 * k, 0.34 * k], "#d9dce2", a=0.38),
+    ]
+    out += at_frame(_burger([0, 0, 0], 1.0)[1:2], [0.18 * k, 1.50 * k, 0.10 * k], k=0.28 * k)
+    out += _hot_dog([-0.24 * k, 1.56 * k, -0.06 * k], 0.24 * k, yaw=0.3, mustard=False)
+    for a in (0.0, 2 * PI / 3, -2 * PI / 3):
+        out.append(_rod([math.sin(a) * 0.36 * k, 1.10 * k, math.cos(a) * 0.36 * k],
+                        [math.sin(a) * 0.60 * k, 0.0, math.cos(a) * 0.60 * k], 0.06 * k, steel,
+                        m="metal"))
+    return out
+
+
+@JL23.gear("backyard_grill", "Backyard Grill",
+           "Set the grill down, light it, and everybody on your side gathers round: "
+           "patched up, well fed and spoiling for it. Anybody else who wanders over "
+           "gets a hot coal.",
+           {"kind": "deploy", "cooldown": 35, "sound": "crack",
+            "deploy": {"type": "grill", "radius": 8.0, "secs": 12.0, "heal": 6.0, "limit": 1,
+                       "color": "#ff8c1a", "particle": "puff", "name": "Backyard Grill",
+                       "ally": {"might": [0.15, 1.0]}, "enemy": {"burn": [5, 1.2]}}},
+           [["+", "Sets up a grill: teammates within 8 studs heal 6 a second and hit 15% "
+                  "harder"],
+            ["+", "Enemies who come too close get burnt"],
+            ["-", "Runs out of charcoal in 12 seconds"],
+            ["-", "35 second cooldown"]], rarity="rare",
+           deploy=lambda: _grill_model(1.0))
+def _():
+    return at_frame(_grill_model(0.42), [0, -0.66, 0.36])
+
+
+JL23.effect("burger_flip", name="Burger Flip", rate=2.2, life=[1.4, 1.9], size=[0.30, 0.42],
+            grow=0.0, gravity=1.4, spread=0.35, rise=[1.6, 2.2], blend="normal", spin=7.0,
+            colors=["#ffffff", "#fff0d8", "#ffe0b8"], shape="jl_burger", radius=0.5)
+JL23.effect("picnic_ants", name="Picnic Ants", rate=5.0, life=[2.4, 3.2], size=[0.14, 0.18],
+            grow=0.0, gravity=0.0, spread=0.05, rise=[0.0, 0.05], blend="normal", spin=0.0,
+            colors=["#1a1a1a", "#2a1a12", "#3a2418"], shape="jl_ant", radius=0.9, orbit=1.2,
+            upright=True, wobble=0.15)
+JL23.opening(
+    sky={"top": "#2a3f7a", "horizon": "#ff9a5a", "sun": [0.4, 0.3, 0.8], "clouds": 2,
+         "tint": "#ffe0b0"},
+    ambient="#a07a5a", beam="#ffb347", seep="picnic_ants", after="burger_flip",
+    burst=["#ff8c1a", "#f2b705", "#c4281c", "#ffffff"],
+    pieces=[{"shape": "jl_burger", "colors": ["#ffffff", "#fff0d8"], "blend": "normal"},
+            {"shape": "jl_hotdog", "colors": ["#ffffff", "#fff0d8"], "blend": "normal"},
+            {"shape": "puff", "colors": ["#c9ccd2", "#e3e6ea"], "blend": "normal"},
+            {"shape": "spark", "colors": ["#ffb347", "#ff6a1a"], "blend": "add"}],
+    backdrop="jl_cookout", title_wait="Firing up the grill...",
+    title_shake="Something smells amazing...")
+JL23.award("Backyard Cookout", ["Paper Plate", "Lawn Chair", "Condiment Wrangler",
+                                "Patty Flipper", "Pitmaster", "Grill Master General"],
+           "Opened Kettle Grill Crates at the Backyard Cookout, Fourth of July 2023.",
+           "em_grill", "spangle")
+JL23.bundle("pair", "Seconds", 1, 1050, "One Kettle Grill Crate, one Corn-Cob Key.")
+JL23.bundle("potluck", "Potluck", 3, 3000, "Three grills, three keys. Saves 300.")
+
+
+EVENTS = [JL22, JL23]
