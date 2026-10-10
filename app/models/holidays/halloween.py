@@ -20,7 +20,7 @@ import math
 from .. import cosmetics
 from .kit import (BLACK, BONE, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
                   Event, around, at_frame, band, buckle, cap, dome, mix, part, place,
-                  pompom, ringband, rotate, shade, sides, straps)
+                  pompom, ringband, rod, rotate, shade, sides, straps)
 
 GHOST_GREEN = "#9fe870"
 WISP = "#6bff9a"
@@ -1301,7 +1301,7 @@ def _():
                    decal="strands", wrap=True, a=0.6)]
     for k, (x, z) in enumerate(((0.30, -0.30), (-0.30, -0.30), (0.0, -0.40), (0.40, 0.0),
                                 (-0.40, 0.0))):
-        parts.append(place("teardrop", [x, 0.50, z], [0.16, 0.40, 0.16], c, anchor=[0, -0.5, 0],
+        parts.append(place("teardrop", [x, 0.50, z], [0.16, 0.40, 0.16], c, anchor=[0, 0.1, 0],
                            r=[0.3 * (1 if z < 0 else 0), 0, -x], a=0.45))
     return parts
 
@@ -1469,6 +1469,600 @@ HW24.bundle("pair", "A Room for the Night", 1, 1050, "One Whisper Manor Crate, o
 HW24.bundle("wing", "The East Wing", 3, 3000, "Three crates, three keys. Saves 300.")
 
 
+# ============================================================ 2025
+TENT = "#c4281c"
+CREAM = "#f4ecd8"
+GREASEPAINT = "#f6f2ee"
+HARLEQUIN = "#5a2a7a"
+MARQUEE = "#fff3b0"
+
+HW25 = Event(
+    "halloween_2025", "halloween", 2025, "hw25",
+    name="Big Top Terror", title="The Big Top Terror",
+    blurb="Halloween 2025 the circus came to Blockhaven. Nobody saw it arrive: one "
+          "morning the big top was simply standing on the old fairground, lit, with "
+          "the calliope playing to nobody. The clowns never take their make-up off. "
+          "Every ticket is one-way.",
+    tagline="Roll up, roll up. You will never leave.",
+    starts="2025-10-01", ends="2025-11-09",
+    colors={"accent": "#e8402a", "deep": "#1a0a12", "glow": "#ffd36a"},
+    family_effects=["candlelight_vigil", "flying_skulls", "jack_o_lanterns", "bat_swarm"],
+    hero_effect="carnival_lights", stencil="stencil_hw25")
+
+
+@HW25.crate_model("Big Top Trunk",
+                  "A performer's travelling trunk, camel-backed and striped like the big "
+                  "top, brass at every corner and pasted with posters for a show nobody "
+                  "remembers buying tickets for. Holds the Big Top Terror set. Needs an "
+                  "Admit-One Key.",
+                  hinge=[0, 0.36, -0.55], keyhole=[0, 0.20, 0.60])
+def _():
+    wood, strap = "#6a1018", "#3a2214"
+    parts = [
+        part("rbox", [0, -0.05, 0], [1.70, 0.82, 1.08], wood, decal="planks", wrap=True),
+        # the camel-back lid, striped like the tent, with a brass rim and a star
+        part("hemi", [0, 0.57, 0], [1.74, 0.42, 1.10], TENT, lid=1, decal="bigtop_stripes",
+             wrap=True),
+        part("rbox", [0, 0.37, 0], [1.78, 0.08, 1.14], BRASS, m="metal", lid=1),
+        part("rbox", [0, 0.40, 0.575], [0.18, 0.16, 0.04], BRASS, m="metal", lid=1),
+        place("star", [0, 0.86, 0], 0.34, GOLD, m="metal", lid=1),
+        part("rbox", [0, 0.31, 0], [1.74, 0.06, 1.12], BRASS, m="metal"),
+        # the clasp, which is the lock
+        part("rbox", [0, 0.20, 0.575], [0.30, 0.26, 0.06], BRASS, m="metal", decal="keyhole",
+             lock=1),
+        # the light inside, for when the lid comes up
+        part("box", [0, 0.30, 0], [1.60, 0.04, 1.00], "#ffd36a", m="neon"),
+        # posters on both ends and the stencil on the back
+        part("box", [0.865, -0.04, 0], [0.80, 0.62, 0.02], "#000000", [0, PI / 2, 0],
+             decal="bigtop_poster", a=-1),
+        part("box", [-0.865, -0.04, 0], [0.80, 0.62, 0.02], "#000000", [0, -PI / 2, 0],
+             decal="bigtop_poster", a=-1),
+        part("box", [0, -0.05, -0.555], [1.10, 0.62, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_hw25", a=-1),
+    ]
+    for x in (-0.45, 0.45):
+        parts += [part("rbox", [x, -0.06, 0.55], [0.16, 0.80, 0.03], strap, decal="leather"),
+                  part("rbox", [x, 0.16, 0.57], [0.20, 0.14, 0.03], BRASS, m="metal")]
+    for x in (-0.79, 0.79):
+        for z in (-0.49, 0.49):
+            for y in (-0.40, 0.28):
+                parts.append(part("rbox", [x, y, z], [0.18, 0.16, 0.18], BRASS, m="metal"))
+            parts.append(part("sph", [x, -0.50, z], [0.14, 0.10, 0.14], BRASS, m="metal"))
+    for side in (1, -1):
+        parts.append(part("torus", [0.88 * side, 0.08, 0], [0.30, 0.05, 0.30], BRASS,
+                          [0, 0, PI / 2], m="metal"))
+    return parts
+
+
+@HW25.key_model("Admit-One Key",
+                "A brass key with a ticket for a bow. ADMIT ONE, it says. It does not say "
+                "when, and there is no stub for coming back out. Opens one Big Top Trunk.",
+                shoulder=-0.30)
+def _():
+    return [
+        part("rbox", [-0.66, 0, 0], [0.72, 0.42, 0.05], "#e8d6a8", decal="admit_one"),
+        part("rbox", [-0.66, 0, -0.005], [0.74, 0.44, 0.04], "#a8141e"),
+        part("cyl", [-0.93, 0, 0], [0.09, 0.07, 0.09], "#1a0a12", [PI / 2, 0, 0]),
+        part("torus", [-0.28, 0, 0], [0.20, 0.07, 0.20], GOLD_DARK, [0, 0, PI / 2], m="metal"),
+        part("cyl", [0.11, 0, 0], [0.09, 0.80, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0.40, -0.12, 0], [0.08, 0.22, 0.08], BRASS, m="metal"),
+        place("star", [0.53, -0.20, 0], 0.22, BRASS, m="metal"),
+    ]
+
+
+@HW25.hat("ringmaster_topper", "Ringmaster's Topper",
+          "Scarlet silk, a gold band, a ring of marquee bulbs round the crown and a "
+          "plume of black feathers. Whoever wears it is in charge of the show. The "
+          "show has not decided whether to let them.", "legendary")
+def _():
+    red = "#a8141e"
+    parts = [
+        place("brim", [0, -0.05, 0], [2.20, 1.6, 2.10], BLACK, anchor=[0, 0, 0]),
+        place("flare", [0, 0.0, 0], [1.40, 1.55, 1.34], red, anchor=[0, 0, 0], decal="felt",
+              wrap=True),
+        part("cyl", [0, 0.20, 0], [1.29, 0.30, 1.23], GOLD, m="metal"),
+        part("cyl", [0, 0.20, 0], [1.31, 0.06, 1.25], GOLD_DARK, m="metal"),
+        place("star", [0, 0.22, 0.655], 0.30, GOLD, m="metal"),
+        part("sph", [0, 0.23, 0.69], [0.09, 0.09, 0.05], "#ff3b4e", m="glass"),
+        part("cyl", [0, 1.555, 0], [1.42, 0.03, 1.36], BLACK),
+    ]
+    parts += around(12, 0.69, 1.50, lambda a, x, z: part(
+        "sph", [x, 1.50, z * 0.957], [0.09, 0.09, 0.09], MARQUEE, m="neon"))
+    for k, lean in enumerate((-0.25, 0.05, 0.35)):
+        parts.append(place("feather", [0.52 + k * 0.04, 0.34, -0.36 + k * 0.08], 0.95,
+                           "#16121a", anchor=[0, -0.5, 0], r=[lean, PI / 2 + 0.5, -0.30]))
+    return parts
+
+
+@HW25.hat("big_top", "The Big Top",
+          "The whole tent, in miniature, pitched on your head: red and cream canvas, a "
+          "scalloped valance, and a pennant on the king pole. Something is moving "
+          "about inside.", "rare", hair="flat")
+def _():
+    parts = [
+        cap(-0.28, 0.08, "#5a0f18", decal="felt", wrap=True),
+        band(-0.22, 0.10, GOLD, grow=0.04, m="metal"),
+        part("cyl", [0, 0.30, 0], [1.24, 0.46, 1.20], TENT, decal="bigtop_stripes", wrap=True),
+        part("cone", [0, 0.92, 0], [1.56, 0.80, 1.50], TENT, decal="bigtop_stripes", wrap=True),
+        # the doorway, dark, with a glow in it
+        place("tri", [0, 0.28, 0.605], [0.42, 0.50, 0.3], "#1a0a12"),
+        part("sph", [0, 0.24, 0.60], [0.16, 0.16, 0.04], "#ffd36a", m="neon", a=0.6),
+        # king pole and pennant
+        part("cyl", [0, 1.46, 0], [0.04, 0.40, 0.04], BRASS, m="metal"),
+        place("flag", [0.26, 1.56, 0], [0.50, 0.42, 0.5], "#ffd36a", r=[0, 0, -0.05]),
+        part("sph", [0, 1.68, 0], [0.07, 0.07, 0.07], GOLD, m="metal"),
+    ]
+    # the scalloped valance round the eaves
+    parts += around(14, 0.74, 0.52, lambda a, x, z: place(
+        "tri", [x, 0.47, z * 0.96], [0.30, 0.20, 0.4],
+        TENT if int(round(a / (TAU / 14))) % 2 else CREAM, r=[PI, a, 0]))
+    return parts
+
+
+def _jester_prong(side, back):
+    """One floppy prong of a jester's cap and the bell on its tip."""
+    k = 2.3
+    if back:
+        at, r = [0, 0.02, -0.30], [0.0, PI / 2, -0.55]
+    else:
+        at, r = [0.30 * side, 0.02, 0.0], [0.0, 0.0 if side > 0 else PI, -0.55]
+    tip = rotate([0.376 * k, 0.581 * k, 0], r)
+    end = [at[0] + tip[0], at[1] + tip[1], at[2] + tip[2]]
+    colour = HARLEQUIN if (side > 0) != back else BLACK
+    return [place("horn", at, [k, k, k * 2.4], colour, anchor=[0, 0, 0], r=r,
+                  decal="harlequin", wrap=True),
+            part("sph", [end[0], end[1] - 0.06, end[2]], [0.20, 0.20, 0.20], GOLD, m="metal"),
+            part("rbox", [end[0], end[1] - 0.11, end[2]], [0.14, 0.02, 0.21], "#3a2a10")]
+
+
+@HW25.hat("jester_cap", "Jester of the Dark Carnival",
+          "A three-pointed fool's cap in purple and black diamonds, a bell on every "
+          "point. You can hear it coming. You will not hear it leave.", "rare")
+def _():
+    parts = [
+        cap(-0.30, 0.18, HARLEQUIN, decal="harlequin", wrap=True),
+        ringband(-0.24, 0.14, GOLD, m="metal"),
+    ]
+    parts += _jester_prong(1, False) + _jester_prong(-1, False) + _jester_prong(1, True)
+    parts += around(8, 0.93, 0.0, lambda a, x, z: place(
+        "tri", [x, -0.38, z * 0.965], [0.26, 0.26, 0.4],
+        HARLEQUIN if int(round(a / (TAU / 8))) % 2 else BLACK, r=[PI, a, 0]))
+    return parts
+
+
+@HW25.hat("popcorn_head", "Bottomless Popcorn",
+          "A striped bucket of popcorn, heaped and spilling. Nobody has ever reached "
+          "the bottom of it, and the ones who tried say there is something down there "
+          "eating it from below.", "uncommon")
+def _():
+    parts = [place("flare", [0, 0.0, 0], [1.34, 1.05, 1.34], CREAM, anchor=[0, 0, 0],
+                   decal="popcorn_stripes", wrap=True),
+             part("cyl", [0, 1.04, 0], [1.32, 0.04, 1.32], "#fff6d8")]
+    kernels = [(0, 1.22, 0, 0.36), (0.32, 1.13, 0.16, 0.30), (-0.30, 1.14, 0.18, 0.32),
+               (0.12, 1.13, -0.32, 0.32), (-0.24, 1.10, -0.22, 0.28), (0.36, 1.08, -0.18, 0.26),
+               (0.06, 1.42, 0.10, 0.30), (-0.12, 1.38, -0.08, 0.28), (0.20, 1.34, -0.08, 0.26),
+               (0.48, 1.10, 0.36, 0.22), (-0.46, 1.08, 0.34, 0.22), (0.0, 1.10, 0.54, 0.22),
+               (-0.52, 1.08, -0.10, 0.20), (0.18, 1.30, 0.30, 0.24)]
+    for k, (x, y, z, w) in enumerate(kernels):
+        parts.append(part("sph", [x, y, z], [w, w * 0.86, w], "#fff6d8" if k % 3 else "#ffe9a8"))
+    # a few that have spilled over the rim
+    for x, y, z in ((0.62, 0.96, 0.24), (-0.36, 0.92, 0.56), (0.20, 0.84, 0.66)):
+        parts.append(part("sph", [x, y, z], [0.18, 0.16, 0.18], "#fff6d8"))
+    return parts
+
+
+def _string_bow(at):
+    """A little ribbon bow where the balloon strings are tied."""
+    x, y, z = at
+    return [part("sph", [x, y, z], [0.12, 0.10, 0.12], TENT),
+            place("bowtie", [x, y + 0.02, z], [0.40, 0.30, 1.0], TENT)]
+
+
+@HW25.hat("runaway_balloons", "Runaway Balloons",
+          "A fistful of balloons from the midway, tied to a bow on your head. One of "
+          "them has a face. You did not draw it on.", "rare")
+def _():
+    knot = [0, 0.10, 0]
+    parts = [ringband(-0.30, 0.10, TENT)]
+    parts += _string_bow(knot)
+    balloons = [([0.62, 1.70, 0.10], "#ff3b4e", 0.86), ([-0.62, 1.86, -0.08], "#3cc8ff", 0.82),
+                ([0.04, 2.40, -0.26], "#ffd36a", 0.90), ([0.36, 2.14, 0.50], "#7dff9a", 0.78),
+                ([-0.34, 1.62, 0.52], GREASEPAINT, 0.86)]
+    for k, (at, colour, size) in enumerate(balloons):
+        parts += [place("balloon", at, [size, size * 1.15, size], colour, anchor=[0, 0, 0],
+                        m="glass", a=0.95),
+                  rod(knot, at, 0.02, "#f4f6f8")]
+    # the one with the face
+    at, size = balloons[4][0], balloons[4][2]
+    parts.append(part("box", [at[0], at[1] + size * 0.66, at[2] + size * 0.50 + 0.01],
+                      [size * 0.66, size * 0.66, 0.02], "#000000", decal="balloon_grin", a=-1))
+    return parts
+
+
+@HW25.hat("cotton_candy", "Cotton Candy Coif",
+          "Somebody dropped a cotton candy on your head, floss first. It has set like a "
+          "beehive, the paper cone still sticking out of the top. Sticky in the rain. "
+          "Stickier in other things.", "uncommon", hair="hide")
+def _():
+    pink, blue = "#ffa8dc", "#a8dcff"
+    parts = [dome(-0.42, 1.05, pink)]
+    # the floss in lumps all over it, standing a little proud of the shell
+    for k in range(26):
+        a = k * 2.399
+        up = 0.06 + 0.88 * (k + 0.5) / 26
+        ring = math.sqrt(max(0.0, 1.0 - up * up))
+        w = 0.46 - 0.16 * up
+        out = 1.0 + 0.30 * w
+        x, z = math.sin(a) * 0.96 * ring * out, math.cos(a) * 0.93 * ring * out
+        y = -0.42 + up * 1.05 * out
+        colour = ("#ffd6f0", blue, "#ff7ac8", "#d8b8ff")[k % 4]
+        parts.append(part("sph", [x, y, z], [w, w * 0.86, w], colour))
+    tilt = [0.0, 0.0, -0.30]
+    base = [0.10, 0.50, 0.0]
+    parts += [place("cone", base, [0.44, 0.86, 0.44], CREAM, anchor=[0, -0.5, 0], r=tilt,
+                    decal="popcorn_stripes", wrap=True)]
+    return parts
+
+
+@HW25.hat("cannonball_helmet", "Human Cannonball",
+          "A padded crash helmet in red and silver with a gold star on the front and "
+          "the goggles pushed up. It has been fired out of a cannon two hundred times. "
+          "It has landed in the net twice.", "rare", hair="hide")
+def _():
+    red = "#d0202a"
+    parts = [
+        dome(-0.62, 1.05, red, t="capcrown", m="metal"),
+        ringband(-0.62, 0.16, SILVER, m="metal"),
+        place("star", [0, -0.10, 0.875], 0.42, GOLD, r=[-0.35, 0, 0], m="metal"),
+        # goggles pushed up on the brow, and their strap
+        ringband(-0.30, 0.10, "#2a2a30", margin=0.07),
+    ]
+    for side in (1, -1):
+        parts += [part("cyl", [0.26 * side, -0.32, 0.98], [0.30, 0.10, 0.30], SILVER,
+                       [PI / 2 - 0.15, 0, 0], m="metal"),
+                  part("cyl", [0.26 * side, -0.32, 1.02], [0.24, 0.02, 0.24], "#9ad8ff",
+                       [PI / 2 - 0.15, 0, 0], m="glass", a=0.7),
+                  part("sph", [0.97 * side, -0.48, 0], [0.18, 0.30, 0.40], SILVER, m="metal")]
+    return parts
+
+
+@HW25.back("carousel_steed", "Carousel Steed",
+           "A painted horse off the carousel, still on its brass pole, still going up "
+           "and down. The canopy turns overhead. The music has not stopped since 1931.",
+           "legendary")
+def _():
+    white, gilt, saddle, mane = "#f6f2ee", "#d9a520", "#a8141e", "#3cc8ff"
+    z, k = -0.86, 1.30
+
+    def at(x, y, dz=0.0):
+        # the horse is drawn at its own size about the pole and grown from there
+        return [x * k, 0.62 + (y - 0.62) * k, z + dz * k]
+
+    def limb(a, b, w, c, **kw):
+        return rod(at(*a), at(*b), w * k, c, t="capsule", **kw)
+
+    parts = [
+        # the pole, the canopy over your head and the finial on top
+        part("cyl", [0, 0.80, z + 0.10], [0.11, 4.10, 0.11], BRASS, m="metal",
+             decal="bigtop_stripes", wrap=True),
+        part("cone", [0, 3.10, z + 0.10], [1.90, 0.60, 1.90], TENT, decal="bigtop_stripes",
+             wrap=True, spin=0.8),
+        part("cyl", [0, 2.78, z + 0.10], [1.92, 0.10, 1.92], GOLD, m="metal", spin=0.8),
+        part("sph", [0, 3.46, z + 0.10], [0.18, 0.18, 0.18], GOLD, m="metal"),
+        # the horse, galloping to your right
+        part("capsule", at(0.0, 0.62), [0.52 * k, 1.30 * k, 0.44 * k], white, [0, 0, PI / 2]),
+        limb((0.46, 0.70, 0), (0.78, 1.18, 0), 0.36, white),
+        part("rbox", at(0.92, 1.24), [0.46 * k, 0.28 * k, 0.30 * k], white, [0, 0, -0.35]),
+        part("sph", at(1.13, 1.17), [0.16 * k, 0.16 * k, 0.22 * k], "#e8c0b0"),
+        place("leaf", at(0.82, 1.44, 0.08), [0.4 * k, 0.40 * k, 1.0], white, r=[0, 0, 0.3]),
+        place("leaf", at(0.82, 1.44, -0.08), [0.4 * k, 0.40 * k, 1.0], white, r=[0, 0, 0.3]),
+        part("sph", at(1.00, 1.30, 0.13), [0.06, 0.06, 0.03], BLACK),
+        part("sph", at(1.00, 1.30, -0.13), [0.06, 0.06, 0.03], BLACK),
+        # bridle and plume
+        part("torus", at(1.02, 1.20), [0.30 * k, 0.03 * k, 0.32 * k], gilt, [0, 0, PI / 2 - 0.35],
+             m="metal"),
+        place("feather", at(0.86, 1.56), 0.60 * k, saddle, anchor=[0, -0.5, 0], r=[0, 0, -0.5]),
+        # the mane and tail
+        limb((0.50, 0.90, 0), (0.86, 1.40, 0), 0.16, mane, m="glass"),
+        limb((-0.60, 0.72, 0), (-0.94, 0.28, 0), 0.16, mane, m="glass"),
+        limb((-0.94, 0.28, 0), (-0.98, 0.04, 0), 0.10, mane, m="glass"),
+        # the saddle, its striped cloth and the stirrup
+        part("rbox", at(-0.05, 0.92), [0.46 * k, 0.10 * k, 0.48 * k], saddle),
+        part("rbox", at(-0.05, 0.72), [0.62 * k, 0.40 * k, 0.50 * k], CREAM,
+             decal="bigtop_stripes", wrap=True),
+        part("rbox", at(-0.05, 0.94), [0.50 * k, 0.04 * k, 0.50 * k], gilt, m="metal"),
+        limb((-0.05, 0.62, 0.27), (-0.05, 0.36, 0.27), 0.03, gilt, m="metal"),
+        part("torus", at(-0.05, 0.32, 0.27), [0.12 * k, 0.03 * k, 0.10 * k], gilt, m="metal"),
+    ]
+    # legs: the front pair reaching forward, the back pair kicked out behind
+    for dz in (-0.12, 0.12):
+        parts += [limb((0.42, 0.42, dz), (0.80, 0.10, dz), 0.14, white),
+                  limb((0.80, 0.10, dz), (0.74, -0.24, dz), 0.12, white),
+                  limb((-0.42, 0.42, dz), (-0.78, 0.02, dz), 0.14, white),
+                  limb((-0.78, 0.02, dz), (-1.02, -0.10, dz), 0.12, white),
+                  part("sph", at(0.73, -0.28, dz), [0.13 * k, 0.11 * k, 0.13 * k], gilt, m="metal"),
+                  part("sph", at(-1.06, -0.12, dz), [0.13 * k, 0.11 * k, 0.13 * k], gilt, m="metal")]
+    # bulbs round the canopy's rim
+    parts += around(10, 0.95, 2.78, lambda a, x, zz: part(
+        "sph", [x, 2.74, z + 0.10 + zz], [0.09, 0.09, 0.09], MARQUEE, m="neon"))
+    return parts
+
+
+@HW25.back("knife_wheel", "Wheel of Misfortune",
+           "The knife-thrower's wheel, strapped on like a shield. There is a painted "
+           "outline of an assistant on it, and the knives are very close to it, and "
+           "one of them is not.", "rare")
+def _():
+    blade, handle = "#d8dde4", "#3a2214"
+    centre = [0, 0.36, -0.30]
+    parts = straps("#3a2214") + [
+        part("disc", centre, [1.60, 1.60, 0.10], CREAM, [0, PI, 0], decal="knife_wheel"),
+        part("torus", centre, [1.66, 0.10, 1.66], BRASS, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.36, -0.24], [0.30, 0.10, 0.30], IRON, [PI / 2, 0, 0], m="metal"),
+    ]
+    for x, y, a in ((0.38, 0.62, 0.4), (-0.42, 0.20, -0.3), (0.10, -0.10, 1.4), (-0.18, 0.80, 2.2),
+                    (0.52, 0.10, -1.0)):
+        p = [centre[0] + x, centre[1] + y - 0.36, -0.36]
+        parts += [place("blade", [p[0], p[1], p[2] + 0.02], [0.40, 0.30, 1.0], blade,
+                        r=[0, PI / 2, a], m="metal"),
+                  part("rbox", [p[0], p[1], p[2] - 0.26], [0.07, 0.07, 0.30], handle, [0, 0, a])]
+    return parts
+
+
+@HW25.hairdo("clown_puffs", "Clown Puffs",
+             "Bald as an egg on top and two great orange clouds of frizz either side. "
+             "Squeezing them is not recommended. They squeeze back.", "uncommon")
+def _():
+    c, hi, deep = "#ff5a1a", "#ff8a3a", "#e8400e"
+    parts = []
+    for side in (1, -1):
+        centre = [side * 0.76, 0.0, -0.08]
+        parts.append(part("sph", centre, [0.48, 0.52, 0.56], c))
+        # frizz round the outside of each puff
+        for k in range(11):
+            a = k * 2.399
+            up = -0.8 + 1.6 * (k + 0.5) / 11
+            ring = math.sqrt(max(0.0, 1.0 - up * up))
+            dx, dz = abs(math.cos(a)) * ring, math.sin(a) * ring
+            w = 0.20 + 0.06 * (k % 3)
+            parts.append(part("sph", [centre[0] + side * dx * 0.22, centre[1] + up * 0.24,
+                                      centre[2] + dz * 0.26], [w, w, w],
+                              (hi, deep, c)[k % 3]))
+    # and a fringe of it round the back
+    for k, x in enumerate((-0.42, -0.21, 0.0, 0.21, 0.42)):
+        parts.append(part("sph", [x, -0.10 - (k % 2) * 0.08, -0.64], [0.26, 0.26, 0.24],
+                          hi if k % 2 else c))
+    return parts
+
+
+@HW25.hairdo("strongman_handlebar", "Strongman's Handlebar",
+             "Hair slicked flat and parted dead centre, a kiss-curl on the forehead, and "
+             "a moustache you could hang a barbell off. He has.", "rare")
+def _():
+    c = "#1a120e"
+    return [
+        place("hairshort", [0, 0, 0], [1.03, 1.03, 1.03], c, anchor=[0, 0, 0], decal="strands",
+              wrap=True),
+        part("rbox", [0, 0.50, 0.12], [0.02, 0.03, 0.70], shade(c, 0.6)),
+        place("spiral", [0.06, 0.36, 0.54], [0.10, 0.14, 0.05], c, r=[PI / 2, 0, 0]),
+        place("mustache", [0, -0.12, 0.53], [0.92, 0.80, 0.9], c),
+        part("sph", [0.40, -0.04, 0.53], [0.07, 0.07, 0.06], c),
+        part("sph", [-0.40, -0.04, 0.53], [0.07, 0.07, 0.06], c),
+    ]
+
+
+HW25.face("greasepaint_grin", "Greasepaint Grin",
+          "Blue diamonds over the eyes, a red nose, and a red grin painted well past "
+          "where the real one stops.", [
+              {"k": "poly", "pts": [[-0.20, -0.34], [-0.12, -0.13], [-0.20, 0.06], [-0.28, -0.13]],
+               "c": "#2f5fd0"},
+              {"k": "poly", "pts": [[0.20, -0.34], [0.28, -0.13], [0.20, 0.06], [0.12, -0.13]],
+               "c": "#2f5fd0"},
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.10, "h": 0.12, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.10, "h": 0.12, "c": "#ffffff"},
+              {"k": "ellipse", "x": -0.19, "y": -0.12, "w": 0.045, "h": 0.06, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.21, "y": -0.12, "w": 0.045, "h": 0.06, "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.38, 0.04], [-0.20, 0.22], [0.0, 0.28], [0.20, 0.22],
+                                    [0.38, 0.04], [0.22, 0.13], [0.0, 0.17], [-0.22, 0.13]],
+               "c": "#d8202a"},
+              {"k": "arc", "x": 0, "y": -0.02, "r": 0.20, "a0": 0.12, "a1": 0.38, "w": 0.02,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": 0, "y": 0.02, "w": 0.15, "h": 0.13, "c": "#e8202a"},
+              {"k": "ellipse", "x": -0.025, "y": -0.005, "w": 0.04, "h": 0.03, "c": "#ffffff"},
+          ], "rare")
+HW25.face("sad_mime", "Sad Mime",
+          "White paint, one black tear, and a mouth turned down at both ends. It is "
+          "trapped in an invisible box, and so, now, are you.", [
+              {"k": "ellipse", "x": 0, "y": 0.0, "w": 0.84, "h": 0.86, "c": GREASEPAINT},
+              {"k": "arc", "x": -0.20, "y": -0.10, "r": 0.10, "a0": 0.55, "a1": 0.95, "w": 0.025,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.10, "r": 0.10, "a0": 0.55, "a1": 0.95, "w": 0.025,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.20, "y": -0.11, "w": 0.05, "h": 0.06, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.11, "w": 0.05, "h": 0.06, "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.20, -0.02], [-0.17, 0.06], [-0.20, 0.12], [-0.23, 0.06]],
+               "c": "#16171b"},
+              {"k": "arc", "x": 0, "y": 0.30, "r": 0.11, "a0": 0.62, "a1": 0.88, "w": 0.03,
+               "c": "#a8141e"},
+          ], "uncommon")
+HW25.shirt("ringmaster_coat", "Ringmaster's Tailcoat",
+           "Scarlet, double-breasted, gold buttons to the throat and a starched white "
+           "front. Ladies and gentlemen, children of all ages.",
+           {"torso": "#a8141e", "arms": "#a8141e", "decal": "tee_ringmaster", "weave": "felt",
+            "stripe": GOLD}, "rare")
+HW25.pants("harlequin_tights", "Harlequin Tights",
+           "Purple and black diamonds with gold seams, for tumbling, juggling and "
+           "running away from things on stilts.",
+           {"legs": "#2a1238", "weave": "harlequin"})
+HW25.belt("strongman_belt", "Strongman's Belt",
+          "A lifting belt a hand wide, a gold star for a buckle. Rated for nine hundred "
+          "pounds and one regrettable cannon.",
+          {"band": "#3a2214", "buckle": GOLD, "width": 0.34, "weave": "leather", "metal": True})
+
+
+def _balloon_dog(k=1.0, c="#ff3b4e", at=(0.0, 0.0, 0.0)):
+    """A balloon dog, feet at ``at``, facing +Z, ``k`` times the size of the
+    one that runs about (about two and a half studs tall)."""
+    ox, oy, oz = at
+
+    def p(x, y, z):
+        return [ox + x * k, oy + y * k, oz + z * k]
+
+    def s(x, y, z):
+        return [x * k, y * k, z * k]
+
+    lit = shade(c, 1.25)
+    parts = [
+        part("capsule", p(0, 1.15, 0), s(0.46, 1.50, 0.46), c, [PI / 2, 0, 0], m="glass", a=0.96),
+        part("capsule", p(0, 1.66, 0.80), s(0.40, 1.00, 0.40), c, [0.30, 0, 0], m="glass", a=0.96),
+        part("sph", p(0, 2.16, 1.00), s(0.58, 0.54, 0.62), c, m="glass", a=0.96),
+        part("capsule", p(0, 2.08, 1.42), s(0.30, 0.70, 0.30), lit, [PI / 2, 0, 0], m="glass",
+             a=0.96),
+        part("capsule", p(0, 1.58, -0.86), s(0.24, 0.70, 0.24), lit, [-0.7, 0, 0], m="glass",
+             a=0.96),
+        part("sph", p(0.15, 2.26, 1.27), s(0.08, 0.10, 0.04), BLACK),
+        part("sph", p(-0.15, 2.26, 1.27), s(0.08, 0.10, 0.04), BLACK),
+        part("sph", p(0, 2.10, 1.78), s(0.10, 0.08, 0.06), BLACK),
+    ]
+    for side in (1, -1):
+        parts.append(part("capsule", p(0.22 * side, 2.56, 0.92), s(0.22, 0.64, 0.22), lit,
+                          [0, 0, -0.25 * side], m="glass", a=0.96))
+        for dz in (0.55, -0.55):
+            parts.append(part("capsule", p(0.30 * side, 0.50, dz), s(0.34, 1.00, 0.34), c,
+                              m="glass", a=0.96))
+    return parts
+
+
+@HW25.weapon("balloon_animals", "Balloon Animals",
+             "Three twists and a squeak and you have three little balloon dogs, who run "
+             "at the nearest enemy wagging their tails and go off like a cannon. The "
+             "clown who taught you this trick was not smiling.",
+             {"kind": "summon", "cooldown": 16, "sound": "summon",
+              "minion": {"name": "Balloon Dog", "model": "parts", "count": 3, "hp": 30,
+                         "speed": 13, "damage": 0, "reach": 3.5, "rate": 1.0, "secs": 16,
+                         "explode": {"radius": 6.5, "damage": 36, "knock": 16,
+                                     "fx": "confetti"}}},
+             [["+", "Twists three balloon dogs that run at the nearest enemy"],
+              ["+", "Each one pops on arrival: 36 damage and a shove to everyone near"],
+              ["-", "They have 30 health and pop where they stand if shot"],
+              ["-", "16 seconds before you can twist the next three"]], rarity="legendary",
+             minion={"name": "Balloon Dog", "model": "parts", "scale": 1.0,
+                     "parts": _balloon_dog()})
+def _():
+    # held by the end of its tail, the rest of it dangling in front of the hand
+    return _balloon_dog(0.30, at=(0.0, -0.555, 0.326)) + [
+        part("sph", [0, 0.0, 0.0], [0.08, 0.08, 0.08], shade("#ff3b4e", 1.25), m="glass")]
+
+
+def _pin(at, k, spin=0.0):
+    """A juggling club pointing along +Z from ``at``."""
+    x, y, z = at
+    extra = {"spin": spin} if spin else {}
+    return [part("capsule", [x, y, z + 0.30 * k], [0.10 * k, 0.60 * k, 0.10 * k], CREAM,
+                 [PI / 2, 0, 0], **extra),
+            part("sph", [x, y, z + 0.80 * k], [0.30 * k, 0.30 * k, 0.56 * k], CREAM, **extra),
+            part("cyl", [x, y, z + 0.72 * k], [0.31 * k, 0.08 * k, 0.31 * k], TENT,
+                 [PI / 2, 0, 0], **extra),
+            part("cyl", [x, y, z + 0.90 * k], [0.29 * k, 0.06 * k, 0.29 * k], "#2f5fd0",
+                 [PI / 2, 0, 0], **extra),
+            part("sph", [x, y, z], [0.14 * k, 0.14 * k, 0.14 * k], TENT, **extra)]
+
+
+@HW25.weapon("juggling_pins", "Juggler's Pins",
+             "Three clubs thrown in a fan, end over end. They bounce off walls, and "
+             "every wall they come off makes them hit harder, which is how the "
+             "Flying Dukovnys lost two of their brothers.",
+             {"kind": "projectile", "projectile": "pin", "damage": 14, "splash": 2.8,
+              "splash_damage": 14, "rpm": 70, "mag": 3, "reload": 2.0, "speed": 82,
+              "range": 220, "auto": False, "sound": "throw", "recoil": 0.6, "reserve": 30,
+              "gravity_scale": 0.55, "self_damage": 0.0, "knockback": 4,
+              "volley": [3, 0.14], "volley_spread": 1.2, "bounce": 3, "bounce_ramp": 0.5},
+             [["+", "Every throw is three pins"],
+              ["+", "Pins bounce off walls up to three times"],
+              ["+", "Each bounce adds half again to the damage: 35 after three walls"],
+              ["-", "14 damage straight from the hand"],
+              ["-", "Pins drop as they fly"]], rarity="legendary",
+             proj=lambda: _pin([0, 0, -0.40], 0.9, spin=12.0))
+def _():
+    return _pin([0.0, 0.0, 0.10], 1.0) + _pin([0.16, 0.10, -0.10], 0.8) + \
+        _pin([-0.16, 0.06, -0.12], 0.8)
+
+
+@HW25.weapon("ringmaster_whip", "Ringmaster's Whip",
+             "Seventeen feet of black bull-hide with a crack like a pistol shot. "
+             "Whoever it catches comes to heel -- dragged in across the ring -- and "
+             "the whole troupe knows exactly who to aim at.",
+             {"kind": "melee", "damage": 16, "headshot": 1.0, "rpm": 75, "range": 17.0,
+              "arc": 0.30, "sound": "swing", "knockback": 0,
+              "on_hit": {"pull": 34, "mark": [0.20, 5.0]}},
+             [["+", "17 stud reach: the longest arm in the show"],
+              ["+", "Drags whoever it catches across to your feet"],
+              ["+", "...and marks them: they take 20% more damage from everyone for 5 "
+                    "seconds"],
+              ["-", "Only 16 damage a crack"],
+              ["-", "A narrow lash: you have to aim it"]], rarity="legendary")
+def _():
+    hide = "#16121a"
+    parts = [part("cyl", [0, 0.0, 0.0], [0.13, 0.62, 0.13], "#3a2214", [PI / 2, 0, 0],
+                  decal="leather", wrap=True),
+             part("sph", [0, 0.0, -0.34], [0.17, 0.17, 0.17], GOLD, m="metal"),
+             part("torus", [0, 0.0, 0.30], [0.16, 0.05, 0.16], GOLD, [PI / 2, 0, 0], m="metal")]
+    # the lash, thinning as it curls away and down
+    path = [(0, 0.0, 0.30), (0, 0.06, 0.80), (0.04, 0.02, 1.30), (0.10, -0.12, 1.72),
+            (0.12, -0.34, 2.02), (0.06, -0.56, 2.14), (-0.04, -0.70, 2.04)]
+    for n in range(len(path) - 1):
+        parts.append(rod(path[n], path[n + 1], 0.09 - n * 0.011, hide, t="capsule"))
+    parts.append(place("ribbon", [-0.06, -0.76, 1.98], [0.10, 0.18, 0.10], TENT))
+    return parts
+
+
+@HW25.gear("toffee_apple", "Toffee Apple",
+           "A red apple in a hard red shell of toffee on a stick, from the stall at the "
+           "end of the midway. A sugar rush that hits like a strongman.",
+           {"kind": "consume", "cooldown": 30, "sound": "eat",
+            "consume": {"heal": 25, "might": [0.20, 6.0]}},
+           [["+", "Heals 25"],
+            ["+", "Sugar rush: 20% more damage for 6 seconds"],
+            ["-", "30 second cooldown"]], rarity="rare")
+def _():
+    return [
+        part("cyl", [0, 0.20, 0.10], [0.06, 0.60, 0.06], "#c9a26a"),
+        part("sph", [0, 0.62, 0.10], [0.46, 0.42, 0.46], "#b0101a", m="glass"),
+        part("sph", [0, 0.60, 0.10], [0.48, 0.30, 0.48], "#8a0a12", m="glass", a=0.8),
+        part("cyl", [0, 0.86, 0.10], [0.03, 0.10, 0.03], "#4a2f1b"),
+        place("leaf", [0.08, 0.88, 0.10], [0.30, 0.20, 1.0], "#4f8a3c", r=[0, 0, -0.5]),
+        part("sph", [0.16, 0.44, 0.24], [0.08, 0.12, 0.08], "#8a0a12", m="glass"),
+        part("sph", [-0.18, 0.46, 0.0], [0.07, 0.10, 0.07], "#8a0a12", m="glass"),
+    ]
+
+
+HW25.effect("carnival_lights", name="Carnival Lights", rate=7.0, life=[1.4, 2.0],
+            size=[0.12, 0.18], grow=0.0, gravity=0.0, spread=0.05, rise=[0.0, 0.05],
+            blend="add", spin=0.0, colors=["#ffd36a", "#ff3b4e", "#fff3b0", "#3cc8ff"],
+            shape="spark", radius=0.95, orbit=2.0, wobble=0.0)
+HW25.effect("runaway_balloons", name="Runaway Balloons", rate=1.6, life=[2.6, 3.4],
+            size=[0.36, 0.50], grow=0.0, gravity=-0.6, spread=0.5, rise=[0.3, 0.6],
+            blend="normal", spin=0.2, colors=["#ff3b4e", "#ffd36a", "#3cc8ff", "#7dff9a"],
+            shape="balloon", radius=0.6, upright=True, wobble=0.4)
+HW25.opening(
+    sky={"top": "#120612", "horizon": "#3a0f1a", "sun": [0.2, 0.9, 0.6], "clouds": 0,
+         "tint": "#ffc8a0"},
+    ambient="#7a4a3a", beam="#ffd36a", seep="carnival_lights", after="runaway_balloons",
+    burst=["#ff3b4e", "#ffd36a", "#f4ecd8", "#3cc8ff"],
+    pieces=[{"shape": "ticket", "colors": ["#e8d6a8", "#ff3b4e"], "blend": "normal"},
+            {"shape": "balloon", "colors": ["#ff3b4e", "#3cc8ff", "#ffd36a"], "blend": "normal"},
+            {"shape": "mask", "colors": ["#f6f2ee", "#ff3b4e"], "blend": "normal"},
+            {"shape": "confetti", "colors": ["#ffd36a", "#ff5ad1", "#7dff9a"], "blend": "normal"}],
+    backdrop="circus", title_wait="The calliope starts to play...",
+    title_shake="Something wants out of the trunk...")
+HW25.award("Big Top Terror", ["Ticket Holder", "Front Row", "Roustabout", "Lion Tamer",
+                              "Ringmaster", "Master of the Big Top"],
+           "Opened Big Top Trunks during the Big Top Terror, Halloween 2025.",
+           "em_circustent", "moon")
+HW25.bundle("pair", "Two for the Show", 1, 1050, "One Big Top Trunk, one Admit-One Key.")
+HW25.bundle("troupe", "The Whole Troupe", 3, 3000, "Three trunks, three keys. Saves 300.")
+
+
 # ============================================================ 2026
 HW26 = Event(
     "halloween", "halloween", 2026, "hw26",
@@ -1508,6 +2102,290 @@ _HW26_ATTRS = {
 for _it in HW26.items:
     if _it["id"] in _HW26_ATTRS:
         _it["data"].setdefault("attrs", _HW26_ATTRS[_it["id"]])
+# ...and the rest of the Hallowed Harvest: the Pumpkin King's court, the
+# scarecrows of Harrow County, and the staff that wakes its churchyard
+HARVEST = "#ff8c1a"
+RIND = "#d9661a"
+VINE = "#3f6a2a"
+STRAW = "#d9b44a"
+CROW = "#141218"
+
+
+def _crow(at, k=1.0, facing=0.0):
+    """A crow perched at ``at`` (its feet), looking along ``facing``."""
+    x, y, z = at
+    f = [math.sin(facing), 0.0, math.cos(facing)]
+
+    def off(dz, dy):
+        return [x + f[0] * dz * k, y + dy * k, z + f[2] * dz * k]
+    return [
+        part("sph", off(0.0, 0.16), [0.26 * k, 0.24 * k, 0.40 * k], CROW, [0, facing, 0]),
+        part("sph", off(0.17, 0.32), [0.18 * k, 0.18 * k, 0.20 * k], CROW),
+        place("cone", off(0.32, 0.31), [0.06 * k, 0.16 * k, 0.06 * k], "#c9a227",
+              r=[PI / 2, facing, 0]),
+        part("sph", off(0.24, 0.36), [0.04 * k, 0.04 * k, 0.04 * k], "#ffd36a", m="neon"),
+        place("tri", off(-0.30, 0.12), [0.20 * k, 0.24 * k, 0.4], CROW, r=[-1.2, facing, 0]),
+        part("cyl", off(0.02, 0.03), [0.03 * k, 0.08 * k, 0.03 * k], "#c9a227"),
+    ]
+
+
+@HW26.hat("pumpkin_king", "Pumpkin King's Crown",
+          "Carved from the biggest pumpkin in Harrow County, lit from inside, with a "
+          "little lantern on every point. The vine is still growing. Slowly. Towards "
+          "you.", "legendary")
+def _():
+    parts = [
+        place("spikecrown", [0, -0.30, 0], [1.86, 0.80, 1.80], HARVEST, anchor=[0, 0, 0],
+              decal="felt", wrap=True),
+        ringband(-0.24, 0.14, RIND),
+        # the carved face in the band, lit from within
+        place("tri", [0.24, 0.00, 0.905], [0.20, 0.18, 0.3], "#ffd36a", m="neon"),
+        place("tri", [-0.24, 0.00, 0.905], [0.20, 0.18, 0.3], "#ffd36a", m="neon"),
+        place("grin", [0, -0.14, 0.905], [0.56, 0.22, 0.3], "#ffd36a", m="neon"),
+        # the vine curling round it
+        place("spiral", [0.80, 0.22, 0.36], [0.20, 0.44, 0.20], VINE, r=[0.2, 0, -0.4]),
+        place("spiral", [-0.66, 0.30, -0.52], [0.18, 0.40, 0.18], VINE, r=[-0.3, 0, 0.5]),
+        place("leaf", [0.70, 0.46, 0.50], [0.5, 0.40, 1.0], VINE, r=[0, 0.7, -0.5]),
+        place("leaf", [-0.56, 0.52, -0.62], [0.5, 0.40, 1.0], VINE, r=[0, -2.4, 0.5]),
+    ]
+    parts += around(7, 0.92, 0.0, lambda a, x, z: place(
+        "pumpkin", [x * 0.985, 0.58, z * 0.965], 0.24, HARVEST, anchor=[0, 0, 0]),
+        start=TAU / 14)
+    parts += around(7, 0.92, 0.0, lambda a, x, z: part(
+        "sph", [x * 0.985, 0.66, z * 0.965], [0.08, 0.08, 0.08], "#ffd36a", m="neon"),
+        start=TAU / 14)
+    return parts
+
+
+@HW26.hat("scarecrow_slouch", "Scarecrow's Slouch",
+          "A straw hat that has stood in a field for forty Octobers, patched, frayed and "
+          "never once empty -- there is always a crow on the brim. Always the same "
+          "crow.", "rare")
+def _():
+    parts = [
+        place("brim", [0, -0.12, 0], [2.50, 1.3, 2.40], STRAW, anchor=[0, 0, 0],
+              decal="straw", wrap=True),
+        dome(-0.32, 0.86, STRAW, t="capcrown", decal="straw", wrap=True),
+        # the pinch in the top, pushed in by forty Octobers of rain
+        part("sph", [0.0, 0.50, 0.10], [0.60, 0.10, 0.50], shade(STRAW, 0.78), decal="straw",
+             wrap=True),
+        ringband(-0.22, 0.16, "#a8141e", margin=0.05, decal="canvas"),
+        # a patch sewn on the crown
+        part("rbox", [-0.30, 0.02, 0.86], [0.32, 0.28, 0.03], "#6a5a3a", [0.12, -0.33, 0],
+             decal="stitches"),
+    ]
+    # straw poking out from under the brim all the way round
+    for k in range(16):
+        a = k * TAU / 16 + 0.1
+        r0, r1 = 0.88, 1.08 + 0.08 * (k % 3)
+        parts.append(rod([math.sin(a) * r0, -0.14, math.cos(a) * r0 * 0.96],
+                         [math.sin(a) * r1, -0.30 - 0.06 * (k % 2), math.cos(a) * r1 * 0.96],
+                         0.03, shade(STRAW, 1.1 if k % 2 else 0.85)))
+    parts += _crow([0.86, -0.04, 0.42], 1.0, facing=0.6)
+    return parts
+
+
+@HW26.hat("harvest_moon", "Harvest Moon",
+          "The big orange moon of the last week of October, hung behind your head like "
+          "a saint's halo -- the bats circling it included.", "rare", hair="show")
+def _():
+    parts = [
+        part("disc", [0, 0.50, -0.90], [2.00, 2.00, 0.10], "#ff9a3a", decal="harvest_moon",
+             m="neon"),
+        part("torus", [0, 0.50, -0.92], [2.04, 0.06, 2.04], "#ffd36a", [PI / 2, 0, 0], m="neon",
+             a=0.5),
+    ]
+    for x, y, k, tilt in ((0.70, 1.20, 0.42, 0.3), (-0.82, 0.70, 0.36, -0.2), (0.30, 1.52, 0.30, 0.1),
+                          (-0.40, 1.34, 0.26, -0.4)):
+        parts.append(place("bat", [x, y, -0.80], [k, k, 1.0], CROW, r=[0, 0, tilt]))
+    return parts
+
+
+@HW26.back("scarecrow_post", "Scarecrow's Crossbar",
+           "The crosspiece off the old scarecrow in the north field, rags and straw and "
+           "all. Wear it and the crows will follow you home. Two of them already have.",
+           "legendary")
+def _():
+    wood = "#5a3a22"
+    z = -0.42
+    parts = [
+        part("rbox", [0, 0.88, z], [3.80, 0.20, 0.20], wood, decal="planks", wrap=True),
+        part("rbox", [0, -0.40, z - 0.06], [0.24, 3.20, 0.20], wood, decal="planks", wrap=True),
+        part("rbox", [0, 0.88, z - 0.02], [0.30, 0.30, 0.26], shade(wood, 0.8)),
+        part("cyl", [0, 0.88, z + 0.12], [0.08, 0.06, 0.08], IRON, [PI / 2, 0, 0], m="metal"),
+    ]
+    for side in (1, -1):
+        # straw bursting out of each end, and rags hanging off it
+        for k in range(7):
+            a = (k - 3) * 0.32
+            parts.append(rod([1.86 * side, 0.88, z],
+                             [(2.16 + 0.06 * (k % 2)) * side, 0.88 + math.sin(a) * 0.30,
+                              z + math.cos(a) * 0.10 - 0.05],
+                             0.04, shade(STRAW, 1.1 if k % 2 else 0.85)))
+        for k, (x, length, c) in enumerate(((1.40, 0.90, "#6a5a3a"), (1.66, 0.70, "#4a6a3a"),
+                                            (1.18, 0.60, "#8a3a22"))):
+            parts.append(part("rbox", [x * side, 0.88 - length / 2 - 0.08, z - 0.04],
+                              [0.20, length, 0.03], c, [0, 0, 0.06 * side * (k + 1)],
+                              decal="canvas"))
+    parts += _crow([1.52, 0.98, z], 1.1, facing=0.4)
+    parts += _crow([-1.70, 0.98, z], 0.9, facing=-0.8)
+    return parts
+
+
+@HW26.back("bushel_of_gourds", "Bushel of Gourds",
+           "A wicker bushel off the back of the harvest cart: three pumpkins, a warty "
+           "gourd, two ears of corn and something underneath that keeps shifting.",
+           "uncommon")
+def _():
+    parts = straps("#3a2214") + [
+        place("cask", [0, -0.30, -0.52], [1.20, 1.00, 0.80], "#a8783a", anchor=[0, 0, 0],
+              decal="wicker", wrap=True),
+        part("torus", [0, 0.70, -0.52], [1.22, 0.08, 0.82], "#7a5426"),
+    ]
+    for x, y, z, k, c in ((0.24, 0.80, -0.50, 0.46, HARVEST), (-0.28, 0.78, -0.56, 0.40, RIND),
+                          (0.02, 0.94, -0.62, 0.34, "#ffb347")):
+        parts += [place("pumpkin", [x, y, z], k, c, anchor=[0, 0, 0]),
+                  part("cyl", [x, y + 0.36 * k, z], [0.06, 0.10, 0.06], VINE)]
+    parts += [place("teardrop", [-0.10, 0.82, -0.30], [0.22, 0.40, 0.22], "#e8d24a", r=[0.6, 0, 0.3]),
+              part("capsule", [0.42, 0.98, -0.40], [0.14, 0.52, 0.14], "#f2c230", [0.3, 0, -0.4]),
+              place("leaf", [0.46, 0.86, -0.34], [0.5, 0.70, 1.0], "#c9b06a", r=[0.3, 0, -0.6]),
+              part("capsule", [-0.46, 0.96, -0.66], [0.14, 0.48, 0.14], "#f2c230", [-0.3, 0, 0.5]),
+              place("leaf", [-0.48, 0.84, -0.62], [0.5, 0.66, 1.0], "#c9b06a", r=[-0.3, 0, 0.6])]
+    return parts
+
+
+@HW26.hairdo("banshee_locks", "Banshee's Wail",
+             "Hair gone white in one night and blown straight back by a wind nobody else "
+             "can feel. If you listen very carefully you can hear it screaming.", "rare")
+def _():
+    c = "#e8eef8"
+    parts = [place("hairlong", [0, 0, 0], [1.06, 1.06, 1.06], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for k, (x, y) in enumerate(((-0.30, 0.30), (0.0, 0.40), (0.30, 0.30), (-0.20, 0.05),
+                                (0.20, 0.05), (0.0, -0.20))):
+        parts.append(place("teardrop", [x, y, -0.52], [0.24, 0.80, 0.20], c if k % 2 else "#c9d6ea",
+                           anchor=[0, 0.1, 0], r=[-1.9, 0, x * 0.6], a=0.75))
+    return parts
+
+
+@HW26.hairdo("ember_quiff", "Ember Quiff",
+             "A pompadour combed up and forward until the tip caught light. It has been "
+             "smouldering since 1958. It still looks good.", "rare")
+def _():
+    c = "#2a1a14"
+    return [
+        place("hairshort", [0, 0, 0], [1.03, 1.03, 1.03], c, anchor=[0, 0, 0], decal="strands",
+              wrap=True),
+        place("teardrop", [0, 0.50, 0.08], [0.56, 0.78, 0.46], c, anchor=[0, 0.1, 0],
+              r=[1.05, 0, 0], decal="strands", wrap=True),
+        place("teardrop", [0, 0.62, 0.42], [0.40, 0.46, 0.34], "#ff6a1a", anchor=[0, 0.1, 0],
+              r=[1.25, 0, 0]),
+        place("flame", [0, 0.78, 0.74], [0.32, 0.46, 0.32], "#ffd36a", r=[0.6, 0, 0], m="neon",
+              spin=3.0),
+        place("flame", [0.10, 0.70, 0.66], [0.20, 0.30, 0.20], "#ff8c1a", r=[0.6, 0, 0.3],
+              m="neon"),
+    ]
+
+
+HW26.face("jacks_grin", "Jack's Grin",
+          "Triangle eyes, triangle nose, and a grin cut with a kitchen knife by "
+          "somebody who was in a hurry.", [
+              {"k": "poly", "pts": [[-0.30, -0.06], [-0.20, -0.26], [-0.10, -0.06]], "c": "#16171b"},
+              {"k": "poly", "pts": [[0.10, -0.06], [0.20, -0.26], [0.30, -0.06]], "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.05, 0.06], [0.0, -0.03], [0.05, 0.06]], "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.36, 0.10], [-0.26, 0.14], [-0.20, 0.10], [-0.14, 0.18],
+                                    [-0.06, 0.13], [0.02, 0.20], [0.10, 0.13], [0.16, 0.19],
+                                    [0.24, 0.12], [0.36, 0.10], [0.30, 0.24], [0.14, 0.32],
+                                    [0.0, 0.34], [-0.16, 0.32], [-0.30, 0.24]], "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.06, 0.24], [0.02, 0.24], [-0.02, 0.32]], "c": "#ff8c1a"},
+          ], "uncommon")
+HW26.face("hollow_eyes", "Hollow Eyes",
+          "Two empty sockets with a pinprick of light deep down in each, and a mouth "
+          "sewn shut with a dozen black stitches.", [
+              {"k": "ellipse", "x": -0.20, "y": -0.12, "w": 0.16, "h": 0.18, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.12, "w": 0.16, "h": 0.18, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.20, "y": -0.11, "w": 0.03, "h": 0.03, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.20, "y": -0.11, "w": 0.03, "h": 0.03, "c": "#ffffff"},
+              {"k": "line", "x1": -0.22, "y1": 0.18, "x2": 0.22, "y2": 0.18, "w": 0.02, "c": "#16171b"},
+          ] + [{"k": "line", "x1": x, "y1": 0.14, "x2": x, "y2": 0.22, "w": 0.015, "c": "#16171b"}
+               for x in (-0.18, -0.11, -0.04, 0.03, 0.10, 0.17)], "rare")
+HW26.shirt("harvest_flannel", "Harvest Flannel",
+           "A rust-red flannel shirt with straw coming out of the collar and a patch "
+           "over the heart where something tried to get in.",
+           {"torso": "#8a2a14", "arms": "#8a2a14", "weave": "flannel", "decal": "tee_scarecrow"},
+           "uncommon")
+HW26.pants("scarecrow_patches", "Scarecrow's Dungarees",
+           "Faded denim held together by patches, with straw sticking out of both cuffs.",
+           {"legs": "#4a5a7a", "weave": "patched_denim", "cuff": STRAW})
+HW26.belt("lantern_belt", "Jack's Lantern Belt",
+          "A cracked leather belt with a lit jack-o'-lantern for a buckle and a pouch of "
+          "candle stubs either side.",
+          {"band": "#2a1a10", "buckle": HARVEST, "width": 0.24, "weave": "leather", "glow": True,
+           "pouch": True})
+
+
+@HW26.weapon("restless_staff", "Staff of the Restless Dead",
+             "A blackthorn staff with a churchyard skull on the end. Strike the ground with "
+             "it and four of Harrow County's dead climb out to fight for you -- and every "
+             "one of them is paid for in your own blood.",
+             {"kind": "summon", "cooldown": 60, "cost_hp": 25, "sound": "staff",
+              "minion": {"name": "Restless Dead", "model": "zombie", "count": 4, "hp": 60,
+                         "speed": 15, "damage": 12, "reach": 4.5, "rate": 1.0, "secs": 30,
+                         "glow": "#6bff9a"}},
+             [["+", "Raises four of the dead to fight at your side for 30 seconds"],
+              ["+", "They hunt the nearest enemy -- players and infected alike -- and bite for "
+                    "12"],
+              ["-", "Costs you 25 health to raise them"],
+              ["-", "One-minute cooldown"]], rarity="legendary")
+def _():
+    wood = "#2a1e16"
+    parts = [part("rbox", [0, 0.0, -0.10], [0.16, 0.16, 0.44], "#5a1428", decal="canvas")]
+    path = [(0, 0.0, -0.40), (0.02, 0.02, 0.30), (-0.03, 0.0, 1.00), (0.02, 0.04, 1.62)]
+    for n in range(len(path) - 1):
+        parts.append(rod(path[n], path[n + 1], 0.11 - n * 0.008, wood, t="capsule"))
+    # knots and thorns
+    for z, a in ((0.40, 0.8), (0.86, -1.2), (1.30, 2.4)):
+        parts.append(rod([0.02, 0.02, z], [0.02 + math.cos(a) * 0.16, 0.02 + math.sin(a) * 0.16,
+                                            z + 0.06], 0.035, wood, t="cone"))
+    parts += _skull([0.02, 0.06, 1.84], 0.70, BONE, facing=0.0, glow=GHOST_GREEN)
+    parts += [part("sph", [0.02, 0.06, 1.84], [0.62, 0.58, 0.62], GHOST_GREEN, m="neon", a=0.18)]
+    # finger bones on cords, hanging from below the skull
+    for x, length in ((0.10, 0.30), (-0.08, 0.40)):
+        parts += [rod([x, -0.10, 1.66], [x, -0.10 - length, 1.66], 0.015, "#3a2a1c"),
+                  part("capsule", [x, -0.18 - length, 1.66], [0.05, 0.16, 0.05], BONE)]
+    return parts
+
+
+@HW26.gear("trick_or_treat_bucket", "Trick-or-Treat Bucket",
+           "A plastic jack-o'-lantern full of whatever Harrow County hands out at the door. "
+           "Usually it's a treat. Sometimes it's a toothbrush.",
+           {"kind": "consume", "cooldown": 26, "sound": "eat",
+            "consume": {"random": [
+                {"name": "Treat! A full-size bar.", "heal": 40},
+                {"name": "Treat! A sugar rush.", "heal": 10, "speed": [0.30, 6.0]},
+                {"name": "Treat! A jawbreaker.", "shield": [30, 8.0]},
+                {"name": "Treat! Gold-wrapped toffee.", "heal": 15, "might": [0.20, 6.0]},
+                {"name": "Trick! It was a toothbrush.", "trick": {"slow": [0.30, 3.0]}},
+            ]}},
+           [["+", "A lucky dip: one of four treats -- 40 health, a sugar rush, a 30 point "
+                  "shield, or more damage for 6 seconds"],
+            ["-", "One time in five it is a trick: a toothbrush, and 3 seconds of feeling "
+                  "very slow"],
+            ["-", "26 second cooldown"]], rarity="rare")
+def _():
+    parts = [
+        place("pumpkin", [0, 0.06, 0.18], 0.62, HARVEST, anchor=[0, 0, 0], m="glass"),
+        place("tri", [0.10, 0.36, 0.492], [0.10, 0.09, 0.2], BLACK),
+        place("tri", [-0.10, 0.36, 0.492], [0.10, 0.09, 0.2], BLACK),
+        place("grin", [0, 0.24, 0.484], [0.30, 0.10, 0.2], BLACK),
+        part("cyl", [0, 0.58, 0.18], [0.54, 0.02, 0.54], "#2a1a10"),
+        place("arch", [0, 0.60, 0.18], [0.60, 0.50, 0.4], BLACK, anchor=[0, 0, 0]),
+    ]
+    for x, z, c in ((0.10, 0.12, "#ff3b4e"), (-0.12, 0.24, "#7dff9a"), (0.04, 0.30, "#ffd36a")):
+        parts.append(part("rbox", [x, 0.62, z], [0.16, 0.06, 0.08], c, [0.3, x * 4, 0.2]))
+    return parts
+
+
 # the two effects made for this crate turn up three times as often as the
 # older crypt set
 HW26.effect_weights.update({"phantom_procession": 3.0, "trick_or_treat": 3.0})
@@ -1532,4 +2410,4 @@ HW26.offers = [
      "blurb": "Three crates, three keys and a bag to carry them in. Save 300."},
 ]
 
-EVENTS = [HW22, HW23, HW24, HW26]
+EVENTS = [HW22, HW23, HW24, HW25, HW26]

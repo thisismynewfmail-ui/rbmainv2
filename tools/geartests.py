@@ -420,6 +420,54 @@ def test_minions():
     check("last light: ...and leave the survivors alone", not bitten, bitten[:2])
 
 
+def test_circus():
+    """Halloween 2025's set: balloon dogs that pop, pins that hit harder off
+    every wall, a whip that drags."""
+    print("\n== the big top ==")
+    from app.game.instance import Projectile
+    inst, clock = make_world()
+    g = inst.gear
+    a, wa, b, wb = pair(inst, clock, ["use_hw25_balloon_animals"], gap=22)
+    b.health = 1000
+    fire(inst, clock, a, aim_at(a, b))
+    check("balloons: three dogs are twisted", len(g.minions) == 3, len(g.minions))
+    run(inst, clock, 6.0)
+    check("balloons: they run at the enemy and pop", b.health < 1000 and not g.minions,
+          (b.health, len(g.minions)))
+    pops = [m for m in wb.sent if m.get("k") == "explode" and m.get("kind") == "confetti"]
+    check("balloons: ...in confetti", bool(pops), len(pops))
+    reset_players(inst)
+
+    # bounce_ramp: the same blast, once fresh and once off two walls
+    a, wa, b, wb = pair(inst, clock, ["use_pistol"], gap=22)
+    taken = []
+    for ramp in (1.0, 2.0):
+        b.health = 1000
+        proj = Projectile.__new__(Projectile)
+        proj.pid_owner, proj.team = a.pid, a.team
+        proj.pos = [b.pos[0], b.pos[1] + 2.6, b.pos[2]]
+        proj.vel = [0.0, 0.0, 0.0]
+        proj.stats = {"splash": 3.0, "splash_damage": 14, "damage": 14, "knockback": 0,
+                      "self_damage": 0.0}
+        proj.born, proj.kind, proj.weapon, proj.ident = clock.t, "pin", "Juggler's Pins", 0
+        proj.data = {"ramp": ramp}
+        inst.explode(proj)
+        taken.append(1000 - b.health)
+    check("pins: a pin that has come off walls hits harder", taken[1] > taken[0] * 1.8, taken)
+    reset_players(inst)
+
+    a, wa, b, wb = pair(inst, clock, ["use_hw25_ringmaster_whip"], gap=12)
+    b.health = 1000
+    fire(inst, clock, a, aim_at(a, b))
+    check("whip: it reaches 12 studs and cracks", b.health < 1000, b.health)
+    check("whip: ...marks whoever it catches", g.has(b, "mark"))
+    pulls = wb.of("knock")
+    toward = pulls and (pulls[-1]["v"][0] * (a.pos[0] - b.pos[0]) +
+                        pulls[-1]["v"][2] * (a.pos[2] - b.pos[2])) > 0
+    check("whip: ...and drags them in", bool(toward), pulls[-1:] if pulls else None)
+    reset_players(inst)
+
+
 def _aim_pos(p, point):
     d = [point[0] - p.pos[0], point[1] - (p.pos[1] + 5.05), point[2] - p.pos[2]]
     n = math.sqrt(sum(v * v for v in d))
@@ -468,6 +516,7 @@ def main() -> int:
     test_statuses()
     test_weapons()
     test_minions()
+    test_circus()
     test_every_weapon()
     print("\n%d passed, %d failed" % (len(PASSED), len(FAILED)))
     for name in FAILED:

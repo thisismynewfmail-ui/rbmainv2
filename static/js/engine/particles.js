@@ -1166,6 +1166,21 @@
       }
       this.spawn({ p: position, v: [0, 1.2, 0], life: 0.8, size: radius * 0.5, grow: 2.2,
         gravity: 0.6, blend: 'add', shape: 'puff', colors: ['#ffb347', '#ff7a1a', '#6b2a00'] });
+    } else if (kind === 'confetti') {
+      // a balloon animal popping: shreds of rubber, confetti and streamers
+      var spread = options.radius || 6;
+      for (i = 0; i < 34; i++) {
+        ang = Math.random() * Math.PI * 2;
+        speed = 4 + Math.random() * spread * 1.4;
+        this.spawn({ p: position, v: [Math.cos(ang) * speed, 5 + Math.random() * 11,
+                                      Math.sin(ang) * speed],
+          life: 1.0 + Math.random() * 0.8, size: 0.28 + Math.random() * 0.26,
+          grow: 0, gravity: -14, spin: 10, blend: 'normal',
+          shape: i % 3 ? 'confetti' : 'streamer',
+          colors: ['#ff3b4e', '#ffd36a', '#3cc8ff', '#7dff9a', '#ff5ad1'] });
+      }
+      this.spawn({ p: position, v: [0, 0, 0], life: 0.22, size: spread * 0.35, grow: 2.2,
+        gravity: 0, spin: 0, blend: 'add', shape: 'ring', colors: ['#fff3b0'] });
     } else if (kind === 'soul') {
       // a soul leaving a Hollow Harvester kill, rising before it goes
       for (i = 0; i < 6; i++) {

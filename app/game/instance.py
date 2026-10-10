@@ -1557,6 +1557,9 @@ class GameInstance:
         stats = proj.stats
         radius = float(stats.get("splash", 8.0))
         splash = float(stats.get("splash_damage", stats.get("damage", 50)))
+        # a projectile that has been bouncing round the room (``bounce_ramp``)
+        # hits harder for every wall it has come off
+        splash *= float((getattr(proj, "data", None) or {}).get("ramp", 1.0))
         owner = self.players.get(proj.pid_owner)
         weapon_name = proj.weapon or "Blast Launcher"
         self.broadcast({"t": "fx", "k": "explode", "p": proj.pos,

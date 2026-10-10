@@ -1056,6 +1056,11 @@
       if (msg.kind === 'pumpkin') {
         this.particles.burst('candy', msg.p, { radius: msg.r || 8 });
         this.audio.play('explode', { volume: this.volumeAt(msg.p) * 0.7 });
+      } else if (msg.kind === 'confetti') {
+        // a balloon animal going off: a bang, but a party one
+        this.particles.burst('confetti', msg.p, { radius: msg.r || 6 });
+        this.audio.play('pistol', { volume: this.volumeAt(msg.p) * 0.8 });
+        this.audio.play('explode', { volume: this.volumeAt(msg.p) * 0.4 });
       } else {
         this.particles.burst('explosion', msg.p, { radius: msg.r || 8 });
         this.audio.play('explode', { volume: this.volumeAt(msg.p) });

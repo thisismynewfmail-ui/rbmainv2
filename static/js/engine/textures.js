@@ -1956,6 +1956,263 @@
                                     ink: 'rgba(255,211,106,0.92)', glow: '#ffd36a',
                                     font: 'Georgia, serif', frame: 'box' }));
 
+  // big-top canvas: broad red and cream stripes, a little weathered
+  painter('bigtop_stripes', function (ctx) {
+    var rnd = scatter(107);
+    for (var x = 0; x < CELL; x += 32) {
+      ctx.fillStyle = '#c4281c'; ctx.fillRect(x, 0, 16, CELL);
+      ctx.fillStyle = '#f4ecd8'; ctx.fillRect(x + 16, 0, 16, CELL);
+    }
+    for (var k = 0; k < 60; k++) {
+      ctx.fillStyle = 'rgba(40,10,10,' + (0.04 + rnd() * 0.08) + ')';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 1 + rnd() * 3, 4 + rnd() * 10);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (x = 15; x < CELL; x += 16) ctx.fillRect(x, 0, 1, CELL);
+  });
+
+  // a circus bill: a grinning clown, stars, and the show's name
+  painter('bigtop_poster', function (ctx) {
+    ctx.fillStyle = '#f0dcae'; ctx.fillRect(4, 4, 120, 120);
+    ctx.strokeStyle = '#a8141e'; ctx.lineWidth = 5; ctx.strokeRect(7, 7, 114, 114);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#a8141e'; ctx.font = 'bold 15px Georgia, serif';
+    ctx.fillText('BIG TOP', 64, 20);
+    // the clown: white face, red nose, a smile too wide
+    ctx.fillStyle = '#f6f2ee';
+    ctx.beginPath(); ctx.arc(64, 62, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff5a1a';
+    ctx.beginPath(); ctx.arc(38, 54, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(90, 54, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2f5fd0';
+    [[54, 56], [74, 56]].forEach(function (e) {
+      ctx.beginPath(); ctx.moveTo(e[0], e[1] - 10); ctx.lineTo(e[0] + 5, e[1]);
+      ctx.lineTo(e[0], e[1] + 8); ctx.lineTo(e[0] - 5, e[1]); ctx.closePath(); ctx.fill();
+    });
+    ctx.fillStyle = '#16171b';
+    ctx.beginPath(); ctx.arc(54, 56, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(74, 56, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d8202a';
+    ctx.beginPath(); ctx.arc(64, 64, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(44, 70); ctx.quadraticCurveTo(64, 92, 84, 70);
+    ctx.quadraticCurveTo(64, 82, 44, 70); ctx.fill();
+    ctx.fillStyle = '#16171b'; ctx.font = 'bold 13px Georgia, serif';
+    ctx.fillText('TERROR!', 64, 104);
+    ctx.fillStyle = '#d9a520';
+    [[18, 104], [110, 104], [20, 30], [108, 30]].forEach(function (st) {
+      ctx.beginPath();
+      for (var k = 0; k < 10; k++) {
+        var a = k * Math.PI / 5 - Math.PI / 2, r = k % 2 ? 2.6 : 6;
+        ctx.lineTo(st[0] + Math.cos(a) * r, st[1] + Math.sin(a) * r);
+      }
+      ctx.closePath(); ctx.fill();
+    });
+  });
+
+  // an ADMIT ONE ticket: notched ends, a serial number, a red border
+  painter('admit_one', function (ctx) {
+    ctx.fillStyle = '#e8d6a8'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#a8141e'; ctx.lineWidth = 4; ctx.strokeRect(10, 14, 108, 100);
+    ctx.setLineDash([3, 4]); ctx.lineWidth = 1.5; ctx.strokeRect(16, 20, 96, 88);
+    ctx.setLineDash([]);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#a8141e';
+    ctx.font = 'bold 22px Georgia, serif'; ctx.fillText('ADMIT', 64, 46);
+    ctx.fillText('ONE', 64, 72);
+    ctx.font = 'bold 10px Verdana, sans-serif'; ctx.fillStyle = '#3a2214';
+    ctx.fillText('No 000013', 64, 96);
+  });
+
+  // harlequin diamonds: purple and black with gold seams, all the way round
+  painter('harlequin', function (ctx) {
+    ctx.fillStyle = '#16121a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = -1; row < 5; row++) {
+      for (var col = -1; col < 5; col++) {
+        var cx = col * 32 + (row % 2 ? 16 : 0), cy = row * 32;
+        ctx.fillStyle = (row + col) % 2 ? '#5a2a7a' : '#2a1238';
+        ctx.beginPath(); ctx.moveTo(cx, cy - 16); ctx.lineTo(cx + 16, cy);
+        ctx.lineTo(cx, cy + 16); ctx.lineTo(cx - 16, cy); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(217,165,32,0.75)'; ctx.lineWidth = 1.2; ctx.stroke();
+      }
+    }
+  });
+
+  // the knife-thrower's target: red and cream wedges, an outline, a bullseye
+  painter('knife_wheel', function (ctx) {
+    for (var k = 0; k < 16; k++) {
+      ctx.fillStyle = k % 2 ? '#c4281c' : '#f4ecd8';
+      ctx.beginPath(); ctx.moveTo(64, 64);
+      ctx.arc(64, 64, 64, k * Math.PI / 8, (k + 1) * Math.PI / 8); ctx.closePath(); ctx.fill();
+    }
+    // the painted assistant, arms and legs spread
+    ctx.fillStyle = 'rgba(22,18,26,0.85)';
+    ctx.beginPath(); ctx.arc(64, 30, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(56, 40, 16, 34);
+    ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(22,18,26,0.85)'; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(58, 44); ctx.lineTo(34, 30); ctx.moveTo(70, 44); ctx.lineTo(94, 30);
+    ctx.moveTo(60, 72); ctx.lineTo(44, 102); ctx.moveTo(68, 72); ctx.lineTo(84, 102); ctx.stroke();
+    ctx.fillStyle = '#d9a520';
+    ctx.beginPath(); ctx.arc(64, 64, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d9a520'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(64, 64, 61, 0, Math.PI * 2); ctx.stroke();
+  });
+
+  // a popcorn box: red and white stripes, a white band with the word on it
+  painter('popcorn_stripes', function (ctx) {
+    for (var x = 0; x < CELL; x += 21) {
+      ctx.fillStyle = '#d8202a'; ctx.fillRect(x, 0, 11, CELL);
+      ctx.fillStyle = '#fbf6ec'; ctx.fillRect(x + 11, 0, 10, CELL);
+    }
+    ctx.fillStyle = '#fbf6ec'; ctx.fillRect(0, 50, CELL, 28);
+    ctx.fillStyle = '#ffd36a'; ctx.fillRect(0, 50, CELL, 3); ctx.fillRect(0, 75, CELL, 3);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#d8202a'; ctx.font = 'bold 17px Verdana, sans-serif';
+    ctx.fillText('POPCORN', 64, 65);
+  });
+
+  // a ringmaster's front: white shirt, black lapels, a bow tie, gold buttons
+  painter('tee_ringmaster', function (ctx) {
+    ctx.fillStyle = '#f6f2ee';
+    ctx.beginPath(); ctx.moveTo(46, 0); ctx.lineTo(82, 0); ctx.lineTo(72, 70); ctx.lineTo(56, 70);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#16121a';
+    ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(46, 0); ctx.lineTo(58, 72); ctx.lineTo(40, 40);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(98, 0); ctx.lineTo(82, 0); ctx.lineTo(70, 72); ctx.lineTo(88, 40);
+    ctx.closePath(); ctx.fill();
+    // bow tie
+    ctx.beginPath(); ctx.moveTo(52, 8); ctx.lineTo(64, 14); ctx.lineTo(52, 20); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(76, 8); ctx.lineTo(64, 14); ctx.lineTo(76, 20); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a8141e'; ctx.fillRect(61, 11, 6, 6);
+    // two rows of gold buttons and the frogging between them
+    for (var k = 0; k < 4; k++) {
+      var y = 60 + k * 16;
+      ctx.strokeStyle = '#d9a520'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(36, y); ctx.lineTo(92, y); ctx.stroke();
+      ctx.fillStyle = '#f2c230';
+      ctx.beginPath(); ctx.arc(36, y, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(92, y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#16121a'; ctx.beginPath(); ctx.arc(64, 30, 2, 0, Math.PI * 2); ctx.arc(64, 42, 2, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // the face drawn on a balloon by nobody: on nothing
+  painter('balloon_grin', function (ctx) {
+    ctx.strokeStyle = '#16171b'; ctx.fillStyle = '#16171b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(44, 46, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(84, 46, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d8202a';
+    ctx.beginPath(); ctx.arc(64, 66, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(30, 76); ctx.quadraticCurveTo(64, 116, 98, 76); ctx.stroke();
+    for (var x = 42; x <= 86; x += 11) {
+      ctx.beginPath(); ctx.moveTo(x, 86 + (Math.abs(x - 64) < 12 ? 8 : 2)); ctx.lineTo(x, 96); ctx.stroke();
+    }
+  });
+
+  painter('stencil_hw25', stencil({ top: 'BIG TOP', bottom: 'TERROR  2025', icon: 'circustent',
+                                    ink: 'rgba(255,211,106,0.95)', glow: '#ff3b4e',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
+  /* The rest of the Hallowed Harvest (2026): straw, flannel, patched denim,
+     wicker and the harvest moon. */
+
+  // plaited straw: rows of golden stalks, woven over and under
+  painter('straw', function (ctx) {
+    var rnd = scatter(109);
+    ctx.fillStyle = '#c9a03a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 16; row++) {
+      for (var col = 0; col < 8; col++) {
+        var x = col * 16 + (row % 2 ? 8 : 0), y = row * 8;
+        var v = 190 + Math.floor(rnd() * 50);
+        ctx.fillStyle = 'rgb(' + v + ',' + Math.floor(v * 0.8) + ',' + Math.floor(v * 0.36) + ')';
+        ctx.fillRect(x + 1, y + 1, 14, 6);
+        ctx.fillStyle = 'rgba(90,60,10,0.35)'; ctx.fillRect(x + 1, y + 6, 14, 1);
+      }
+    }
+    ctx.strokeStyle = 'rgba(255,240,180,0.35)'; ctx.lineWidth = 1;
+    for (var k = 0; k < 30; k++) {
+      var sx = rnd() * CELL, sy = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + 6 + rnd() * 10, sy + rnd() * 2 - 1); ctx.stroke();
+    }
+  });
+
+  // flannel: a rust and black plaid with an orange overcheck
+  painter('flannel', function (ctx) {
+    ctx.fillStyle = '#8a2a14'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(20,10,8,0.55)';
+    for (var x = 0; x < CELL; x += 32) { ctx.fillRect(x, 0, 14, CELL); ctx.fillRect(0, x, CELL, 14); }
+    ctx.fillStyle = 'rgba(255,140,26,0.55)';
+    for (x = 22; x < CELL; x += 32) { ctx.fillRect(x, 0, 2, CELL); ctx.fillRect(0, x, CELL, 2); }
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (var y = 0; y < CELL; y += 2) ctx.fillRect(0, y, CELL, 1);
+  });
+
+  // dungarees: faded denim held together with patches and big stitches
+  painter('patched_denim', function (ctx) {
+    var rnd = scatter(113);
+    ctx.fillStyle = '#4a5a7a'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+    for (var d = -CELL; d < CELL; d += 4) {
+      ctx.beginPath(); ctx.moveTo(d, 0); ctx.lineTo(d + CELL, CELL); ctx.stroke();
+    }
+    [[14, 18, 30, 26, '#8a2a14'], [70, 60, 34, 30, '#6a5a3a'], [24, 92, 26, 24, '#3f6a2a']].forEach(function (pt) {
+      ctx.save(); ctx.translate(pt[0] + pt[2] / 2, pt[1] + pt[3] / 2); ctx.rotate((rnd() - 0.5) * 0.4);
+      ctx.fillStyle = pt[4]; ctx.fillRect(-pt[2] / 2, -pt[3] / 2, pt[2], pt[3]);
+      ctx.strokeStyle = '#f4ecd8'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+      ctx.strokeRect(-pt[2] / 2 + 3, -pt[3] / 2 + 3, pt[2] - 6, pt[3] - 6);
+      ctx.setLineDash([]); ctx.restore();
+    });
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(50, 0, 20, CELL);
+  });
+
+  // a scarecrow's shirt front: straw at the collar, a patch over the heart
+  painter('tee_scarecrow', function (ctx) {
+    ctx.strokeStyle = '#e8c45a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (var k = 0; k < 13; k++) {
+      var x = 34 + k * 5;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + (k % 3 - 1) * 4, 10 + (k % 4) * 4); ctx.stroke();
+    }
+    ctx.fillStyle = '#6a5a3a'; ctx.fillRect(30, 40, 30, 28);
+    ctx.strokeStyle = '#16121a'; ctx.lineWidth = 2;
+    for (var s = 0; s < 4; s++) {
+      ctx.beginPath(); ctx.moveTo(28, 44 + s * 7); ctx.lineTo(34, 46 + s * 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(56, 44 + s * 7); ctx.lineTo(62, 46 + s * 7); ctx.stroke();
+    }
+    // buttons that do not match
+    ctx.fillStyle = '#d9b44a'; ctx.beginPath(); ctx.arc(64, 70, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3f6a2a'; ctx.beginPath(); ctx.arc(64, 90, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c4281c'; ctx.beginPath(); ctx.arc(64, 110, 4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // wicker: a basket weave in two browns
+  painter('wicker', function (ctx) {
+    ctx.fillStyle = '#5a3a1a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 8; row++) {
+      for (var col = 0; col < 8; col++) {
+        var x = col * 16, y = row * 16, across = (row + col) % 2;
+        for (var k = 0; k < 3; k++) {
+          ctx.fillStyle = k % 2 ? '#b8844a' : '#c99a5a';
+          if (across) ctx.fillRect(x + 1, y + 1 + k * 5, 14, 4);
+          else ctx.fillRect(x + 1 + k * 5, y + 1, 4, 14);
+        }
+      }
+    }
+  });
+
+  // the harvest moon: a glowing orange face with its seas and craters
+  painter('harvest_moon', function (ctx) {
+    var g = ctx.createRadialGradient(54, 50, 10, 64, 64, 66);
+    g.addColorStop(0, '#ffd08a'); g.addColorStop(0.7, '#ff9a3a'); g.addColorStop(1, '#e8701a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(170,70,10,0.35)';
+    [[44, 46, 16], [78, 70, 20], [56, 92, 10], [92, 38, 9], [30, 78, 8]].forEach(function (c) {
+      ctx.beginPath(); ctx.arc(c[0], c[1], c[2], 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.strokeStyle = 'rgba(255,230,180,0.35)'; ctx.lineWidth = 1.5;
+    [[44, 46, 16], [78, 70, 20]].forEach(function (c) {
+      ctx.beginPath(); ctx.arc(c[0] - 1, c[1] - 1, c[2], Math.PI * 0.9, Math.PI * 1.6); ctx.stroke();
+    });
+  });
+
   /* ----------------------------------------------------------- St. Patrick's
      The decals of the St. Patrick's crates, 2022 to 2026. */
   // @@ stpatricks painters go above this line @@
