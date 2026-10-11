@@ -2390,6 +2390,247 @@
   painter('stencil_sp23', stencil({ top: "RAINBOW'S", bottom: 'END  2023', icon: 'rainbow', colour: true,
                                     ink: 'rgba(255,225,74,0.95)', glow: '#ffe14a',
                                     font: 'Georgia, serif', frame: 'round' }));
+  /* -- 2024 Blarney Hoard: old stone, moss, Celtic gold and knotwork */
+
+  // a triskele: three spirals running out of one centre
+  function triskele(ctx, cx, cy, r, w) {
+    ctx.lineWidth = w; ctx.lineCap = 'round';
+    for (var arm = 0; arm < 3; arm++) {
+      var base = arm * Math.PI * 2 / 3;
+      ctx.beginPath();
+      for (var t = 0; t <= 1.0001; t += 0.02) {
+        var a = base + t * Math.PI * 2.6, rr = r * (0.12 + t * 0.5);
+        var ox = cx + Math.cos(base) * r * 0.42, oy = cy + Math.sin(base) * r * 0.42;
+        var x = ox + Math.cos(a + Math.PI) * rr * 0.9, y = oy + Math.sin(a + Math.PI) * rr * 0.9;
+        if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // old stone: grey granite, flecked, with pale lichen rosettes
+  painter('sp_stone', function (ctx) {
+    var rnd = scatter(401);
+    for (var i = 0; i < 700; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.10)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 1 + rnd() * 2, 1 + rnd() * 2);
+    }
+    for (var k = 0; k < 9; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 4 + rnd() * 9;
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(210,214,160,0.45)' : 'rgba(170,190,120,0.40)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      ctx.beginPath(); ctx.arc(x + 1, y + 1, r * 0.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(10, 90); ctx.lineTo(40, 70); ctx.lineTo(52, 84); ctx.stroke();
+  });
+
+  // moss: a deep green pile, lighter tips catching the light
+  painter('sp_moss', function (ctx) {
+    var rnd = scatter(409);
+    for (var i = 0; i < 520; i++) {
+      ctx.fillStyle = rnd() > 0.55 ? 'rgba(200,240,120,0.30)' : 'rgba(0,30,0,0.25)';
+      var x = rnd() * CELL, y = rnd() * CELL;
+      ctx.beginPath(); ctx.arc(x, y, 1 + rnd() * 2.2, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // ogham: a stem line with groups of strokes across and beside it
+  painter('sp_ogham', function (ctx) {
+    ctx.strokeStyle = 'rgba(30,32,28,0.75)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(64, 4); ctx.lineTo(64, 124); ctx.stroke();
+    var groups = [[1, -1], [3, 1], [2, 0], [4, -1], [1, 1], [5, 0], [2, -1], [3, 1]];
+    var y = 10;
+    groups.forEach(function (g) {
+      for (var n = 0; n < g[0]; n++) {
+        var x0 = g[1] < 0 ? 40 : (g[1] > 0 ? 64 : 46), x1 = g[1] < 0 ? 64 : (g[1] > 0 ? 88 : 82);
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y + (g[1] === 0 ? -4 : 0)); ctx.stroke();
+        y += 4;
+      }
+      y += 6;
+    });
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(66, 4); ctx.lineTo(66, 124); ctx.stroke();
+  });
+
+  // the triple spiral cut into stone (and struck in bronze), on its own
+  painter('sp_triskele', function (ctx) {
+    ctx.strokeStyle = 'rgba(30,32,28,0.70)';
+    triskele(ctx, 65, 67, 56, 7);
+    ctx.strokeStyle = 'rgba(232,178,58,0.85)';
+    triskele(ctx, 64, 64, 56, 4);
+  });
+
+  // gold knotwork: an interlaced band running round
+  painter('sp_knotband', function (ctx) {
+    ctx.fillStyle = 'rgba(120,70,10,0.35)'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var pass = 0; pass < 2; pass++) {
+      ctx.strokeStyle = pass ? 'rgba(255,236,160,0.9)' : 'rgba(80,46,6,0.9)';
+      ctx.lineWidth = pass ? 4 : 8;
+      for (var k = -1; k < 5; k++) {
+        var x = k * 32;
+        ctx.beginPath(); ctx.moveTo(x, 24);
+        ctx.bezierCurveTo(x + 16, 24, x + 16, 104, x + 32, 104);
+        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 104);
+        ctx.bezierCurveTo(x + 16, 104, x + 16, 24, x + 32, 24);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(255,236,160,0.7)'; ctx.fillRect(0, 4, CELL, 4); ctx.fillRect(0, CELL - 8, CELL, 4);
+  });
+
+  // a twisted rope of gold
+  painter('sp_twist', function (ctx) {
+    ctx.save(); ctx.translate(64, 64); ctx.rotate(0.7); ctx.translate(-64, -64);
+    for (var x = -CELL; x < CELL * 2; x += 12) {
+      ctx.fillStyle = 'rgba(120,70,10,0.45)'; ctx.fillRect(x, -CELL, 5, CELL * 3);
+      ctx.fillStyle = 'rgba(255,248,200,0.45)'; ctx.fillRect(x + 6, -CELL, 3, CELL * 3);
+    }
+    ctx.restore();
+  });
+
+  // a lipstick kiss, planted right on the stone
+  painter('sp_kiss', function (ctx) {
+    ctx.fillStyle = 'rgba(208,24,48,0.88)';
+    ctx.beginPath();
+    ctx.moveTo(20, 64); ctx.bezierCurveTo(34, 36, 56, 40, 64, 52);
+    ctx.bezierCurveTo(72, 40, 94, 36, 108, 64);
+    ctx.bezierCurveTo(90, 66, 70, 66, 64, 62); ctx.bezierCurveTo(58, 66, 38, 66, 20, 64);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(22, 68); ctx.bezierCurveTo(40, 72, 88, 72, 106, 68);
+    ctx.bezierCurveTo(92, 98, 36, 98, 22, 68); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,0,20,0.45)'; ctx.lineWidth = 1.2;
+    for (var x = 30; x < 100; x += 7) {
+      ctx.beginPath(); ctx.moveTo(x, 72); ctx.lineTo(x + 2, 88); ctx.stroke();
+    }
+  });
+
+  // Donegal tweed: a herringbone with flecks of colour through it
+  painter('sp_tweed', function (ctx) {
+    var rnd = scatter(419);
+    for (var col = 0; col < 16; col++) {
+      for (var row = 0; row < 32; row++) {
+        ctx.fillStyle = (row + col) % 2 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.10)';
+        ctx.save(); ctx.translate(col * 8 + 4, row * 4 + 2); ctx.rotate(col % 2 ? 0.6 : -0.6);
+        ctx.fillRect(-4, -1, 8, 2); ctx.restore();
+      }
+    }
+    var flecks = ['#d0281c', '#2f8a3a', '#e8b23a', '#3a6ad6'];
+    for (var k = 0; k < 60; k++) {
+      ctx.fillStyle = flecks[k % 4]; ctx.fillRect(rnd() * CELL, rnd() * CELL, 2, 2);
+    }
+  });
+
+  // a toadstool cap: white spots on red
+  painter('sp_toadstool', function (ctx) {
+    var rnd = scatter(421);
+    ctx.fillStyle = '#f8f4ea';
+    for (var k = 0; k < 14; k++) {
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 4 + rnd() * 6, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // hammered bronze: dimples and a spiral chased into it
+  painter('sp_bronze', function (ctx) {
+    var rnd = scatter(431);
+    for (var k = 0; k < 120; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL;
+      ctx.fillStyle = 'rgba(255,230,180,0.14)';
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(60,30,0,0.14)';
+      ctx.beginPath(); ctx.arc(x + 1.5, y + 1.5, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(70,40,10,0.45)';
+    triskele(ctx, 64, 64, 40, 3);
+  });
+
+  // a round shield's face: rings of rivets round the triple spiral
+  painter('sp_shield', function (ctx) {
+    var g = ctx.createRadialGradient(56, 52, 10, 64, 64, 64);
+    g.addColorStop(0, '#e0a860'); g.addColorStop(1, '#8a5a24');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(70,40,10,0.6)'; ctx.lineWidth = 3;
+    [58, 46].forEach(function (r) { ctx.beginPath(); ctx.arc(64, 64, r, 0, Math.PI * 2); ctx.stroke(); });
+    ctx.fillStyle = '#e8b23a';
+    for (var k = 0; k < 24; k++) {
+      var a = k * Math.PI / 12;
+      ctx.beginPath(); ctx.arc(64 + Math.cos(a) * 52, 64 + Math.sin(a) * 52, 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(70,40,10,0.7)'; triskele(ctx, 65, 66, 40, 6);
+    ctx.strokeStyle = '#f2cf6a'; triskele(ctx, 64, 64, 40, 3);
+  });
+
+  // a snail's shell: a spiral, brown on cream
+  painter('sp_snail', function (ctx) {
+    ctx.fillStyle = '#e8d8b0'; ctx.beginPath(); ctx.arc(64, 64, 60, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#7a4a1e'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (var t = 0; t <= 1.0001; t += 0.01) {
+      var a = t * Math.PI * 6, r = 4 + t * 52;
+      ctx.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r);
+    }
+    ctx.stroke();
+  });
+
+  // fish scales, silver
+  painter('sp_scales', function (ctx) {
+    for (var row = 0; row < 16; row++) {
+      for (var col = 0; col < 12; col++) {
+        var x = col * 12 + (row % 2 ? 6 : 0), y = row * 8;
+        ctx.strokeStyle = 'rgba(60,70,90,0.35)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI); ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(240,160,128,0.35)'; ctx.fillRect(0, 56, CELL, 18);
+  });
+
+  // a tunic's front: a gold knotwork collar, a torc at the throat
+  painter('sp_tee_knot', function (ctx) {
+    ctx.strokeStyle = 'rgba(80,46,6,0.9)'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(26, 0); ctx.quadraticCurveTo(64, 60, 102, 0); ctx.stroke();
+    ctx.strokeStyle = '#e8b23a'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(26, 0); ctx.quadraticCurveTo(64, 60, 102, 0); ctx.stroke();
+    ctx.strokeStyle = 'rgba(80,46,6,0.9)'; ctx.lineWidth = 1.5;
+    for (var k = 0; k < 9; k++) {
+      var t = (k + 0.5) / 9, x = 26 + 76 * t, y = 60 * 2 * t * (1 - t);
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.strokeStyle = '#ffd34a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(64, 12, 22, 0.25 * Math.PI, 0.75 * Math.PI, true); ctx.stroke();
+    ctx.fillStyle = '#ffd34a';
+    ctx.beginPath(); ctx.arc(50, 28, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(78, 28, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(232,178,58,0.6)'; triskele(ctx, 64, 80, 22, 3);
+  });
+
+  // linen: a soft plain weave
+  painter('sp_linen', function (ctx) {
+    var rnd = scatter(433);
+    for (var y = 0; y < CELL; y += 3) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.04 + rnd() * 0.05) + ')'; ctx.fillRect(0, y, CELL, 1);
+    }
+    for (var x = 0; x < CELL; x += 3) {
+      ctx.fillStyle = 'rgba(0,0,0,' + (0.04 + rnd() * 0.05) + ')'; ctx.fillRect(x, 0, 1, CELL);
+    }
+  });
+
+  // a kilt's pleats: deep folds in saffron wool
+  painter('sp_pleats', function (ctx) {
+    for (var x = 0; x < CELL; x += 16) {
+      var g = ctx.createLinearGradient(x, 0, x + 16, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0.16)'); g.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+      g.addColorStop(1, 'rgba(0,0,0,0.30)');
+      ctx.fillStyle = g; ctx.fillRect(x, 0, 16, CELL);
+    }
+  });
+
+  painter('stencil_sp24', stencil({ top: 'BLARNEY', bottom: 'HOARD  2024', icon: 'horseshoe',
+                                    ink: 'rgba(232,178,58,0.95)', glow: '#9aff6a',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
   // @@ stpatricks painters go above this line @@
 
   /* ----------------------------------------------------------- Easter

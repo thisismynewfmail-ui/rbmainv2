@@ -1148,4 +1148,531 @@ SP23.award("Rainbow's End", ["Puddle Hopper", "Rain Dancer", "Rainbow Chaser", "
 SP23.bundle("pair", "Pot and Key", 1, 1050, "One Pot o' Gold, one Rainbow Key.")
 SP23.bundle("hoard", "Double Rainbow", 3, 3000, "Three pots, three keys. Saves 300.")
 
-EVENTS = [SP22, SP23]
+
+# ============================================================ 2024
+STONE = "#8a8f88"
+MOSS = "#5a8a2a"
+BRONZE = "#b07a3a"
+CELT_GOLD = "#e8b23a"
+WOAD = "#2a4ab0"
+DRUID = "#2f5a34"
+RAVEN = "#16161c"
+
+
+def _moss(at, k=1.0, n=4):
+    """A cushion of moss: a few flattened green lumps."""
+    x, y, z = at
+    out = []
+    for i in range(n):
+        a = i * 2.4
+        out.append(part("sph", [x + math.cos(a) * 0.10 * k, y + 0.01 * (i % 2), z + math.sin(a) * 0.08 * k],
+                        [0.26 * k, 0.10 * k, 0.22 * k], MOSS if i % 2 else shade(MOSS, 0.8),
+                        decal="sp_moss", wrap=True))
+    return out
+
+
+def _torc(at, k=1.0, r=None, c=CELT_GOLD):
+    """A gold torc: a twisted neck ring open at the front, a knob on each
+    end.  Stands in the XY plane facing +Z (turn it with ``r``)."""
+    x, y, z = at
+    out = [place("horseshoe", [x, y, z], [k, k, k], c, r=r, m="metal", decal="sp_twist",
+                 wrap=True)]
+    for s in (1, -1):
+        off = [0.235 * k * s, -0.31 * k, 0]
+        if r:
+            off = rotate(off, r)
+        out.append(part("sph", [x + off[0], y + off[1], z + off[2]], [0.16 * k, 0.16 * k, 0.16 * k],
+                        c, m="metal"))
+    return out
+
+
+def _toadstool(at, k=1.0, lean=0.0):
+    """A red toadstool with white spots."""
+    x, y, z = at
+    return [part("cyl", [x, y + 0.12 * k, z], [0.10 * k, 0.24 * k, 0.10 * k], "#f4ecd8",
+                 [0, 0, lean]),
+            place("hemi", [x - math.sin(lean) * 0.22 * k, y + 0.22 * k, z], [0.34 * k, 0.24 * k, 0.34 * k],
+                  "#d0281c", anchor=[0, 0, 0], r=[0, 0, lean], decal="sp_toadstool", wrap=True)]
+
+
+SP24 = Event(
+    "stpatricks_2024", "stpatricks", 2024, "sp24",
+    name="Blarney Hoard", title="The Blarney Hoard",
+    blurb="St. Patrick's 2024 somebody kissed a mossy old stone at the top of the "
+          "hill for luck, and the stone said thank you. Then it said a great deal "
+          "more. By the time it stopped talking it had told them where the old kings "
+          "buried their gold: right underneath it.",
+    tagline="Kiss the stone. Find the gold. Never stop talking.",
+    starts="2024-03-10", ends="2024-03-24",
+    colors={"accent": "#e8b23a", "deep": "#0f2414", "glow": "#9aff6a"},
+    family_effects=["sunbeam", "cursed_runes", "haunted_wisps"],
+    hero_effect="ogham_glow", stencil="stencil_sp24")
+
+
+@SP24.crate_model("Standing Stone Cist",
+                  "A stone box under a standing stone on the hill, four slabs and a "
+                  "capstone, carved with spirals older than the hill, mossed over, and "
+                  "the old kings' gold glinting through the cracks. Holds the Blarney "
+                  "Hoard set. Needs a Torc Key.",
+                  hinge=[0, 0.34, -0.58], keyhole=[0, -0.04, 0.58])
+def _():
+    parts = [
+        part("rbox", [0, -0.16, 0], [1.66, 0.84, 1.04], STONE, decal="sp_stone", wrap=True),
+        part("box", [0, 0.24, 0], [1.50, 0.06, 0.90], "#ffd34a", m="neon"),
+        # the lock: a bronze plate let into the front slab
+        part("rbox", [0, -0.04, 0.545], [0.30, 0.32, 0.06], BRONZE, m="metal", decal="keyhole",
+             lock=1),
+        part("box", [0, -0.12, -0.53], [0.86, 0.50, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_sp24", a=-1),
+        # spirals carved into the end slabs, ogham down the front corners
+        part("box", [0.835, -0.14, 0], [0.70, 0.62, 0.02], "#000000", [0, PI / 2, 0],
+             decal="sp_triskele", a=-1),
+        part("box", [-0.835, -0.14, 0], [0.70, 0.62, 0.02], "#000000", [0, -PI / 2, 0],
+             decal="sp_triskele", a=-1),
+        part("box", [0.62, -0.16, 0.525], [0.22, 0.76, 0.02], "#000000", decal="sp_ogham", a=-1),
+        part("box", [-0.62, -0.16, 0.525], [0.22, 0.76, 0.02], "#000000", decal="sp_ogham", a=-1),
+        # the corner slabs standing proud of the box
+        *[part("rbox", [0.80 * sx, -0.20, 0.48 * sz], [0.18, 0.96, 0.18], shade(STONE, 0.9),
+               decal="sp_stone", wrap=True) for sx in (1, -1) for sz in (1, -1)],
+        # a torc spilling out of the gap at the front
+        *_torc([0.36, 0.20, 0.56], 0.40, r=[-0.4, 0.2, 0.3]),
+        part("disc", [-0.30, 0.26, 0.54], [0.18, 0.18, 0.04], GOLD, [0.3, 0, 0], m="metal",
+             decal="sp_coin"),
+        # the capstone: one great slab, mossed, the spiral cut into its top
+        part("rbox", [0, 0.46, 0], [1.92, 0.32, 1.24], STONE, [0.02, 0.04, -0.02], decal="sp_stone",
+             wrap=True, lid=1),
+        part("box", [0, 0.625, 0], [0.90, 0.90, 0.02], "#000000", [-PI / 2, 0, 0],
+             decal="sp_triskele", a=-1, lid=1),
+        *[dict(p, lid=1) for p in _moss([-0.66, 0.62, -0.36], 1.2, 5)],
+        *[dict(p, lid=1) for p in _moss([0.70, 0.62, 0.30], 0.9, 4)],
+        dict(part("sph", [0.62, 0.70, -0.40], [0.30, 0.20, 0.26], shade(STONE, 1.1), decal="sp_stone",
+                  wrap=True), lid=1),
+        dict(_shamrock([-0.50, 0.78, 0.36], [0.36, 0.36, 0.6], SHAMROCK, r=[-0.3, 0.4, 0]), lid=1),
+    ]
+    parts += _moss([0.86, -0.56, 0.40], 1.0, 3) + _moss([-0.84, -0.50, -0.42], 1.0, 3)
+    return parts
+
+
+@SP24.key_model("Torc Key",
+                "A bronze key whose bow is a little gold torc with the spiral set in it. "
+                "Opens one Standing Stone Cist. It hums when you hold it near a hill.",
+                shoulder=-0.30)
+def _():
+    return [
+        *_torc([-0.66, 0.0, 0], 0.62),
+        part("disc", [-0.66, 0.02, 0], [0.30, 0.30, 0.06], BRONZE, m="metal", decal="sp_triskele"),
+        part("cyl", [0.10, 0, 0], [0.09, 0.80, 0.09], BRONZE, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.30, 0, 0], [0.18, 0.05, 0.18], CELT_GOLD, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0.36, -0.12, 0], [0.06, 0.20, 0.08], BRONZE, m="metal"),
+        part("rbox", [0.44, -0.10, 0], [0.06, 0.16, 0.08], BRONZE, m="metal"),
+        part("rbox", [0.52, -0.14, 0], [0.06, 0.24, 0.08], BRONZE, m="metal"),
+    ]
+
+
+@SP24.hat("hoard_crown", "Crown of the High King",
+          "A gold crown out of the hoard, knotwork all round, red enamel on every "
+          "point and the spiral on the front. The last man who wore it was buried in "
+          "it, which is how it got into the hoard.", "legendary")
+def _():
+    parts = [
+        cap(-0.30, 0.22, EMERALD, grow=-0.10, decal="felt", wrap=True),
+        ringband(-0.02, 0.32, CELT_GOLD, margin=0.05, m="metal", decal="sp_knotband", wrap=True),
+    ]
+    parts += around(8, 0.93, 0.0, lambda a, x, z: [
+        place("tri", [x, 0.32, z * 0.97], [0.34, 0.40, 0.5], CELT_GOLD, r=[0, a, 0], m="metal"),
+        part("sph", [x * 1.02, 0.42, z * 0.99], [0.10, 0.10, 0.08], "#c42a2a", m="glass")])
+    parts += [part("disc", [0, -0.02, 0.99], [0.34, 0.34, 0.06], CELT_GOLD, m="metal",
+                   decal="sp_triskele")]
+    return parts
+
+
+@SP24.hat("druid_hood", "Druid's Hood",
+          "A deep green hood with a point, oak leaves round the brow and a sprig of "
+          "mistletoe tucked in. The druids knew where the hoard was all along. They "
+          "just never told anyone.", "rare", hair="hide")
+def _():
+    parts = [
+        place("hairlong", [0, -0.64, -0.06], [1.60, 1.40, 1.58], DRUID, anchor=[0, 0, 0],
+              decal="felt", wrap=True),
+        place("cone", [0, 0.06, -0.62], [0.50, 0.80, 0.50], DRUID, r=[-1.1, 0, 0], decal="felt",
+              wrap=True),
+        part("rbox", [0, -1.24, -0.30], [1.70, 0.20, 1.10], shade(DRUID, 0.85), decal="felt", wrap=True),
+    ]
+    for k in range(9):
+        a = -1.1 + k * 0.275
+        parts.append(place("leaf", [math.sin(a) * 0.90, -0.16, math.cos(a) * 0.86], [0.7, 0.30, 1.0],
+                           "#5a7a2a" if k % 2 else "#3a6a1e", r=[0.4, a, PI / 2 + 0.3 * (k % 2)]))
+    parts += [place("leaf", [0.56, 0.0, 0.66], [0.6, 0.24, 1.0], "#8ab84a", r=[0.6, 0.6, 0.6]),
+              part("sph", [0.52, 0.02, 0.76], [0.07, 0.07, 0.07], "#f4f2ea", m="glass"),
+              part("sph", [0.60, -0.04, 0.74], [0.07, 0.07, 0.07], "#f4f2ea", m="glass"),
+              part("sph", [0.56, 0.06, 0.70], [0.06, 0.06, 0.06], "#f4f2ea", m="glass")]
+    return parts
+
+
+@SP24.hat("blarney_stone", "Piece of the Blarney Stone",
+          "A chunk off the Blarney Stone, moss and all, with a big red kiss on the "
+          "front where somebody got there first. Wear it and you will never be lost "
+          "for words. Anyone near you will be lost for theirs.", "uncommon",
+          hair="show")
+def _():
+    parts = [
+        part("rbox", [0, 0.36, 0], [1.34, 0.74, 1.10], STONE, [0.04, 0.10, -0.03], decal="sp_stone",
+             wrap=True),
+        part("box", [0.02, 0.36, 0.555], [0.56, 0.42, 0.02], "#000000", [0.04, 0.10, -0.03],
+             decal="sp_kiss", a=-1),
+    ]
+    parts += _moss([-0.30, 0.74, -0.20], 1.2, 5) + _moss([0.44, 0.70, 0.30], 0.8, 3)
+    parts += [_shamrock([0.40, 0.92, -0.20], [0.30, 0.30, 0.5], SHAMROCK, r=[0, 0.5, 0.2])]
+    return parts
+
+
+@SP24.hat("flat_cap", "Donegal Flat Cap",
+          "A Donegal tweed flat cap with a shamrock tucked in the band, for "
+          "standing at the bar telling a story that is mostly true.", "uncommon")
+def _():
+    tweed = "#6a6452"
+    return [
+        cap(-0.30, 0.06, tweed, grow=0.04, decal="sp_tweed", wrap=True),
+        part("sph", [0, 0.16, 0.10], [1.80, 0.34, 1.76], tweed, [0.16, 0, 0], decal="sp_tweed",
+             wrap=True),
+        part("cyl", [0, 0.17, 0.06], [0.14, 0.04, 0.14], shade(tweed, 0.8)),
+        place("peak", [0, -0.18, 0.06], [1.86, 1.0, 1.80], shade(tweed, 0.85), anchor=[0, 0, 0],
+              decal="sp_tweed", wrap=True),
+        _shamrock([0.82, -0.06, 0.30], [0.30, 0.30, 0.5], SHAMROCK, r=[0, PI / 2, 0.2]),
+    ]
+
+
+@SP24.hat("fairy_ring", "Fairy Ring",
+          "A ring of toadstools in a ring of moss, and the little lights dancing "
+          "round it. Step inside a fairy ring and you lose a hundred years. Wear one "
+          "and you only lose track of time.", "rare", hair="show")
+def _():
+    parts = [place("ring", [0, -0.02, 0], [1.60, 0.5, 1.56], MOSS, anchor=[0, 0, 0],
+                   decal="sp_moss", wrap=True)]
+    parts += around(9, 0.68, 0.0, lambda a, x, z: _toadstool(
+        [x, 0.06, z], 0.9 + 0.35 * ((int(round(a * 9 / TAU))) % 3) / 2, 0.15 * math.sin(a * 3)))
+    parts += around(5, 0.40, 0.0, lambda a, x, z: part(
+        "sph", [x, 0.60 + 0.12 * math.sin(a * 2), z], [0.10, 0.10, 0.10],
+        "#d8ff8a" if int(round(a * 5 / TAU)) % 2 else "#ffe88a", m="neon", spin=1.5), start=0.3)
+    return parts
+
+
+@SP24.hat("bronze_helm", "Bronze Horned Helm",
+          "A bronze war-helm with two short horns, spirals hammered all over it and "
+          "studs of red enamel. Found in a river. Nobody has ever found the "
+          "warrior.", "rare")
+def _():
+    parts = [
+        dome(-0.52, 1.00, BRONZE, t="capcrown", m="metal", decal="sp_bronze", wrap=True),
+        ringband(-0.46, 0.12, shade(BRONZE, 0.8), margin=0.08, m="metal"),
+        part("rbox", [0, 0.48, 0], [0.12, 0.10, 1.10], shade(BRONZE, 1.15), m="metal"),
+    ]
+    for s in (1, -1):
+        # each horn's root sits on the dome's shoulder, its middle half its
+        # length further out along the slant
+        d = [math.sin(0.62) * s, math.cos(0.62)]
+        parts += [place("cone", [0.72 * s + d[0] * 0.45, 0.12 + d[1] * 0.45, 0], [0.42, 0.90, 0.42],
+                        BRONZE, r=[0, 0, -0.62 * s], m="metal", decal="sp_bronze", wrap=True),
+                  part("sph", [0.72 * s + d[0] * 0.90, 0.12 + d[1] * 0.90, 0], [0.14, 0.14, 0.14],
+                       CELT_GOLD, m="metal")]
+    parts += around(6, 0.98, -0.48, lambda a, x, z: part(
+        "sph", [x, -0.48, z * 0.97], [0.10, 0.10, 0.08], "#c42a2a", m="glass"), start=PI / 6)
+    return parts
+
+
+@SP24.hat("raven", "The Morrigan's Raven",
+          "A great black raven on your head, wings half open, watching the battle "
+          "from on high. In the old stories she picked the winners. She has picked "
+          "you. Probably.", "rare", hair="show")
+def _():
+    parts = [
+        part("sph", [0, 0.36, -0.06], [0.56, 0.58, 0.82], RAVEN, [0.35, 0, 0], m="glass"),
+        part("sph", [0, 0.78, 0.30], [0.40, 0.38, 0.42], RAVEN, m="glass"),
+        place("cone", [0, 0.76, 0.62], [0.12, 0.32, 0.12], "#2a2a30", r=[PI / 2 + 0.2, 0, 0]),
+        part("sph", [0.12, 0.84, 0.44], [0.07, 0.07, 0.05], "#d8b23a", m="neon"),
+        part("sph", [-0.12, 0.84, 0.44], [0.07, 0.07, 0.05], "#d8b23a", m="neon"),
+        place("wedge", [0, 0.16, -0.60], [0.40, 0.08, 0.50], RAVEN, r=[0.6, 0, 0], m="glass"),
+        part("rbox", [0.12, 0.03, 0.10], [0.10, 0.06, 0.24], "#2a2a30"),
+        part("rbox", [-0.12, 0.03, 0.10], [0.10, 0.06, 0.24], "#2a2a30"),
+    ]
+    for s in (1, -1):
+        parts += [place("wing", [0.22 * s, 0.50, -0.06], [1.10, 0.90, 1.0], RAVEN,
+                        anchor=[-0.5, 0.0, 0], r=[0, 0.0 if s > 0 else PI, 0.40], m="glass")]
+    return parts
+
+
+@SP24.back("celtic_harp", "Harp of the Bards",
+           "The old Irish harp, willow and brass, carved with knotwork and strung "
+           "with gold, slung across your back. It plays itself when you are not "
+           "looking. It knows a lot of very long songs.", "legendary")
+def _():
+    wood = "#6a3a1e"
+    z = -0.36
+    parts = straps("#5a3a22") + [
+        part("rbox", [0, 0.40, -0.12], [0.40, 0.30, 0.16], "#5a3a22"),
+        # the soundbox: a long tapered box up the left side
+        rod([-0.56, -0.70, z], [-0.30, 1.20, z], 0.36, wood, t="rbox", decal="sp_knotband",
+            wrap=True),
+        # the neck curving over the top, and the forepillar down the right
+        rod([-0.30, 1.20, z], [0.20, 1.34, z], 0.16, wood, t="rbox"),
+        rod([0.20, 1.34, z], [0.58, 1.00, z], 0.16, wood, t="rbox"),
+        rod([0.58, 1.00, z], [0.66, 0.30, z], 0.18, wood, t="rbox"),
+        rod([0.66, 0.30, z], [0.36, -0.60, z], 0.20, wood, t="rbox"),
+        rod([0.36, -0.60, z], [-0.52, -0.70, z], 0.14, wood, t="rbox"),
+        part("sph", [0.20, 1.36, z], [0.16, 0.16, 0.16], CELT_GOLD, m="metal"),
+        part("disc", [0.64, 0.50, z - 0.11], [0.26, 0.26, 0.04], CELT_GOLD, [0, PI, 0], m="metal",
+             decal="sp_triskele"),
+    ]
+    for i in range(8):
+        t = (i + 0.5) / 8
+        bx = -0.54 + 0.24 * t * 1.9
+        by = -0.62 + 1.80 * t
+        tx = bx + 0.02
+        ty = min(1.28, 1.20 + 0.12 * math.sin(t * PI)) if t < 0.5 else 1.30 - (t - 0.5) * 0.40
+        parts.append(rod([bx + 0.14, by, z - 0.02], [min(0.58, bx + 0.14 + (1 - t) * 0.0 + t * 0.62), ty - 0.06 if t > 0.5 else 1.22, z - 0.02],
+                         0.018, GOLD, m="metal"))
+    return parts
+
+
+@SP24.back("celtic_shield", "Shield of the Fianna",
+           "A round bronze shield with the triple spiral on its face and a great "
+           "boss in the middle, hung on your back. Fionn's warriors carried them. "
+           "Fionn's warriors also had to leap a branch as high as their brow, so "
+           "count yourself lucky.", "rare")
+def _():
+    return straps("#5a3a22") + [
+        part("disc", [0, 0.16, -0.20], [1.80, 1.80, 0.16], BRONZE, [0, PI, 0], m="metal",
+             decal="sp_shield"),
+        part("torus", [0, 0.16, -0.24], [1.82, 0.06, 1.82], shade(BRONZE, 0.8), [PI / 2, 0, 0],
+             m="metal"),
+        place("hemi", [0, 0.16, -0.28], [0.44, 0.40, 0.44], CELT_GOLD, anchor=[0, 0, 0],
+              r=[-PI / 2, 0, 0], m="metal"),
+        rod([-0.70, -0.60, -0.10], [0.80, 1.40, -0.10], 0.06, "#6a4a2e"),
+        place("cone", [0.86, 1.48, -0.10], [0.12, 0.30, 0.06], BRONZE, r=[0, 0, -0.64], m="metal"),
+    ]
+
+
+@SP24.hairdo("druid_braids", "Druid's Braids",
+             "Long silver hair, a braid down each side bound with gold rings, the "
+             "way the old bards wore it.", "uncommon")
+def _():
+    silver = "#c9ccd2"
+    parts = [place("hairlong", [0, 0, 0], [1.04, 1.04, 1.04], silver, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for s in (1, -1):
+        for k in range(6):
+            parts.append(part("sph", [0.58 * s, -0.36 - k * 0.11, 0.10], [0.15 - k * 0.008, 0.13, 0.14],
+                              silver if k % 2 else shade(silver, 0.88), [0, 0, 0.5 if k % 2 else -0.5]))
+        parts += [part("cyl", [0.58 * s, -0.58, 0.10], [0.17, 0.05, 0.17], CELT_GOLD, m="metal"),
+                  part("cyl", [0.58 * s, -0.86, 0.10], [0.15, 0.05, 0.15], CELT_GOLD, m="metal")]
+    return parts
+
+
+@SP24.hairdo("mossy_mop", "Mossy Mop",
+             "Hair gone green with moss from sleeping out on the hill, with a "
+             "toadstool or two coming up and a snail who has moved in.", "uncommon")
+def _():
+    parts = [place("hairmid", [0, 0, 0], [1.04, 1.04, 1.04], MOSS, anchor=[0, 0, 0],
+                   decal="sp_moss", wrap=True)]
+    parts += around(7, 0.30, 0.0, lambda a, x, z: part(
+        "sph", [x, 0.60, z - 0.02], [0.26, 0.14, 0.26], shade(MOSS, 0.85 + 0.1 * math.sin(a * 3)),
+        decal="sp_moss", wrap=True))
+    parts += _toadstool([0.22, 0.62, 0.10], 0.55, 0.2) + _toadstool([-0.20, 0.62, -0.18], 0.45, -0.3)
+    parts += [part("sph", [-0.36, 0.56, 0.24], [0.14, 0.14, 0.08], "#a0703a", [0, PI / 2, 0],
+                   decal="sp_snail"),
+              part("capsule", [-0.30, 0.52, 0.30], [0.06, 0.20, 0.06], "#c8b89a", [PI / 2, 0, 0])]
+    return parts
+
+
+SP24.face("gift_of_the_gab", "Gift of the Gab",
+          "Eyebrows up, one eye winking and a mouth going nineteen to the dozen. You "
+          "kissed the stone. Everyone knows. You told them.", [
+              {"k": "arc", "x": -0.20, "y": -0.12, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.09, "h": 0.12, "c": "#16171b"},
+              {"k": "line", "x1": -0.30, "y1": -0.30, "x2": -0.10, "y2": -0.26, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.10, "y1": -0.30, "x2": 0.30, "y2": -0.34, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.02, "y": 0.14, "w": 0.26, "h": 0.18, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.02, "y": 0.19, "w": 0.16, "h": 0.07, "c": "#e05a6a"},
+              {"k": "line", "x1": 0.20, "y1": 0.08, "x2": 0.30, "y2": 0.03, "w": 0.02,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.21, "y1": 0.14, "x2": 0.33, "y2": 0.14, "w": 0.02,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.20, "y1": 0.20, "x2": 0.30, "y2": 0.25, "w": 0.02,
+               "c": "#16171b"},
+          ], "uncommon")
+SP24.face("woad_warrior", "Woad Warrior",
+          "Blue woad spirals round the eyes and a stripe across the face, and the "
+          "look of somebody about to run down a hill shouting.", [
+              {"k": "arc", "x": -0.20, "y": -0.13, "r": 0.13, "a0": 0.0, "a1": 0.85, "w": 0.04,
+               "c": "#2a4ab0"},
+              {"k": "arc", "x": 0.20, "y": -0.13, "r": 0.13, "a0": 0.15, "a1": 1.0, "w": 0.04,
+               "c": "#2a4ab0"},
+              {"k": "arc", "x": -0.20, "y": -0.13, "r": 0.20, "a0": 0.5, "a1": 1.0, "w": 0.03,
+               "c": "#2a4ab0"},
+              {"k": "arc", "x": 0.20, "y": -0.13, "r": 0.20, "a0": 0.0, "a1": 0.5, "w": 0.03,
+               "c": "#2a4ab0"},
+              {"k": "line", "x1": -0.45, "y1": 0.02, "x2": 0.45, "y2": 0.02, "w": 0.05,
+               "c": "#2a4ab0"},
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.07, "h": 0.10, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.07, "h": 0.10, "c": "#16171b"},
+              {"k": "line", "x1": -0.30, "y1": -0.30, "x2": -0.08, "y2": -0.22, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.30, "y1": -0.30, "x2": 0.08, "y2": -0.22, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.20, 0.14], [0.20, 0.14], [0.16, 0.24], [-0.16, 0.24]],
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.18, 0.15], [0.18, 0.15], [0.17, 0.18], [-0.17, 0.18]],
+               "c": "#ffffff"},
+          ], "rare")
+SP24.shirt("knotwork_tunic", "Knotwork Tunic",
+           "A green wool tunic with a gold knotwork collar and hem and a torc at the "
+           "throat, the kind of thing a king wears to be buried in, or to the pub.",
+           {"torso": "#2f6a3a", "arms": "#2f6a3a", "decal": "sp_tee_knot", "weave": "sp_linen",
+            "stripe": CELT_GOLD}, "rare")
+SP24.pants("saffron_kilt", "Saffron Kilt",
+           "A saffron kilt, heavy pleats, knee socks and brogues. Traditional. Draughty.",
+           {"legs": "#d89a2a", "weave": "sp_pleats", "length": 0.55, "skin": "#ece6d4",
+            "cuff": "#3a2a1e"})
+SP24.belt("ring_belt", "Belt of Bronze Rings",
+          "A leather belt hung with bronze rings, a pouch either side of the buckle "
+          "for whatever falls out of the hoard.",
+          {"band": "#5a3a22", "buckle": BRONZE, "width": 0.22, "metal": True, "pouch": True,
+           "weave": "sp_bronze"})
+
+
+@SP24.weapon("carnyx", "Carnyx of the Gab",
+             "The old Celtic war-horn, bronze, as tall as a man, with a boar's head "
+             "for a bell. Blow it and everyone in front of you is so busy listening "
+             "they forget how to do anything clever.",
+             {"kind": "cone", "damage": 10, "rpm": 40, "mag": 3, "reload": 2.6, "range": 16.0,
+              "auto": False, "sound": "horn", "recoil": 2.0, "reserve": 18,
+              "cone": {"angle": 0.50, "push": 12, "lift": 4, "color": "#e8b23a"},
+              "on_hit": {"silence": 3.0}},
+             [["+", "Silences everyone in front of you for 3 seconds: no abilities, no gear"],
+              ["+", "...and gives them a little shove"],
+              ["-", "10 damage"],
+              ["-", "16 stud reach, three blasts to a breath"]], rarity="legendary")
+def _():
+    parts = [
+        part("rbox", [0, -0.12, -0.04], [0.16, 0.36, 0.22], "#5a3a22", [-0.2, 0, 0]),
+        rod([0, -0.30, -0.50], [0, 0.30, 0.30], 0.12, BRONZE, m="metal"),
+        rod([0, 0.30, 0.30], [0, 1.10, 0.62], 0.12, BRONZE, m="metal"),
+        part("torus", [0, 0.70, 0.46], [0.18, 0.04, 0.18], CELT_GOLD, [0.4, 0, 0], m="metal"),
+        # the boar's head bell
+        part("sph", [0, 1.22, 0.74], [0.40, 0.34, 0.56], BRONZE, [0.5, 0, 0], m="metal",
+             decal="sp_bronze", wrap=True),
+        place("cone", [0, 1.40, 1.06], [0.24, 0.36, 0.22], BRONZE, r=[1.0, 0, 0], m="metal"),
+        part("sph", [0.14, 1.36, 0.86], [0.07, 0.07, 0.05], "#c42a2a", m="glass"),
+        part("sph", [-0.14, 1.36, 0.86], [0.07, 0.07, 0.05], "#c42a2a", m="glass"),
+        place("cone", [0.20, 1.44, 0.58], [0.10, 0.24, 0.06], BRONZE, r=[-0.4, 0, -0.4], m="metal"),
+        place("cone", [-0.20, 1.44, 0.58], [0.10, 0.24, 0.06], BRONZE, r=[-0.4, 0, 0.4], m="metal"),
+        part("rbox", [0, 1.04, 0.92], [0.24, 0.04, 0.24], "#2a1810", [0.5, 0, 0]),
+    ]
+    return parts
+
+
+@SP24.weapon("lughs_sling", "Sling of Lugh",
+             "The sling Lugh of the Long Arm used to put out the eye of Balor. One "
+             "stone at a time, and if it finds a head the head stays still for a good "
+             "long while.",
+             {"kind": "hitscan", "damage": 42, "headshot": 2.5, "rpm": 45, "mag": 1,
+              "reload": 1.3, "range": 260, "auto": False, "sound": "crack", "recoil": 1.4,
+              "spread": 0.2, "reserve": 30, "tracer": "#c9ccd2",
+              "on_headshot": {"stun": 1.5}},
+             [["+", "Headshots do two and a half times the damage"],
+              ["+", "...and stun for a second and a half"],
+              ["-", "One stone at a time"],
+              ["-", "Body shots only do 42"]], rarity="legendary")
+def _():
+    leather = "#7a5030"
+    return [
+        part("sph", [0, -0.04, 0.02], [0.14, 0.14, 0.14], leather),
+        rod([0, -0.02, 0.0], [0.06, -0.30, 0.40], 0.035, leather),
+        rod([0, -0.02, 0.0], [-0.06, -0.30, 0.40], 0.035, leather),
+        part("sph", [0, -0.36, 0.46], [0.30, 0.18, 0.26], leather, decal="leather", wrap=True),
+        part("sph", [0, -0.30, 0.46], [0.20, 0.18, 0.20], "#9a9a98", decal="sp_stone", wrap=True),
+    ]
+
+
+@SP24.weapon("ogham_stone", "Ogham Stone",
+             "Raise a little standing stone cut with ogham. Your side, near it, heals "
+             "a little every second; the other side, near it, cannot hide -- the "
+             "stone tells everyone exactly where they are.",
+             {"kind": "deploy", "cooldown": 28, "sound": "magic",
+              "deploy": {"type": "banner", "radius": 12.0, "secs": 14.0, "limit": 1,
+                         "color": "#9aff6a", "particle": "rune",
+                         "ally": {"regen": [5, 1.0]}, "enemy": {"reveal": 1.2}}},
+             [["+", "You and teammates within 12 studs heal 5 a second"],
+              ["+", "Enemies within 12 studs are shown to your whole team"],
+              ["-", "Stands for 14 seconds, where you put it"],
+              ["-", "28 second cooldown"]], rarity="rare",
+             deploy=lambda: [
+                 part("rbox", [0, 1.10, 0], [0.70, 2.20, 0.46], STONE, [0, 0, 0.04], decal="sp_stone",
+                      wrap=True),
+                 part("box", [0.355, 1.10, 0], [0.42, 1.90, 0.02], "#000000", [0, PI / 2, 0],
+                      decal="sp_ogham", a=-1),
+                 part("box", [0, 1.30, 0.235], [0.56, 0.56, 0.02], "#000000", decal="sp_triskele",
+                      a=-1),
+                 *_moss([0.10, 2.20, 0.0], 1.1, 4)])
+def _():
+    return [
+        part("rbox", [0, 0.20, 0.16], [0.34, 0.70, 0.24], STONE, decal="sp_stone", wrap=True),
+        part("box", [0, 0.20, 0.285], [0.24, 0.56, 0.02], "#000000", decal="sp_ogham", a=-1),
+        *_moss([0.04, 0.56, 0.16], 0.6, 3),
+    ]
+
+
+@SP24.gear("salmon_of_knowledge", "Salmon of Knowledge",
+           "The salmon that ate the nine hazelnuts of wisdom. Fionn only burnt his "
+           "thumb on it and knew everything ever after. Eat the whole thing and you "
+           "will know exactly where to hit people.",
+           {"kind": "consume", "cooldown": 30, "sound": "eat",
+            "consume": {"heal": 20, "crit": [0.5, 6.0]}},
+           [["+", "Half of your hits are critical for 6 seconds"],
+            ["+", "Heals 20"],
+            ["-", "30 second cooldown"]], rarity="rare")
+def _():
+    salmon = "#c9ced6"
+    return [
+        part("cyl", [0, -0.06, 0.20], [0.70, 0.04, 0.70], "#f4f2ea", m="glass"),
+        part("sph", [0, 0.06, 0.20], [0.24, 0.20, 0.66], salmon, m="metal", decal="sp_scales",
+             wrap=True),
+        part("sph", [0, 0.02, 0.20], [0.18, 0.10, 0.56], "#f0a080"),
+        place("tri", [0, 0.06, -0.20], [0.30, 0.24, 0.4], salmon, r=[PI / 2, 0, PI], m="metal"),
+        part("sph", [0.08, 0.10, 0.44], [0.05, 0.05, 0.03], BLACK),
+        part("sph", [-0.08, 0.10, 0.44], [0.05, 0.05, 0.03], BLACK),
+        place("leaf", [0.24, 0.0, 0.10], [0.5, 0.24, 1.0], "#5a8a2a", r=[PI / 2, 0.6, 0]),
+        part("sph", [-0.24, 0.0, 0.34], [0.10, 0.08, 0.10], "#a0703a"),
+    ]
+
+
+SP24.effect("ogham_glow", name="Ogham Glow", rate=2.2, life=[1.8, 2.4],
+            size=[0.34, 0.48], grow=0.0, gravity=0.0, spread=0.3, rise=[0.1, 0.3],
+            blend="add", spin=0.8, colors=["#e8b23a", "#9aff6a"], shape="sp_triskele",
+            radius=0.8, orbit=1.6, wobble=0.3)
+SP24.effect("bog_lights", name="Bog Lights", rate=3.0, life=[1.6, 2.4],
+            size=[0.20, 0.32], grow=0.2, gravity=-0.2, spread=0.6, rise=[0.2, 0.4],
+            blend="add", spin=0.0, colors=["#9aff6a", "#ffe88a", "#d8ff8a"], shape="wisp",
+            radius=0.9, wobble=0.8)
+SP24.opening(
+    sky={"top": "#0a1a10", "horizon": "#4a6a3a", "sun": [0.2, 0.6, 0.6], "clouds": 0.6,
+         "tint": "#e8ffd8"},
+    ambient="#5a7a5a", beam="#ffd34a", seep="bog_lights", after="ogham_glow",
+    burst=["#e8b23a", "#9aff6a", "#ffffff", "#5a8a2a"],
+    pieces=[{"shape": "sp_coin", "colors": ["#ffd34a", "#e8b23a"], "blend": "normal"},
+            {"shape": "sp_triskele", "colors": ["#e8b23a", "#9aff6a"], "blend": "add"},
+            {"shape": "shamrock", "colors": ["#4fc46e", "#2f8a3a"], "blend": "normal"},
+            {"shape": "wisp", "colors": ["#d8ff8a"], "blend": "add"}],
+    backdrop="sp_stones", title_wait="The stone is clearing its throat...",
+    title_shake="It knows where the gold is...")
+SP24.award("Blarney Hoard", ["Wanderer", "Stone Kisser", "Silver Tongue", "Hoard Finder",
+                             "Keeper of the Stones", "High King of the Hoard"],
+           "Opened Standing Stone Cists under the hill, St. Patrick's 2024.", "em_horseshoe",
+           "clover")
+SP24.bundle("pair", "Cist and Torc", 1, 1050, "One Standing Stone Cist, one Torc Key.")
+SP24.bundle("hoard", "The Whole Hoard", 3, 3000, "Three cists, three keys. Saves 300.")
+
+EVENTS = [SP22, SP23, SP24]

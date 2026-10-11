@@ -814,6 +814,21 @@
       c.fillStyle = '#bcbcbc';
       c.beginPath(); c.ellipse(64, 94, 40, 6, 0, 0, Math.PI * 2); c.fill();
     }],
+    ['sp_triskele', function (c) {
+      // the triple spiral: three arms curling out of one middle
+      c.strokeStyle = '#ffffff'; c.lineWidth = 9; c.lineCap = 'round';
+      for (var arm = 0; arm < 3; arm++) {
+        var base = arm * Math.PI * 2 / 3;
+        c.beginPath();
+        for (var t = 0; t <= 1.0001; t += 0.03) {
+          var a = base + t * Math.PI * 2.6, rr = 52 * (0.12 + t * 0.5);
+          var ox = 64 + Math.cos(base) * 22, oy = 64 + Math.sin(base) * 22;
+          c[t === 0 ? 'moveTo' : 'lineTo'](ox + Math.cos(a + Math.PI) * rr * 0.9,
+                                           oy + Math.sin(a + Math.PI) * rr * 0.9);
+        }
+        c.stroke();
+      }
+    }],
     // @@ stpatricks particles go above this line @@
 
     // ---- Easter particle shapes
