@@ -116,29 +116,6 @@
       </div>
     </div>
 
-    <div class="panel h-say">
-      <div class="panel-head green">Say something</div>
-      <div class="panel-body">
-        <form id="post-form" onsubmit="return false">
-          <textarea id="post-body" maxlength="400" placeholder="What are you building today?"></textarea>
-          <div class="spread" style="margin-top:6px">
-            <small class="muted"><span id="post-count">400</span> characters left</small>
-            <button class="btn primary" id="post-submit">Post</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div class="panel h-timeline">
-      <div class="panel-head">Your timeline</div>
-      <div class="panel-body" id="timeline">
-        {% if timeline %}
-          {% for p in timeline %}{% set post = p %}{% include "partials/post.html" %}{% endfor %}
-        {% else %}
-          <p class="muted">Nothing here yet. Follow a few people or post something.</p>
-        {% endif %}
-      </div>
-    </div>
   </div>
 
   <div class="col-narrow">

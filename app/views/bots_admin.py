@@ -403,6 +403,55 @@ def probe(req: Request):
     return api_ok(llm=llm.client().snapshot(), reachable=bool(info.get("reachable")))
 
 
+@router.get("/api/admin/bots/llm/profiles")
+@admin_required
+def llm_profiles(req: Request):
+    return api_ok(profiles=bot_config.llm_profiles())
+
+
+@router.post("/api/admin/bots/llm/profiles/save")
+@admin_required
+def llm_profile_save(req: Request):
+    data = req.data()
+    pending = data.get("pending") if isinstance(data.get("pending"), dict) else {}
+    try:
+        saved = bot_config.save_llm_profile(data.get("name"), pending,
+                                            by=str(req.user["username"]))
+    except bot_config.ProfileError as exc:
+        return api_error(str(exc))
+    db.audit(int(req.user["id"]), "bots.llm.profile.save", saved["name"])
+    return api_ok(profile=saved, profiles=bot_config.llm_profiles())
+
+
+@router.post("/api/admin/bots/llm/profiles/load")
+@admin_required
+def llm_profile_load(req: Request):
+    name = req.data().get("name")
+    try:
+        applied = bot_config.load_llm_profile(name)
+    except bot_config.ProfileError as exc:
+        return api_error(str(exc))
+    db.audit(int(req.user["id"]), "bots.llm.profile.load", str(name))
+    import threading
+    threading.Thread(target=lambda: llm.client().probe(True), daemon=True).start()
+    return api_ok(applied=list(applied), values=bot_config.public_values(),
+                  version=bot_config.version(), profiles=bot_config.llm_profiles())
+
+
+@router.post("/api/admin/bots/llm/profiles/delete")
+@admin_required
+def llm_profile_delete(req: Request):
+    name = req.data().get("name")
+    try:
+        gone = bot_config.delete_llm_profile(name)
+    except bot_config.ProfileError as exc:
+        return api_error(str(exc))
+    if not gone:
+        return api_error("There is no configuration by that name.")
+    db.audit(int(req.user["id"]), "bots.llm.profile.delete", str(name))
+    return api_ok(profiles=bot_config.llm_profiles())
+
+
 @router.get("/api/admin/bots/llm/template")
 @admin_required
 def template(req: Request):

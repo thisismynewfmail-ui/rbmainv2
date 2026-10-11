@@ -75,7 +75,6 @@ def profile(req: Request, username: str = ""):
         show_friends=visible("friends_list"),
         friend_count=friends.count_friends(pid),
         mutuals=len(friends.mutual_friends(viewer, pid)) if viewer else 0,
-        posts_list=posts.for_user(pid, 10, viewer),
         wall=comments.for_profile(pid, 25),
         wall_count=comments.count_for_profile(pid),
         can_comment=users.can_view(profile_user, "wall", viewer, viewer_admin),
@@ -127,6 +126,11 @@ def edit_profile(req: Request):
         return flash_redirect("/profile/%s" % req.user["username"],
                               "Profile updated.")
     fresh = users.get_by_id(uid)
+    # Only what has been earned: a badge you have not unlocked is not shown
+    # at all (it used to sit in the inventory greyed out, with its progress)
+    earned_cards = [b for b in badges.collection(uid) if b["earned"]]
+    games = [("blackout_relay", "Blackout Relay"), ("last_light", "Last Light"),
+             ("market", "Crates"), ("event", "Events")]
     return render(req, "profile_edit.html", page_title="Edit profile",
                   privacy=users.privacy_of(fresh),
                   privacy_labels=users.PRIVACY_LABELS,
@@ -134,14 +138,13 @@ def edit_profile(req: Request):
                   pinned=users.pinned_of(fresh),
                   pin_slots=users.MAX_PINNED,
                   owned=inventory.list_for_user(uid),
-                  badge_collection=badges.collection(uid),
+                  badge_collection=earned_cards,
                   badges_shown=badges.shown_of(fresh),
                   badge_slots=badges.MAX_SHOWN,
-                  badge_count=len(badges.earned(uid)),
+                  badge_count=len(earned_cards),
                   badge_total=len(badges.BADGES),
-                  badge_games=[("blackout_relay", "Blackout Relay"),
-                               ("last_light", "Last Light"),
-                               ("market", "Crates"), ("event", "Events")],
+                  badge_games=[g for g in games
+                               if any(b["game"] == g[0] for b in earned_cards)],
                   worn_badge=badges.worn_of(uid))
 
 
@@ -190,11 +193,11 @@ def follow_action(req: Request):
 @router.post("/api/social/post")
 @login_required
 def create_post(req: Request):
-    try:
-        post_id = posts.create(int(req.user["id"]), str(req.data().get("body", "")))
-    except posts.PostError as exc:
-        return api_error(str(exc))
-    return api_ok(post=posts.get(post_id))
+    # The timeline (the home page's feed and the Posts panel on profiles)
+    # was retired, and with it posting to it: nothing would ever show a new
+    # post.  Profile comments and messages are where people talk now.
+    return api_error("Status posts have been retired. Leave a profile comment "
+                     "or send a message instead.", 410)
 
 
 @router.post("/api/social/post/delete")

@@ -400,7 +400,517 @@
       c.bezierCurveTo(80, 26, 78, 44, 64, 46);
       c.bezierCurveTo(50, 44, 48, 26, 64, 8);
       c.fill();
-    }]
+    }],
+    /* ------------------------------------------------ the holiday shapes
+       The Unusual effects and opening shows of every event in
+       app/models/holidays/: the same greyscale-mask rules as above (white
+       is the tint, grey a darker shade of it, punched holes are holes). */
+    ['clock', function (c) {
+      c.beginPath(); c.arc(64, 64, 46, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#9a9a9a';
+      for (var k = 0; k < 12; k++) {
+        var a = k * Math.PI / 6;
+        c.beginPath(); c.arc(64 + Math.sin(a) * 36, 64 - Math.cos(a) * 36, k % 3 ? 2.5 : 4.5, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.strokeStyle = '#5a5a5a';
+      bar(c, 64, 64, 60, 38, 6); bar(c, 64, 64, 64, 30, 4);
+      punch(c, function () { c.beginPath(); c.arc(64, 64, 4, 0, Math.PI * 2); c.fill(); });
+    }],
+    ['confetti', function (c) {
+      c.save(); c.translate(64, 64); c.rotate(0.4);
+      c.fillRect(-26, -12, 52, 24);
+      c.fillStyle = '#c8c8c8'; c.fillRect(-26, 4, 52, 8);
+      c.restore();
+    }],
+    ['streamer', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 9; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(20, 20);
+      c.bezierCurveTo(70, 10, 20, 60, 66, 64); c.bezierCurveTo(110, 68, 58, 110, 108, 108);
+      c.stroke();
+    }],
+    ['sequin', function (c) {
+      c.beginPath(); c.arc(64, 64, 34, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#b8b8b8'; c.beginPath(); c.arc(70, 70, 22, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.arc(54, 52, 9, 0, Math.PI * 2); c.fill();
+      punch(c, function () { c.beginPath(); c.arc(64, 64, 5, 0, Math.PI * 2); c.fill(); });
+    }],
+    ['firework', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineCap = 'round';
+      for (var k = 0; k < 16; k++) {
+        var a = k * Math.PI / 8, r0 = 14, r1 = k % 2 ? 46 : 56;
+        bar(c, 64 + Math.cos(a) * r0, 64 + Math.sin(a) * r0,
+            64 + Math.cos(a) * r1, 64 + Math.sin(a) * r1, k % 2 ? 4 : 6);
+        dot(c, 64 + Math.cos(a) * (r1 + 4), 64 + Math.sin(a) * (r1 + 4), k % 2 ? 3 : 5);
+      }
+      dot(c, 64, 64, 9);
+    }],
+    ['crystal', function (c) {
+      poly(c, [[64, 6], [96, 50], [64, 122], [32, 50]]);
+      c.fillStyle = '#c8c8c8'; poly(c, [[64, 6], [80, 50], [64, 122], [48, 50]]);
+      c.fillStyle = '#ffffff'; poly(c, [[64, 14], [72, 46], [64, 50], [56, 46]]);
+    }],
+    ['note', function (c) {
+      c.beginPath(); c.ellipse(44, 96, 18, 13, -0.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(94, 84, 18, 13, -0.4, 0, Math.PI * 2); c.fill();
+      c.fillRect(56, 26, 7, 72); c.fillRect(106, 14, 7, 72);
+      poly(c, [[56, 26], [113, 14], [113, 32], [56, 44]]);
+    }],
+    ['shamrock', function (c) {
+      function heart(x, y, s, rot) {
+        c.save(); c.translate(x, y); c.rotate(rot);
+        c.beginPath(); c.moveTo(0, s * 0.5);
+        c.bezierCurveTo(-s, -s * 0.1, -s * 0.5, -s * 0.8, 0, -s * 0.32);
+        c.bezierCurveTo(s * 0.5, -s * 0.8, s, -s * 0.1, 0, s * 0.5); c.fill();
+        c.restore();
+      }
+      heart(64, 42, 30, 0); heart(42, 70, 30, -2.1); heart(86, 70, 30, 2.1);
+      c.strokeStyle = '#ffffff'; bar(c, 64, 70, 76, 116, 7);
+      c.fillStyle = '#b0b0b0'; dot(c, 64, 62, 6);
+    }],
+    ['clover4', function (c) {
+      for (var k = 0; k < 4; k++) {
+        c.save(); c.translate(64, 60); c.rotate(k * Math.PI / 2 + Math.PI / 4);
+        c.beginPath(); c.moveTo(0, -4);
+        c.bezierCurveTo(-30, -20, -14, -50, 0, -34); c.bezierCurveTo(14, -50, 30, -20, 0, -4); c.fill();
+        c.restore();
+      }
+      c.strokeStyle = '#ffffff'; bar(c, 64, 64, 74, 118, 6);
+    }],
+    ['coin', function (c) {
+      c.beginPath(); c.arc(64, 64, 44, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#b8b8b8'; c.beginPath(); c.arc(64, 64, 34, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff';
+      c.font = 'bold 44px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('$', 64, 66);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(46, 40, 10, 5, -0.7, 0, Math.PI * 2); c.fill();
+    }],
+    ['rainbow', function (c) {
+      var shades = ['#ffffff', '#e0e0e0', '#c0c0c0', '#a0a0a0', '#808080'];
+      for (var k = 0; k < 5; k++) {
+        c.strokeStyle = shades[k]; c.lineWidth = 9;
+        c.beginPath(); c.arc(64, 96, 52 - k * 9, Math.PI, 0); c.stroke();
+      }
+    }],
+    ['horseshoe', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 22; c.lineCap = 'round';
+      c.beginPath(); c.arc(64, 58, 36, Math.PI * 0.82, Math.PI * 2.18); c.stroke();
+      punch(c, function () {
+        for (var k = 0; k < 6; k++) {
+          var a = Math.PI * 0.9 + k * Math.PI * 1.2 / 5;
+          c.beginPath(); c.arc(64 + Math.cos(a) * 36, 58 + Math.sin(a) * 36, 3.5, 0, Math.PI * 2); c.fill();
+        }
+      });
+    }],
+    ['tophat', function (c) {
+      c.fillRect(30, 86, 68, 12);
+      poly(c, [[40, 86], [88, 86], [84, 24], [44, 24]]);
+      c.fillStyle = '#9a9a9a'; c.fillRect(42, 70, 44, 12);
+      c.fillStyle = '#ffffff'; c.fillRect(56, 68, 16, 16);
+      punch(c, function () { c.fillRect(60, 72, 8, 8); });
+    }],
+    ['egg', function (c) {
+      c.beginPath(); c.moveTo(64, 12);
+      c.bezierCurveTo(100, 12, 108, 108, 64, 114); c.bezierCurveTo(20, 108, 28, 12, 64, 12); c.fill();
+      c.fillStyle = '#b0b0b0';
+      c.beginPath(); c.moveTo(30, 60);
+      for (var x = 30; x <= 98; x += 8.5) c.lineTo(x, (x / 8.5) % 2 < 1 ? 54 : 66);
+      c.lineTo(98, 74); c.lineTo(30, 74); c.closePath(); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(50, 34, 8, 12, -0.4, 0, Math.PI * 2); c.fill();
+    }],
+    ['bunny', function (c) {
+      c.beginPath(); c.ellipse(46, 34, 11, 30, -0.2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(82, 34, 11, 30, 0.2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(64, 84, 34, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#b8b8b8';
+      c.beginPath(); c.ellipse(46, 36, 5, 20, -0.2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(82, 36, 5, 20, 0.2, 0, Math.PI * 2); c.fill();
+      punch(c, function () {
+        c.beginPath(); c.arc(52, 80, 4, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(76, 80, 4, 0, Math.PI * 2); c.fill();
+      });
+    }],
+    ['chick', function (c) {
+      c.beginPath(); c.arc(64, 70, 38, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(64, 30, 8, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#8a8a8a'; poly(c, [[58, 76], [74, 76], [66, 90]]);
+      punch(c, function () {
+        c.beginPath(); c.arc(52, 62, 5, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(76, 62, 5, 0, Math.PI * 2); c.fill();
+      });
+    }],
+    ['carrot', function (c) {
+      poly(c, [[50, 40], [80, 40], [70, 122], [64, 124]]);
+      c.fillStyle = '#9a9a9a';
+      bar(c, 54, 62, 68, 64, 3); bar(c, 60, 86, 72, 84, 3);
+      c.fillStyle = '#d0d0d0';
+      c.beginPath(); c.ellipse(56, 22, 6, 18, -0.5, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(72, 20, 6, 18, 0.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(64, 16, 5, 16, 0, 0, Math.PI * 2); c.fill();
+    }],
+    ['flower', function (c) {
+      for (var k = 0; k < 5; k++) {
+        var a = k * Math.PI * 2 / 5 - Math.PI / 2;
+        c.beginPath(); c.ellipse(64 + Math.cos(a) * 28, 64 + Math.sin(a) * 28, 20, 14, a, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#9a9a9a'; c.beginPath(); c.arc(64, 64, 15, 0, Math.PI * 2); c.fill();
+    }],
+    ['butterfly', function (c) {
+      c.beginPath(); c.ellipse(40, 48, 28, 22, -0.5, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(88, 48, 28, 22, 0.5, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(46, 86, 18, 16, 0.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(82, 86, 18, 16, -0.4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#6a6a6a'; c.fillRect(60, 36, 8, 64);
+      c.fillStyle = '#c8c8c8';
+      c.beginPath(); c.arc(36, 46, 8, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(92, 46, 8, 0, Math.PI * 2); c.fill();
+    }],
+    ['jellybean', function (c) {
+      c.beginPath(); c.moveTo(30, 70);
+      c.bezierCurveTo(26, 34, 70, 22, 96, 42); c.bezierCurveTo(116, 60, 100, 98, 70, 92);
+      c.bezierCurveTo(58, 90, 54, 76, 44, 88); c.bezierCurveTo(34, 96, 30, 84, 30, 70); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(60, 44, 14, 6, -0.3, 0, Math.PI * 2); c.fill();
+    }],
+    ['flag', function (c) {
+      c.fillStyle = '#9a9a9a'; c.fillRect(14, 10, 7, 110);
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.moveTo(21, 16);
+      c.bezierCurveTo(50, 6, 70, 30, 112, 18); c.lineTo(112, 72);
+      c.bezierCurveTo(70, 84, 50, 60, 21, 70); c.closePath(); c.fill();
+      c.fillStyle = '#b0b0b0';
+      for (var k = 0; k < 3; k++) {
+        c.fillRect(54, 30 + k * 14, 56, 6);
+      }
+      c.fillStyle = '#d0d0d0'; c.fillRect(24, 20, 28, 26);
+    }],
+    ['bell', function (c) {
+      c.beginPath(); c.moveTo(38, 30); c.quadraticCurveTo(64, 10, 90, 30); c.lineTo(98, 86);
+      c.quadraticCurveTo(110, 98, 112, 102); c.lineTo(16, 102); c.quadraticCurveTo(18, 98, 30, 86);
+      c.closePath(); c.fill();
+      c.fillStyle = '#9a9a9a'; c.beginPath(); c.arc(64, 108, 9, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(48, 46, 6, 16, 0.2, 0, Math.PI * 2); c.fill();
+    }],
+    ['balloon', function (c) {
+      c.beginPath(); c.ellipse(64, 50, 34, 42, 0, 0, Math.PI * 2); c.fill();
+      poly(c, [[58, 90], [70, 90], [64, 98]]);
+      c.strokeStyle = '#a0a0a0'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(64, 98); c.quadraticCurveTo(56, 110, 66, 124); c.stroke();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(50, 34, 7, 12, -0.4, 0, Math.PI * 2); c.fill();
+    }],
+    ['coffin', function (c) {
+      poly(c, [[48, 8], [80, 8], [100, 36], [84, 120], [44, 120], [28, 36]]);
+      c.fillStyle = '#9a9a9a'; c.fillRect(60, 30, 8, 50); c.fillRect(46, 44, 36, 8);
+    }],
+    ['potion', function (c) {
+      c.beginPath(); c.arc(64, 78, 36, 0, Math.PI * 2); c.fill();
+      c.fillRect(54, 20, 20, 30);
+      c.fillStyle = '#9a9a9a'; c.fillRect(50, 14, 28, 10);
+      c.fillStyle = '#c8c8c8'; c.beginPath(); c.arc(64, 84, 26, 0, Math.PI); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.arc(52, 66, 6, 0, Math.PI * 2); c.fill();
+    }],
+    ['eye', function (c) {
+      c.beginPath(); c.arc(64, 64, 44, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#b0b0b0'; c.lineWidth = 2;
+      for (var k = 0; k < 6; k++) {
+        var a = k * 1.1;
+        c.beginPath(); c.moveTo(64 + Math.cos(a) * 44, 64 + Math.sin(a) * 44);
+        c.quadraticCurveTo(64 + Math.cos(a + 0.3) * 30, 64 + Math.sin(a + 0.3) * 30,
+                           64 + Math.cos(a) * 24, 64 + Math.sin(a) * 24); c.stroke();
+      }
+      c.fillStyle = '#7a7a7a'; c.beginPath(); c.arc(64, 64, 20, 0, Math.PI * 2); c.fill();
+      punch(c, function () { c.beginPath(); c.arc(64, 64, 9, 0, Math.PI * 2); c.fill(); });
+    }],
+    ['web', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 3;
+      for (var k = 0; k < 8; k++) {
+        var a = k * Math.PI / 4;
+        bar(c, 64, 64, 64 + Math.cos(a) * 56, 64 + Math.sin(a) * 56, 3);
+      }
+      for (var r = 14; r <= 56; r += 14) {
+        c.beginPath();
+        for (k = 0; k <= 8; k++) {
+          var b = k * Math.PI / 4;
+          var px = 64 + Math.cos(b) * r, py = 64 + Math.sin(b) * r;
+          if (k === 0) c.moveTo(px, py); else c.quadraticCurveTo(64 + Math.cos(b - 0.39) * r * 0.82,
+                                                                 64 + Math.sin(b - 0.39) * r * 0.82, px, py);
+        }
+        c.stroke();
+      }
+    }],
+    ['tombstone', function (c) {
+      c.beginPath(); c.moveTo(30, 120); c.lineTo(30, 50); c.arc(64, 50, 34, Math.PI, 0); c.lineTo(98, 120);
+      c.closePath(); c.fill();
+      c.fillStyle = '#9a9a9a';
+      c.font = 'bold 22px Georgia, serif'; c.textAlign = 'center'; c.fillText('RIP', 64, 66);
+      c.fillRect(44, 80, 40, 4); c.fillRect(48, 92, 32, 4);
+    }],
+    ['hand', function (c) {
+      c.fillRect(46, 70, 36, 50);
+      c.beginPath(); c.ellipse(64, 66, 22, 16, 0, 0, Math.PI * 2); c.fill();
+      [[46, 30, -0.25], [56, 20, -0.08], [68, 20, 0.08], [80, 30, 0.25]].forEach(function (f) {
+        c.save(); c.translate(f[0], f[1] + 20); c.rotate(f[2]); c.fillRect(-5, -24, 10, 34); c.restore();
+      });
+      c.save(); c.translate(36, 70); c.rotate(-0.9); c.fillRect(-5, -20, 10, 24); c.restore();
+      c.fillStyle = '#9a9a9a'; c.fillRect(46, 104, 36, 4);
+    }],
+    ['ticket', function (c) {
+      c.fillRect(14, 36, 100, 56);
+      punch(c, function () {
+        c.beginPath(); c.arc(14, 64, 10, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(114, 64, 10, 0, Math.PI * 2); c.fill();
+        for (var y = 40; y < 90; y += 10) c.fillRect(82, y, 3, 5);
+      });
+      c.fillStyle = '#8a8a8a';
+      c.font = 'bold 16px Verdana, sans-serif'; c.textAlign = 'center'; c.fillText('ADMIT', 48, 60);
+      c.fillText('ONE', 48, 80);
+    }],
+    ['mask', function (c) {
+      c.beginPath(); c.ellipse(64, 60, 40, 46, 0, 0, Math.PI * 2); c.fill();
+      punch(c, function () {
+        c.beginPath(); c.ellipse(48, 52, 9, 6, 0.3, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(80, 52, 9, 6, -0.3, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.moveTo(44, 82); c.quadraticCurveTo(64, 70, 84, 82);
+        c.quadraticCurveTo(64, 92, 44, 82); c.fill();
+      });
+    }],
+    ['gift', function (c) {
+      c.fillRect(22, 50, 84, 66);
+      c.fillStyle = '#c8c8c8'; c.fillRect(16, 40, 96, 16);
+      c.fillStyle = '#8a8a8a'; c.fillRect(56, 40, 16, 76);
+      c.beginPath(); c.ellipse(46, 30, 18, 10, 0.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(82, 30, 18, 10, -0.4, 0, Math.PI * 2); c.fill();
+    }],
+    ['ornament', function (c) {
+      c.beginPath(); c.arc(64, 72, 42, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#a0a0a0'; c.fillRect(52, 20, 24, 14);
+      c.strokeStyle = '#a0a0a0'; c.lineWidth = 4;
+      c.beginPath(); c.arc(64, 16, 8, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = '#c8c8c8'; c.fillRect(22, 64, 84, 12);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(46, 54, 8, 14, -0.5, 0, Math.PI * 2); c.fill();
+    }],
+    ['candycane', function (c) {
+      c.strokeStyle = '#ffffff'; c.lineWidth = 18; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(56, 118); c.lineTo(56, 44); c.arc(76, 44, 20, Math.PI, 0); c.stroke();
+      c.strokeStyle = '#9a9a9a'; c.lineWidth = 6;
+      for (var y = 60; y < 118; y += 18) bar(c, 47, y + 8, 65, y - 4, 6);
+    }],
+    ['gingerbread', function (c) {
+      c.beginPath(); c.arc(64, 28, 20, 0, Math.PI * 2); c.fill();
+      poly(c, [[44, 46], [84, 46], [112, 60], [104, 74], [84, 68], [90, 112], [74, 118], [64, 92],
+               [54, 118], [38, 112], [44, 68], [24, 74], [16, 60]]);
+      c.fillStyle = '#ffffff';
+      [[58, 26], [70, 26], [64, 60], [64, 74]].forEach(function (q) { dot(c, q[0], q[1], 3.5); });
+    }],
+    ['holly', function (c) {
+      function leaf(rot) {
+        c.save(); c.translate(64, 64); c.rotate(rot);
+        c.beginPath(); c.moveTo(0, 0);
+        c.bezierCurveTo(10, -8, 14, -30, 6, -50); c.lineTo(0, -56);
+        c.bezierCurveTo(-14, -30, -10, -8, 0, 0); c.fill();
+        c.restore();
+      }
+      leaf(-0.7); leaf(0.7);
+      c.fillStyle = '#9a9a9a';
+      dot(c, 56, 72, 9); dot(c, 72, 72, 9); dot(c, 64, 84, 9);
+    }],
+    ['snowman', function (c) {
+      c.beginPath(); c.arc(64, 90, 30, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(64, 46, 22, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#7a7a7a'; c.fillRect(44, 16, 40, 8); c.fillRect(50, 0, 28, 18);
+      punch(c, function () {
+        dot(c, 56, 42, 3.5); dot(c, 72, 42, 3.5);
+        dot(c, 64, 82, 4); dot(c, 64, 96, 4);
+      });
+    }],
+    ['stocking', function (c) {
+      c.beginPath(); c.moveTo(40, 14); c.lineTo(78, 14); c.lineTo(78, 70);
+      c.quadraticCurveTo(108, 78, 108, 98); c.quadraticCurveTo(104, 120, 74, 116);
+      c.quadraticCurveTo(46, 112, 40, 88); c.closePath(); c.fill();
+      c.fillStyle = '#ffffff'; c.fillRect(36, 10, 46, 20);
+    }],
+    ['tree', function (c) {
+      poly(c, [[64, 8], [96, 50], [82, 50], [106, 84], [88, 84], [114, 114], [14, 114], [40, 84],
+               [22, 84], [46, 50], [32, 50]]);
+      c.fillStyle = '#8a8a8a'; c.fillRect(56, 112, 16, 12);
+    }],
+    ['mitten', function (c) {
+      c.beginPath(); c.moveTo(42, 112); c.lineTo(42, 46); c.quadraticCurveTo(42, 14, 70, 14);
+      c.quadraticCurveTo(96, 14, 96, 46); c.lineTo(96, 112); c.closePath(); c.fill();
+      c.beginPath(); c.ellipse(34, 64, 10, 18, -0.5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff'; c.fillRect(38, 98, 62, 18);
+    }],
+    ['aurora', function (c) {
+      var shades = ['#ffffff', '#d0d0d0', '#a0a0a0'];
+      for (var k = 0; k < 3; k++) {
+        var g = c.createLinearGradient(0, 30, 0, 110);
+        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, shades[k]);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = g;
+        c.beginPath(); c.moveTo(8, 100 - k * 10);
+        c.bezierCurveTo(40, 40 - k * 10, 80, 120 - k * 10, 120, 50 - k * 10);
+        c.lineTo(120, 70 - k * 10);
+        c.bezierCurveTo(80, 140 - k * 10, 40, 60 - k * 10, 8, 120 - k * 10); c.closePath(); c.fill();
+      }
+    }],
+    ['icicle', function (c) {
+      poly(c, [[34, 10], [94, 10], [76, 26], [70, 120], [60, 30], [50, 22]]);
+      c.fillStyle = '#ffffff'; poly(c, [[60, 14], [70, 14], [66, 70]]);
+    }],
+    // ---- St. Patrick's particle shapes
+    // Lucky Lep's brogue, side on: heel, sole, a toe that curls up, a buckle
+    ['sp_brogue', function (c) {
+      c.beginPath();
+      c.moveTo(16, 92); c.lineTo(16, 52); c.quadraticCurveTo(30, 44, 50, 50);
+      c.lineTo(66, 62); c.quadraticCurveTo(92, 66, 104, 56);
+      c.quadraticCurveTo(116, 46, 112, 34); c.quadraticCurveTo(124, 40, 120, 60);
+      c.quadraticCurveTo(116, 84, 96, 92); c.closePath(); c.fill();
+      c.fillRect(16, 92, 26, 12);
+      c.fillStyle = '#9a9a9a'; c.fillRect(12, 88, 100, 6);
+      c.fillStyle = '#d8d8d8'; c.fillRect(54, 60, 18, 16);
+      punch(c, function () { c.fillRect(58, 64, 10, 8); });
+    }],
+    // a leprechaun's gold piece: a beaded rim and a shamrock struck in it
+    ['sp_coin', function (c) {
+      dot(c, 64, 64, 46);
+      c.fillStyle = '#a8a8a8'; dot(c, 64, 64, 37);
+      c.fillStyle = '#ffffff';
+      for (var k = 0; k < 3; k++) {
+        var a = -Math.PI / 2 + k * Math.PI * 2 / 3;
+        dot(c, 64 + Math.cos(a) * 13, 62 + Math.sin(a) * 13, 11);
+      }
+      bar(c, 64, 64, 72, 92, 5);
+      for (var b = 0; b < 16; b++) {
+        var t = b / 16 * Math.PI * 2;
+        dot(c, 64 + Math.cos(t) * 41.5, 64 + Math.sin(t) * 41.5, 2.2);
+      }
+      c.beginPath(); c.ellipse(46, 40, 9, 4, -0.7, 0, Math.PI * 2); c.fill();
+    }],
+    // a little rainbow in its own colours (tint it white to keep them)
+    ['sp_rainbow', function (c) {
+      var bands = ['#ff4a5a', '#ff9a3a', '#ffe14a', '#4fd06a', '#3a9cff', '#8a5ae8'];
+      c.lineWidth = 8;
+      for (var k = 0; k < bands.length; k++) {
+        c.strokeStyle = bands[k];
+        c.beginPath(); c.arc(64, 92, 50 - k * 7.5, Math.PI, 0); c.stroke();
+      }
+      c.fillStyle = '#ffffff';
+      [[16, 92], [112, 92]].forEach(function (q) {
+        dot(c, q[0], q[1] + 4, 11); dot(c, q[0] - 9, q[1] + 8, 8); dot(c, q[0] + 9, q[1] + 8, 8);
+      });
+    }],
+    // a fat raindrop with a glint
+    ['sp_raindrop', function (c) {
+      c.beginPath(); c.moveTo(64, 10);
+      c.bezierCurveTo(70, 40, 96, 64, 96, 86); c.bezierCurveTo(96, 106, 82, 118, 64, 118);
+      c.bezierCurveTo(46, 118, 32, 106, 32, 86); c.bezierCurveTo(32, 64, 58, 40, 64, 10); c.fill();
+      c.fillStyle = '#c8c8c8'; dot(c, 64, 92, 18);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(50, 84, 5, 11, 0.3, 0, Math.PI * 2); c.fill();
+    }],
+    // a puffy cartoon cloud, shaded underneath
+    ['sp_cloud', function (c) {
+      dot(c, 40, 72, 22); dot(c, 64, 58, 28); dot(c, 90, 68, 22); dot(c, 104, 82, 14);
+      dot(c, 24, 84, 13); c.fillRect(24, 76, 82, 20);
+      c.fillStyle = '#bcbcbc';
+      c.beginPath(); c.ellipse(64, 94, 40, 6, 0, 0, Math.PI * 2); c.fill();
+    }],
+    ['sp_triskele', function (c) {
+      // the triple spiral: three arms curling out of one middle
+      c.strokeStyle = '#ffffff'; c.lineWidth = 9; c.lineCap = 'round';
+      for (var arm = 0; arm < 3; arm++) {
+        var base = arm * Math.PI * 2 / 3;
+        c.beginPath();
+        for (var t = 0; t <= 1.0001; t += 0.03) {
+          var a = base + t * Math.PI * 2.6, rr = 52 * (0.12 + t * 0.5);
+          var ox = 64 + Math.cos(base) * 22, oy = 64 + Math.sin(base) * 22;
+          c[t === 0 ? 'moveTo' : 'lineTo'](ox + Math.cos(a + Math.PI) * rr * 0.9,
+                                           oy + Math.sin(a + Math.PI) * rr * 0.9);
+        }
+        c.stroke();
+      }
+    }],
+    // @@ sp26 particles go above this line @@
+
+    // @@ stpatricks particles go above this line @@
+
+    // ---- Easter particle shapes
+    // @@ ea24 particles go above this line @@
+
+    // @@ ea25 particles go above this line @@
+
+    // @@ ea26 particles go above this line @@
+
+    // @@ easter particles go above this line @@
+
+    // ---- Fourth of July particle shapes
+    ['jl_pennant', function (c) {
+      c.fillStyle = '#9a9a9a'; c.fillRect(8, 18, 112, 6);
+      c.fillStyle = '#ffffff'; poly(c, [[18, 24], [110, 24], [64, 116]]);
+      c.fillStyle = '#c8c8c8'; poly(c, [[40, 24], [88, 24], [64, 70]]);
+      c.fillStyle = '#ffffff'; dot(c, 64, 42, 7);
+    }],
+    ['jl_ant', function (c) {
+      c.beginPath(); c.ellipse(34, 64, 16, 13, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(62, 64, 11, 10, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(90, 64, 14, 12, 0, 0, Math.PI * 2); c.fill();
+      [44, 62, 80].forEach(function (x, i) {
+        bar(c, x - 6, 64, x - 14 + i * 6, 34, 4); bar(c, x - 6, 64, x - 14 + i * 6, 94, 4);
+      });
+      bar(c, 100, 56, 118, 36, 3); bar(c, 100, 72, 118, 92, 3);
+    }],
+    ['jl_burger', function (c) {
+      c.beginPath(); c.moveTo(14, 60); c.bezierCurveTo(14, 18, 114, 18, 114, 60); c.closePath(); c.fill();
+      c.fillStyle = '#7a7a7a'; c.fillRect(10, 62, 108, 18);
+      c.fillStyle = '#d8d8d8'; poly(c, [[12, 80], [116, 80], [108, 90], [96, 82], [84, 92], [70, 82],
+                                         [56, 92], [42, 82], [28, 92], [16, 84]]);
+      c.fillStyle = '#ffffff'; c.fillRect(16, 90, 96, 18);
+      c.fillStyle = '#e0e0e0'; [34, 54, 74, 92].forEach(function (x) { dot(c, x, 38, 3); });
+    }],
+    ['jl_hotdog', function (c) {
+      c.beginPath(); c.ellipse(64, 74, 54, 20, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#8a8a8a'; c.beginPath(); c.ellipse(64, 60, 58, 11, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(16, 58);
+      for (var x = 16; x <= 112; x += 12) c.lineTo(x, (x / 12) % 2 ? 52 : 64);
+      c.stroke();
+    }],
+    // @@ jl25 particles go above this line @@
+
+    // @@ jl26 particles go above this line @@
+
+    // @@ july4 particles go above this line @@
+
+    // ---- Christmas particle shapes
+    ['xm_peppermint', function (c) {
+      // a wrapped peppermint: the swirled disc, a cellophane twist each side
+      c.fillStyle = '#d8d8d8';
+      poly(c, [[30, 64], [8, 46], [12, 64], [8, 82]]);
+      poly(c, [[98, 64], [120, 46], [116, 64], [120, 82]]);
+      c.fillStyle = '#ffffff'; dot(c, 64, 64, 36);
+      c.fillStyle = '#9a9a9a';
+      for (var k = 0; k < 6; k++) {
+        var a0 = k * Math.PI / 3;
+        c.beginPath(); c.moveTo(64, 64);
+        for (var t = 0; t <= 1.0001; t += 0.1) c.lineTo(64 + Math.cos(a0 + t) * (4 + t * 30), 64 + Math.sin(a0 + t) * (4 + t * 30));
+        for (t = 1; t >= -0.0001; t -= 0.1) c.lineTo(64 + Math.cos(a0 + 0.45 + t) * (4 + t * 30), 64 + Math.sin(a0 + 0.45 + t) * (4 + t * 30));
+        c.closePath(); c.fill();
+      }
+    }],
+    ['xm_birch', function (c) {
+      // a birch switch: a fan of bare twigs, a red ribbon round the handle
+      c.strokeStyle = '#ffffff'; c.lineCap = 'round';
+      for (var k = 0; k < 6; k++) {
+        var a = -0.5 + k * 0.2;
+        c.lineWidth = 5 - (k % 2);
+        c.beginPath(); c.moveTo(64, 116); c.quadraticCurveTo(64 + a * 30, 70, 64 + a * 90, 10); c.stroke();
+      }
+      c.fillStyle = '#9a9a9a';
+      for (k = 0; k < 14; k++) c.fillRect(48 + (k * 37) % 34, 20 + (k * 53) % 70, 5, 2);
+      c.fillStyle = '#7a7a7a'; c.fillRect(54, 92, 20, 12);
+    }],
+    // @@ christmas particles go above this line @@
+
+    ['_end', function () {}]
   ];
 
   var ATLAS_ROWS = Math.ceil(SHAPE_CELLS.length / ATLAS_COLS);
@@ -797,6 +1307,21 @@
       }
       this.spawn({ p: position, v: [0, 1.2, 0], life: 0.8, size: radius * 0.5, grow: 2.2,
         gravity: 0.6, blend: 'add', shape: 'puff', colors: ['#ffb347', '#ff7a1a', '#6b2a00'] });
+    } else if (kind === 'confetti') {
+      // a balloon animal popping: shreds of rubber, confetti and streamers
+      var spread = options.radius || 6;
+      for (i = 0; i < 34; i++) {
+        ang = Math.random() * Math.PI * 2;
+        speed = 4 + Math.random() * spread * 1.4;
+        this.spawn({ p: position, v: [Math.cos(ang) * speed, 5 + Math.random() * 11,
+                                      Math.sin(ang) * speed],
+          life: 1.0 + Math.random() * 0.8, size: 0.28 + Math.random() * 0.26,
+          grow: 0, gravity: -14, spin: 10, blend: 'normal',
+          shape: i % 3 ? 'confetti' : 'streamer',
+          colors: ['#ff3b4e', '#ffd36a', '#3cc8ff', '#7dff9a', '#ff5ad1'] });
+      }
+      this.spawn({ p: position, v: [0, 0, 0], life: 0.22, size: spread * 0.35, grow: 2.2,
+        gravity: 0, spin: 0, blend: 'add', shape: 'ring', colors: ['#fff3b0'] });
     } else if (kind === 'soul') {
       // a soul leaving a Hollow Harvester kill, rising before it goes
       for (i = 0; i < 6; i++) {

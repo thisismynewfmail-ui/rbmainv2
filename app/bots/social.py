@@ -223,7 +223,7 @@ def write_sessions(rows: Sequence[Dict[str, Any]]) -> None:
         stats.append((row["uid"], row["world"], row.get("kills", 0),
                       row.get("deaths", 0), row.get("wins", 0),
                       row.get("rounds", 0), row.get("playtime", 0),
-                      row.get("score", 0)))
+                      row.get("score", 0), row.get("zkills", 0)))
         if row.get("visit"):
             visits.append((row["world"], row["uid"], row.get("at", now),
                            row.get("playtime", 0)))
@@ -232,11 +232,12 @@ def write_sessions(rows: Sequence[Dict[str, Any]]) -> None:
     with db.transaction() as conn:
         conn.executemany(
             "INSERT INTO game_stats(user_id,world_id,kills,deaths,wins,rounds,"
-            "playtime,score) VALUES(?,?,?,?,?,?,?,?)"
+            "playtime,score,zkills) VALUES(?,?,?,?,?,?,?,?,?)"
             " ON CONFLICT(user_id,world_id) DO UPDATE SET"
             " kills=kills+excluded.kills, deaths=deaths+excluded.deaths,"
             " wins=wins+excluded.wins, rounds=rounds+excluded.rounds,"
-            " playtime=playtime+excluded.playtime, score=score+excluded.score",
+            " playtime=playtime+excluded.playtime, score=score+excluded.score,"
+            " zkills=zkills+excluded.zkills",
             stats)
         if visits:
             conn.executemany("INSERT INTO world_visits(world_id,user_id,created_at,"

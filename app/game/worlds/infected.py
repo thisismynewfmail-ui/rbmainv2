@@ -530,6 +530,9 @@ class Horde:
         speed = z.speed * speed_mult
         if moment < z.enraged_until:
             speed *= 1.3
+        if z.data.get("slow_until", 0.0) > moment:
+            # chilled, tangled, sticky with icing (app/game/gear.py)
+            speed *= z.data.get("slow", 1.0)
         if self.world.wave_overdue():
             speed *= 1.15
         if target is not None and attack:

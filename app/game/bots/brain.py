@@ -39,6 +39,7 @@ import time
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..gear import GEAR_KINDS
 from ..instance import EYE_HEIGHT, GRAVITY, JUMP_SPEED, WALK_SPEED, now
 from . import body as body_module
 from . import nav as nav_module
@@ -325,6 +326,10 @@ class Brain:
             p.anim = "idle"
             return
         crawl = 0.27 if p.extra.get("downed") else 1.0
+        # slowed, rooted, frozen, a toad (app/game/gear.py): the body obeys
+        gear = self.instance.gear
+        crawl *= gear.move_scale(p)
+        can_jump = gear.can_jump(p)
         if not still and self.waypoints:
             target = self.waypoints[0]
             dx, dz = target[0] - p.pos[0], target[2] - p.pos[2]
@@ -336,7 +341,7 @@ class Brain:
             else:
                 ux, uz = dx / dist, dz / dist
                 rise = target[1] - p.pos[1]
-                if not self.airborne and rise > STEP + 0.1 and dist < 7.0:
+                if not self.airborne and rise > STEP + 0.1 and dist < 7.0 and can_jump:
                     # a ledge: jump for it, the way a player would; the body
                     # meets the ledge's side until it has risen above it
                     self.airborne = True
@@ -348,14 +353,14 @@ class Brain:
                 moving = True
         # strafing in a fight, never off an edge
         if self.target is not None and moment < self.strafe_until and not still:
-            side = self.strafe * self.speed * 0.55
+            side = self.strafe * self.speed * 0.55 * crawl
             sx, sz = math.cos(self.aim_yaw) * side, -math.sin(self.aim_yaw) * side
             if self._walkable(p.pos[0] + sx * dt, p.pos[1], p.pos[2] + sz * dt):
                 vx += sx
                 vz += sz
                 moving = True
         if not moving and not self.airborne and moment < self.jumpy_until \
-                and self.rng.random() < dt * 1.6:
+                and can_jump and self.rng.random() < dt * 1.6:
             self.airborne = True
             self.vy = JUMP_SPEED
         # the body: gravity, walls, ledges, floors and ceilings
@@ -839,8 +844,9 @@ class Brain:
         for slot, stats, item_id in self._weapons():
             kind = stats.get("kind")
             reach = float(stats.get("range", 200))
-            if kind == "support":
-                continue
+            if kind == "support" or stats.get("held_item") or \
+                    (kind in GEAR_KINDS and kind not in ("beam", "cone")):
+                continue           # held items and abilities: see _use_gear
             if distance > reach * 0.9:
                 continue
             if kind == "melee":
@@ -853,12 +859,16 @@ class Brain:
                 fit = max(0.0, 1.0 - distance / 40.0)
             elif kind == "projectile":
                 fit = 0.7 if 18 < distance < 90 else 0.15
+            elif kind == "cone":
+                fit = 0.85 if distance < reach * 0.85 else 0.0
+            elif kind == "beam":
+                fit = 0.75 if distance < reach * 0.8 else 0.1
             elif reach >= 600:
                 fit = 0.9 if distance > 60 else 0.2
             else:
                 fit = 0.65
             ammo = self.p.ammo[slot] + self.p.reserve[slot]
-            if kind != "melee" and ammo <= 0:
+            if kind not in ("melee", "beam") and ammo <= 0:
                 continue
             score = fit * (0.6 + self.t(prefs.get(item_id, ""), 0.3))
             if score > best_score:
@@ -889,10 +899,58 @@ class Brain:
             chase = distance < 22 or self.runner.carries_our_flag(self, tgt)
         if chase:
             self.go(feet(tgt), "enemy%d" % tgt.pid)
+        if near and self._use_gear(moment, tgt, distance):
+            return
         if near:
             self._aim_and_fire(moment, tgt, distance, stats, kind, interval)
         else:
             self._abstract_fire(moment, tgt, distance, stats, interval)
+
+    def _use_gear(self, moment: float, tgt, distance: float) -> bool:
+        """Now and then, the held items and abilities a person would use in
+        a fight: eat when hurt, summon or plant a turret when it starts,
+        call a strike on somebody standing still.  True when it used one
+        (the weapon comes back out on the next think)."""
+        p = self.p
+        if moment < getattr(self, "gear_at", 0.0):
+            return False
+        self.gear_at = moment + self.rng.uniform(1.5, 4.0)
+        gear = self.instance.gear
+        if not gear.can_fire(p) or gear.has(p, "silence"):
+            return False
+        for slot, stats, item_id in self._weapons():
+            kind = stats.get("kind")
+            if kind not in ("consume", "ability", "deploy", "summon", "strike"):
+                continue
+            if gear.cooldown_left(p, item_id) > 0:
+                continue
+            want = False
+            if kind == "consume":
+                want = p.health < 55
+            elif kind == "summon":
+                want = distance < 60 and self.rng.random() < 0.5 + self.skill * 0.3
+            elif kind == "deploy":
+                want = distance < 30 and self.rng.random() < 0.4
+            elif kind == "strike":
+                want = distance < float(stats.get("range", 120)) * 0.8 and \
+                    math.hypot(tgt.vel[0], tgt.vel[2]) < 8.0
+            elif kind == "ability":
+                ability = stats.get("ability") or {}
+                want = ("rally" in ability or "shield" in ability or "cloak" in ability
+                        or "radar" in ability) and self.rng.random() < 0.35
+            if not want:
+                continue
+            if p.slot != slot or p.stowed:
+                self.instance.handle_slot(p, {"i": slot})
+            p.next_fire = 0.0
+            eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
+            aim = [tgt.pos[0], tgt.pos[1] + 1.0, tgt.pos[2]]
+            yaw, pitch = _angle_to(aim[0] - eye[0], aim[1] - eye[1], aim[2] - eye[2])
+            cos_p = math.cos(pitch)
+            self.instance.handle_fire(p, {"d": [math.sin(yaw) * cos_p, math.sin(pitch),
+                                                math.cos(yaw) * cos_p]})
+            return True
+        return False
 
     def _aim_and_fire(self, moment, tgt, distance, stats, kind, interval) -> None:
         p = self.p
@@ -922,7 +980,7 @@ class Brain:
         if distance > reach:
             return
         ammo = p.ammo[p.slot]
-        if kind not in ("melee",) and ammo <= 0:
+        if kind not in ("melee", "beam") and ammo <= 0:
             self.instance.handle_reload(p)
             return
         # the error shrinks while tracking and grows with how fast the target
@@ -976,7 +1034,9 @@ class Brain:
         accuracy = (0.12 + self.skill * 0.42) * falloff
         damage = dps * interval * accuracy * self.rng.uniform(0.4, 1.4)
         slot = self.p.slot
-        if kind not in ("melee",) and self.p.ammo[slot] > 0:
+        if kind == "beam":
+            pass
+        elif kind not in ("melee",) and self.p.ammo[slot] > 0:
             shots = max(1, int(float(stats.get("rpm", 240)) / 60.0 * interval))
             self.p.ammo[slot] = max(0, self.p.ammo[slot] - shots)
         elif kind not in ("melee",):

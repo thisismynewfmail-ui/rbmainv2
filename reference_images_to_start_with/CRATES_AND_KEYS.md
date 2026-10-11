@@ -316,3 +316,116 @@ runs. Earned ones stay forever. See
 - [ ] Bot unboxing picks it up automatically (`crates.bot_unbox`) and bots
       price crate items at crate + key (`bots/factory.py`)
 - [ ] Opened end to end, on desktop and phone width, with sound on and off
+
+---
+
+## 6. Holiday events: the back catalogue (`app/models/holidays/`)
+
+Blockhaven has kept six holidays every year since it opened on New Year's Day
+2022, and every one of those thirty events is in the catalogue with its own
+crate, key, cosmetics, weapons, Unusual effects, opening show and badge:
+
+| Holiday | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|
+| New Year (`newyear.py`) | First Light | Glitterfall Gala | Rocket Rally | Neon Midnight | Crystal Countdown |
+| St. Patrick's (`stpatricks.py`) | Lucky Lep's Lockbox | Rainbow's End | Blarney Hoard | Emerald Jamboree | Leprechaun's Last Laugh |
+| Easter (`easter.py`) | Eggstravaganza | Bunny Burrow | The Great Hatch | Choc-o-Lock | Faberge Gala |
+| Fourth of July (`july4.py`) | Star-Spangled Blast | Backyard Cookout | Liberty Lights | Rocket's Red Glare | America 250 |
+| Halloween (`halloween.py`) | Graveyard Shift | Witching Hour | Manor of Whispers | Big Top Terror | Hallowed Harvest |
+| Christmas (`christmas.py`) | Frostfall | Gingerbread Junction | North Pole Express | Krampusnacht | Aurora Winterlight |
+
+`holidays.EVENTS` is all of them in date order, which is also the order of
+their series numbers. `crates.py` turns each one into a series (crate, key,
+loot, odds, Unusual effects), an event (dates, hero, theme), offers (its
+bundles) and a badge; nothing else needs to know how an event is built. An
+event whose dates have passed is in the **archive**: its crate and key are
+still sold, in its holiday's collection. One whose dates have not come yet
+(Christmas 2026 today) is shown as a teaser.
+
+### 6.1 Writing an event
+
+One `kit.Event` per year, filled by decorated builder functions that return
+part lists (the same parts the avatar renderer draws everywhere):
+
+```python
+EV = Event("christmas_2025", "christmas", 2025, "xm25",
+           name="Krampusnacht", title="Krampusnacht", blurb="...", tagline="...",
+           starts="2025-12-01", ends="2025-12-30",
+           colors={"accent": "#d8252e", "deep": "#140808", "glow": "#ff7a3a"},
+           family_effects=["ember_storm", "raven_feathers"],
+           hero_effect="krampuslauf", stencil="stencil_xm25")
+
+@EV.crate_model("Krampus Basket", "...", hinge=[0, 0.40, -0.62], keyhole=[0, 0.18, 0.66])
+def _(): ...            # lid parts carry lid=1, the keyhole plate lock=1
+@EV.key_model("Horn Key", "...", shoulder=-0.36)
+def _(): ...            # bow at -X, shaft along X, bit at +X
+@EV.hat("krampus_horns", "Horns of the Krampus", "...", "legendary")
+def _(): ...            # also back, hairdo; face/shirt/pants/belt take data
+@EV.weapon("brimstone", "Brimstone Coal", "...", {stats}, [attrs], rarity=..., proj=lambda: [...])
+def _(): ...            # the held model; gear() for held items
+EV.effect(...); EV.opening(...); EV.award(...); EV.bundle(...)
+```
+
+Item ids come out as `<slot>_<code>_<key>` (`hat_xm25_krampus_horns`), prices
+from the rarity. Each event ships at least: a crate and key that are a real
+themed object (not a recoloured box), seven hats, two backs, two hairdos, two
+faces, a shirt, trousers and a belt, three weapons and one held item, two
+Unusual effects, an opening backdrop and an award. The kit's helpers (`dome`,
+`cap`, `band`, `ringband`, `straps`, `around`, `sides`, `gift_bow`,
+`pompom`, `buckle`, `at_frame`, `rod`, `shade`, `mix`) cover most shapes.
+
+### 6.2 Where things sit
+
+* **Hats**: origin at the top centre of the head; the head hangs below
+  (male x ±0.73, y -1.28..0, z ±0.70, the rounded corners reach ~0.89 from
+  the axis). `dome()` refuses a crown too flat to clear the corners; use
+  `cap()` and a `ringband()` for low ones.
+* **Hair**: head units, centred on the middle of the head, so the head spans
+  ±0.5 on every axis. Start from a hair shell (`hairshort`, `hairmid`,
+  `hairbob`, `hairlong`) and add pieces outside it.
+* **Backs**: the torso's back face is z = 0 and its top y ≈ 0.99; the head is
+  at y 1.10..2.38. `node tools/bodyframe.js back` prints every body box in
+  any slot's coordinates.
+* **Held items**: origin at the grip, the business end towards +Z.
+* `place(mesh, at, scale, colour, anchor=..., r=...)` scales a mesh by its
+  native size and puts the native point `anchor` on `at`; every mesh's native
+  size and centre is in `modeling.SHAPES` (regenerate it with
+  `python3 tools/shapes_table.py` after adding one to `shapes.js`).
+* Euler order is YXZ. `at_frame` turns a whole sub-model only for parts with
+  no turn of their own, so build turnable sub-models from axis-aligned parts or
+  with `rod(p0, p1, ...)`, which works out its own turn.
+* A decal prints on the part's +Z face (or all round with `wrap=True`); for a
+  top face use a sticker part (`a=-1`) turned to face up.
+
+### 6.3 Weapons
+
+Weapons are data: a `kind` (melee, hitscan, projectile, beam, cone, strike,
+deploy, summon, ability, consume) plus modifiers, all read by
+`app/game/gear.py` (its docstring is the vocabulary). Every event weapon is a
+combination no other weapon uses; `python3 tools/geartests.py` fires all of
+them in both worlds. Projectiles do their damage through `splash`.
+
+### 6.4 Shared files
+
+Painters go in `static/js/engine/textures.js`, particle shapes in
+`particles.js`, meshes in `shapes.js` and opening backdrops (`.theme-<name>`)
+in `static/css/market.css`, each above its holiday's
+`@@ <holiday> ... go above this line @@` anchor. Name everything with the
+holiday's prefix (`sp_`, `ea_`, `jl_`, `xm_`) or the event's code.
+
+### 6.5 Checking an event
+
+```sh
+python3 -c "import app.models.holidays as h; print(len(h.BY_ID['christmas_2025'].items))"
+python3 tools/decalcheck.py christmas_2025          # every decal has a painter
+node tools/fitcheck.js --event christmas_2025      # nothing shows through, both builds
+python3 tools/geartests.py                          # every event weapon fires
+python3 tools/checkeffects.py                       # effects and their shapes
+node tools/itemsheet.js --event christmas_2025 --views worn --out sheet.png
+node tools/cratestage.js --series christmas_2025 --at 1.5,4.3 --out stage/
+```
+
+`itemsheet.js` and `cratestage.js` drive a running dev server
+(`bash tools/devserver.sh restart --port 8972 --no-https --no-bots`) in
+headless Chromium. Look at every sheet: a part floating free, sunk into the
+head or too small to read is a bug even when every tool passes.

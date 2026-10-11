@@ -24,6 +24,8 @@
     this.net = new Net(this.world.id, BH.instance);
     this.players = {};
     this.projectiles = {};
+    // statuses, cooldowns, summons, turrets, strikes (game/gear.js)
+    this.gear = global.Gear ? new Gear(this) : null;
     this.tracers = [];
     this.state = {};
     this.local = {
@@ -627,6 +629,7 @@
     var net = this.net;
 
     net.on('welcome', function (msg) { self.onWelcome(msg); });
+    if (this.gear) this.gear.bind(net);
     net.on('join', function (msg) {
       self.addPlayer(msg.player);
       self.hud.toast(msg.player.name + ' joined');
@@ -737,8 +740,9 @@
     net.on('fx', function (msg) { self.onEffect(msg); });
     net.on('proj', function (msg) {
       self.projectiles[msg.id] = { p: msg.p.slice(), v: msg.v.slice(), k: msg.k || 'rocket',
-                                   born: performance.now() };
-      self.audio.play(msg.k === 'pumpkin' ? 'swing' : 'rocket', { volume: self.volumeAt(msg.p) });
+                                   born: performance.now(), w: msg.w || '', o: msg.o };
+      var thrown = msg.w && (msg.k !== 'rocket');
+      self.audio.play(msg.k === 'pumpkin' || thrown ? 'swing' : 'rocket', { volume: self.volumeAt(msg.p) });
     });
     // the Hollow Harvester's banked souls
     net.on('souls', function (msg) {
@@ -851,13 +855,39 @@
 
     net.on('close', function (info) {
       if (info && info.byUs) return;
-      if (self.kicked) return;
+      if (self.kicked || self.closeHandled) return;
+      self.closeHandled = true;
       document.getElementById('loading').classList.remove('hide');
+      if (self.rejoin()) {
+        document.getElementById('load-msg').innerHTML =
+          '<b>' + (info && info.stalled ? 'The connection stalled.' : 'Lost the connection.') +
+          '</b><br>Rejoining your server&hellip;';
+        return;
+      }
       document.getElementById('load-msg').innerHTML =
         'Disconnected from the game host.<br>' +
         '<a href="/' + self.world.id + '" style="color:#ffd95e">Rejoin</a> &bull; ' +
         '<a href="/worlds" style="color:#ffd95e">World browser</a>';
     });
+  };
+
+  /* Back into the same server after the connection dropped or stalled: the
+     page reloads onto the instance it was in, which rebuilds everything
+     from a clean welcome.  Three tries in two minutes, then it stops and
+     offers the links instead of looping. */
+  Client.prototype.rejoin = function () {
+    var key = 'blockhaven.rejoins';
+    var now = Date.now();
+    var recent = [];
+    try { recent = JSON.parse(sessionStorage.getItem(key) || '[]'); } catch (e) { recent = []; }
+    recent = (recent || []).filter(function (t) { return now - t < 120000; });
+    if (recent.length >= 3) return false;
+    recent.push(now);
+    try { sessionStorage.setItem(key, JSON.stringify(recent)); } catch (e) { /* private mode */ }
+    var url = '/' + this.world.id;
+    if (this.instanceId) url += '?instance=' + encodeURIComponent(this.instanceId);
+    setTimeout(function () { window.location.replace(url); }, 1200);
+    return true;
   };
 
   Client.prototype.onWelcome = function (msg) {
@@ -896,6 +926,7 @@
     this.onState(this.state);
     var badge = document.getElementById('instance-badge');
     if (badge) badge.textContent = 'instance #' + msg.world.instance;
+    this.instanceId = msg.world.instance;
     if (this.pendingTycoonInit) {
       this.applyTycoonInit(this.pendingTycoonInit);
       this.pendingTycoonInit = null;
@@ -949,12 +980,13 @@
       player.alive = !!row[9];
     }
     if (this.survival) this.survival.onSnapshot(msg);
+    if (this.gear) this.gear.onSnapshot(msg);
     var live = {};
     (msg.pr || []).forEach(function (row) {
       live[row[0]] = true;
       this.projectiles[row[0]] = this.projectiles[row[0]] || { born: performance.now() };
       this.projectiles[row[0]].p = [row[1], row[2], row[3]];
-      if (row[4]) this.projectiles[row[0]].k = row[4];
+      if (row[4] && !this.projectiles[row[0]].k) this.projectiles[row[0]].k = row[4];
     }, this);
     Object.keys(this.projectiles).forEach(function (id) {
       if (!live[id]) delete this.projectiles[id];
@@ -965,6 +997,7 @@
     if (!state) return;
     this.state = state;
     if (this.survival) this.survival.onState(state);
+    if (this.gear) this.gear.onState(state);
     this.hud.updateObjective(state);
     if (this.hud.scoreboardOpen) this.hud.renderScoreboard(state.scoreboard);
     if (state.flags && this.extras) this.extras.setFlags(state.flags);
@@ -1009,7 +1042,7 @@
                                         shooter.pos[1] + Avatar.EYE_HEIGHT,
                                         shooter.pos[2]] : null);
       if (!origin) return;
-      this.spawnTracer(origin, msg.d, 400);
+      this.spawnTracer(origin, msg.d, 400, msg.c);
       this.particles.burst('muzzle', [origin[0] + msg.d[0] * 1.6,
                                       origin[1] + msg.d[1] * 1.6,
                                       origin[2] + msg.d[2] * 1.6]);
@@ -1023,6 +1056,11 @@
       if (msg.kind === 'pumpkin') {
         this.particles.burst('candy', msg.p, { radius: msg.r || 8 });
         this.audio.play('explode', { volume: this.volumeAt(msg.p) * 0.7 });
+      } else if (msg.kind === 'confetti') {
+        // a balloon animal going off: a bang, but a party one
+        this.particles.burst('confetti', msg.p, { radius: msg.r || 6 });
+        this.audio.play('pistol', { volume: this.volumeAt(msg.p) * 0.8 });
+        this.audio.play('explode', { volume: this.volumeAt(msg.p) * 0.4 });
       } else {
         this.particles.burst('explosion', msg.p, { radius: msg.r || 8 });
         this.audio.play('explode', { volume: this.volumeAt(msg.p) });
@@ -1040,6 +1078,8 @@
     } else if (msg.k === 'swing') {
       var player = this.players[msg.id];
       if (player) this.audio.play('swing', { volume: this.volumeAt(player.pos) });
+    } else if (msg.k === 'gone') {
+      delete this.projectiles[msg.id];
     }
   };
 
@@ -1091,7 +1131,11 @@
     if (now < this.nextFire || now < this.reloadUntil) return;
     var stats = this.weaponStats();
     var melee = stats.kind === 'melee';
-    if (!melee && stats.kind !== 'support' && this.ammo[this.slot] <= 0) {
+    var gear = this.gear;
+    if (gear && !gear.canFire(stats)) return;
+    var special = gear && gear.isGear(stats);
+    var noAmmo = special && (stats.kind !== 'cone' || !stats.mag);
+    if (!melee && !noAmmo && stats.kind !== 'support' && this.ammo[this.slot] <= 0) {
       this.net.send({ t: 'reload' });
       return;
     }
@@ -1100,6 +1144,10 @@
     var origin = [this.local.pos[0], this.local.pos[1] + Avatar.EYE_HEIGHT,
                   this.local.pos[2]];
     this.net.send({ t: 'fire', d: dir, o: origin });
+    if (special) {
+      gear.localFire(stats, origin, dir);
+      return;
+    }
     if (!melee && stats.kind !== 'support') {
       this.ammo[this.slot] = Math.max(0, this.ammo[this.slot] - 1);
       this.updateAmmoHud();
@@ -1108,7 +1156,7 @@
       this.particles.burst('muzzle', [origin[0] + dir[0] * 1.8,
                                       origin[1] + dir[1] * 1.8,
                                       origin[2] + dir[2] * 1.8]);
-      this.spawnTracer(origin, dir, stats.range || 200);
+      if (stats.kind !== 'projectile') this.spawnTracer(origin, dir, stats.range || 200, stats.tracer);
       var sound = stats.sound || 'pistol';
       this.audio.play(sound, { volume: 0.85 });
     } else if (melee) {
@@ -1125,7 +1173,7 @@
             Math.cos(this.local.yaw) * cp];
   };
 
-  Client.prototype.spawnTracer = function (origin, dir, maxRange) {
+  Client.prototype.spawnTracer = function (origin, dir, maxRange, colour) {
     var distance = this.physics
       ? this.physics.rayDistance(origin, dir, maxRange) : maxRange;
     // stop the tracer at the first player it would pass through
@@ -1144,7 +1192,8 @@
     // a tab in the background runs no frames to age these out, so keep only
     // the newest few rather than a pile to work through on the way back
     if (this.tracers.length >= 96) this.tracers.splice(0, this.tracers.length - 95);
-    this.tracers.push({ a: origin.slice(), b: end, t: 0 });
+    this.tracers.push({ a: origin.slice(), b: end, t: 0,
+                        c: colour ? GLX.mat.hexToRgb(colour) : null });
     if (distance < maxRange - 0.5) {
       this.particles.burst('impact', end);
     }
@@ -1206,8 +1255,11 @@
     var speed = this.constants.walk || 22;
     if (this.keys.sprint) speed *= 0.45;
     if (this.survival) speed *= this.survival.moveScale();
-    var forward = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0);
-    var strafe = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
+    var gear = this.gear;
+    if (gear) speed *= Math.max(0.0001, gear.moveScale());
+    var held = gear && !gear.canMove();
+    var forward = held ? 0 : (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0);
+    var strafe = held ? 0 : (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
     // forward is (sin yaw, cos yaw); screen-right is forward x up, which is
     // (-cos yaw, sin yaw).  Using its negative is what had A and D swapped.
     var sin = Math.sin(local.yaw), cos = Math.cos(local.yaw);
@@ -1226,12 +1278,12 @@
       local.vel[2] *= friction;
     }
     if (this.keys.jump && local.grounded &&
-        (!this.survival || this.survival.canJump())) {
+        (!this.survival || this.survival.canJump()) && (!gear || gear.canJump())) {
       local.vel[1] = this.constants.jump || 34;
       local.grounded = false;
       this.audio.play('jump', { volume: 0.35 });
     }
-    local.vel[1] -= (this.constants.gravity || 62) * dt;
+    local.vel[1] -= (this.constants.gravity || 62) * (gear ? gear.gravityScale() : 1) * dt;
     if (local.vel[1] < -140) local.vel[1] = -140;
 
     var result = this.physics.move(local, dt);
@@ -1345,6 +1397,7 @@
                                 player.avatar, dt)
       });
       if (self.survival) parts = self.survival.layDown(parts, player);
+      if (self.gear && player.bits) parts = self.gear.avatarParts(player, parts, time);
       parts.forEach(function (part) { renderer.push(part); });
       self.drawShadow(player.pos);
       var hat = (player.avatar.items || {}).hat;
@@ -1413,6 +1466,7 @@
     Object.keys(this.projectiles).forEach(function (id) {
       var proj = self.projectiles[id];
       if (!proj.p) return;
+      if (self.gear && self.gear.drawProjectile(proj, renderer, dt)) return;
       if (proj.k === 'pumpkin') {
         // a grinning pumpkin tumbling end over end, trailing sparks of candy
         var spin = ((performance.now() - (proj.born || 0)) / 1000) * 9;
@@ -1455,11 +1509,12 @@
       renderer.pushRaw('box',
         tracer.a[0] + dx * 0.5, tracer.a[1] + dy * 0.5, tracer.a[2] + dz * 0.5,
         pitch, yaw, 0, 0.09, 0.09, length,
-        [1, 0.93, 0.6], 0.7 * (1 - tracer.t / 0.09), 0, 2, 0.9, null);
+        tracer.c || [1, 0.93, 0.6], 0.7 * (1 - tracer.t / 0.09), 0, 2, 0.9, null);
     }
 
     if (this.extras) this.extras.draw(renderer, this.state, time, dt);
     if (this.survival) this.survival.draw(renderer, dt);
+    if (this.gear) this.gear.draw(renderer, dt, time);
     this.particles.update(dt);
     renderer.render();
     this.particles.draw(renderer);

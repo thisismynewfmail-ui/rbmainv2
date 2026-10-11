@@ -63,6 +63,19 @@ FAMILIES: Dict[str, Dict[str, str]] = {
              "wing_mesh": "wing"},
     "moon": {"face": "#1a0d26", "ribbon": "#ff8c1a", "wing": "#2a1838",
              "wing_mesh": "bat"},
+    # the other holidays (app/models/holidays/): New Year is struck on a clock
+    # face, St. Patrick's on a shamrock, Easter on an egg, the Fourth on a
+    # star, Christmas on a snowflake
+    "clock": {"face": "#0b1433", "ribbon": "#f2c230", "wing": "#fff3b0",
+              "wing_mesh": "wing"},
+    "clover": {"face": "#0e3a1c", "ribbon": "#2fa84f", "wing": "#d8f5c8",
+               "wing_mesh": "wing"},
+    "egg": {"face": "#3a2a5a", "ribbon": "#ff9ad8", "wing": "#fff3d8",
+            "wing_mesh": "wing"},
+    "spangle": {"face": "#0d2a6b", "ribbon": "#c4281c", "wing": "#f2f3f3",
+                "wing_mesh": "wing"},
+    "flake": {"face": "#0b2a46", "ribbon": "#c4281c", "wing": "#e8f8ff",
+              "wing_mesh": "wing"},
 }
 
 GAMES = {
@@ -211,6 +224,22 @@ BADGES_LIST: List[Dict[str, Any]] = [
            "em_pumpkin", "moon", "harvest crates", event="halloween"),
 ]
 
+# One badge for every other event (app/models/holidays/): earned by opening
+# its crates while it runs, and only then.
+def _event_badges() -> List[Dict[str, Any]]:
+    from . import holidays
+    out = []
+    for ev in holidays.EVENTS:
+        if not ev.badge:
+            continue
+        b = ev.badge
+        out.append(_badge(b["id"], b["name"], "event", b["id"], [1, 5, 15, 30, 60, 100],
+                          b["ranks"], b["description"], b["emblem"], b["family"],
+                          "%s crates" % ev.name, event=ev.id))
+    return out
+
+
+BADGES_LIST.extend(_event_badges())
 BADGES: Dict[str, Dict[str, Any]] = {b["id"]: b for b in BADGES_LIST}
 BY_STAT: Dict[str, List[Dict[str, Any]]] = {}
 for _b in BADGES_LIST:
@@ -529,6 +558,35 @@ def _build(badge: Dict[str, Any], level: int) -> List[Dict[str, Any]]:
         face_r = 0.36
     elif family == "star":
         parts.append(place("star", [0, -0.03, 0], [1.22, 1.22, 0.9], body, m="metal"))
+        face_r = 0.30
+        parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))
+    elif family == "clock":
+        parts.append(place("disc", [0, 0, 0], [1.04, 1.04, 0.85], body, m="metal"))
+        face_r = 0.38
+        parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))
+        # twelve hour marks round the rim
+        for k in range(12):
+            a = k * math.tau / 12
+            parts.append(part("box", [math.sin(a) * 0.46, math.cos(a) * 0.46, 0.07],
+                              [0.03, 0.08, 0.03], trim, r=[0, 0, -a], m="metal"))
+        parts.append(part("cyl", [0, 0.58, 0], [0.10, 0.10, 0.10], body, m="metal"))
+    elif family == "clover":
+        parts.append(place("shamrock", [0, 0.02, 0], [1.16, 1.16, 0.9], body, m="metal"))
+        face_r = 0.30
+        parts.append(place("disc", [0, 0.06, 0.045], [face_r * 2, face_r * 2, 0.5], face))
+    elif family == "egg":
+        parts.append(place("egg", [0, -0.62, 0], [0.92, 0.95, 0.42], body, anchor=[0, 0, 0],
+                           m="metal"))
+        face_r = 0.32
+        parts.append(place("disc", [0, -0.02, 0.18], [face_r * 2, face_r * 2.1, 0.5], face))
+    elif family == "spangle":
+        parts.append(place("star", [0, -0.03, 0], [1.22, 1.22, 0.9], body, m="metal"))
+        face_r = 0.30
+        parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))
+        for k, c in enumerate(("#c4281c", "#f2f3f3", "#c4281c")):
+            parts.append(part("box", [0, 0.20 - k * 0.07, 0.10], [0.62, 0.05, 0.02], c))
+    elif family == "flake":
+        parts.append(place("snowflake", [0, 0, 0], [1.20, 1.20, 1.4], body, m="metal"))
         face_r = 0.30
         parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))
     else:  # moon

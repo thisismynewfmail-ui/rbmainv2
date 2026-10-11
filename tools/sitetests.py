@@ -325,12 +325,10 @@ def run(host: str, port: int, tls: bool = False) -> int:
 
     print("\n== social features ==")
     post = client.api("/api/social/post", {"body": "hello from the site tests"})
-    check("social: posting works", post.get("ok"), post)
-    post_id = (post.get("post") or {}).get("id")
-    like = client.api("/api/social/post/like", {"id": post_id})
-    check("social: liking works", like.get("ok") and like.get("likes") == 1, like)
-    comment = client.api("/api/social/post/comment", {"id": post_id, "body": "nice"})
-    check("social: commenting works", comment.get("ok"), comment)
+    check("social: status posts are retired with the timeline", not post.get("ok"), post)
+    _status, home = client.get("/")
+    check("social: the home page has no timeline and no post box",
+          "Your timeline" not in home and 'id="post-form"' not in home)
     friend = client.api("/api/social/friend", {"action": "request",
                                                "username": "builderman_x"})
     check("social: a friend request is recorded",
@@ -380,10 +378,14 @@ def run(host: str, port: int, tls: bool = False) -> int:
               "follow up 3" in str(mine[0].get("subject", "")), mine[0])
         check("messages: the row counts what is unread",
               mine[0].get("unread", 0) >= 4, mine[0])
+        # (the API's list stops at eight people and the page's does not, and a
+        # dev database collects a new sender every run -- so count this
+        # sender's rows on the page rather than comparing the two lengths)
         status, threaded_html = other.get("/messages")
+        own_rows = threaded_html.count('<span class="msgwho">%s' % client_name)
         check("messages: the mailbox page shows that one row too",
-              threaded_html.count('class="msgrow') ==
-              len(threads), threaded_html.count('class="msgrow'))
+              own_rows == 1 and threaded_html.count('class="msgrow') >= len(threads),
+              (own_rows, threaded_html.count('class="msgrow'), len(threads)))
     check("messages: the unread counter moves",
           other.get_api("/api/social/counts").get("unread", 0) >= 1, counts)
     match = re.search(r'/messages/(\d+)', inbox_html)

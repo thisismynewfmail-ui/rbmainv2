@@ -745,35 +745,6 @@
     });
   }
 
-  // ------------------------------------------------------------------ posts
-  function bindPosts() {
-    var form = document.getElementById('post-form');
-    var body = document.getElementById('post-body');
-    var count = document.getElementById('post-count');
-    if (body && count) {
-      body.addEventListener('input', function () {
-        count.textContent = String(400 - body.value.length);
-      });
-    }
-    var submit = document.getElementById('post-submit');
-    if (submit) {
-      submit.addEventListener('click', function () {
-        var text = (body.value || '').trim();
-        if (!text) { Site.toast('Write something first.', 'bad'); return; }
-        submit.disabled = true;
-        Site.post('/api/social/post', { body: text }).then(function (res) {
-          submit.disabled = false;
-          if (!res.ok) { Site.toast(res.error, 'bad'); return; }
-          body.value = '';
-          if (count) count.textContent = '400';
-          Site.toast('Posted!');
-          setTimeout(function () { location.reload(); }, 350);
-        });
-      });
-    }
-    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); });
-  }
-
   document.addEventListener('click', function (event) {
     var peek = event.target.closest('[data-item-peek]');
     if (peek) {
@@ -1147,7 +1118,6 @@
     bindTheme();
     bindNav();
     bindDock();
-    bindPosts();
     bindFolds();
     bindAutocomplete();
     bindMessengerSwitch();

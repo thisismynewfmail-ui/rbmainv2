@@ -3,14 +3,14 @@
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <div class="row">
   <div class="col">
-    <!-- The Badge Inventory: every badge there is, earned ones in their
-         metal and the rest locked with how far there is to go.  Four slots
-         along the top are the four shown on your profile; drag one in (or
-         click it), drag it back out to take it down. -->
+    <!-- The Badge Inventory: every badge you have earned, in its metal (one
+         you have not unlocked yet is not shown at all).  Four slots along
+         the top are the four shown on your profile; drag one in (or click
+         it), drag it back out to take it down. -->
     <div class="panel" id="badges">
       <div class="panel-head navy">
         <span>&#127894; Badge Inventory</span>
-        <span class="head-links">{{ badge_count }} of {{ badge_total }} earned &bull; show {{ badge_slots }} on your profile</span>
+        <span class="head-links">{{ badge_count }} earned &bull; show {{ badge_slots }} on your profile</span>
       </div>
       <div class="panel-body">
         <p class="muted bi-intro">Drag a badge into a slot to show it on your profile, or just click it.
@@ -23,10 +23,16 @@
           </div>
           {% endfor %}
         </div>
+        {% if len(badge_games) > 1 %}
         <div class="bi-filter" id="badge-filter">
           <button type="button" class="btn small on" data-game="">All</button>
           {% for g in badge_games %}<button type="button" class="btn small" data-game="{{ g[0] }}">{{ g[1] }}</button>{% endfor %}
         </div>
+        {% endif %}
+        {% if not badge_collection %}
+        <p class="bi-empty muted">No badges yet. They turn up here as you earn them: play Blackout Relay
+          and Last Light, open crates, and join in while an event is on.</p>
+        {% endif %}
         <div class="bi-grid" id="badge-pool">
           {% for b in badge_collection %}
           <div class="bi-card tier-{{ b.tier }} {{ '' if b.earned else 'locked' }} {{ 'worn' if b.id == worn_badge else '' }}"

@@ -67,14 +67,6 @@
 .badge-pop.in { opacity: 1; transform: none; }
 .bp-stage { position: relative; height: 220px;
   background: radial-gradient(circle at 50% 42%, #3a5274, #121b29 70%); }
-.bp-stage::before { content: ""; position: absolute; left: 50%; top: 50%; width: 260px; height: 260px;
-  margin: -130px 0 0 -130px; pointer-events: none; opacity: .5;
-  background: conic-gradient(from 0deg, transparent 0 18deg, color-mix(in srgb, var(--glow) 40%, transparent) 26deg,
-    transparent 34deg 90deg, color-mix(in srgb, var(--glow) 30%, transparent) 100deg, transparent 110deg 180deg,
-    color-mix(in srgb, var(--glow) 40%, transparent) 190deg, transparent 200deg 270deg,
-    color-mix(in srgb, var(--glow) 30%, transparent) 280deg, transparent 290deg);
-  animation: bp-rays 16s linear infinite; }
-@keyframes bp-rays { to { transform: rotate(360deg); } }
 .bp-stage canvas { position: relative; display: block; width: 220px; height: 220px; margin: 0 auto;
   cursor: grab; touch-action: none; }
 .bp-stage canvas:active { cursor: grabbing; }
@@ -105,6 +97,8 @@
 
 /* ----------------------------------------------------- the Badge Inventory */
 .bi-intro { margin: 0 0 8px; }
+.bi-empty { margin: 6px 0 10px; padding: 10px; text-align: center; border: 1px dashed var(--line-soft, #c9d4e2);
+  border-radius: 6px; }
 .bi-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
 .bi-slot { position: relative; border-radius: 8px; border: 2px dashed var(--line); min-height: 128px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;

@@ -269,7 +269,7 @@
     if (live) live.textContent = 'live — ' + new Date().toLocaleTimeString();
     if (BZ.sub === 'stats') { drawWorldCards(); }
     if (BZ.sub === 'creation') { drawJob(); }
-    if (BZ.sub === 'llm') { drawLLMStatus(); }
+    if (BZ.sub === 'llm') { drawLLMStatus(); drawProfiles(); loadProfiles(); }
     if (BZ.sub === 'chatter' || BZ.sub === 'messages' || BZ.sub === 'friends') { drawFeeds(); }
     if (BZ.sub === 'presence') { drawCurve(); }
     if (BZ.sub === 'worlds') { drawWorldTable(); }
@@ -1301,7 +1301,7 @@
 
   // ============================================================ llm pane
   function llmPane() {
-    return '<div id="bz-llm-status"></div>' +
+    return profilesBox() + '<div id="bz-llm-status"></div>' +
       '<div class="bz-actions" style="margin:8px 0"><button class="btn small primary" type="button" data-bz="probe">Probe the endpoint now</button>' +
       '<button class="btn small" type="button" data-bz="template">View the chat template</button></div>' +
       '<div class="bz-grid2"><div><b>Try it</b><div class="field"><label>System message (optional)</label>' +
@@ -1310,6 +1310,66 @@
       '<button class="btn small go" type="button" data-bz="test">Send</button><div id="bz-test-out" style="margin-top:6px"></div></div>' +
       '<div><b>Queue by kind</b><div class="bz-status" id="bz-llm-queue"></div><b style="display:block;margin-top:8px">Recent requests</b>' +
       '<div class="bz-feed" id="bz-llm-recent"></div></div></div>';
+  }
+
+  /* Saved configurations: the whole tab -- endpoint, key, model, context,
+     sampling, reasoning effort and allowance -- under a name, loaded back in
+     one click.  The list is fetched when the tab opens. */
+  function profilesBox() {
+    return '<div class="bz-profiles" id="bz-profiles">' +
+      '<div class="bz-profiles-head"><b>Saved configurations</b>' +
+      '<span class="tiny muted">Everything on this tab, the API key included, under a name.</span></div>' +
+      '<div class="bz-profiles-row">' +
+      '<select id="bz-profile-pick" aria-label="Saved configuration"><option value="">Loading…</option></select>' +
+      '<button class="btn small primary" type="button" data-bz="profile-load">Load</button>' +
+      '<button class="btn small" type="button" data-bz="profile-delete">Delete</button>' +
+      '<span class="bz-profiles-sep"></span>' +
+      '<input type="text" id="bz-profile-name" maxlength="48" placeholder="Name, e.g. Local llama.cpp">' +
+      '<button class="btn small go" type="button" data-bz="profile-save">Save current as</button></div>' +
+      '<div class="tiny muted" id="bz-profile-about"></div></div>';
+  }
+
+  function effortLabel(value) {
+    var f = fieldOf('llm.reasoning_effort');
+    var hit = ((f && f.options) || []).filter(function (o) { return o[0] === value; })[0];
+    return hit ? String(hit[1]).split(':')[0] : (value || '?');
+  }
+
+  function drawProfiles(list) {
+    BZ.profiles = list || BZ.profiles || [];
+    var pick = el('bz-profile-pick');
+    if (!pick) return;
+    var keep = pick.value;
+    pick.innerHTML = BZ.profiles.length ? BZ.profiles.map(function (p) {
+      return '<option value="' + esc(p.name) + '">' + esc(p.name) + '</option>';
+    }).join('') : '<option value="">No saved configurations yet</option>';
+    if (keep && BZ.profiles.some(function (p) { return p.name === keep; })) pick.value = keep;
+    describeProfile();
+  }
+
+  function describeProfile() {
+    var about = el('bz-profile-about'), pick = el('bz-profile-pick');
+    if (!about || !pick) return;
+    var p = (BZ.profiles || []).filter(function (x) { return x.name === pick.value; })[0];
+    if (!p) { about.textContent = ''; return; }
+    about.innerHTML = [esc(p.base_url || '(no endpoint)'), esc(p.model || 'server default model'),
+                       esc(p.mode || 'auto') + ' format', num(p.context_limit) + ' token context',
+                       'effort ' + esc(effortLabel(p.reasoning_effort)) +
+                         (p.reasoning_tokens ? ' (+' + num(p.reasoning_tokens) + ')' : ''),
+                       p.has_key ? 'API key saved' : 'no API key',
+                       'saved ' + ago(p.saved_at) + (p.saved_by ? ' by ' + esc(p.saved_by) : '')].join(' • ');
+  }
+
+  function loadProfiles() {
+    Site.get('/api/admin/bots/llm/profiles').then(function (res) {
+      if (res.ok) drawProfiles(res.profiles);
+    });
+  }
+
+  function pendingLLM() {
+    var out = {};
+    Object.keys(BZ.dirty).forEach(function (k) { if (k.indexOf('llm.') === 0) out[k] = BZ.dirty[k]; });
+    return out;
   }
 
   /* What the model does before it answers, as far as this session knows. */
@@ -1507,6 +1567,52 @@
               drawJob();
             });
           });
+      } else if (action === 'profile-save') {
+        var name = (el('bz-profile-name').value || '').trim();
+        if (!name) { Site.toast('Give the configuration a name.', 'bad'); el('bz-profile-name').focus(); return; }
+        var exists = (BZ.profiles || []).some(function (p) { return p.name === name; });
+        (exists ? Site.confirm('Replace “' + name + '”?', 'The saved configuration of that name is overwritten ' +
+                               'with what this tab says now (unsaved edits included).', { confirm: 'Replace' })
+                : Promise.resolve(true)).then(function (ok) {
+          if (!ok) return;
+          Site.post('/api/admin/bots/llm/profiles/save', { name: name, pending: pendingLLM() }).then(function (res) {
+            if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+            el('bz-profile-name').value = '';
+            drawProfiles(res.profiles);
+            el('bz-profile-pick').value = res.profile.name;
+            describeProfile();
+            Site.toast('Saved “' + res.profile.name + '”.');
+          });
+        });
+      } else if (action === 'profile-load') {
+        var chosen = el('bz-profile-pick').value;
+        if (!chosen) { Site.toast('Pick a saved configuration first.', 'info'); return; }
+        var unsaved = Object.keys(pendingLLM()).length;
+        Site.confirm('Load “' + chosen + '”?', 'Every setting on this tab is replaced by the saved ones and the ' +
+                     'endpoint is probed again.' + (unsaved ? ' Your ' + unsaved + ' unsaved change' +
+                     (unsaved === 1 ? ' is' : 's are') + ' discarded.' : ''), { confirm: 'Load' }).then(function (ok) {
+          if (!ok) return;
+          Site.post('/api/admin/bots/llm/profiles/load', { name: chosen }).then(function (res) {
+            if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+            BZ.values = res.values;
+            BZ.dirty = {};
+            BZ.profiles = res.profiles;
+            Site.toast('Loaded “' + chosen + '”.');
+            loadSchema().then(function () { drawNav(); drawSub(); });
+          });
+        });
+      } else if (action === 'profile-delete') {
+        var victim = el('bz-profile-pick').value;
+        if (!victim) return;
+        Site.confirm('Delete “' + victim + '”?', 'Only the saved copy goes; the settings in force stay as they are.',
+                     { confirm: 'Delete', danger: true, tone: 'red' }).then(function (ok) {
+          if (!ok) return;
+          Site.post('/api/admin/bots/llm/profiles/delete', { name: victim }).then(function (res) {
+            if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+            drawProfiles(res.profiles);
+            Site.toast('Deleted “' + victim + '”.');
+          });
+        });
       } else if (action === 'probe') {
         t.disabled = true;
         Site.post('/api/admin/bots/llm/probe', {}).then(function (res) {
@@ -1596,6 +1702,7 @@
       if (t.id === 'bz-world') { BZ.table.world = t.value; BZ.table.page = 0; loadTable(); }
       else if (t.id === 'bz-tag') { BZ.table.tag = t.value; BZ.table.page = 0; loadTable(); }
       else if (t.id === 'bz-sort') { BZ.table.sort = t.value; BZ.table.page = 0; loadTable(); }
+      else if (t.id === 'bz-profile-pick') { describeProfile(); }
       else if (t.dataset.bzText && t.tagName === 'SELECT') { markDirty(t.dataset.bzText, t.value); }
     });
     // the drawer lives outside the panel's normal flow; its buttons too

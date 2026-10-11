@@ -135,6 +135,7 @@ def _apply_report(world_id: str, report: Dict[str, Any]) -> List[Dict[str, Any]]
         worlds.add_game_stats(
             user_id, world_id,
             kills=int(report.get("kills", 0)),
+            zkills=int(report.get("zkills", 0)),
             deaths=int(report.get("deaths", 0)),
             playtime=int(report.get("playtime", 0)),
             score=int(report.get("score", 0)))

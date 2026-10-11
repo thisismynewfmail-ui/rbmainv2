@@ -49,7 +49,8 @@ whether the model thinks anyway when asked not to, and if it does -- or any
 reply turns out to be all notes -- it gets the allowance too.  Notes are always taken out
 of the answer: ``<think>`` blocks, a block the template opened itself (only
 ``</think>`` appears), a block the allowance cut off, the separate
-``reasoning_content`` field and gpt-oss's analysis channel.
+``reasoning_content`` field, gpt-oss's analysis channel and Gemma's thinking
+channel (``<|channel|>thought`` ... ``<channel|>``, or opened by the template).
 """
 from __future__ import annotations
 
@@ -105,13 +106,19 @@ HINT_FIELDS = ("reasoning_effort", "chat_template_kwargs", "template_vars",
                "enable_thinking")
 EFFORT_SCALE = {effort: scale for effort, _label, scale in bot_config.REASONING_EFFORTS}
 
-# gpt-oss's harmony format: special tokens that sit inside one turn and so
-# must never end a completion
-HARMONY_INNER = {"<|start|>", "<|message|>", "<|channel|>", "<|constrain|>", "<|end|>"}
+# Formats that split one turn into channels -- gpt-oss's harmony
+# (``<|channel|>analysis<|message|>``) and Gemma's thinking channel
+# (``<|channel|>thought``, closed by ``<channel|>``): the special tokens that
+# sit inside a turn and so must never end a completion
+HARMONY_INNER = {"<|start|>", "<|message|>", "<|channel|>", "<|constrain|>", "<|end|>",
+                 "<|channel>", "<channel|>", "</channel>", "<|/channel|>",
+                 "<|end_of_channel|>", "<|channel_end|>"}
 
 SPECIAL_TOKEN_RE = re.compile(
     r"<\|[A-Za-z0-9_\-]{1,40}\|>|</s>|<(?:start|end)_of_turn>|\[/INST\]|"
-    r"<\|?eot_id\|?>|<\|endoftext\|>")
+    r"<\|?eot_id\|?>|<\|endoftext\|>|"
+    # Gemma's lopsided tokens: <|channel>, <channel|>, <|turn>, <turn|>
+    r"<\|[A-Za-z_]{2,20}>|<[A-Za-z_]{2,20}\|>")
 
 CALIBRATION_TEXT = (
     "yo anyone want to play burger tycoon later? i finally got the golden "
@@ -493,7 +500,7 @@ class Client:
             if self.info.get("eos"):
                 out.append(self.info["eos"])
             template = self.info.get("template") or ""
-            harmony = "<|channel|>" in template
+            harmony = "<|channel|>" in template or "<|channel>" in template
             for token in SPECIAL_TOKEN_RE.findall(template):
                 if not (harmony and token in HARMONY_INNER):
                     out.append(token)
@@ -669,8 +676,9 @@ class Client:
                 learned.get("opens") and result.get("finish") == "length"
                 and not _CLOSE_TAG.search(raw))
             answer, notes = split_reasoning(raw, bool(opened))
-            if _CLOSE_TAG.search(raw) and not _OPEN_TAG.search(raw) \
-                    and not result.get("opened"):
+            if not result.get("opened") and (
+                    (_CLOSE_TAG.search(raw) and not _OPEN_TAG.search(raw))
+                    or (_CHANNEL_CLOSE.search(raw) and not _CHANNEL_OPEN.search(raw))):
                 learned["opens"] = True
         answer = SPECIAL_TOKEN_RE.sub("", answer)
         for stop in self.local_stops():
@@ -1077,10 +1085,20 @@ def fold_system(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
 
 _OPEN_TAG = re.compile(r"<(?:think|thinking|reasoning)>", re.I)
-_OPENED_RE = re.compile(r"<(?:think|thinking|reasoning)>\s*$", re.I)
+# the prompt ends inside a thinking block or channel the template opened
+_OPENED_RE = re.compile(r"(?:<(?:think|thinking|reasoning)>|<\|channel\|?>\s*(?:thought|thoughts|"
+                        r"thinking|analysis|reasoning)\s*(?:<\|message\|>)?)\s*$", re.I)
 _CLOSE_TAG = re.compile(r"</(?:think|thinking|reasoning)>", re.I)
-_HARMONY_FINAL = re.compile(r"<\|channel\|>\s*final\s*(?:<\|constrain\|>[^<]*)?"
-                            r"<\|message\|>", re.I)
+# Channels.  A channel opens with ``<|channel|>`` (or Gemma's ``<|channel>``)
+# and its name -- analysis/thought/thinking/reasoning/commentary are notes,
+# final/answer/response are the reply -- and runs to the next channel, to a
+# close (Gemma's ``<channel|>`` and the like), or to harmony's ``<|end|>``.
+_CHANNEL_OPEN = re.compile(r"<\|channel\|?>[ \t]*([A-Za-z_]*)[ \t]*"
+                           r"(?:<\|constrain\|>[^<]*)?(?:<\|message\|>|\r?\n)?", re.I)
+_CHANNEL_CLOSE = re.compile(r"<channel\|>|<\|/channel\|?>|</channel>|<\|end_?of_?channel\|?>|"
+                            r"<\|channel_?end\|?>", re.I)
+_CHANNEL_END = re.compile(r"<\|end\|>(?:\s*<\|start\|>[ \t]*[A-Za-z_]*)?", re.I)
+_ANSWER_CHANNELS = {"final", "answer", "response", "reply", "text", "output"}
 # harmony with its special tokens dropped by the server: "analysisWe need
 # to...assistantfinalhey all"
 _HARMONY_BARE = re.compile(r"\s*analysis(?=[A-Z])")
@@ -1127,14 +1145,14 @@ def split_reasoning(raw: str, opened: bool = False) -> Tuple[str, str]:
     allowance ran out -- is notes to the end, and there is no answer."""
     text = raw or ""
     notes: List[str] = []
-    if "<|channel|>" in text:
-        final = None
-        for final in _HARMONY_FINAL.finditer(text):
-            pass
-        if final is None:
-            return "", text               # still in the analysis channel
-        notes.append(text[:final.start()])
-        text = text[final.end():]
+    if _CHANNEL_OPEN.search(text) or _CHANNEL_CLOSE.search(text):
+        think_close = _CLOSE_TAG.search(text)
+        channel_close = _CHANNEL_CLOSE.search(text)
+        if not (opened and think_close and (channel_close is None
+                                            or think_close.start() < channel_close.start())):
+            text, said = _split_channels(text, opened)
+            notes.append(said)
+            opened = False
     elif _HARMONY_BARE.match(text):
         cut = text.lower().rfind("assistantfinal")
         if cut < 0:
@@ -1157,6 +1175,39 @@ def split_reasoning(raw: str, opened: bool = False) -> Tuple[str, str]:
         notes.append(text[unfinished.start():])
         text = text[:unfinished.start()]
     return text, "".join(notes)
+
+
+def _split_channels(text: str, opened: bool = False) -> Tuple[str, str]:
+    """(answer, notes) of a reply written in channels.
+
+    Text ahead of the first marker is the answer -- unless the template
+    opened a thinking channel itself (``opened``), or the first marker is a
+    close, which says the same: then it is notes.  A thinking channel that
+    never closes (the allowance ran out) is notes to the end."""
+    answer: List[str] = []
+    notes: List[str] = []
+    first_open = _CHANNEL_OPEN.search(text)
+    first_close = _CHANNEL_CLOSE.search(text)
+    thinking = opened or (first_close is not None and (
+        first_open is None or first_close.start() < first_open.start()))
+    pos = 0
+    while pos <= len(text):
+        found = [m for m in (_CHANNEL_OPEN.search(text, pos), _CHANNEL_CLOSE.search(text, pos),
+                             _CHANNEL_END.search(text, pos) if thinking else None) if m]
+        if not found:
+            (notes if thinking else answer).append(text[pos:])
+            break
+        mark = min(found, key=lambda m: m.start())
+        (notes if thinking else answer).append(text[pos:mark.start()])
+        notes.append(mark.group(0))
+        if mark.re is _CHANNEL_OPEN:
+            thinking = (mark.group(1) or "").lower() not in _ANSWER_CHANNELS
+        else:
+            thinking = False
+        if mark.end() == pos:
+            break
+        pos = mark.end()
+    return "".join(answer), "".join(notes)
 
 
 def clean_output(text: str, opened: bool = False) -> str:

@@ -233,8 +233,10 @@ def _seed_demo_users() -> None:
         avatars.set_colors(uid, {part: rng.choice(palette)
                                  for part in catalog.BODY_PARTS})
         for world in worlds.all_worlds():
+            horde = world["id"] in worlds.HORDE_WORLDS
             worlds.add_game_stats(uid, world["id"],
-                                  kills=rng.randint(0, 90),
+                                  kills=0 if horde else rng.randint(0, 90),
+                                  zkills=rng.randint(0, 900) if horde else 0,
                                   deaths=rng.randint(0, 80),
                                   wins=rng.randint(0, 12),
                                   rounds=rng.randint(0, 30),

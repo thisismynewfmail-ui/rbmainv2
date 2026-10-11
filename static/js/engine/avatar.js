@@ -748,6 +748,25 @@
                       beltData.band, { k: 'hips' });
         }
       }
+      if (beltData.chain) {
+        /* A watch chain: a swag of links from the buckle across to the
+           right hip, and the watch hanging off the end of it.  Like the
+           pouches it stands off the front, clear of both builds' hips. */
+        var links = 8, front = hips[2] * 0.56;
+        for (var n = 0; n < links; n++) {
+          var t = (n + 0.5) / links;
+          placePelvis(hips[0] * (0.12 + 0.28 * t),
+                      y - band * (0.35 + 0.45 * t + 0.55 * Math.sin(Math.PI * t)), front,
+                      [band * 0.30, band * 0.18, band * 0.12], beltData.chain,
+                      { k: 'hips', m: 'metal' });
+        }
+        placePelvis(hips[0] * 0.42, y - band * 1.25, front + 0.01,
+                    [band * 1.05, hips[2] * 0.07, band * 1.05], beltData.chain,
+                    { k: 'hips', m: 'metal', t: 'cyl', rx: Math.PI / 2 });
+        placePelvis(hips[0] * 0.42, y - band * 1.25, front + 0.04,
+                    [band * 0.80, hips[2] * 0.02, band * 0.80], '#f4ecd8',
+                    { k: 'hips', t: 'cyl', rx: Math.PI / 2 });
+      }
     }
 
     /* Where a leg hangs from once the pelvis has moved.

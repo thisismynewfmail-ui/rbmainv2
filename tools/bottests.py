@@ -1021,6 +1021,15 @@ def test_llm() -> None:
           split("<|channel|>analysis<|message|>We need hi<|end|><|start|>assistant<|channel|>final"
                 "<|message|>hi all")[0] == "hi all"
           and split("<|channel|>analysis<|message|>We need to")[0] == "")
+    check("reasoning: Gemma's thinking channel, closed, cut off and template-opened",
+          split("<|channel|>thought\nThey said hi.<channel|>hey all")[0] == "hey all"
+          and split("<|channel>thought\nThey said hi.<channel|>hey")[0] == "hey"
+          and split("<|channel|>thought\nThey said hi.<|channel|>final\nyo")[0] == "yo"
+          and split("<|channel|>thought\nThey said")[0] == ""
+          and split("They said hi.<channel|>yo")[0] == "yo"
+          and split("They said hi.<channel|>yo", True)[0] == "yo")
+    check("reasoning: Gemma's channel tokens never leak into a line",
+          llm.SPECIAL_TOKEN_RE.sub("", "<|channel>x<channel|>hi<turn|>") == "xhi")
     check("reasoning: gpt-oss with its tokens dropped by the server",
           split("analysisWe need to greet.assistantfinalhey guys")[0] == "hey guys"
           and split("analysisWe need to greet")[0] == "")
@@ -1057,18 +1066,24 @@ def test_llm() -> None:
             server.shutdown()
             server.server_close()
 
-    for think in ("", "separate", "inline", "forced", "forced-inline", "harmony"):
+    for think in ("", "separate", "inline", "forced", "forced-inline", "harmony", "gemma"):
         for mode in ("chat", "completion"):
             client, results = run(think, mode)
             texts = [r["text"] for r in results]
             check("reasoning: %s model, %s mode: every chat line has an answer and no notes"
                   % (think or "plain", mode),
                   all(texts) and not any(leaked.search(t) for t in texts), texts)
-            if think in ("", "separate", "inline"):
+            if think in ("", "separate", "inline", "gemma"):
                 check("reasoning: %s model, %s mode: asked not to think, so no allowance"
                       % (think or "plain", mode),
                       all(r["max_tokens"] == spec["max_tokens"] and not r["thought"]
                           for r in results), [r["max_tokens"] for r in results])
+    for mode in ("chat", "completion"):
+        client, results = run("gemma", mode, **{"llm.reasoning_effort": "medium"})
+        texts = [r["text"] for r in results]
+        check("reasoning: Gemma thinking in its channel, %s mode: answers, notes kept apart" % mode,
+              all(texts) and not any(leaked.search(t) for t in texts)
+              and all(r["thought"] for r in results), [(r["text"], r["thought"]) for r in results])
     client, results = run("separate", "chat", strict=True)
     check("reasoning: a strict server is asked again without the switch, and remembers",
           len(client.learned.get("rejected") or ()) == 4 and all(r["text"] for r in results),
@@ -1105,6 +1120,21 @@ def test_llm() -> None:
     # The server applies its own reported stops whenever a chat request names
     # none; echoing them back can end a reply before its first word (a model
     # whose turn opens with one of them answers with nothing at all).
+    bot_config.reset("llm")
+    bot_config.save({"llm.api_key": "sk-local", "llm.reasoning_tokens": 2048})
+    saved = bot_config.save_llm_profile("Local box", {"llm.model": "gemma-local",
+                                                      "llm.api_key": "\u2022" * 8})
+    bot_config.save({"llm.model": "other", "llm.api_key": "", "llm.reasoning_tokens": 64})
+    bot_config.load_llm_profile("Local box")
+    listed = bot_config.llm_profiles()
+    check("profiles: a saved model configuration loads back exactly, key and unsaved edits included",
+          bot_config.get("llm.model") == "gemma-local" and bot_config.get("llm.api_key") == "sk-local"
+          and bot_config.get("llm.reasoning_tokens") == 2048 and saved["has_key"]
+          and listed and "llm.api_key" not in json.dumps(listed) and "sk-local" not in json.dumps(listed),
+          (bot_config.get("llm.model"), listed))
+    check("profiles: deleted ones are gone", bot_config.delete_llm_profile("Local box")
+          and not bot_config.llm_profiles())
+    bot_config.reset("llm")
     check("stops: chat requests do not echo the server's own stop strings",
           client.stops("chat") == [] and "</s>" in client.stops("completion"),
           (client.stops("chat"), client.stops("completion")))
