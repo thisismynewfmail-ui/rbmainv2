@@ -767,6 +767,21 @@
     // @@ july4 particles go above this line @@
 
     // ---- Christmas particle shapes
+    ['xm_peppermint', function (c) {
+      // a wrapped peppermint: the swirled disc, a cellophane twist each side
+      c.fillStyle = '#d8d8d8';
+      poly(c, [[30, 64], [8, 46], [12, 64], [8, 82]]);
+      poly(c, [[98, 64], [120, 46], [116, 64], [120, 82]]);
+      c.fillStyle = '#ffffff'; dot(c, 64, 64, 36);
+      c.fillStyle = '#9a9a9a';
+      for (var k = 0; k < 6; k++) {
+        var a0 = k * Math.PI / 3;
+        c.beginPath(); c.moveTo(64, 64);
+        for (var t = 0; t <= 1.0001; t += 0.1) c.lineTo(64 + Math.cos(a0 + t) * (4 + t * 30), 64 + Math.sin(a0 + t) * (4 + t * 30));
+        for (t = 1; t >= -0.0001; t -= 0.1) c.lineTo(64 + Math.cos(a0 + 0.45 + t) * (4 + t * 30), 64 + Math.sin(a0 + 0.45 + t) * (4 + t * 30));
+        c.closePath(); c.fill();
+      }
+    }],
     // @@ christmas particles go above this line @@
 
     ['_end', function () {}]

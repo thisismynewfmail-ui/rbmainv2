@@ -707,4 +707,562 @@ XM22.bundle("pair", "Globe and Key", 1, 1050, "One Snow Globe Crate, one Snowfla
 XM22.bundle("snow_day", "Snow Day", 3, 3000, "Three globes, three keys. Saves 300.")
 
 
-EVENTS = [XM22]
+# ============================================================ 2023
+GINGER = "#b5651d"
+GINGER_DARK = "#8a4a14"
+ICING = "#fdf6ec"
+MINT = "#3fbf8f"
+GUMDROPS = ["#e8344a", "#2fbf5f", "#f2c230", "#8a4fd6", "#ff8c1a", "#2f9fe8"]
+XM23 = Event(
+    "christmas_2023", "christmas", 2023, "xm23",
+    name="Gingerbread Junction", title="Gingerbread Junction",
+    blurb="For Christmas 2023 the bakers of Blockhaven built a railway out of "
+          "gingerbread: a viaduct of cookies, signal boxes iced like wedding cakes, "
+          "candy-cane points and a timetable written in piped sugar. The trains never "
+          "ran on time. Most of them were eaten before they left the station.",
+    tagline="Mind the gap. It's full of icing.",
+    starts="2023-12-01", ends="2023-12-30",
+    colors={"accent": CANDY_RED, "deep": "#2a0f0c", "glow": "#ffe3b8"},
+    family_effects=["starstruck", "bubbly", "candlelight_vigil", "sunbeam"],
+    hero_effect="gingerbread_parade", stencil="stencil_xm23")
+
+
+def _gumdrop(at, k, c, **kw):
+    """A sugared gumdrop: a tall dome with a coat of sugar."""
+    return place("hemi", at, [0.30 * k, 0.62 * k, 0.30 * k], c, anchor=[0, 0, 0],
+                 decal="xm_sugar", wrap=True, **kw)
+
+
+def _gingerman(at, k=1.0, r=None, **kw):
+    """An iced gingerbread man (the flat cookie, face to +Z), thicker than the
+    bare mesh so he reads as a biscuit and not a sticker."""
+    return place("gingerman", at, [k, k, k * 1.8], GINGER, r=r, decal="xm_gingerface", **kw)
+
+
+@XM23.crate_model("Cookie Tin Crate",
+                  "A peppermint-striped cookie tin with a mint-green lid, gumdrops round "
+                  "the rim, icing dripping down its sides and an iced gingerbread man "
+                  "lying on top -- and a signal on the side, set to go. Holds the "
+                  "Gingerbread Junction set. Needs a Peppermint Key.",
+                  hinge=[0, 0.30, -0.78], keyhole=[0, -0.20, 0.84])
+def _():
+    parts = [
+        # the tin: candy stripes, gold rims, a paper label round the back
+        part("cyl", [0, -0.16, 0], [1.50, 0.90, 1.50], CANDY_RED, decal="candy", wrap=True,
+             m="metal"),
+        part("cyl", [0, -0.60, 0], [1.56, 0.08, 1.56], GOLD, m="metal"),
+        part("cyl", [0, 0.27, 0], [1.54, 0.06, 1.54], GOLD, m="metal"),
+        part("rbox", [0, -0.16, -0.76], [0.74, 0.54, 0.05], ICING),
+        part("box", [0, -0.16, -0.79], [0.66, 0.50, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_xm23", a=-1),
+        # the lid: mint, a rim of icing, the gingerbread man asleep on top
+        part("cyl", [0, 0.38, 0], [1.60, 0.18, 1.60], MINT, m="metal", lid=1),
+        part("cyl", [0, 0.48, 0], [1.44, 0.04, 1.44], ICING, decal="xm_icingzag", wrap=True,
+             lid=1),
+        _gingerman([0, 0.52, 0.0], 1.05, r=[-PI / 2, 0.35, 0], lid=1),
+        # the lock: a gold plate framed in piped icing
+        part("rbox", [0, -0.20, 0.76], [0.38, 0.38, 0.10], GOLD, m="metal", decal="keyhole",
+             lock=1),
+        part("rbox", [0, -0.20, 0.745], [0.48, 0.48, 0.06], ICING, decal="xm_icingzag"),
+    ]
+    # gumdrops round the lid and icing dripping off its edge
+    for n in range(12):
+        a = n * TAU / 12 + 0.13
+        parts.append(_gumdrop([math.sin(a) * 0.70, 0.46, math.cos(a) * 0.70], 0.8,
+                              GUMDROPS[n % len(GUMDROPS)], lid=1))
+        if n % 2 == 0:
+            parts.append(place("teardrop", [math.sin(a + 0.26) * 0.79, 0.34, math.cos(a + 0.26) * 0.79],
+                               [0.12, 0.22, 0.12], ICING, anchor=[0, 1, 0], r=[PI, 0, 0], lid=1))
+    # a railway signal bolted to the side: post, arm raised, lamps lit
+    sx = 0.92
+    parts += [
+        part("cyl", [sx, 0.05, -0.10], [0.10, 1.40, 0.10], WHITE, decal="candy", wrap=True),
+        part("rbox", [sx, -0.66, -0.10], [0.28, 0.08, 0.28], GINGER_DARK, decal="xm_gingerbread"),
+        part("rbox", [sx + 0.20, 0.82, -0.10], [0.50, 0.12, 0.04], CANDY_RED, [0, 0, 0.6]),
+        part("rbox", [sx + 0.22, 0.84, -0.075], [0.08, 0.13, 0.01], ICING, [0, 0, 0.6]),
+        part("rbox", [sx, 0.64, -0.02], [0.16, 0.30, 0.10], "#2a2a30"),
+        part("sph", [sx, 0.70, 0.04], [0.09, 0.09, 0.04], "#6bff9a", m="neon"),
+        part("sph", [sx, 0.58, 0.04], [0.09, 0.09, 0.04], "#5a1010"),
+        part("sph", [sx, 0.80, -0.10], [0.12, 0.12, 0.12], GOLD, m="metal"),
+    ]
+    # two candy canes crossed against the front, and holly
+    parts += [
+        place("cane", [-0.62, -0.62, 0.58], [0.9, 0.95, 0.9], WHITE, anchor=[0, 0, 0],
+              r=[0.1, -0.6, 0.25], decal="candy", wrap=True),
+        place("cane", [-0.38, -0.62, 0.72], [0.9, 0.85, 0.9], WHITE, anchor=[0, 0, 0],
+              r=[0.1, PI - 0.3, -0.35], decal="candy", wrap=True),
+    ]
+    parts += _holly([0.46, 0.06, 0.66], 0.7, yaw=-0.3)
+    return parts
+
+
+@XM23.key_model("Peppermint Key",
+                "A key with a wrapped peppermint for a bow and a candy cane for a "
+                "shaft. Opens one Cookie Tin Crate. Tastes of mint, faintly, if you "
+                "are the kind of person who licks keys.", shoulder=-0.30)
+def _():
+    cello = "#e8f4ff"
+    return [
+        part("disc", [-0.66, 0, 0], [0.62, 0.62, 0.20], WHITE, decal="xm_swirl"),
+        place("cone", [-1.02, 0, 0], [0.16, 0.16, 0.16], cello, r=[0, 0, -PI / 2], m="glass",
+              a=0.55),
+        place("fan", [-1.08, 0, 0], [0.42, 0.40, 1.0], cello, anchor=[0, 0, 0],
+              r=[0, 0, PI / 2], m="glass", a=0.55),
+        place("cone", [-0.30, 0, 0], [0.16, 0.16, 0.16], cello, r=[0, 0, PI / 2], m="glass",
+              a=0.55),
+        part("cyl", [0.14, 0, 0], [0.10, 0.92, 0.10], WHITE, [0, 0, PI / 2], decal="candy",
+             wrap=True),
+        _gumdrop([0.40, -0.17, 0], 0.55, GUMDROPS[1], r=[PI, 0, 0]),
+        _gumdrop([0.55, -0.20, 0], 0.62, GUMDROPS[0], r=[PI, 0, 0]),
+        part("sph", [0.62, 0, 0], [0.12, 0.12, 0.12], CANDY_RED),
+    ]
+
+
+@XM23.hat("cookie_jar", "Cookie Jar Breakout",
+          "A glass jar of gingerbread on a gingham cloth, and one of the gingerbread "
+          "men has pushed the lid up and is halfway out. Run, run, as fast as you "
+          "can. He has nowhere to run. He is on your head.", "legendary")
+def _():
+    glass = "#eef8ff"
+    parts = [
+        cap(-0.24, 0.06, "#c4281c", decal="xm_gingham", wrap=True),
+        place("cask", [0, 0.06, 0], [1.50, 1.20, 1.50], glass, anchor=[0, 0, 0], m="glass",
+              a=0.22),
+        part("cyl", [0, 1.24, 0], [1.20, 0.10, 1.20], glass, m="glass", a=0.3),
+        # the cookies inside: rounds and gingerbread men, stacked anyhow
+        part("cyl", [0.05, 0.20, 0.05], [0.90, 0.10, 0.90], GINGER, [0.10, 0, 0.05],
+             decal="xm_gingerbread"),
+        part("cyl", [-0.10, 0.32, -0.10], [0.80, 0.10, 0.80], GINGER_DARK, [-0.12, 0, 0.1],
+             decal="xm_gingerbread"),
+        _gingerman([0.10, 0.62, 0.0], 0.62, r=[0.2, 0.3, 0.15]),
+        _gingerman([-0.24, 0.58, -0.12], 0.55, r=[-0.1, -0.5, -0.3]),
+        part("cyl", [0.24, 0.48, -0.26], [0.50, 0.08, 0.50], GINGER, [1.2, 0.4, 0],
+             decal="xm_gingerbread"),
+        # the lid, shoved up at one side
+        part("cyl", [-0.12, 1.40, 0], [1.28, 0.12, 1.28], CANDY_RED, [0, 0, 0.32], m="metal"),
+        part("sph", [-0.18, 1.52, 0], [0.22, 0.16, 0.22], GOLD, m="metal"),
+        # and the escapee, one leg over the rim
+        _gingerman([0.46, 1.52, 0.10], 0.80, r=[0, -0.25, -0.30]),
+        part("sph", [0.62, 1.26, 0.40], [0.06, 0.05, 0.06], GINGER_DARK),
+        part("sph", [0.40, 1.27, 0.52], [0.05, 0.04, 0.05], GINGER_DARK),
+    ]
+    return parts
+
+
+@XM23.hat("candy_antlers", "Candy Cane Antlers",
+          "Antlers made of candy canes on a red velvet band, with a bow on top. "
+          "Reindeer love them. Reindeer will follow you home.", "rare", hair="show")
+def _():
+    red = "#a8141c"
+    parts = [
+        part("rbox", [0, 0.05, 0], [1.22, 0.08, 0.18], red, decal="felt"),
+        part("rbox", [0.71, -0.03, 0], [0.32, 0.08, 0.18], red, [0, 0, -0.80], decal="felt"),
+        part("rbox", [-0.71, -0.03, 0], [0.32, 0.08, 0.18], red, [0, 0, 0.80], decal="felt"),
+        part("rbox", [0.81, -0.22, 0], [0.08, 0.30, 0.18], red),
+        part("rbox", [-0.81, -0.22, 0], [0.08, 0.30, 0.18], red),
+    ]
+    parts += gift_bow([0, 0.14, 0.04], 0.55, "#2a8a4a", tails=False)
+    for s in (1, -1):
+        turn = 0.0 if s > 0 else PI
+        parts += [
+            place("cane", [0.40 * s, 0.06, 0], [1.6, 1.25, 1.6], WHITE, anchor=[0, 0, 0],
+                  r=[0, turn, -0.28 * s], decal="candy", wrap=True),
+            place("cane", [0.52 * s, 0.50, 0], [1.4, 0.70, 1.4], WHITE, anchor=[0, 0, 0],
+                  r=[0, turn, -0.95 * s], decal="candy", wrap=True),
+            place("cane", [0.46 * s, 0.30, 0], [1.3, 0.55, 1.3], WHITE, anchor=[0, 0, 0],
+                  r=[0, PI - turn, 0.45 * s], decal="candy", wrap=True),
+            part("sph", [0.40 * s, 0.10, 0], [0.16, 0.16, 0.16], GOLD, m="metal"),
+        ]
+    return parts
+
+
+@XM23.hat("baker_toque", "Head Baker's Toque",
+          "A tall pleated chef's hat, dusted with flour, with a piping bag tucked in "
+          "the band and a wooden spoon for emergencies. Every cookie on the Junction "
+          "passed under this hat.", "rare")
+def _():
+    white = "#f8f6f0"
+    parts = [
+        band(0.06, 0.62, white, decal="linen", wrap=True),
+        place("pumpkin", [0, 0.24, 0], [2.0, 1.45, 1.94], white, anchor=[0, 0, 0],
+              decal="linen", wrap=True),
+        # flour, on everything
+        part("sph", [0.40, 0.20, 0.72], [0.30, 0.18, 0.06], "#ffffff", a=0.7),
+        part("sph", [-0.30, 0.90, 0.70], [0.24, 0.14, 0.06], "#ffffff", a=0.7),
+        # the piping bag, nozzle up, and the spoon
+        place("cone", [0.86, 0.36, -0.10], [0.36, 0.86, 0.36], "#f2c8d8", r=[0.1, 0, -0.30],
+              decal="xm_gingham", wrap=True),
+        place("cone", [1.00, 0.86, -0.06], [0.14, 0.22, 0.14], SILVER, r=[0.1, 0, -0.30],
+              m="metal"),
+        place("spiral", [1.06, 0.98, -0.05], [0.12, 0.12, 0.12], ICING),
+        part("cyl", [-0.86, 0.40, -0.20], [0.07, 0.96, 0.07], "#b07a44", [0.2, 0, 0.25]),
+        part("sph", [-0.98, 0.88, -0.10], [0.24, 0.32, 0.10], "#b07a44", [0.2, 0, 0.25]),
+    ]
+    return parts
+
+
+@XM23.hat("wrapped_peppermint", "Wrapped Peppermint",
+          "A peppermint the size of a dinner plate, still in its crinkly wrapper, "
+          "worn at an angle. It has been in somebody's coat pocket since 2019.",
+          "uncommon")
+def _():
+    cello = "#e8f4ff"
+    parts = [
+        part("disc", [0, 0.20, 0.02], [1.36, 1.36, 0.32], WHITE, [-PI / 2 + 0.22, 0, 0.10],
+             decal="xm_swirl"),
+        part("cyl", [0, 0.20, 0.02], [1.42, 0.36, 1.42], cello, [0.22, 0, 0.10], m="glass",
+             a=0.35),
+    ]
+    for s in (1, -1):
+        tip = rotate([0.74 * s, 0, 0], [0.22, 0, 0.10])
+        root = [tip[0], 0.20 + tip[1], 0.02 + tip[2]]
+        parts += [
+            place("cone", root, [0.24, 0.20, 0.24], cello, r=[0, 0, -PI / 2 * s + 0.10],
+                  m="glass", a=0.6),
+            place("fan", [root[0] + 0.08 * s, root[1] + 0.02 * s * 0.1, root[2]],
+                  [0.70, 0.62, 1.0], cello, anchor=[0, 0, 0],
+                  r=[0, 0, -PI / 2 * s + 0.10], m="glass", a=0.55),
+        ]
+    return parts
+
+
+@XM23.hat("gumdrop_crown", "Gumdrop Crown",
+          "A crown of sugared gumdrops on a band of piped icing. The red ones go "
+          "first. Nobody ever eats the green ones.", "uncommon")
+def _():
+    parts = [
+        ringband(-0.14, 0.22, ICING, decal="xm_icingzag", wrap=True),
+        ringband(-0.26, 0.06, GOLD, m="metal"),
+    ]
+    parts += around(9, 0.86, -0.05, lambda a, x, z: _gumdrop(
+        [x, -0.05, z * 0.97], 1.20, GUMDROPS[int(round(a / (TAU / 9))) % len(GUMDROPS)]))
+    parts += around(9, 0.92, -0.20, lambda a, x, z: place(
+        "teardrop", [x, -0.24, z * 0.97], [0.10, 0.20, 0.10], ICING, anchor=[0, 1, 0],
+        r=[PI, 0, 0]), start=TAU / 18)
+    parts.append(_gumdrop([0, -0.02, 0], 2.2, GUMDROPS[0]))
+    return parts
+
+
+@XM23.hat("ginger_hardhat", "Gingerbread Hard Hat",
+          "Regulation headwear for the Junction works crew: gingerbread, two coats of "
+          "icing, and a gumdrop on top that flashes when a train is coming. It has "
+          "stopped a falling candy cane. Just the one.", "uncommon")
+def _():
+    shell = dome(-0.30, 0.80, GINGER, t="capcrown", decal="xm_gingerbread", wrap=True)
+    w = shell["s"][0]
+    return [
+        shell,
+        place("brim", [0, -0.30, 0], [w + 0.34, 0.9, w + 0.30], GINGER_DARK, anchor=[0, 0, 0],
+              decal="xm_gingerbread", wrap=True),
+        place("peak", [0, -0.24, 0], [w, 1.6, w * 1.1], GINGER_DARK, anchor=[0, 0, 0]),
+        ringband(-0.12, 0.14, ICING, decal="xm_icingzag", wrap=True),
+        part("rbox", [0, 0.44, 0], [0.18, 0.10, 1.30], ICING, [0, 0, 0]),
+        part("cyl", [0, 0.50, 0], [0.34, 0.06, 0.34], "#2a2a30"),
+        _gumdrop([0, 0.52, 0], 1.10, "#ff8c1a", m="neon"),
+    ]
+
+
+@XM23.hat("level_crossing", "Level Crossing",
+          "A candy-cane crossbuck on a headband, two gumdrop lamps blinking either "
+          "side. Anyone walking into you has been warned.", "rare", hair="show")
+def _():
+    red = "#2a2a30"
+    parts = [
+        part("rbox", [0, 0.05, 0], [1.22, 0.08, 0.18], red),
+        part("rbox", [0.71, -0.03, 0], [0.32, 0.08, 0.18], red, [0, 0, -0.80]),
+        part("rbox", [-0.71, -0.03, 0], [0.32, 0.08, 0.18], red, [0, 0, 0.80]),
+        part("rbox", [0.81, -0.22, 0], [0.08, 0.30, 0.18], red),
+        part("rbox", [-0.81, -0.22, 0], [0.08, 0.30, 0.18], red),
+        part("cyl", [0, 0.50, 0], [0.10, 0.92, 0.10], WHITE, decal="candy", wrap=True),
+        part("rbox", [0, 1.00, 0.04], [1.30, 0.20, 0.06], WHITE, [0, 0, 0.62], decal="candy"),
+        part("rbox", [0, 1.00, 0.10], [1.30, 0.20, 0.06], WHITE, [0, 0, -0.62], decal="candy"),
+        part("sph", [0, 1.00, 0.14], [0.12, 0.12, 0.06], GOLD, m="metal"),
+        part("rbox", [0, 0.56, 0.02], [0.92, 0.08, 0.08], "#2a2a30"),
+    ]
+    for s in (1, -1):
+        parts += [
+            part("cyl", [0.42 * s, 0.56, 0.06], [0.26, 0.10, 0.26], "#2a2a30", [PI / 2, 0, 0]),
+            part("sph", [0.42 * s, 0.56, 0.12], [0.20, 0.20, 0.10], "#ff2a3a", m="neon"),
+            place("hemi", [0.42 * s, 0.64, 0.12], [0.30, 0.30, 0.20], "#2a2a30", anchor=[0, 0, 0],
+                  r=[0.6, 0, 0]),
+        ]
+    return parts
+
+
+@XM23.back("candy_cane_bundle", "Candy Cane Bundle",
+           "Five candy canes as tall as you are, tied together with a green bow and "
+           "carried home over your shoulder. Do not stand too close to anyone with a "
+           "sweet tooth.", "uncommon")
+def _():
+    parts = []
+    for n, (x, h, turn, lean) in enumerate(((-0.30, 2.0, 0.0, 0.10), (-0.10, 2.3, PI, 0.0),
+                                            (0.12, 2.15, 0.0, -0.06), (0.30, 1.9, PI, -0.12),
+                                            (0.02, 1.75, 0.0, 0.04))):
+        parts.append(place("cane", [x, -0.90, -0.42 - (n % 2) * 0.10], [1.8, h / 1.02, 1.8],
+                           WHITE, anchor=[0, 0, 0], r=[0.08, turn, lean], decal="candy",
+                           wrap=True))
+    parts += [
+        part("cyl", [0, -0.30, -0.46], [0.86, 0.12, 0.40], "#2a8a4a"),
+        part("cyl", [0, 0.50, -0.46], [0.86, 0.12, 0.40], "#2a8a4a"),
+        *straps("#2a8a4a", 0.34, 0.12),
+        part("rbox", [0, 0.50, -0.20], [0.70, 0.14, 0.10], "#2a8a4a"),
+    ]
+    parts += gift_bow([0, 0.50, -0.70], 0.80, "#2a8a4a", yaw=PI)
+    return parts
+
+
+@XM23.back("oven_tray", "Fresh From the Oven",
+           "A baking tray of gingerbread men still warm from the oven, worn on your "
+           "back to cool, with the oven glove and the rolling pin. Somebody always "
+           "takes one when you are not looking.", "rare")
+def _():
+    tray = "#b9c0c8"
+    parts = [
+        part("rbox", [0, 0.10, -0.24], [1.40, 1.70, 0.06], tray, [-0.08, 0, 0], m="metal"),
+        part("rbox", [0, 0.10, -0.28], [1.48, 1.78, 0.04], shade(tray, 0.85), [-0.08, 0, 0],
+             m="metal"),
+        *straps("#5a3a22", 0.34, 0.12),
+        # the rolling pin through the top straps
+        part("cyl", [0, 1.02, -0.40], [0.20, 1.40, 0.20], "#d8a868", [0, 0, PI / 2],
+             decal="planks", wrap=True),
+        part("cyl", [0.84, 1.02, -0.40], [0.10, 0.30, 0.10], "#a8784a", [0, 0, PI / 2]),
+        part("cyl", [-0.84, 1.02, -0.40], [0.10, 0.30, 0.10], "#a8784a", [0, 0, PI / 2]),
+        # the oven glove, hung on the corner
+        place("mitten", [0.78, -0.20, -0.34], [0.80, 0.72, 1.4], "#c4281c", r=[0, PI, 0.3],
+              decal="xm_quilt"),
+    ]
+    for n, (x, y, turn) in enumerate(((-0.38, 0.52, 0.1), (0.36, 0.56, -0.1), (-0.40, -0.18, -0.08),
+                                      (0.34, -0.20, 0.12), (0.0, 0.16, 0.0))):
+        z = -0.32 - (y + 0.10) * 0.08
+        parts.append(_gingerman([x, y + 0.06, z], 0.62, r=[0.08, PI, turn]))
+    for n, (x, h) in enumerate(((-0.30, 0.34), (0.20, 0.42), (0.0, 0.28))):
+        parts.append(place("teardrop", [x, 1.14 + n * 0.12, -0.50], [0.14, h, 0.14], "#ffffff",
+                           a=0.35))
+    return parts
+
+
+@XM23.hairdo("piped_icing", "Piped Icing",
+             "Hair piped on like royal icing: a big rosette on top and a scatter of "
+             "sprinkles. Do not stand near the oven.", "rare")
+def _():
+    c = "#fff2e0"
+    parts = [place("hairmid", [0, 0, 0], [1.04, 1.04, 1.04], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True),
+             place("spiral", [0, 0.50, -0.02], [0.78, 0.46, 0.78], c),
+             place("spiral", [0, 0.68, -0.02], [0.56, 0.34, 0.56], c),
+             place("teardrop", [0, 0.86, -0.02], [0.30, 0.34, 0.30], c),
+             part("sph", [0, 0.50, -0.02], [0.82, 0.30, 0.82], c)]
+    for n in range(14):
+        a = n * 2.39996
+        rr = 0.18 + (n % 4) * 0.10
+        parts.append(part("rbox", [math.sin(a) * rr, 0.53 + (0.3 - rr) * 0.4, math.cos(a) * rr],
+                          [0.10, 0.03, 0.03], GUMDROPS[n % len(GUMDROPS)], [0.3, a * 1.7, 0.2]))
+    return parts
+
+
+@XM23.hairdo("licorice_twists", "Licorice Twists",
+             "Two long red licorice twists for pigtails, tied off with gumdrops. "
+             "Chewier than they look.", "uncommon")
+def _():
+    c = "#5a2a1a"
+    parts = [place("hairmid", [0, 0, 0], [1.03, 1.03, 1.03], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for s in (1, -1):
+        parts += [
+            _gumdrop([0.50 * s, -0.10, -0.18], 0.55, GUMDROPS[1 if s > 0 else 2], r=[PI, 0, 0]),
+            part("cyl", [0.54 * s, -0.56, -0.20], [0.17, 0.90, 0.17], "#c4182a", [0.08, 0, 0.06 * s],
+                 decal="xm_licorice", wrap=True),
+            part("sph", [0.57 * s, -1.02, -0.22], [0.17, 0.12, 0.17], "#c4182a"),
+        ]
+    return parts
+
+
+XM23.face("iced_smile", "Iced Smile",
+          "Two dots, a squiggle and a pair of pink cheeks, piped on in royal icing. "
+          "Exactly what the cookies have.", [
+              {"k": "ellipse", "x": -0.19, "y": -0.13, "w": 0.10, "h": 0.10, "c": "#fdf6ec"},
+              {"k": "ellipse", "x": 0.19, "y": -0.13, "w": 0.10, "h": 0.10, "c": "#fdf6ec"},
+              {"k": "ellipse", "x": -0.19, "y": -0.13, "w": 0.05, "h": 0.05, "c": "#3a1a0a"},
+              {"k": "ellipse", "x": 0.19, "y": -0.13, "w": 0.05, "h": 0.05, "c": "#3a1a0a"},
+              {"k": "arc", "x": -0.10, "y": 0.06, "r": 0.10, "a0": 0.05, "a1": 0.45, "w": 0.045,
+               "c": "#fdf6ec"},
+              {"k": "arc", "x": 0.10, "y": 0.06, "r": 0.10, "a0": 0.05, "a1": 0.45, "w": 0.045,
+               "c": "#fdf6ec"},
+              {"k": "ellipse", "x": -0.32, "y": 0.04, "w": 0.09, "h": 0.09, "c": "#ff8fa3"},
+              {"k": "ellipse", "x": 0.32, "y": 0.04, "w": 0.09, "h": 0.09, "c": "#ff8fa3"},
+          ])
+XM23.face("sugar_rush", "Sugar Rush",
+          "Stars in the eyes, a grin from ear to ear, and a tremor in the left eyebrow. "
+          "That was the fourteenth candy cane.", [
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.17, "h": 0.17, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.17, "h": 0.17, "c": "#ffffff"},
+              {"k": "star", "x": -0.20, "y": -0.13, "r": 0.065, "n": 5, "c": "#e8344a"},
+              {"k": "star", "x": 0.20, "y": -0.13, "r": 0.065, "n": 5, "c": "#2fbf5f"},
+              {"k": "line", "x1": -0.30, "y1": -0.29, "x2": -0.12, "y2": -0.25, "w": 0.03,
+               "c": "#1a1a1a"},
+              {"k": "line", "x1": 0.12, "y1": -0.27, "x2": 0.30, "y2": -0.31, "w": 0.03,
+               "c": "#1a1a1a"},
+              {"k": "poly", "pts": [[-0.30, 0.06], [0.30, 0.06], [0.22, 0.24], [-0.22, 0.24]],
+               "c": "#3a1a1a"},
+              {"k": "rect", "x": 0, "y": 0.09, "w": 0.52, "h": 0.05, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.06, "y": 0.20, "w": 0.18, "h": 0.07, "c": "#ff6f8a"},
+          ], "rare")
+XM23.shirt("ugly_sweater", "Ugly Christmas Sweater",
+           "Gingerbread men, zigzags, a candy cane on each cuff and a gingerbread man "
+           "the size of your chest. It was a gift. You have to wear it at least once.",
+           {"torso": "#b8202c", "arms": "#b8202c", "decal": "xm_tee_ugly", "weave": "xm_uglyknit",
+            "stripe": "#1e7a36"}, "rare")
+XM23.pants("candy_tights", "Candy Stripe Tights",
+           "Red and white all the way down, like a pair of candy canes with knees.",
+           {"legs": "#f4f0ea", "weave": "xm_candystripe", "cuff": "#1e7a36"})
+XM23.belt("licorice_belt", "Licorice Belt",
+          "A belt of twisted black licorice with a cherry-red gumdrop for a buckle. "
+          "Holds up your trousers until about four in the afternoon.",
+          {"band": "#1a1416", "buckle": "#e8344a", "width": 0.20, "weave": "xm_licorice"})
+
+
+GINGER_MINION = {
+    "name": "Gingerbread Man", "model": "parts", "count": 4, "hp": 25, "speed": 27,
+    "damage": 0, "reach": 3.2, "rate": 0.6, "secs": 15, "scale": 1.0, "sight": 80,
+    "explode": {"radius": 7.0, "damage": 45, "knock": 18},
+    "parts": [place("gingerman", [0, 1.85, 0], [3.4, 3.6, 5.4], GINGER, decal="xm_gingerface"),
+              part("sph", [0.62, 1.95, 0.30], [0.32, 0.32, 0.18], GUMDROPS[1]),
+              part("sph", [0, 1.50, 0.34], [0.30, 0.30, 0.18], GUMDROPS[0]),
+              part("sph", [0, 1.95, 0.34], [0.30, 0.30, 0.18], GUMDROPS[2])],
+}
+
+
+@XM23.weapon("candy_crook", "Candy Cane Crook",
+             "A shepherd's crook of peppermint. The hook goes under the chin and up "
+             "they go -- and anybody in the air takes the next swing a great deal "
+             "harder.",
+             {"kind": "melee", "damage": 26, "headshot": 1.0, "rpm": 96, "range": 13.0,
+              "arc": 0.45, "sound": "swing", "knockback": 3,
+              "on_hit": {"knockup": 30}, "vs_airborne": 1.5},
+             [["+", "Hooks them and flips them into the air"],
+              ["+", "50% more damage to anyone off the ground -- you, or them"],
+              ["+", "A long reach: 13 studs"],
+              ["-", "A narrow hook: easy to miss"],
+              ["-", "13% less damage than a Blockblade"]], rarity="legendary")
+def _():
+    return [
+        place("cane", [0, 0.0, -0.40], [2.0, 2.10, 2.0], WHITE, anchor=[0, 0, 0],
+              r=[0, PI / 2, PI / 2], decal="candy", wrap=True),
+        part("cyl", [0, 0.0, -0.10], [0.20, 0.50, 0.20], "#2a8a4a", [PI / 2, 0, 0],
+             decal="felt", wrap=True),
+        *gift_bow([0, 0.14, 0.20], 0.38, "#2a8a4a", tails=True),
+    ]
+
+
+@XM23.weapon("gingerbread_brigade", "Gingerbread Brigade",
+             "A tray of four gingerbread men, baked in an instant and set loose. They "
+             "run at the nearest enemy as fast as they can, and when they catch them, "
+             "they go off like crackers.",
+             {"kind": "summon", "cooldown": 45, "cost_hp": 20, "sound": "magic"},
+             [["+", "Four gingerbread men who run at the nearest enemy and burst: 45 "
+                    "damage each within 7 studs"],
+              ["+", "Run, run, as fast as you can: they are faster than you"],
+              ["-", "Costs you 20 health to bake them"],
+              ["-", "45 second cooldown; they crumble after 15 seconds, or one good shot"]],
+             rarity="legendary", minion=GINGER_MINION)
+def _():
+    tray = "#b9c0c8"
+    parts = [
+        part("rbox", [0, -0.02, 0.50], [0.86, 0.05, 1.00], tray, m="metal"),
+        part("rbox", [0, 0.02, 0.50], [0.92, 0.04, 1.06], shade(tray, 0.85), m="metal"),
+        part("rbox", [0, -0.06, -0.02], [0.14, 0.10, 0.22], "#5a3a22"),
+    ]
+    for x, z, turn in ((-0.20, 0.24, 0.1), (0.20, 0.30, -0.1), (-0.18, 0.72, -0.2), (0.20, 0.76, 0.15)):
+        parts.append(_gingerman([x, 0.04, z], 0.40, r=[-PI / 2, turn, 0]))
+    return parts
+
+
+@XM23.weapon("gumdrop_launcher", "Gumdrop Launcher",
+             "A gumball machine bolted to a stock. It fires sugared gumdrops that bounce "
+             "off everything, and every bounce winds them up harder.",
+             {"kind": "projectile", "projectile": "gumdrop", "damage": 18, "splash": 3.5,
+              "splash_damage": 18, "rpm": 100, "mag": 6, "reload": 2.2, "speed": 72,
+              "range": 260, "auto": False, "sound": "throw", "recoil": 1.0, "reserve": 36,
+              "gravity_scale": 1.0, "self_damage": 0.3, "knockback": 8,
+              "bounce": 3, "bounce_ramp": 0.4,
+              "trail_colors": ["#ff6a8a", "#ffe08a"]},
+             [["+", "Gumdrops bounce up to three times off walls and floors, 40% harder "
+                    "each time"],
+              ["+", "They burst on whoever they touch"],
+              ["-", "Only 18 damage before the first bounce"],
+              ["-", "Six to a load"]], rarity="legendary",
+             proj=lambda: [_gumdrop([0, -0.25, 0], 1.6, GUMDROPS[0]),
+                           part("sph", [0, -0.10, 0], [0.40, 0.40, 0.40], "#ff8fa8", m="neon",
+                                a=0.3)])
+def _():
+    parts = [
+        part("rbox", [0, -0.30, -0.06], [0.18, 0.44, 0.22], "#5a3a22", [0.3, 0, 0]),
+        part("rbox", [0, -0.04, 0.30], [0.30, 0.26, 0.90], CANDY_RED, m="metal"),
+        part("cyl", [0, 0.0, 0.95], [0.26, 0.40, 0.26], GOLD, [PI / 2, 0, 0], m="metal"),
+        part("torus", [0, 0.0, 1.15], [0.30, 0.6, 0.30], GOLD, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.14, 0.30], [0.36, 0.06, 0.36], GOLD, m="metal"),
+        part("sph", [0, 0.44, 0.30], [0.58, 0.58, 0.58], "#eef8ff", m="glass", a=0.3),
+        part("sph", [0, 0.76, 0.30], [0.14, 0.10, 0.14], CANDY_RED, m="metal"),
+        part("cyl", [0.17, -0.04, 0.45], [0.06, 0.10, 0.06], SILVER, [0, 0, PI / 2], m="metal"),
+    ]
+    for n in range(9):
+        a = n * 2.39996
+        rr = 0.06 + (n % 3) * 0.06
+        parts.append(_gumdrop([math.sin(a) * rr, 0.24 + (n // 3) * 0.11, 0.30 + math.cos(a) * rr],
+                              0.36, GUMDROPS[n % len(GUMDROPS)]))
+    return parts
+
+
+@XM23.gear("fruitcake", "Fruitcake",
+           "Grandma's fruitcake. Nobody knows what is in it, and every slice is "
+           "different: usually something wonderful. Occasionally a walnut shell.",
+           {"kind": "consume", "cooldown": 22, "sound": "eat",
+            "consume": {"random": [
+                {"name": "Plum and cherry: +50 health", "heal": 50},
+                {"name": "Candied peel: you feel quick!", "heal": 10, "speed": [0.30, 6.0]},
+                {"name": "Stem ginger: hit harder for 6 seconds", "might": [0.25, 6.0]},
+                {"name": "Marzipan: a 40 point shield", "shield": [40, 8.0]},
+                {"name": "A walnut shell. Crunch.", "heal": 5, "trick": {"slow": [0.3, 3.0]}},
+            ]}},
+           [["+", "One of five slices at random: 50 health, speed, extra damage or a shield"],
+            ["+", "Most of them are wonderful"],
+            ["-", "One of them is a walnut shell, and leaves you slowed"],
+            ["-", "22 second cooldown"]], rarity="rare")
+def _():
+    return [
+        part("rbox", [0, -0.04, 0.32], [0.46, 0.32, 0.62], "#6a3418", decal="xm_fruitcake",
+             wrap=True),
+        part("rbox", [0, 0.14, 0.32], [0.48, 0.06, 0.64], ICING),
+        place("teardrop", [0.20, 0.08, 0.50], [0.06, 0.12, 0.06], ICING, r=[PI, 0, 0]),
+        place("teardrop", [-0.21, 0.07, 0.20], [0.06, 0.14, 0.06], ICING, r=[PI, 0, 0]),
+        part("sph", [0, 0.22, 0.32], [0.10, 0.10, 0.10], BERRY, m="glass"),
+        *_holly([0.10, 0.20, 0.36], 0.35),
+    ]
+
+
+XM23.effect("gingerbread_parade", name="Gingerbread Parade", rate=2.4, life=[2.6, 3.4],
+            size=[0.30, 0.42], grow=0.0, gravity=0.0, spread=0.05, rise=[0.02, 0.12],
+            blend="normal", spin=0.0, colors=["#c97a32", "#b5651d", "#a85a1a"],
+            shape="gingerbread", radius=0.9, orbit=1.3, upright=True, wobble=0.35)
+XM23.effect("peppermint_twist", name="Peppermint Twist", rate=6.0, life=[1.4, 2.0],
+            size=[0.18, 0.32], grow=0.0, gravity=-0.4, spread=0.5, rise=[0.6, 1.1],
+            blend="normal", spin=5.0, colors=["#ff3344", "#e8344a", "#ffffff", "#2fbf5f"],
+            shapes=["xm_peppermint", "xm_peppermint", "candycane"], radius=0.6)
+XM23.opening(
+    sky={"top": "#24100c", "horizon": "#7a3a24", "sun": [0.3, 0.8, 0.5], "clouds": 0,
+         "tint": "#ffd8b0"},
+    ambient="#a87a5a", beam="#ffe3b8", seep="peppermint_twist", after="gingerbread_parade",
+    burst=["#e8344a", "#ffffff", "#2fbf5f", "#f2c230"],
+    pieces=[{"shape": "gingerbread", "colors": ["#c97a32", "#b5651d"], "blend": "normal"},
+            {"shape": "candycane", "colors": ["#ff3344", "#e8344a"], "blend": "normal"},
+            {"shape": "xm_peppermint", "colors": ["#ff3344", "#2fbf5f"], "blend": "normal"},
+            {"shape": "sweet", "colors": ["#f2c230", "#8a4fd6", "#2f9fe8"], "blend": "normal"}],
+    backdrop="xm_gingerbread", title_wait="Lifting the lid...",
+    title_shake="Something smells delicious...")
+XM23.award("Gingerbread Junction", ["Cookie Cutter", "Icing Piper", "Gumdrop Gatherer",
+                                    "Signal Baker", "Stationmaster", "Master of the Junction"],
+           "Opened Cookie Tin Crates at Gingerbread Junction, Christmas 2023.", "em_gingerbread",
+           "flake")
+XM23.bundle("pair", "Tin and Key", 1, 1050, "One Cookie Tin Crate, one Peppermint Key.")
+XM23.bundle("bakers_dozen", "Baker's Three", 3, 3000, "Three tins, three keys. Saves 300.")
+EVENTS = [XM22, XM23]

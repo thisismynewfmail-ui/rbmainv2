@@ -2140,6 +2140,172 @@
   painter('stencil_xm22', stencil({ top: 'FROSTFALL', bottom: 'FIRST SNOW 2022', icon: 'snowflake',
                                     ink: 'rgba(16,30,62,0.9)',
                                     frame: 'round', size2: 13 }));
+  /* -- 2023 Gingerbread Junction: cookies, icing, sugar and peppermint */
+
+  // baked gingerbread: a warm crust, darker freckles, a few cracks in it
+  painter('xm_gingerbread', function (ctx) {
+    var rnd = scatter(223);
+    for (var k = 0; k < 90; k++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(90,40,10,0.30)' : 'rgba(255,214,160,0.18)';
+      var x = rnd() * CELL, y = rnd() * CELL, r = 1 + rnd() * 2.6;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(80,36,8,0.35)'; ctx.lineWidth = 1;
+    for (k = 0; k < 6; k++) {
+      var cx = rnd() * CELL, cy = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + rnd() * 16 - 8, cy + rnd() * 10 - 5);
+      ctx.lineTo(cx + rnd() * 20 - 10, cy + rnd() * 16 - 8); ctx.stroke();
+    }
+  });
+
+  /* A gingerbread man's icing, laid out over the gingerman mesh's outline
+     (x -0.4..0.4, y -0.5..0.5): eyes and a smile, buttons, zigzag cuffs. */
+  painter('xm_gingerface', function (ctx) {
+    function px(x) { return (x + 0.4) / 0.8 * CELL; }
+    function py(y) { return (0.5 - y) * CELL; }
+    var rnd = scatter(227);
+    for (var k = 0; k < 40; k++) {
+      ctx.fillStyle = 'rgba(90,40,10,0.28)';
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 1 + rnd() * 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#fdf6ec'; ctx.strokeStyle = '#fdf6ec'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.arc(px(-0.045), py(0.40), 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px(0.045), py(0.40), 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.arc(px(0), py(0.37), 7, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    function zig(x0, y0, x1, y1, n) {
+      ctx.beginPath();
+      for (var i = 0; i <= n; i++) {
+        var t = i / n, off = (i % 2 ? 3.5 : -3.5);
+        var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+        var nx = -(y1 - y0), ny = (x1 - x0), l = Math.hypot(nx, ny) || 1;
+        ctx[i ? 'lineTo' : 'moveTo'](x + nx / l * off, y + ny / l * off);
+      }
+      ctx.stroke();
+    }
+    ctx.lineWidth = 2.4;
+    zig(px(0.29), py(0.24), px(0.33), py(0.06), 5);
+    zig(px(-0.29), py(0.24), px(-0.33), py(0.06), 5);
+    zig(px(0.15), py(-0.40), px(0.29), py(-0.36), 5);
+    zig(px(-0.15), py(-0.40), px(-0.29), py(-0.36), 5);
+    [['#e8344a', 0.14], ['#2fbf5f', 0.03], ['#f2c230', -0.08]].forEach(function (b) {
+      ctx.fillStyle = b[0];
+      ctx.beginPath(); ctx.arc(px(0), py(b[1]), 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.arc(px(0) - 1.6, py(b[1]) - 1.6, 1.6, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  // a coat of sugar: crystals catching the light
+  painter('xm_sugar', function (ctx) {
+    var rnd = scatter(229);
+    for (var k = 0; k < 220; k++) {
+      ctx.fillStyle = rnd() > 0.3 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.95)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 1.5 + rnd() * 1.5, 1.5 + rnd() * 1.5);
+    }
+  });
+
+  // a peppermint's face: six red swirls on white, round the middle
+  painter('xm_swirl', function (ctx) {
+    ctx.fillStyle = '#fbf8f4';
+    ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d62828';
+    for (var k = 0; k < 6; k++) {
+      var a0 = k * Math.PI / 3;
+      ctx.beginPath();
+      ctx.moveTo(64, 64);
+      for (var t = 0; t <= 1.0001; t += 0.05) {
+        var a = a0 + t * 1.1, r = 6 + t * 58;
+        ctx.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r);
+      }
+      for (t = 1; t >= -0.0001; t -= 0.05) {
+        var b = a0 + 0.42 + t * 1.1, rr = 6 + t * 58;
+        ctx.lineTo(64 + Math.cos(b) * rr, 64 + Math.sin(b) * rr);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.ellipse(46, 40, 18, 9, -0.6, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // piped icing: a zigzag bead between two lines, on nothing
+  painter('xm_icingzag', function (ctx) {
+    ctx.strokeStyle = '#fdf6ec'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    for (var x = -8; x <= CELL + 8; x += 8) ctx.lineTo(x, (x / 8) % 2 ? 46 : 82);
+    ctx.stroke();
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, 28); ctx.lineTo(CELL, 28); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 100); ctx.lineTo(CELL, 100); ctx.stroke();
+    ctx.fillStyle = '#fdf6ec';
+    for (x = 8; x < CELL; x += 16) { ctx.beginPath(); ctx.arc(x, 14, 3, 0, Math.PI * 2); ctx.fill(); }
+  });
+
+  // gingham: red over cream, the tablecloth under every cookie jar
+  painter('xm_gingham', function (ctx) {
+    ctx.fillStyle = '#fbf3e6'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(196,40,28,0.55)';
+    for (var k = 0; k < CELL; k += 16) { ctx.fillRect(k, 0, 8, CELL); ctx.fillRect(0, k, CELL, 8); }
+  });
+
+  // an ugly sweater all over: zigzags, gingerbread men and candy canes
+  painter('xm_uglyknit', function (ctx) {
+    var G = ['..BB....', '.BBBB...', '..BB....', 'BBBBBB..', '.BBBB...', '.B..B...', 'B....B..', '........'];
+    var rows = ['W.W.W.W.W.W.W.W.', '.G.G.G.G.G.G.G.G', 'G...G...G...G...', '................'];
+    for (var r = 0; r < 8; r++) rows.push(G[r].replace(/B/g, 'B') + G[(r + 4) % 8].replace(/B/g, 'C'));
+    rows.push('................');
+    rows.push('G...G...G...G...');
+    rows.push('.G.G.G.G.G.G.G.G');
+    rows.push('W.W.W.W.W.W.W.W.');
+    xmKnit(ctx, rows, { W: '#f4ecdc', G: '#1e7a36', B: '#c98a42', C: '#f4ecdc' }, 8);
+  });
+
+  // the sweater's chest: one enormous knitted gingerbread man
+  painter('xm_tee_ugly', function (ctx) {
+    var man = ['......BBBB......', '.....BBBBBB.....', '.....BWBBWB.....', '.....BBBBBB.....',
+               '......BRRB......', '.BBBBBBBBBBBBBB.', 'BBBBBBBYBBBBBBBB', '.BB...BBBB...BB.',
+               '......BBBB......', '......BGBB......', '.....BBBBBB.....', '.....BBBBBB.....',
+               '....BBB..BBB....', '...BBB....BBB...', '..WBB......BBW..', '..WW........WW..'];
+    xmKnit(ctx, man, { B: '#c98a42', W: '#f4ecdc', R: '#f4ecdc', Y: '#f2c230', G: '#1e7a36' }, 8);
+  });
+
+  // candy stripes round and round
+  painter('xm_candystripe', function (ctx) {
+    for (var y = 0; y < CELL; y += 32) {
+      ctx.fillStyle = '#d62828'; ctx.fillRect(0, y, CELL, 14);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(0, y + 2, CELL, 3);
+    }
+  });
+
+  // licorice: a twist of glossy ridges
+  painter('xm_licorice', function (ctx) {
+    ctx.save();
+    ctx.translate(64, 64); ctx.rotate(-0.7); ctx.translate(-64, -64);
+    for (var x = -CELL; x < CELL * 2; x += 14) {
+      var g = ctx.createLinearGradient(x, 0, x + 14, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.35)'); g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+      g.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = g; ctx.fillRect(x, -CELL, 14, CELL * 3);
+    }
+    ctx.restore();
+  });
+
+  // fruitcake: a dark crumb studded with cherries, peel and nuts
+  painter('xm_fruitcake', function (ctx) {
+    var rnd = scatter(233);
+    var bits = ['#c4182a', '#2f9f3f', '#f2a630', '#e8d2a0', '#5a1a10'];
+    for (var k = 0; k < 70; k++) {
+      ctx.fillStyle = bits[k % bits.length];
+      var x = rnd() * CELL, y = rnd() * CELL;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rnd() * 3);
+      ctx.fillRect(-2.5, -2, 5 + rnd() * 3, 4); ctx.restore();
+    }
+  });
+
+  painter('stencil_xm23', stencil({ top: 'GINGERBREAD', bottom: 'JUNCTION 2023', icon: 'gingerbread',
+                                    ink: 'rgba(150,24,30,0.92)', font: 'Georgia, serif',
+                                    frame: 'box', size: 15, size2: 13 }));
   // @@ christmas painters go above this line @@
 
   Textures.emblems = Object.keys(emblems);
