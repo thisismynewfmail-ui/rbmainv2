@@ -672,6 +672,18 @@ body.cs-open { overflow: hidden; }
 .theme-jl_cookout .cs-stars { opacity: .25; }
 .theme-jl_cookout .cs-title b { color: #fff2d6; text-shadow: 0 0 22px rgba(255, 140, 26, .65), 0 3px 0 rgba(0, 0, 0, .5); }
 
+/* 2024, Liberty Lights: a summer night over the harbour, the statue on the
+   hill with her torch lit, and fireflies rising */
+.theme-jl_liberty .cs-bg { background: radial-gradient(circle at 60% 70%, #2a3466, #10163a 55%, #04060f 100%); }
+.theme-jl_liberty .cs-art { display: block !important; }
+.theme-jl_liberty .cs-art.a { right: 8%; bottom: 0; width: 160px; height: 320px; opacity: .95;
+  filter: drop-shadow(0 0 22px rgba(255, 201, 74, .35));
+  background: no-repeat center bottom/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 200'%3E%3Cg fill='%230e1630'%3E%3Cpath d='M30 200l6-40h28l6 40z'/%3E%3Cpath d='M38 160l2-70 10-8 10 8 2 70z'/%3E%3Cpath d='M44 88l-4-26 10-10 10 10-4 26z'/%3E%3Ccircle cx='50' cy='46' r='9'/%3E%3Cpath d='M50 37l-14-10 12 6-6-14 9 12 1-16 3 16 7-12-4 14 10-8-12 12z'/%3E%3Cpath d='M58 70l14-40 5 2-12 40z'/%3E%3Cpath d='M38 96l-10 4 2 18 10-4z'/%3E%3C/g%3E%3Cpath d='M70 24q6-14 2-22 8 8 3 20z' fill='%23ffc94a'/%3E%3Ccircle cx='72' cy='22' r='9' fill='%23ffc94a' opacity='.35'/%3E%3C/svg%3E"); }
+.theme-jl_liberty .cs-art.b { inset: 0; opacity: .85; animation: cs-rise 10s linear infinite;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='400'%3E%3Cg fill='%23e8ff7a'%3E%3Ccircle cx='30' cy='70' r='2.4'/%3E%3Ccircle cx='140' cy='190' r='2'/%3E%3Ccircle cx='90' cy='330' r='2.6'/%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='520'%3E%3Cg fill='%23fff3b0' opacity='.8'%3E%3Ccircle cx='60' cy='120' r='2'/%3E%3Ccircle cx='200' cy='380' r='1.6'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-jl_liberty .cs-stars { opacity: .9; }
+.theme-jl_liberty .cs-title b { color: #ffe9a8; text-shadow: 0 0 22px rgba(255, 201, 74, .6), 0 3px 0 rgba(0,0,0,.5); }
+
 /* @@ july4 backdrops go above this line @@ */
 
 /* Christmas backdrops (the opening themes of the Christmas crates) */

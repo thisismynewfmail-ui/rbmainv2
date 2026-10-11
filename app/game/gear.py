@@ -519,7 +519,12 @@ class Gear:
         # a parry window opens with every swing
         parry = stats.get("parry")
         if parry:
-            secs, reduce = _pair(parry, 0.35, 0.75)
+            # [secs, reduce], or {"secs", "reduce", "reflect"} when a parried
+            # attacker should also be thrown back
+            if isinstance(parry, dict):
+                secs, reduce = _num(parry.get("secs"), 0.35), _num(parry.get("reduce"), 0.75)
+            else:
+                secs, reduce = _pair(parry, 0.35, 0.75)
             self.apply(player, "block", secs, reduce, player)
         # a held buff that only works while this is out
         return out

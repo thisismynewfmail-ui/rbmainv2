@@ -2950,6 +2950,113 @@
   painter('stencil_jl23', stencil({ top: 'BACKYARD', bottom: 'COOKOUT  2023', icon: 'grill',
                                     ink: 'rgba(242,183,5,0.95)', frame: 'round', size2: 13,
                                     colour: true }));
+  // -- 2024, Liberty Lights: punched tin, green copper and paper lanterns
+
+  // punched tin: a dark sheet pierced in rows of stars and dots, every hole lit
+  painter('jl_punchtin', function (ctx) {
+    var rnd = scatter(131);
+    ctx.fillStyle = '#5a6068'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 40; k++) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.03 + rnd() * 0.05) + ')';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 8 + rnd() * 20, 1 + rnd() * 2);
+    }
+    ctx.shadowColor = '#ffc94a'; ctx.shadowBlur = 5; ctx.fillStyle = '#ffe9a8';
+    for (var row = 0; row < 4; row++) {
+      for (var col = 0; col < 4; col++) {
+        var cx = 16 + col * 32 + (row % 2 ? 16 : 0), cy = 16 + row * 32;
+        if (cx > CELL) cx -= CELL;
+        if ((row + col) % 2) {
+          ctx.beginPath();
+          for (var n = 0; n < 10; n++) {
+            var a = n * Math.PI / 5 - Math.PI / 2, r = n % 2 ? 3 : 7;
+            ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+          }
+          ctx.closePath(); ctx.fill();
+        } else {
+          for (var d = 0; d < 6; d++) {
+            var b = d * Math.PI / 3;
+            ctx.beginPath(); ctx.arc(cx + Math.cos(b) * 7, cy + Math.sin(b) * 7, 1.6, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, 0, CELL, 3); ctx.fillRect(0, CELL - 3, CELL, 3);
+  });
+
+  // green copper: the patina, streaked and mottled
+  painter('jl_verdigris', function (ctx) {
+    var rnd = scatter(137);
+    ctx.fillStyle = '#5fa89a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 90; k++) {
+      var light = rnd() > 0.5;
+      ctx.fillStyle = light ? 'rgba(170,230,210,' + (0.10 + rnd() * 0.15) + ')'
+        : 'rgba(40,90,80,' + (0.10 + rnd() * 0.18) + ')';
+      ctx.beginPath(); ctx.ellipse(rnd() * CELL, rnd() * CELL, 3 + rnd() * 10, 2 + rnd() * 5,
+                                   rnd() * 3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(30,70,60,0.25)'; ctx.lineWidth = 1;
+    for (k = 0; k < 14; k++) {
+      var x = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + rnd() * 6 - 3, CELL); ctx.stroke();
+    }
+  });
+
+  // a paper lantern: pleats round it and a star printed on the front
+  painter('jl_paperlantern', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.0)'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    for (var y = 6; y < CELL; y += 12) ctx.fillRect(0, y, CELL, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.20)';
+    for (y = 0; y < CELL; y += 12) ctx.fillRect(0, y, CELL, 3);
+    ctx.fillStyle = 'rgba(255,240,200,0.85)';
+    ctx.beginPath();
+    for (var n = 0; n < 10; n++) {
+      var a = n * Math.PI / 5 - Math.PI / 2, r = n % 2 ? 8 : 18;
+      ctx.lineTo(32 + Math.cos(a) * r, 64 + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+  });
+
+  // a mason jar's label
+  painter('jl_label', function (ctx) {
+    ctx.fillStyle = '#f6f1e3'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#c8202f'; ctx.lineWidth = 6; ctx.strokeRect(6, 6, 116, 116);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#22306e';
+    ctx.font = 'bold 22px Georgia, serif'; ctx.fillText('JULY', 64, 46);
+    ctx.font = 'bold 30px Georgia, serif'; ctx.fillText('4th', 64, 82);
+  });
+
+  // the tablet: JULY IV MDCCLXXVI cut into green copper
+  painter('jl_tablet', function (ctx) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 20px Georgia, serif';
+    ctx.fillStyle = 'rgba(20,50,44,0.85)';
+    ctx.fillText('JULY IV', 65, 49); ctx.fillText('MDCCLXXVI', 65, 81);
+    ctx.fillStyle = 'rgba(200,245,230,0.75)';
+    ctx.fillText('JULY IV', 64, 48); ctx.fillText('MDCCLXXVI', 64, 80);
+    ctx.strokeStyle = 'rgba(20,50,44,0.5)'; ctx.lineWidth = 2; ctx.strokeRect(10, 20, 108, 88);
+  });
+
+  // a robe's front: the drape falling from one shoulder in deep folds
+  painter('jl_tee_toga', function (ctx) {
+    ctx.lineCap = 'round';
+    for (var k = 0; k < 7; k++) {
+      var x0 = 16 + k * 14;
+      ctx.strokeStyle = 'rgba(20,60,52,0.45)'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(x0, 0); ctx.quadraticCurveTo(x0 + 30, 60, x0 + 10, CELL); ctx.stroke();
+      ctx.strokeStyle = 'rgba(190,240,225,0.30)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x0 + 5, 0); ctx.quadraticCurveTo(x0 + 35, 60, x0 + 15, CELL); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(20,60,52,0.6)'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(8, 6); ctx.quadraticCurveTo(64, 50, 120, 30); ctx.stroke();
+  });
+
+  painter('stencil_jl24', stencil({ top: 'LIBERTY', bottom: 'LIGHTS  2024', icon: 'torch',
+                                    ink: 'rgba(255,201,74,0.95)', glow: '#ffc94a',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
   // @@ july4 painters go above this line @@
 
   /* ----------------------------------------------------------- Christmas

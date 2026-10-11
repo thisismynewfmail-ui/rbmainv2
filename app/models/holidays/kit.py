@@ -249,16 +249,17 @@ def at_frame(parts: List[Dict[str, Any]], at: Sequence[float], r: Optional[Seque
     return out
 
 
-def rod(a: Sequence[float], b: Sequence[float], w: float, c: str, t: str = "cyl",
+def rod(p0: Sequence[float], p1: Sequence[float], w: float, c: str, t: str = "cyl",
         **kw: Any) -> Dict[str, Any]:
     """A cylinder (or any Y-axis mesh ``t``) ``w`` thick running from point
-    ``a`` to point ``b``: strings, poles, struts, a whip's lash."""
-    d = [float(b[i]) - float(a[i]) for i in range(3)]
+    ``p0`` to point ``p1``: strings, poles, struts, a whip's lash.  (Its
+    keywords pass through to the part, so ``a=`` is the part's alpha.)"""
+    d = [float(p1[i]) - float(p0[i]) for i in range(3)]
     length = math.sqrt(sum(v * v for v in d)) or 1e-6
     n = [v / length for v in d]
     pitch = math.acos(max(-1.0, min(1.0, n[1])))
     yaw = math.atan2(n[0], n[2]) if abs(n[0]) + abs(n[2]) > 1e-9 else 0.0
-    mid = [(float(a[i]) + float(b[i])) / 2 for i in range(3)]
+    mid = [(float(p0[i]) + float(p1[i])) / 2 for i in range(3)]
     return part(t, mid, [w, length, w], c, [pitch, yaw, 0.0], **kw)
 
 

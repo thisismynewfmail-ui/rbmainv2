@@ -73,14 +73,14 @@ def _rosette(at, k=1.0, yaw=0.0, colours=(RED, WHITE, NAVY), tails=True):
     return out
 
 
-def _rod(a, b, w, c, t="cyl", **kw):
-    """A rod from point ``a`` to point ``b``, ``w`` thick: a straw, a strut,
+def _rod(p0, p1, w, c, t="cyl", **kw):
+    """A rod from point ``p0`` to point ``p1``, ``w`` thick: a straw, a strut,
     a tube."""
-    d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+    d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]]
     length = math.sqrt(sum(v * v for v in d)) or 1e-6
     rx = math.acos(max(-1.0, min(1.0, d[1] / length)))
     ry = math.atan2(d[0], d[2])
-    mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]
+    mid = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2]
     return part(t, mid, [w, length, w], c, [rx, ry, 0], **kw)
 
 
@@ -1185,4 +1185,466 @@ JL23.bundle("pair", "Seconds", 1, 1050, "One Kettle Grill Crate, one Corn-Cob Ke
 JL23.bundle("potluck", "Potluck", 3, 3000, "Three grills, three keys. Saves 300.")
 
 
-EVENTS = [JL22, JL23]
+
+# ============================================================ 2024
+VERDIGRIS = "#5fa89a"
+PATINA = "#7fc4b4"
+TIN = "#8a9098"
+FLAME = "#ffc94a"
+NIGHT = "#141a3a"
+
+
+def _torch(at, k=1.0, r=None, lit=True, metal=GOLD):
+    """Liberty's torch, its handle at ``at`` and the flame on top: a ribbed
+    handle, a fluted cup, a gilded flame (``k`` is about its height)."""
+    pieces = [
+        part("cyl", [0, 0.20, 0], [0.14, 0.40, 0.14], metal, m="metal"),
+        part("torus", [0, 0.40, 0], [0.18, 0.04, 0.18], metal, m="metal"),
+        place("cone", [0, 0.52, 0], [0.38, 0.24, 0.38], metal, r=[PI, 0, 0], m="metal"),
+        part("cyl", [0, 0.64, 0], [0.42, 0.04, 0.42], metal, m="metal"),
+        place("flame", [0, 0.66, 0], [0.34, 0.46, 0.34], FLAME if lit else metal,
+              anchor=[0, 0, 0], m="neon" if lit else "metal", spin=2.0 if lit else 0.0),
+    ]
+    return at_frame(pieces, at, r, k)
+
+
+def _tin_lantern(at, k=1.0, lit=True):
+    """A punched-tin lantern, middle at ``at``: a drum of pierced tin, a
+    cone roof, a ring to hang it by and a glow inside."""
+    pieces = [
+        part("cyl", [0, 0, 0], [0.50, 0.56, 0.50], TIN, m="metal", decal="jl_punchtin", wrap=True),
+        part("cyl", [0, -0.30, 0], [0.56, 0.05, 0.56], shade(TIN, 0.8), m="metal"),
+        place("cone", [0, 0.40, 0], [0.58, 0.28, 0.58], TIN, m="metal", decal="jl_punchtin",
+              wrap=True),
+        part("torus", [0, 0.60, 0], [0.14, 0.03, 0.14], shade(TIN, 0.8), [PI / 2, 0, 0], m="metal"),
+    ]
+    if lit:
+        pieces.append(part("sph", [0, 0, 0], [0.30, 0.34, 0.30], FLAME, m="neon", a=0.55))
+    return at_frame(pieces, at, None, k)
+
+
+JL24 = Event(
+    "july4_2024", "july4", 2024, "jl24",
+    name="Liberty Lights", title="Liberty Lights",
+    blurb="The Fourth of July 2024 was a night for lanterns. Somebody built Lady Liberty "
+          "on the hill above the harbour map, ten storeys of green copper, and lit the "
+          "torch at dusk; the whole server walked up with tin lanterns and watched the "
+          "fireflies come out. Nobody knows who built her. She is still there.",
+    tagline="Lift your lamp. Bring a lantern.",
+    starts="2024-06-27", ends="2024-07-11",
+    colors={"accent": FLAME, "deep": NIGHT, "glow": "#fff3b0"},
+    family_effects=["starstruck", "candlelight_vigil", "sunbeam"],
+    hero_effect="firefly_waltz", stencil="stencil_jl24")
+
+
+@JL24.crate_model("Tin Lantern Crate",
+                  "A great colonial lantern of punched tin, stars and stripes pierced in it "
+                  "so the light comes out in patterns, a cone roof and a ring to carry it "
+                  "by. Holds the Liberty Lights set. Needs a Torch Key.",
+                  hinge=[0, 0.50, -0.68], keyhole=[0.22, -0.02, 0.71])
+def _():
+    parts = [
+        part("cyl", [0, -0.05, 0], [1.32, 1.10, 1.32], TIN, m="metal", decal="jl_punchtin",
+             wrap=True),
+        part("cyl", [0, -0.05, 0], [1.20, 1.00, 1.20], FLAME, m="neon", a=0.35),
+        part("cyl", [0, -0.62, 0], [1.44, 0.10, 1.44], shade(TIN, 0.75), m="metal"),
+        part("cyl", [0, 0.50, 0], [1.40, 0.08, 1.40], shade(TIN, 0.75), m="metal"),
+        # the door, its hinges, and the latch (the lock)
+        part("rbox", [0, -0.04, 0.665], [0.56, 0.74, 0.03], shade(TIN, 1.1), m="metal",
+             decal="jl_punchtin"),
+        part("rbox", [-0.29, 0.20, 0.68], [0.06, 0.10, 0.04], BLACK),
+        part("rbox", [-0.29, -0.28, 0.68], [0.06, 0.10, 0.04], BLACK),
+        part("rbox", [0.22, -0.02, 0.69], [0.16, 0.22, 0.05], BRASS, m="metal", decal="keyhole",
+             lock=1),
+        # the stencil on the back
+        part("box", [0, -0.05, -0.665], [0.62, 0.42, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_jl24", a=-1),
+        # the roof and the ring (the lid)
+        place("cone", [0, 0.54, 0], [1.52, 0.70, 1.52], TIN, anchor=[0, -0.5, 0], m="metal",
+              decal="jl_punchtin", wrap=True, lid=1),
+        part("cyl", [0, 1.26, 0], [0.18, 0.08, 0.18], shade(TIN, 0.75), m="metal", lid=1),
+        part("torus", [0, 1.44, 0], [0.36, 0.06, 0.36], shade(TIN, 0.75), [PI / 2, 0, 0],
+             m="metal", lid=1),
+    ]
+    for a in (PI / 4, 3 * PI / 4, 5 * PI / 4, 7 * PI / 4):
+        parts.append(part("sph", [math.cos(a) * 0.62, -0.70, math.sin(a) * 0.62],
+                          [0.16, 0.10, 0.16], shade(TIN, 0.7), m="metal"))
+    # fireflies come out with the light
+    for x, y, z in ((0.80, 0.30, 0.40), (-0.86, 0.10, 0.30), (0.50, 0.86, -0.40)):
+        parts.append(part("sph", [x, y, z], [0.07, 0.07, 0.07], "#e8ff7a", m="neon"))
+    return parts
+
+
+@JL24.key_model("Torch Key",
+                "A key of green copper with Lady Liberty's torch for a bow, the flame "
+                "gilded and lit. Opens one Tin Lantern Crate.", shoulder=-0.30)
+def _():
+    parts = _torch([-0.62, -0.30, 0], 0.80, metal=VERDIGRIS)
+    parts += [
+        part("cyl", [0.13, 0, 0], [0.09, 0.84, 0.09], VERDIGRIS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.27, 0, 0], [0.20, 0.07, 0.20], PATINA, [0, 0, PI / 2], m="metal"),
+        part("rbox", [-0.46, 0, 0], [0.30, 0.08, 0.08], VERDIGRIS, m="metal"),
+        part("rbox", [0.40, -0.12, 0], [0.08, 0.22, 0.08], VERDIGRIS, m="metal"),
+        place("star", [0.54, -0.16, 0], 0.24, GOLD, m="metal"),
+    ]
+    return parts
+
+
+@JL24.hat("liberty_crown", "Lady Liberty's Crown",
+          "Green copper, a band of little windows and seven rays, one for each sea and "
+          "each continent. Very heavy. Visitors keep trying to climb up inside it.",
+          "legendary", hair="show")
+def _():
+    parts = [
+        ringband(-0.24, 0.30, VERDIGRIS, m="metal", decal="jl_verdigris", wrap=True),
+        ringband(-0.08, 0.06, PATINA, margin=0.06, m="metal"),
+        ringband(-0.40, 0.06, PATINA, margin=0.06, m="metal"),
+    ]
+    # the windows round the band
+    parts += around(9, 0.96, -0.24, lambda a, x, z: part(
+        "rbox", [x, -0.24, z * 0.97], [0.12, 0.14, 0.02], "#dff6ff", [0, a, 0], m="glass",
+        a=0.8), start=-TAU / 18)
+    # seven rays fanning out from the top of the band, front and sides only
+    for n in range(7):
+        a = (n - 3) * 0.42
+        x, z = math.sin(a) * 0.86, math.cos(a) * 0.84
+        lean = 0.62 + abs(n - 3) * 0.06
+        base = [x, -0.02, z]
+        # each ray tips outwards, away from the middle of the head
+        parts.append(place("cone", base, [0.20, 0.86, 0.20], VERDIGRIS, anchor=[0, -0.5, 0],
+                           r=[lean * math.cos(a), 0, -lean * math.sin(a)], m="metal",
+                           decal="jl_verdigris", wrap=True))
+    return parts
+
+
+@JL24.hat("firefly_jar", "Firefly Jar",
+          "A mason jar, a punched-tin lid, and a summer night's catch of fireflies "
+          "blinking inside. Let them go before bed. You will not.", "rare", hair="show")
+def _():
+    parts = [
+        part("cyl", [0, 0.40, 0], [0.86, 0.76, 0.86], "#dff6ff", m="glass", a=0.35),
+        part("cyl", [0, 0.82, 0], [0.70, 0.10, 0.70], "#dff6ff", m="glass", a=0.5),
+        part("cyl", [0, 0.90, 0], [0.76, 0.10, 0.76], TIN, m="metal", decal="jl_punchtin",
+             wrap=True),
+        part("cyl", [0, 0.04, 0], [0.88, 0.06, 0.88], "#cfe4ea", m="glass", a=0.55),
+        part("rbox", [0, 0.40, 0.44], [0.36, 0.22, 0.02], CREAM, [0, 0, 0], decal="jl_label"),
+    ]
+    for k in range(9):
+        a = k * 2.4
+        parts.append(part("sph", [math.sin(a) * 0.26, 0.16 + (k * 0.618 % 1) * 0.56,
+                                  math.cos(a) * 0.26], [0.07, 0.07, 0.07],
+                          "#e8ff7a" if k % 3 else "#fff3b0", m="neon"))
+    return parts
+
+
+@JL24.hat("paper_lanterns", "Paper Lantern Ring",
+          "A string of red, white and blue paper lanterns round a band, each with a "
+          "little light in it. Do not stand near the sparklers.", "uncommon", hair="show")
+def _():
+    parts = [ringband(-0.10, 0.08, "#3a2e22")]
+    colours = (RED, CREAM, BLUE)
+    for n in range(8):
+        a = n * TAU / 8 + TAU / 16
+        x, z = math.sin(a) * 1.00, math.cos(a) * 0.97
+        c = colours[n % 3]
+        parts += [part("cyl", [x, -0.06, z], [0.02, 0.10, 0.02], "#3a2e22"),
+                  place("cask", [x, -0.36, z], [0.34, 0.38, 0.34], c, anchor=[0, 0, 0],
+                        decal="jl_paperlantern", wrap=True),
+                  part("sph", [x, -0.18, z], [0.16, 0.16, 0.16], FLAME, m="neon", a=0.6),
+                  part("cyl", [x, -0.37, z], [0.24, 0.02, 0.24], "#3a2e22"),
+                  part("cyl", [x, -0.03, z], [0.20, 0.02, 0.20], "#3a2e22")]
+    return parts
+
+
+@JL24.hat("lamplighter_cap", "Lamplighter's Cap",
+          "A leather cap with a little tin lantern hung off the front of it, the way the "
+          "old lamplighters went round at dusk. Lights the way. Also your face.", "rare")
+def _():
+    leather = "#5a3a22"
+    parts = [
+        cap(-0.30, 0.16, leather, grow=0.04, decal="leather", wrap=True),
+        place("peak", [0, -0.24, 0], [1.80, 1.0, 1.70], shade(leather, 0.8), anchor=[0, 0, 0],
+              decal="leather", wrap=True),
+        band(-0.24, 0.08, BRASS, grow=0.06, m="metal"),
+        part("rbox", [0, -0.02, 0.82], [0.10, 0.36, 0.08], BRASS, [-0.3, 0, 0], m="metal"),
+        part("rbox", [0, 0.16, 0.92], [0.06, 0.06, 0.24], BRASS, m="metal"),
+    ]
+    parts += _tin_lantern([0, 0.0, 1.06], 0.56)
+    return parts
+
+
+@JL24.hat("starry_nightcap", "Summer Nightcap",
+          "A long navy nightcap scattered with stars, a crescent moon on the bobble, and "
+          "the tip flopped over. For watching the fireworks from bed.", "uncommon")
+def _():
+    parts = [
+        dome(-0.30, 0.70, NIGHT, decal="jl_starsprinkle", wrap=True),
+        ringband(-0.22, 0.20, CREAM, decal="knit", wrap=True),
+    ]
+    # the long tail of the cap, flopping over to one side and down
+    path = [(0.0, 0.36, -0.04), (0.18, 0.70, -0.10), (0.46, 0.86, -0.16), (0.74, 0.74, -0.20),
+            (0.88, 0.46, -0.22)]
+    for n in range(len(path) - 1):
+        parts.append(_rod(path[n], path[n + 1], 0.46 - n * 0.09, NIGHT, t="capsule",
+                          decal="jl_starsprinkle", wrap=True))
+    parts += [place("crescent", [0.90, 0.30, -0.22], 0.30, "#fff3b0", m="neon"),
+              pompom([0.88, 0.40, -0.22], 0.20, CREAM)]
+    return parts
+
+
+@JL24.hat("firefly_antennae", "Lightning Bug",
+          "A headband with two springy antennae, a glowing bead on each, for anybody "
+          "who would rather be a firefly than watch them.", "uncommon", hair="show")
+def _():
+    black = "#1a1a20"
+    parts = [
+        part("rbox", [0, 0.035, 0], [1.00, 0.07, 0.16], black),
+        *sides(lambda s: [
+            part("rbox", [0.62 * s, -0.035, 0], [0.34, 0.07, 0.16], black, [0, 0, 0.55 * s]),
+            part("rbox", [0.775 * s, -0.42, 0], [0.07, 0.62, 0.16], black),
+            part("sph", [0.79 * s, -0.74, 0], [0.10, 0.10, 0.18], black),
+        ]),
+    ]
+    for s in (1, -1):
+        path = [(0.22 * s, 0.06, 0.04), (0.30 * s, 0.40, 0.14), (0.44 * s, 0.70, 0.20),
+                (0.56 * s, 0.86, 0.12)]
+        for n in range(len(path) - 1):
+            parts.append(_rod(path[n], path[n + 1], 0.04, black))
+        parts += [part("sph", [0.58 * s, 0.90, 0.10], [0.16, 0.16, 0.16], "#e8ff7a", m="neon"),
+                  part("sph", [0.58 * s, 0.90, 0.10], [0.30, 0.30, 0.30], "#e8ff7a", m="neon",
+                       a=0.25)]
+    return parts
+
+
+@JL24.hat("sky_bowler", "Night-Sky Bowler",
+          "A navy bowler with the night printed on it -- every constellation over the "
+          "harbour on the Fourth -- and a shooting star pinned to the band.", "rare")
+def _():
+    return [
+        place("brim", [0, -0.05, 0], [2.06, 1.2, 1.98], NIGHT, anchor=[0, 0, 0],
+              decal="jl_starsprinkle", wrap=True),
+        dome(-0.05, 0.82, NIGHT, decal="jl_starsprinkle", wrap=True),
+        ringband(0.06, 0.16, "#c9a227", m="metal"),
+        place("star", [0.40, 0.14, 0.86], 0.26, "#fff3b0", r=[-0.1, 0.42, 0], m="neon"),
+        _rod([0.40, 0.14, 0.86], [0.70, 0.02, 0.66], 0.03, "#fff3b0", m="neon", a=0.7),
+        _rod([0.70, 0.02, 0.66], [0.92, -0.06, 0.42], 0.02, "#fff3b0", m="neon", a=0.4),
+    ]
+
+
+@JL24.back("liberty_tablet", "Liberty's Tablet",
+           "The stone tablet off the statue, JULY IV MDCCLXXVI cut into it, strapped on "
+           "like a shield and carried with exactly as much dignity as you can manage.",
+           "legendary")
+def _():
+    return straps("#3a2e22") + [
+        part("rbox", [0, 0.24, -0.26], [1.20, 1.60, 0.24], VERDIGRIS, [0, 0, 0.08],
+             m="metal", decal="jl_verdigris", wrap=True),
+        part("rbox", [0, 0.24, -0.39], [1.04, 1.40, 0.02], "#000000", [0, PI, -0.08],
+             decal="jl_tablet", a=-1),
+        part("rbox", [0, 1.06, -0.26], [1.26, 0.10, 0.28], PATINA, [0, 0, 0.08], m="metal"),
+        part("rbox", [0, -0.58, -0.26], [1.26, 0.10, 0.28], PATINA, [0, 0, 0.08], m="metal"),
+    ]
+
+
+@JL24.back("lantern_yoke", "Lamplighter's Yoke",
+           "A shoulder yoke with a tin lantern swinging from either end. You light up "
+           "the path for everybody walking behind you, and blind everybody in front.",
+           "rare")
+def _():
+    wood = "#8a5a2a"
+    parts = straps("#3a2e22") + [
+        part("rbox", [0, 1.04, -0.30], [3.20, 0.12, 0.16], wood, decal="planks", wrap=True),
+        part("rbox", [0, 1.04, -0.14], [0.70, 0.10, 0.22], wood),
+    ]
+    for s in (1, -1):
+        parts += [_rod([1.48 * s, 1.00, -0.30], [1.48 * s, 0.66, -0.30], 0.03, "#3a2e22")]
+        parts += _tin_lantern([1.48 * s, 0.38, -0.30], 0.80)
+    return parts
+
+
+@JL24.hairdo("verdigris_waves", "Copper Waves",
+             "Heavy waves of hair gone green as an old penny, swept back under the crown "
+             "like hers. One hundred and forty years of sea air will do that.", "rare")
+def _():
+    c = "#5fa89a"
+    parts = [place("hairlong", [0, 0, 0], [1.05, 1.05, 1.05], c, anchor=[0, 0, 0],
+                   decal="jl_verdigris", wrap=True, m="metal")]
+    for k, (x, z) in enumerate(((0.40, -0.40), (0.0, -0.56), (-0.40, -0.40))):
+        parts.append(place("spiral", [x, -0.50, z], [0.30, 0.50, 0.30], shade(c, 1.1 if k % 2 else 0.9),
+                           anchor=[0, 0.5, 0], m="metal"))
+    return parts
+
+
+@JL24.hairdo("firefly_braids", "Firefly Braids",
+             "Two long dark braids with little glowing beads woven into them, as if the "
+             "fireflies got caught on the way past.", "uncommon")
+def _():
+    c = "#2a1e1a"
+    parts = [place("hairmid", [0, 0, 0], [1.03, 1.03, 1.03], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for s in (1, -1):
+        for n in range(5):
+            parts.append(part("sph", [0.52 * s, -0.30 - n * 0.20, -0.10 - n * 0.02],
+                              [0.22 - n * 0.01, 0.24, 0.20], shade(c, 1.1 if n % 2 else 0.95)))
+            if n % 2:
+                parts.append(part("sph", [0.60 * s, -0.30 - n * 0.20, -0.04],
+                                  [0.07, 0.07, 0.07], "#e8ff7a", m="neon"))
+        parts.append(part("cyl", [0.52 * s, -1.30, -0.20], [0.14, 0.06, 0.14], RED))
+    return parts
+
+
+JL24.face("torchlit", "Torchlit",
+          "Wide eyes with a lantern flame in each, cheeks warm from standing too close, "
+          "and a hushed little 'oh'.", [
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.12, "h": 0.14, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.12, "h": 0.14, "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.20, -0.20], [-0.17, -0.12], [-0.20, -0.08], [-0.23, -0.12]],
+               "c": "#ffc94a"},
+              {"k": "poly", "pts": [[0.20, -0.20], [0.23, -0.12], [0.20, -0.08], [0.17, -0.12]],
+               "c": "#ffc94a"},
+              {"k": "ellipse", "x": -0.32, "y": 0.06, "w": 0.12, "h": 0.06, "c": "#ffb08a"},
+              {"k": "ellipse", "x": 0.32, "y": 0.06, "w": 0.12, "h": 0.06, "c": "#ffb08a"},
+              {"k": "ellipse", "x": 0.0, "y": 0.14, "w": 0.07, "h": 0.08, "c": "#16171b"},
+          ], "uncommon")
+JL24.face("starry_eyed", "Starry-Eyed",
+          "Stars where the pupils should be and a grin that has not stopped since the "
+          "first rocket went up.", [
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.16, "h": 0.16, "c": "#22306e"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.16, "h": 0.16, "c": "#22306e"},
+              {"k": "star", "x": -0.20, "y": -0.13, "r": 0.06, "c": "#ffffff"},
+              {"k": "star", "x": 0.20, "y": -0.13, "r": 0.06, "c": "#ffffff"},
+              {"k": "arc", "x": 0.0, "y": 0.0, "r": 0.24, "a0": 0.06, "a1": 0.44, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "star", "x": 0.34, "y": -0.30, "r": 0.03, "c": "#c8202f"},
+          ], "rare")
+JL24.shirt("liberty_robe", "Liberty's Robe",
+           "Green copper drapery from the shoulder, folded the way it has been since "
+           "1886, and a tablet's worth of gravitas.",
+           {"torso": VERDIGRIS, "arms": VERDIGRIS, "decal": "jl_tee_toga", "weave": "jl_verdigris"},
+           "rare")
+JL24.pants("star_field", "Star-Field Trousers",
+           "Navy trousers with the whole summer sky printed on them, and a gold stripe "
+           "down the side.",
+           {"legs": NIGHT, "weave": "jl_starsprinkle", "stripe": "#c9a227"})
+JL24.belt("punched_tin_belt", "Punched-Tin Belt",
+          "A belt of pierced tin plates, a star for a buckle, and a light inside every "
+          "plate.",
+          {"band": TIN, "buckle": FLAME, "width": 0.22, "weave": "jl_punchtin", "metal": True,
+           "glow": True})
+
+
+@JL24.weapon("liberty_torch", "Liberty's Torch",
+             "The torch itself, lifted off the statue. Every swing sets whoever it hits "
+             "alight -- and while it is swinging, its flare turns blows aside and throws "
+             "whoever struck them back.",
+             {"kind": "melee", "damage": 24, "headshot": 1.0, "rpm": 96, "range": 10.0,
+              "arc": 0.66, "sound": "swing", "knockback": 8,
+              "on_hit": {"burn": [5, 3.0]},
+              "parry": {"secs": 0.45, "reduce": 0.70, "reflect": 28}},
+             [["+", "Sets its target alight: 5 a second for 3 seconds"],
+              ["+", "Every swing opens a guard: 70% less damage for 0.45 seconds, and "
+                    "whoever hits you is thrown back"],
+              ["-", "Only 24 damage a swing"],
+              ["-", "Time the guard wrong and it is gone"]], rarity="legendary")
+def _():
+    return _torch([0, -0.10, 0.10], 1.60, r=[PI / 2 - 0.2, 0, 0])
+
+
+@JL24.weapon("signal_flare", "Signal Flare Pistol",
+             "A brass flare pistol that fires a ball of red fire. Whoever it hits is "
+             "dazzled, and where it lands it keeps burning for a good while -- two if by "
+             "sea.",
+             {"kind": "projectile", "projectile": "flare", "damage": 20, "splash": 3.5,
+              "splash_damage": 18, "rpm": 50, "mag": 2, "reload": 2.4, "speed": 72,
+              "range": 260, "auto": False, "sound": "pop", "recoil": 1.0, "reserve": 18,
+              "gravity_scale": 0.35, "self_damage": 0.0, "knockback": 4,
+              "on_hit": {"blind": [1.2, "flash"]},
+              "ground_fire": {"radius": 4.5, "secs": 5.0, "dps": 7, "color": "#ff5a3a",
+                              "particle": "flame", "name": "Signal Fire"},
+              "trail_colors": ["#ff5a3a", "#ffc94a"]},
+             [["+", "Dazzles whoever it hits for 1.2 seconds"],
+              ["+", "Leaves a patch of burning flare for 5 seconds: 7 a second to anyone "
+                    "standing in it"],
+              ["-", "A little 18 damage blast"],
+              ["-", "Two shots, then a reload"]], rarity="legendary",
+             proj=lambda: [part("sph", [0, 0, 0], [0.46, 0.46, 0.46], "#ff5a3a", m="neon"),
+                           part("sph", [0, 0, 0], [0.80, 0.80, 0.80], "#ffc94a", m="neon",
+                                a=0.35)])
+def _():
+    brass = "#c9a227"
+    return [
+        part("rbox", [0, -0.20, -0.04], [0.16, 0.42, 0.24], "#5a3a22", [-0.3, 0, 0],
+             decal="leather"),
+        part("cyl", [0, 0.04, 0.36], [0.30, 0.70, 0.30], brass, [PI / 2, 0, 0], m="metal"),
+        part("torus", [0, 0.04, 0.72], [0.32, 0.05, 0.32], shade(brass, 0.8), [PI / 2, 0, 0],
+             m="metal"),
+        part("cyl", [0, 0.04, 0.73], [0.18, 0.02, 0.18], "#ff5a3a", [PI / 2, 0, 0], m="neon"),
+        part("rbox", [0, -0.06, 0.04], [0.10, 0.08, 0.14], shade(brass, 0.7), m="metal"),
+        part("torus", [0, -0.14, 0.12], [0.16, 0.03, 0.16], brass, [0, PI / 2, 0], m="metal"),
+    ]
+
+
+@JL24.weapon("midnight_lantern", "Midnight Ride Lantern",
+             "One if by land. Hang the lantern up and everybody sees you there, standing "
+             "in its light; by the time they get close, you have been gone a while.",
+             {"kind": "deploy", "cooldown": 20, "sound": "magic",
+              "deploy": {"type": "decoy", "hp": 80, "secs": 8.0, "cloak": 5.0, "limit": 1}},
+             [["+", "Leaves a double of you standing in the lantern-light for 8 seconds"],
+              ["+", "You slip away near-invisible for 5 seconds"],
+              ["-", "The double has 80 health, and does nothing but stand there"],
+              ["-", "20 second cooldown"]], rarity="legendary")
+def _():
+    parts = [part("cyl", [0, 0.30, 0.10], [0.05, 0.70, 0.05], "#3a2e22"),
+             part("rbox", [0, 0.66, 0.24], [0.04, 0.04, 0.30], "#3a2e22")]
+    parts += _tin_lantern([0, 0.42, 0.36], 0.60)
+    return parts
+
+
+@JL24.gear("sweet_tea", "Porch Sweet Tea",
+           "A mason jar of sweet tea off the porch, ice and lemon and all. Cures what "
+           "ails you, and there is plenty to go round.",
+           {"kind": "consume", "cooldown": 28, "sound": "drink",
+            "consume": {"cleanse": True, "regen": [4.0, 6.0], "share": 10}},
+           [["+", "Shakes off every burn, poison, slow and mark on you"],
+            ["+", "Heals 4 a second for 6 seconds"],
+            ["+", "Teammates within 10 studs get a share"],
+            ["-", "28 second cooldown"]], rarity="rare")
+def _():
+    return [
+        part("cyl", [0, 0.30, 0.14], [0.44, 0.56, 0.44], "#dff6ff", m="glass", a=0.4),
+        part("cyl", [0, 0.24, 0.14], [0.40, 0.42, 0.40], "#b8742a", a=0.85),
+        part("cyl", [0, 0.60, 0.14], [0.46, 0.06, 0.46], TIN, m="metal"),
+        part("rbox", [0.06, 0.40, 0.14], [0.12, 0.12, 0.12], "#eef8ff", [0.4, 0.4, 0], m="glass",
+             a=0.7),
+        part("cyl", [0.12, 0.50, 0.24], [0.16, 0.03, 0.16], "#ffe066", [0.4, 0, 0.6]),
+        _rod([-0.08, 0.30, 0.14], [-0.16, 0.86, 0.10], 0.04, RED),
+    ]
+
+
+JL24.effect("firefly_waltz", name="Firefly Waltz", rate=6.0, life=[1.6, 2.4],
+            size=[0.10, 0.16], grow=0.0, gravity=0.0, spread=0.5, rise=[0.0, 0.2],
+            blend="add", spin=0.0, colors=["#e8ff7a", "#fff3b0", "#c8ff5a"],
+            shape="spark", radius=1.0, orbit=1.0, wobble=0.6)
+JL24.effect("torchlight", name="Torchlight", rate=5.0, life=[1.0, 1.6],
+            size=[0.24, 0.36], grow=-0.2, gravity=-1.6, spread=0.3, rise=[0.6, 1.0],
+            blend="add", spin=0.5, colors=["#ffc94a", "#ff8a2a", "#fff3b0"],
+            shapes=["flame", "flame", "spark"], radius=0.4)
+JL24.opening(
+    sky={"top": "#070a1e", "horizon": NIGHT, "sun": [0.2, 0.9, 0.6], "clouds": 0,
+         "tint": "#ffe0a8"},
+    ambient="#5a5a7a", beam=FLAME, seep="firefly_waltz", after="torchlight",
+    burst=[FLAME, "#e8ff7a", RED, "#ffffff"],
+    pieces=[{"shape": "spark", "colors": ["#e8ff7a", "#fff3b0"], "blend": "add"},
+            {"shape": "star", "colors": ["#ffffff", "#ffc94a"], "blend": "normal"},
+            {"shape": "flame", "colors": ["#ffc94a", "#ff8a2a"], "blend": "add"},
+            {"shape": "jl_pennant", "colors": [RED, CREAM, BLUE], "blend": "normal"}],
+    backdrop="jl_liberty", title_wait="Somebody is lighting the lanterns...",
+    title_shake="The torch is catching...")
+JL24.award("Liberty Lights", ["Lantern Bearer", "Firefly Catcher", "Lamplighter",
+                              "Torchbearer", "Keeper of the Flame", "Lady Liberty"],
+           "Opened Tin Lantern Crates during Liberty Lights, the Fourth of July 2024.",
+           "em_torch", "spangle")
+JL24.bundle("pair", "Lantern and Torch", 1, 1050, "One Tin Lantern Crate, one Torch Key.")
+JL24.bundle("parade", "Lantern Parade", 3, 3000, "Three lanterns, three keys. Saves 300.")
+
+EVENTS = [JL22, JL23, JL24]
