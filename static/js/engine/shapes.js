@@ -1249,6 +1249,11 @@
   }, 84, 8, 0.03, true));
 
   /* ---- St. Patrick's meshes (any the St. Patrick's events needed that were not here) */
+  // A leprechaun's crown: a hat that narrows as it rises, flat on top --
+  // the old capotain shape, not a top hat's waist and flare.
+  add('sp_taper', lathe([[0.5, 0.0, 1], [0.475, 0.30], [0.44, 0.70], [0.42, 1.0, 1],
+                         [0.0, 1.0]], { segs: 36 }));
+
   // @@ stpatricks shapes go above this line @@
 
   /* ---- Easter meshes (any the Easter events needed that were not here) */
