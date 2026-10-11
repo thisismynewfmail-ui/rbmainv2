@@ -2355,4 +2355,507 @@ XM25.bundle("pair", "Basket and Horn", 1, 1050, "One Krampus Basket, one Horn Ke
 XM25.bundle("naughty_three", "Three in the Basket", 3, 3000,
             "Three baskets, three keys. Saves 300.")
 
-EVENTS = [XM22, XM23, XM24, XM25]
+# ============================================================ 2026
+ICE = "#bfe8ff"
+GLACIER = "#7ec8e8"
+AURORA_G = "#3dffb0"
+AURORA_P = "#a45aff"
+POLAR_NIGHT = "#0c1430"
+FROST = "#dfe9f2"
+PARKA = "#e8641e"
+POLAR_FUR = "#f6f4ee"
+
+
+def _crystal(at, h, w, c=ICE, tilt=(0.0, 0.0), **kw):
+    """An ice crystal standing on ``at``, ``h`` tall and ``w`` across,
+    leaning ``tilt`` (towards +Z, towards +X)."""
+    kw.setdefault("m", "glass")
+    return place("icicle", list(at), [w, h, w], c, anchor=[0, 1.0, 0],
+                 r=[PI + tilt[0], 0.0, tilt[1]], **kw)
+
+
+def _north_star(at, k, c=FROST, glow="#e8fbff", yaw=0.0):
+    """The north star: an eight-pointed spark, a long four-point over a
+    short one turned by an eighth, a light in the middle."""
+    x, y, z = at
+    return [place("sparkle", [x, y, z], [k, k, 0.5 * k], c, r=[0, yaw, 0], m="metal"),
+            place("sparkle", [x, y, z], [0.62 * k, 0.62 * k, 0.6 * k], shade(c, 0.9),
+                  r=[0, yaw, PI / 4], m="metal"),
+            part("sph", [x, y, z], [0.22 * k, 0.22 * k, 0.16 * k], glow, m="neon")]
+
+
+XM26 = Event(
+    "christmas_2026", "christmas", 2026, "xm26",
+    name="Aurora Winterlight", title="Aurora Winterlight",
+    blurb="Christmas 2026 the sky over the pole is going to light up green and violet "
+          "every night of December, and Blockhaven is packing for the trip: glacier ice "
+          "that holds the light, owls and bears and foxes in the snow, and a star to "
+          "steer home by. It has not started yet. The crates are already boxed.",
+    tagline="Look up.",
+    starts="2026-12-01", ends="2026-12-30",
+    colors={"accent": "#3dffb0", "deep": "#0c1430", "glow": "#a45aff"},
+    family_effects=["frostbite", "starstruck", "void_mist"],
+    hero_effect="aurora_veil", stencil="stencil_xm26")
+
+
+@XM26.crate_model("Glacier Chest",
+                  "A chest cut out of a block of glacier ice ten thousand years old, "
+                  "bound in frost-silver, with crystals growing on the lid and the "
+                  "northern lights caught inside it, still moving. Holds the Aurora "
+                  "Winterlight set. Needs a Polaris Key.",
+                  hinge=[0, 0.30, -0.54], keyhole=[0, -0.02, 0.56])
+def _():
+    parts = [
+        # the light inside, behind the ice
+        part("rbox", [0, -0.10, 0], [1.40, 0.60, 0.80], AURORA_G, m="neon", a=0.85,
+             decal="xm_aurora", wrap=True),
+        # the ice: a clear block, frosted round the edges
+        part("rbox", [0, -0.08, 0], [1.70, 0.76, 1.06], "#9fdcff", m="glass", a=0.38,
+             decal="xm_glacier", wrap=True),
+        part("rbox", [0, -0.50, 0], [1.76, 0.10, 1.12], FROST, m="metal"),
+        part("rbox", [0, 0.28, 0], [1.76, 0.05, 1.12], FROST, m="metal"),
+        # the lock: a frost-silver plate with a star cut over the keyhole
+        part("rbox", [0, -0.02, 0.555], [0.28, 0.30, 0.05], FROST, m="metal", decal="keyhole",
+             lock=1),
+        part("box", [0, -0.08, -0.545], [0.86, 0.50, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_xm26", a=-1),
+        # the lid: an ice slab with crystals growing out of it and the star on top
+        part("rbox", [0, 0.40, 0], [1.74, 0.22, 1.10], ICE, m="glass", a=0.7,
+             decal="xm_glacier", wrap=True, lid=1),
+        part("rbox", [0, 0.52, 0], [1.60, 0.04, 0.96], "#ffffff", lid=1),
+    ]
+    for x, z, h, w, t in ((-0.52, 0.18, 0.62, 0.30, (0.15, 0.2)), (-0.34, -0.20, 0.44, 0.24, (-0.2, 0.1)),
+                          (0.40, 0.14, 0.52, 0.28, (0.1, -0.25)), (0.58, -0.22, 0.36, 0.22, (-0.2, -0.3)),
+                          (-0.70, -0.30, 0.30, 0.18, (-0.1, 0.4))):
+        parts.append(dict(_crystal([x, 0.50, z], h, w, ICE if x < 0 else GLACIER, t), lid=1))
+    parts += [dict(p, lid=1) for p in _north_star([0, 0.98, 0.0], 0.62)]
+    parts += [dict(part("cyl", [0, 0.72, 0], [0.06, 0.40, 0.06], FROST, m="metal"), lid=1)]
+    # silver straps over the corners and icicles hanging off the base rim
+    for x in (-0.86, 0.86):
+        parts.append(part("rbox", [x, -0.10, 0], [0.06, 0.80, 1.12], FROST, m="metal"))
+    for k in range(7):
+        x = -0.72 + k * 0.24
+        parts.append(place("icicle", [x, -0.56, 0.57], [0.10, 0.18 + 0.08 * (k % 3), 0.10], ICE,
+                           anchor=[0, 1.0, 0], m="glass"))
+    return parts
+
+
+@XM26.key_model("Polaris Key",
+                "A frost-silver key with the north star for a bow and an icicle for a "
+                "bit. Opens one Glacier Chest. Hold it up at night and it points north.",
+                shoulder=-0.30)
+def _():
+    return [
+        *_north_star([-0.64, 0, 0], 0.72),
+        part("torus", [-0.64, 0, 0], [0.46, 0.05, 0.46], FROST, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0.10, 0, 0], [0.08, 0.80, 0.08], FROST, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.30, 0, 0], [0.16, 0.05, 0.16], GLACIER, [0, 0, PI / 2], m="metal"),
+        place("icicle", [0.40, 0.0, 0], [0.12, 0.30, 0.12], ICE, anchor=[0, 1.0, 0], m="glass"),
+        place("icicle", [0.52, 0.0, 0], [0.10, 0.22, 0.10], ICE, anchor=[0, 1.0, 0], m="glass"),
+        part("sph", [0.50, 0, 0], [0.06, 0.06, 0.06], AURORA_G, m="neon"),
+    ]
+
+
+@XM26.hat("aurora_crown", "Aurora Crown",
+          "A tiara of ice crystals, frost-silver and the north star, and above it a "
+          "ring of the northern lights itself, turning slowly. Do not ask how it was "
+          "caught.", "legendary", hair="show")
+def _():
+    parts = [ringband(-0.20, 0.10, FROST, margin=0.05, m="metal"),
+             ringband(-0.12, 0.04, GLACIER, margin=0.07, m="metal")]
+    for k in range(16):
+        a = TAU * k / 16
+        h = 0.18 + 0.46 * max(0.0, math.cos(a)) ** 2
+        parts.append(_crystal([math.sin(a) * 0.96, -0.16, math.cos(a) * 0.93], h, 0.20,
+                              ICE if k % 2 else GLACIER, (0.25 * math.cos(a), 0.25 * math.sin(a))))
+    parts += _north_star([0, 0.62, 0.98], 0.42)
+    # a curtain of the lights round the crown, turning slowly
+    parts += [place("ring", [0, -0.10, 0], [2.20, 3.2, 2.12], AURORA_G, anchor=[0, 0, 0],
+                    m="neon", a=0.32, decal="xm_aurora", wrap=True, spin=0.5)]
+    return parts
+
+
+@XM26.hat("polar_bear", "Polar Bear Hat",
+          "A white bear asleep on your head, nose on the front, paws hanging over "
+          "your ears. It is very warm. It is also, you suspect, very heavy, and "
+          "starting to wake up.", "rare")
+def _():
+    nose = "#1a1a20"
+    parts = [
+        dome(-0.42, 0.92, POLAR_FUR, t="capcrown", decal="xm_polarfur", wrap=True),
+        ringband(-0.36, 0.10, shade(POLAR_FUR, 0.92), margin=0.07, decal="xm_polarfur", wrap=True),
+        # the muzzle over the brow, the nose and the shut, sleepy eyes
+        part("sph", [0, 0.02, 0.82], [0.56, 0.38, 0.42], shade(POLAR_FUR, 0.96), decal="xm_polarfur",
+             wrap=True),
+        part("sph", [0, 0.12, 1.02], [0.20, 0.13, 0.10], nose, m="glass"),
+        part("rbox", [0, -0.06, 1.02], [0.03, 0.10, 0.02], nose),
+        part("rbox", [0.26, 0.30, 0.82], [0.14, 0.03, 0.04], nose, [0, 0, -0.2]),
+        part("rbox", [-0.26, 0.30, 0.82], [0.14, 0.03, 0.04], nose, [0, 0, 0.2]),
+    ]
+    for s in (1, -1):
+        parts += [
+            part("sph", [0.50 * s, 0.50, -0.02], [0.32, 0.30, 0.18], POLAR_FUR, decal="xm_polarfur",
+                 wrap=True),
+            part("sph", [0.50 * s, 0.50, 0.05], [0.18, 0.16, 0.06], "#c9c4ba"),
+            # a paw hanging down each side, black pads showing
+            part("capsule", [0.92 * s, -0.64, 0.12], [0.30, 0.66, 0.30], POLAR_FUR,
+                 [0.0, 0, 0.12 * s], decal="xm_polarfur", wrap=True),
+            part("sph", [0.94 * s, -1.00, 0.24], [0.24, 0.14, 0.12], "#2a2a30"),
+        ]
+    return parts
+
+
+@XM26.hat("snowy_owl", "Snowy Owl",
+          "A snowy owl, perched, white with black flecks and two enormous yellow eyes "
+          "that see everything you do and judge most of it.", "rare", hair="show")
+def _():
+    owl = "#f8f6f0"
+    parts = [
+        part("sph", [0, 0.48, -0.04], [0.82, 0.90, 0.74], owl, decal="xm_owlspeckle", wrap=True),
+        part("sph", [0, 1.04, 0.04], [0.66, 0.56, 0.60], owl, decal="xm_owlspeckle", wrap=True),
+        part("sph", [0, 1.00, 0.24], [0.52, 0.40, 0.24], "#ffffff"),
+        part("sph", [0.14, 1.04, 0.33], [0.18, 0.18, 0.06], "#f2c230"),
+        part("sph", [-0.14, 1.04, 0.33], [0.18, 0.18, 0.06], "#f2c230"),
+        part("sph", [0.14, 1.04, 0.36], [0.09, 0.09, 0.03], BLACK),
+        part("sph", [-0.14, 1.04, 0.36], [0.09, 0.09, 0.03], BLACK),
+        place("cone", [0, 0.92, 0.36], [0.08, 0.12, 0.08], "#3a3a40", r=[PI, 0, 0]),
+        place("wedge", [0, 0.20, -0.44], [0.40, 0.30, 0.30], owl, r=[0.5, 0, 0]),
+    ]
+    for s in (1, -1):
+        parts += [
+            part("sph", [0.38 * s, 0.42, -0.08], [0.20, 0.72, 0.58], shade(owl, 0.97),
+                 [0, 0, -0.12 * s], decal="xm_owlspeckle", wrap=True),
+            part("rbox", [0.14 * s, 0.03, 0.12], [0.16, 0.06, 0.22], "#c9c4b0"),
+            part("rbox", [0.14 * s, 0.03, 0.25], [0.14, 0.04, 0.06], "#2a2a30"),
+        ]
+    return parts
+
+
+@XM26.hat("igloo", "Igloo Hat",
+          "A little igloo of packed snow blocks, a tunnel out the front and a "
+          "lamp lit inside. Somebody small lives in there. They have asked you to "
+          "keep still.", "uncommon")
+def _():
+    parts = [
+        dome(-0.30, 0.94, POLAR_FUR, decal="xm_iceblocks", wrap=True),
+        ringband(-0.26, 0.08, shade(POLAR_FUR, 0.9), margin=0.06),
+        part("cyl", [0, -0.06, 0.90], [0.52, 0.42, 0.50], POLAR_FUR, [PI / 2, 0, 0],
+             decal="xm_iceblocks", wrap=True),
+        part("disc", [0, -0.06, 1.11], [0.34, 0.34, 0.04], "#ffb04a", m="neon"),
+        part("rbox", [0, -0.24, 1.0], [0.40, 0.06, 0.30], shade(POLAR_FUR, 0.9)),
+    ]
+    parts += around(5, 0.56, 0.0, lambda a, x, z: place(
+        "sparkle", [x, 0.44 + 0.08 * math.cos(a * 3), z], [0.14, 0.14, 0.4], "#e8fbff",
+        r=[0, a, 0], m="neon"), start=0.4)
+    return parts
+
+
+@XM26.hat("trapper", "Northern Trapper",
+          "Deep blue felt and white fur, the flaps down over the ears and the front "
+          "turned up, the north star pinned to it. For waiting outside in the cold all "
+          "night for the lights.", "uncommon")
+def _():
+    navy = "#1f2a4a"
+    parts = [
+        cap(-0.34, 0.22, navy, grow=0.06, decal="felt", wrap=True),
+        band(-0.26, 0.18, POLAR_FUR, grow=0.12, decal="xm_polarfur", wrap=True),
+        # the front flap turned up against the crown
+        part("rbox", [0, -0.02, 0.84], [1.40, 0.52, 0.16], POLAR_FUR, [-0.18, 0, 0], decal="xm_polarfur",
+             wrap=True),
+        part("rbox", [0, 0.20, -0.84], [1.30, 0.34, 0.12], POLAR_FUR, [0.20, 0, 0], decal="xm_polarfur",
+             wrap=True),
+    ]
+    for s in (1, -1):
+        # the ear flaps down: felt outside, the fur lining showing round the edge
+        parts += [part("rbox", [0.86 * s, -0.60, -0.02], [0.12, 0.80, 0.86], POLAR_FUR,
+                       [0, 0, 0.06 * s], decal="xm_polarfur", wrap=True),
+                  part("rbox", [0.93 * s, -0.56, -0.02], [0.05, 0.66, 0.72], "#2a3a66",
+                       [0, 0, 0.06 * s], decal="felt"),
+                  rod([0.92 * s, -0.98, 0.10], [0.80 * s, -1.36, 0.24], 0.04, navy)]
+    parts += _north_star([0, 0.10, 0.94], 0.30)
+    return parts
+
+
+@XM26.hat("star_halo", "Star of the North",
+          "A slow ring of ice shards turning round your head, and the north star "
+          "hanging over it. You will never be lost again. You may be followed.", "rare",
+          hair="show")
+def _():
+    parts = around(8, 0.84, 0.0, lambda a, x, z: _crystal(
+        [x, 0.40, z], 0.42 if int(round(a * 8 / TAU)) % 2 else 0.28, 0.20,
+        ICE if int(round(a * 8 / TAU)) % 2 else GLACIER, (0.5 * math.cos(a), 0.5 * math.sin(a)),
+        spin=0.8))
+    parts += [place("ring", [0, 0.40, 0], [1.72, 0.3, 1.68], FROST, anchor=[0, 0, 0], m="metal")]
+    parts += _north_star([0, 1.20, 0], 0.70)
+    parts += [part("sph", [0, 1.20, 0], [0.62, 0.62, 0.62], "#e8fbff", m="neon", a=0.18)]
+    return parts
+
+
+@XM26.hat("glacier_helm", "Glacier Helm",
+          "A helmet carved out of one piece of blue glacier ice, snow still on top, "
+          "crystals growing out of the crown and icicles round the rim. It does not "
+          "melt. Your head, however, is cold.", "legendary")
+def _():
+    parts = [
+        dome(-0.56, 1.06, GLACIER, t="capcrown", m="glass", a=0.82, decal="xm_glacier",
+             wrap=True),
+        ringband(-0.50, 0.10, FROST, margin=0.10, m="metal"),
+        place("hemi", [0, 0.34, 0], [1.20, 0.46, 1.14], "#ffffff", anchor=[0, 0, 0], decal="xm_polarfur",
+              wrap=True),
+    ]
+    for x, z, h, w, t in ((0, 0.10, 0.80, 0.30, (0.15, 0.0)), (0.34, -0.10, 0.56, 0.24, (0.0, 0.3)),
+                          (-0.34, -0.10, 0.56, 0.24, (0.0, -0.3)), (0.18, -0.36, 0.40, 0.20, (-0.2, 0.2)),
+                          (-0.18, -0.36, 0.40, 0.20, (-0.2, -0.2))):
+        parts.append(_crystal([x, 0.40, z], h, w, ICE, t))
+    parts += around(12, 1.06, 0.0, lambda a, x, z: None if math.cos(a) > 0.6 else place(
+        "icicle", [x, -0.55, z * 0.97], [0.14, 0.24 + 0.10 * ((int(a * 3)) % 2), 0.14], ICE,
+        anchor=[0, 1.0, 0], m="glass"))
+    return parts
+
+
+@XM26.back("ice_wings", "Wings of Ice",
+           "Two wings of clear blue ice, every feather a shard, the northern lights "
+           "showing faintly through them. They do not work. They do not need to.",
+           "legendary")
+def _():
+    parts = [part("rbox", [0, 0.56, -0.10], [0.40, 0.40, 0.14], FROST, m="metal"),
+             *_north_star([0, 0.56, -0.20], 0.40)]
+    for s in (1, -1):
+        yaw = 0.45 if s > 0 else PI - 0.45
+        at = [0.16 * s, 0.62, -0.26]
+        parts += [place("wing", at, [2.50, 2.30, 1.4], ICE, anchor=[-0.5, 0.0, 0],
+                        r=[0, yaw, 0.32], m="glass", a=0.72),
+                  place("wing", [at[0], at[1], at[2] - 0.02], [2.10, 1.90, 0.8], AURORA_G,
+                        anchor=[-0.5, 0.0, 0], r=[0, yaw, 0.32], m="neon", a=0.35)]
+    return parts
+
+
+@XM26.back("aurora_cape", "Aurora Cape",
+           "A cape of polar night with the lights rippling across it, stars and all, "
+           "and a roll of white fur at the shoulders. Wear it outside after dark and "
+           "watch people look up.", "rare")
+def _():
+    return [
+        place("cape", [0, 0.98, -0.14], [1.90, 2.00, 1.50], POLAR_NIGHT, anchor=[0, 0, 0],
+              decal="xm_aurora_cape", wrap=True),
+        part("capsule", [0, 0.98, -0.10], [0.22, 1.90, 0.22], POLAR_FUR, [0, 0, PI / 2],
+             decal="xm_polarfur", wrap=True),
+        *_north_star([0.0, 1.00, -0.22], 0.30),
+    ]
+
+
+@XM26.hairdo("aurora_ombre", "Aurora Ombre",
+             "Long hair dyed the colours of the lights: midnight at the roots, then "
+             "green, then violet at the ends. Hairdressers all over Blockhaven have "
+             "been trying to copy it.", "rare")
+def _():
+    return [
+        place("hairlong", [0, 0, 0], [1.04, 1.04, 1.04], "#1c2a5a", anchor=[0, 0, 0],
+              decal="xm_aurora_hair", wrap=True),
+        part("capsule", [0.42, -0.36, -0.40], [0.16, 0.46, 0.16], AURORA_P, [0.2, 0, 0.1], m="neon",
+             a=0.5),
+        part("capsule", [-0.42, -0.36, -0.40], [0.16, 0.46, 0.16], AURORA_G, [0.2, 0, -0.1], m="neon",
+             a=0.5),
+    ]
+
+
+@XM26.hairdo("snowdrift_bun", "Snowdrift Bun",
+             "Silver-white hair swept up into a bun like a snowdrift, a frost-silver "
+             "snowflake pinned through it.", "uncommon")
+def _():
+    silver = "#e8eef6"
+    return [
+        place("hairmid", [0, 0, 0], [1.03, 1.03, 1.03], silver, anchor=[0, 0, 0], decal="strands",
+              wrap=True),
+        part("sph", [0, 0.66, -0.12], [0.50, 0.40, 0.48], silver, decal="strands", wrap=True),
+        part("torus", [0, 0.56, -0.12], [0.40, 0.08, 0.38], shade(silver, 0.9)),
+        place("snowflake", [0.24, 0.70, 0.02], [0.30, 0.30, 1.0], FROST, r=[0, 0.6, 0], m="metal"),
+        part("sph", [0.24, 0.70, 0.02], [0.06, 0.06, 0.06], "#bfe8ff", m="neon"),
+    ]
+
+
+XM26.face("frostbitten", "Frostbitten",
+          "Blue lips, chattering teeth, frost on the lashes and a nose that went numb "
+          "an hour ago. Worth it, though. Did you see them?", [
+              {"k": "arc", "x": -0.20, "y": -0.12, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.12, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "star", "x": -0.27, "y": -0.20, "r": 0.03, "n": 6, "i": 0.35, "c": "#ffffff"},
+              {"k": "star", "x": 0.27, "y": -0.20, "r": 0.03, "n": 6, "i": 0.35, "c": "#ffffff"},
+              {"k": "ellipse", "x": -0.32, "y": 0.04, "w": 0.14, "h": 0.08, "c": "#9cc8ff"},
+              {"k": "ellipse", "x": 0.32, "y": 0.04, "w": 0.14, "h": 0.08, "c": "#9cc8ff"},
+              {"k": "poly", "pts": [[-0.18, 0.10], [0.18, 0.10], [0.16, 0.20], [-0.16, 0.20]],
+               "c": "#2a4a8a"},
+              {"k": "poly", "pts": [[-0.16, 0.11], [0.16, 0.11], [0.15, 0.15], [-0.15, 0.15]],
+               "c": "#ffffff"},
+              {"k": "line", "x1": -0.12, "y1": 0.11, "x2": -0.12, "y2": 0.15, "w": 0.015,
+               "c": "#8aa0c0"},
+              {"k": "line", "x1": 0.0, "y1": 0.11, "x2": 0.0, "y2": 0.15, "w": 0.015,
+               "c": "#8aa0c0"},
+              {"k": "line", "x1": 0.12, "y1": 0.11, "x2": 0.12, "y2": 0.15, "w": 0.015,
+               "c": "#8aa0c0"},
+          ], "uncommon")
+XM26.face("starry_eyed", "Starry-Eyed",
+          "Eyes full of the night sky -- a star in each, the lights reflected under "
+          "them -- and a mouth that has forgotten to close.", [
+              {"k": "ellipse", "x": -0.19, "y": -0.12, "w": 0.18, "h": 0.20, "c": "#0c1430"},
+              {"k": "ellipse", "x": 0.19, "y": -0.12, "w": 0.18, "h": 0.20, "c": "#0c1430"},
+              {"k": "star", "x": -0.19, "y": -0.13, "r": 0.06, "n": 4, "i": 0.35, "c": "#e8fbff"},
+              {"k": "star", "x": 0.19, "y": -0.13, "r": 0.06, "n": 4, "i": 0.35, "c": "#e8fbff"},
+              {"k": "arc", "x": -0.19, "y": -0.10, "r": 0.06, "a0": 0.10, "a1": 0.40, "w": 0.02,
+               "c": "#3dffb0"},
+              {"k": "arc", "x": 0.19, "y": -0.10, "r": 0.06, "a0": 0.10, "a1": 0.40, "w": 0.02,
+               "c": "#a45aff"},
+              {"k": "ellipse", "x": 0.0, "y": 0.14, "w": 0.10, "h": 0.12, "c": "#16171b"},
+          ], "rare")
+XM26.shirt("expedition_parka", "Expedition Parka",
+           "A bright orange polar parka, fur round the hood, patches on the arm and "
+           "POLAR EXPEDITION 2026 across the chest, for standing out against the snow.",
+           {"torso": PARKA, "arms": PARKA, "decal": "xm_tee_parka", "weave": "xm_ripstop",
+            "hood": POLAR_FUR}, "rare")
+XM26.pants("mukluk_breeches", "Mukluk Breeches",
+           "Quilted navy breeches tucked into sealskin mukluks with white fur round "
+           "the top. Nothing below the knee has been cold since.",
+           {"legs": "#1f2a4a", "weave": "xm_quilted", "length": 0.62, "skin": "#8a6a4a",
+            "cuff": POLAR_FUR})
+XM26.belt("aurora_sash", "Aurora Sash",
+          "A sash woven in the colours of the lights, green into violet, fastened "
+          "with a star.",
+          {"band": "#1f8a7a", "buckle": FROST, "width": 0.22, "glow": True, "weave": "xm_aurora"})
+
+
+@XM26.weapon("narwhal_lance", "Narwhal Lance",
+             "A narwhal's tusk on a frost-silver haft. Lunge with it and it carries you "
+             "forward into whoever is in front of you -- and it hits half as hard again "
+             "if you come down on them from a jump.",
+             {"kind": "melee", "damage": 42, "headshot": 1.0, "rpm": 60, "range": 13.0,
+              "arc": 0.30, "sound": "swing", "knockback": 18,
+              "lunge": {"speed": 34}, "self_airborne": 1.5,
+              "on_hit": {"slow": [0.30, 2.0]}},
+             [["+", "Long reach, and every thrust carries you forward with it"],
+              ["+", "Half as hard again when you strike in mid-air"],
+              ["+", "Chills: slowed by 30% for 2 seconds"],
+              ["-", "One thrust a second, and a narrow point"]], rarity="legendary")
+def _():
+    ivory = "#ece4d0"
+    return [
+        rod([0, 0, -0.50], [0, 0, 0.30], 0.12, FROST, m="metal"),
+        part("cyl", [0, 0, 0.32], [0.30, 0.10, 0.30], FROST, [PI / 2, 0, 0], m="metal"),
+        part("sph", [0, 0, -0.52], [0.16, 0.16, 0.16], GLACIER, m="glass"),
+        place("spiral", [0, 0, 0.36], [0.24, 2.10, 0.24], ivory, anchor=[0, 0, 0],
+              r=[PI / 2, 0, 0]),
+        place("cone", [0, 0, 1.30], [0.22, 1.90, 0.22], ivory, r=[PI / 2, 0, 0],
+              decal="xm_narwhal", wrap=True),
+    ]
+
+
+@XM26.weapon("aurora_arc", "Aurora Arc",
+             "A frost-silver wand with the lights in it. Every shot leaps from whoever "
+             "it hits to the next nearest enemy, the way the aurora runs along the sky.",
+             {"kind": "hitscan", "damage": 22, "headshot": 1.5, "rpm": 150, "mag": 10,
+              "reload": 2.0, "range": 160, "auto": True, "sound": "laser", "recoil": 0.6,
+              "spread": 0.5, "reserve": 80, "tracer": "#3dffb0",
+              "ricochet": {"range": 18, "falloff": 0.75, "always": True},
+              "on_hit": {"slow": [0.12, 1.0]}},
+             [["+", "Every hit leaps on to the nearest other enemy within 18 studs for 75%"],
+              ["+", "A light chill: slowed a little for a second"],
+              ["-", "22 damage"],
+              ["-", "Ten to a charge"]], rarity="legendary")
+def _():
+    return [
+        part("rbox", [0, -0.10, -0.02], [0.14, 0.34, 0.20], POLAR_NIGHT, [-0.2, 0, 0],
+             decal="felt"),
+        rod([0, -0.02, -0.10], [0, 0.04, 0.80], 0.10, FROST, m="metal"),
+        part("torus", [0, 0.04, 0.40], [0.18, 0.04, 0.18], GLACIER, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.05, 0.84], [0.26, 0.20, 0.26], AURORA_G, [PI / 2, 0, 0], m="neon",
+             a=0.6, decal="xm_aurora", wrap=True),
+        _crystal([0, 0.05, 0.92], 0.44, 0.22, ICE, (PI / 2, 0.0)),
+        part("sph", [0, 0.05, 1.04], [0.16, 0.16, 0.16], AURORA_P, m="neon", a=0.7),
+    ]
+
+
+@XM26.weapon("supply_drop", "Supply Drop",
+             "A crate of expedition stores on a little parachute. Throw it for your team: "
+             "whoever reaches it first gets ammunition, a padded layer and a spring in "
+             "their step.",
+             {"kind": "deploy", "cooldown": 20, "sound": "throw",
+              "deploy": {"type": "pickup", "thrown": True, "throw": 22, "radius": 3.0,
+                         "secs": 25.0, "limit": 2, "scale": 1.2, "ammo": 40,
+                         "shield": [30, 8.0], "haste": [0.20, 5.0], "name": "Supply Drop",
+                         "color": PARKA}},
+             [["+", "A teammate who picks it up gets 40 rounds, a 30-point shield for 8 "
+                    "seconds and 20% more speed for 5"],
+              ["+", "Two can be waiting at once"],
+              ["-", "No damage: it is for your friends"],
+              ["-", "20 second cooldown, and anyone can see it fall"]], rarity="rare",
+             deploy=lambda: [
+                 part("rbox", [0, 0.30, 0], [0.80, 0.60, 0.70], "#6a4a2e", decal="planks",
+                      wrap=True),
+                 part("rbox", [0, 0.30, 0], [0.82, 0.10, 0.72], PARKA),
+                 part("rbox", [0, 0.30, 0.36], [0.30, 0.30, 0.01], "#ffffff", decal="xm_supply"),
+                 place("hemi", [0, 1.50, 0], [1.40, 0.80, 1.40], PARKA, anchor=[0, 0, 0],
+                       decal="xm_parachute", wrap=True),
+                 rod([0.38, 0.62, 0.32], [0.60, 1.50, 0.56], 0.02, "#f4f6f8"),
+                 rod([-0.38, 0.62, 0.32], [-0.60, 1.50, 0.56], 0.02, "#f4f6f8"),
+                 rod([0.38, 0.62, -0.32], [0.60, 1.50, -0.56], 0.02, "#f4f6f8"),
+                 rod([-0.38, 0.62, -0.32], [-0.60, 1.50, -0.56], 0.02, "#f4f6f8"),
+             ])
+def _():
+    return [
+        part("rbox", [0, 0.06, 0.20], [0.46, 0.36, 0.40], "#6a4a2e", decal="planks", wrap=True),
+        part("rbox", [0, 0.06, 0.20], [0.48, 0.06, 0.42], PARKA),
+        part("rbox", [0, 0.06, 0.41], [0.18, 0.18, 0.01], "#ffffff", decal="xm_supply"),
+        part("torus", [0, 0.28, 0.20], [0.20, 0.04, 0.12], "#2a2a30", [PI / 2, 0, 0]),
+    ]
+
+
+@XM26.gear("north_compass", "North Star Compass",
+           "A frost-silver compass whose needle points at the north star -- and, if "
+           "you tap the glass, at everyone hiding from you. Your team sets off "
+           "after them at a run.",
+           {"kind": "ability", "cooldown": 22, "sound": "chime",
+            "ability": {"radar": {"radius": 120, "secs": 6.0, "color": "#3dffb0"},
+                        "rally": {"radius": 24, "secs": 5.0, "speed": 0.20}}},
+           [["+", "Shows every enemy within 120 studs to your whole team for 6 seconds"],
+            ["+", "Teammates within 24 studs get 20% more speed for 5 seconds"],
+            ["-", "22 second cooldown"],
+            ["-", "No damage at all"]], rarity="rare")
+def _():
+    return [
+        part("cyl", [0, 0.26, 0.12], [0.46, 0.10, 0.46], FROST, [PI / 2, 0, 0], m="metal"),
+        part("disc", [0, 0.26, 0.175], [0.38, 0.38, 0.02], POLAR_NIGHT, decal="xm_compass"),
+        part("cyl", [0, 0.26, 0.19], [0.38, 0.01, 0.38], "#e8fbff", [PI / 2, 0, 0], m="glass",
+             a=0.3),
+        part("cyl", [0, 0.52, 0.12], [0.08, 0.08, 0.08], FROST, m="metal"),
+        part("torus", [0, 0.60, 0.12], [0.14, 0.03, 0.14], FROST, [PI / 2, 0, 0], m="metal"),
+    ]
+
+
+XM26.effect("aurora_veil", name="Aurora Veil", rate=1.6, life=[2.4, 3.2],
+            size=[0.60, 0.90], grow=0.4, gravity=-0.2, spread=0.4, rise=[0.2, 0.4],
+            blend="add", spin=0.2, colors=["#3dffb0", "#a45aff", "#5ab8ff"],
+            shape="aurora", radius=0.7, wobble=0.6)
+XM26.effect("diamond_dust", name="Diamond Dust", rate=4.0, life=[1.2, 1.8],
+            size=[0.12, 0.22], grow=0.0, gravity=0.3, spread=0.8, rise=[0.1, 0.3],
+            blend="add", spin=2.5, colors=["#ffffff", "#bfe8ff", "#e8fbff"],
+            shape="crystal", radius=0.9)
+XM26.opening(
+    sky={"top": "#040818", "horizon": "#14305a", "sun": [0.0, 0.8, 0.6], "clouds": 0.1,
+         "tint": "#d8f8ff"},
+    ambient="#3a4a7a", beam="#3dffb0", seep="aurora_veil", after="diamond_dust",
+    burst=["#3dffb0", "#a45aff", "#e8fbff", "#5ab8ff"],
+    pieces=[{"shape": "aurora", "colors": ["#3dffb0", "#a45aff"], "blend": "add"},
+            {"shape": "crystal", "colors": ["#e8fbff", "#bfe8ff"], "blend": "add"},
+            {"shape": "flake", "colors": ["#ffffff", "#dff4ff"], "blend": "normal"},
+            {"shape": "star", "colors": ["#ffffff", "#fff3b0"], "blend": "add"}],
+    backdrop="xm_aurora", title_wait="The sky is starting to glow...",
+    title_shake="Look up...")
+XM26.award("Aurora Winterlight", ["Stargazer", "Night Watcher", "Ice Walker", "Light Catcher",
+                                  "Polar Explorer", "Keeper of the Lights"],
+           "Opened Glacier Chests under the Aurora Winterlight, Christmas 2026.", "em_aurora",
+           "flake")
+XM26.bundle("pair", "Chest and Star", 1, 1050, "One Glacier Chest, one Polaris Key.")
+XM26.bundle("expedition", "The Expedition", 3, 3000, "Three chests, three keys. Saves 300.")
+
+EVENTS = [XM22, XM23, XM24, XM25, XM26]

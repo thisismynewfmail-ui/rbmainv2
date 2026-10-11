@@ -3866,6 +3866,223 @@
   painter('stencil_xm25', stencil({ top: 'KRAMPUS', bottom: 'NACHT  2025', icon: 'krampus',
                                     ink: 'rgba(255,122,58,0.95)', glow: '#d8252e',
                                     font: 'Georgia, serif', frame: 'box' }));
+  /* -- 2026 Aurora Winterlight: the lights, glacier ice, snow blocks and owls */
+
+  // polar fur: thick white, the strands showing only as a soft blue-grey
+  painter('xm_polarfur', function (ctx) {
+    var rnd = scatter(337);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 280; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, len = 6 + rnd() * 9, lean = (rnd() - 0.5) * 6;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(150,170,200,0.16)' : 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1 + rnd() * 1.5;
+      around(ctx, x, y, function (g) {
+        g.beginPath(); g.moveTo(0, 0); g.lineTo(lean, len); g.stroke();
+      });
+    }
+  });
+
+  // the aurora: curtains of green rising into violet, rayed from below
+  painter('xm_aurora', function (ctx) {
+    var g = ctx.createLinearGradient(0, CELL, 0, 0);
+    g.addColorStop(0, 'rgba(61,255,176,0.95)'); g.addColorStop(0.5, 'rgba(90,184,255,0.75)');
+    g.addColorStop(1, 'rgba(164,90,255,0.85)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    var rnd = scatter(307);
+    for (var k = 0; k < 40; k++) {
+      var x = rnd() * CELL, w = 1 + rnd() * 4;
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,' + (0.10 + rnd() * 0.25) + ')'
+        : 'rgba(10,20,48,' + (0.10 + rnd() * 0.20) + ')';
+      ctx.fillRect(x, 0, w, CELL);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0, CELL - 10, CELL, 3);
+  });
+
+  // the night with the lights in it: wavy curtains and a scatter of stars
+  painter('xm_aurora_cape', function (ctx) {
+    ctx.fillStyle = '#0c1430'; ctx.fillRect(0, 0, CELL, CELL);
+    var rnd = scatter(311);
+    [[34, '61,255,176'], [70, '164,90,255'], [96, '90,184,255']].forEach(function (band, i) {
+      for (var x = 0; x < CELL; x += 2) {
+        var y = band[0] + Math.sin(x / 18 + i * 2) * 10;
+        var g = ctx.createLinearGradient(0, y - 30, 0, y + 6);
+        g.addColorStop(0, 'rgba(' + band[1] + ',0)'); g.addColorStop(0.8, 'rgba(' + band[1] + ',0.55)');
+        g.addColorStop(1, 'rgba(' + band[1] + ',0)');
+        ctx.fillStyle = g; ctx.fillRect(x, y - 30, 2, 36);
+      }
+    });
+    ctx.fillStyle = '#ffffff';
+    for (var k = 0; k < 40; k++) {
+      ctx.globalAlpha = 0.4 + rnd() * 0.6;
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // hair dyed like the lights: midnight roots, green, then violet ends
+  painter('xm_aurora_hair', function (ctx) {
+    var g = ctx.createLinearGradient(0, 0, 0, CELL);
+    // (the hair shell runs crown to hem up the texture, so the ends are at the top)
+    g.addColorStop(0, '#a45aff'); g.addColorStop(0.38, '#2fd8a0'); g.addColorStop(0.62, '#1c2a5a');
+    g.addColorStop(1, '#1c2a5a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    var rnd = scatter(313);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 160; i++) {
+      var x = rnd() * CELL;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.20)' : 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 1 + rnd();
+      ctx.beginPath(); ctx.moveTo(x, rnd() * 40); ctx.lineTo(x + (rnd() - 0.5) * 6, 60 + rnd() * 68);
+      ctx.stroke();
+    }
+  });
+
+  // a compass rose: the four points, the north one lit, and the star over N
+  painter('xm_compass', function (ctx) {
+    ctx.translate(64, 64);
+    ctx.strokeStyle = 'rgba(223,233,242,0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.stroke();
+    for (var k = 0; k < 32; k++) {
+      var a = k * Math.PI / 16;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * 50, Math.sin(a) * 50);
+      ctx.lineTo(Math.cos(a) * (k % 4 ? 46 : 42), Math.sin(a) * (k % 4 ? 46 : 42)); ctx.stroke();
+    }
+    for (k = 0; k < 4; k++) {
+      ctx.save(); ctx.rotate(k * Math.PI / 2);
+      ctx.fillStyle = k === 0 ? '#3dffb0' : '#dfe9f2';
+      ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(7, 0); ctx.lineTo(-7, 0); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#dfe9f2'; ctx.font = 'bold 13px Georgia, serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('N', 0, -30);
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // glacier ice: frost round the edges, a crack or two and trapped bubbles
+  painter('xm_glacier', function (ctx) {
+    var rnd = scatter(317);
+    var g = ctx.createRadialGradient(64, 64, 20, 64, 64, 92);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(230,248,255,0.32)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.2;
+    for (var k = 0; k < 6; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      for (var s = 0; s < 4; s++) { x += (rnd() - 0.5) * 34; y += (rnd() - 0.5) * 34; ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    for (k = 0; k < 24; k++) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 1 + rnd() * 3, 0, Math.PI * 2); ctx.stroke();
+    }
+  });
+
+  // packed snow blocks, laid in courses like an igloo's
+  painter('xm_iceblocks', function (ctx) {
+    ctx.strokeStyle = 'rgba(120,150,190,0.55)'; ctx.lineWidth = 2;
+    for (var row = 0; row < 6; row++) {
+      var y = row * 22 + 4;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CELL, y); ctx.stroke();
+      for (var x = (row % 2 ? 16 : 0); x < CELL; x += 32) {
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 22); ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    for (row = 0; row < 6; row++) ctx.fillRect(0, row * 22 + 6, CELL, 2);
+  });
+
+  // a narwhal's tusk: the left-handed spiral running up it
+  painter('xm_narwhal', function (ctx) {
+    ctx.save(); ctx.translate(64, 64); ctx.rotate(0.6); ctx.translate(-64, -64);
+    for (var x = -CELL; x < CELL * 2; x += 14) {
+      ctx.fillStyle = 'rgba(120,100,70,0.35)'; ctx.fillRect(x, -CELL, 4, CELL * 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x + 5, -CELL, 3, CELL * 3);
+    }
+    ctx.restore();
+  });
+
+  // a snowy owl's feathers: white, flecked with dark chevrons
+  painter('xm_owlspeckle', function (ctx) {
+    var rnd = scatter(331);
+    ctx.strokeStyle = 'rgba(40,40,46,0.75)'; ctx.lineCap = 'round';
+    for (var k = 0; k < 46; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, w = 3 + rnd() * 4;
+      ctx.lineWidth = 1.5 + rnd() * 1.5;
+      ctx.beginPath(); ctx.moveTo(x - w, y - 2); ctx.lineTo(x, y + 1); ctx.lineTo(x + w, y - 2); ctx.stroke();
+    }
+  });
+
+  // a parachute canopy: orange and white gores
+  painter('xm_parachute', function (ctx) {
+    for (var x = 0; x < CELL; x += 32) {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(x, 0, 16, CELL);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    for (x = 0; x < CELL; x += 16) ctx.fillRect(x, 0, 1, CELL);
+  });
+
+  // quilting: diamonds stitched through the padding
+  painter('xm_quilted', function (ctx) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+    for (var k = -CELL; k < CELL * 2; k += 24) {
+      ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k + CELL, CELL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(k, CELL); ctx.lineTo(k + CELL, 0); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    for (var y = 0; y < CELL; y += 24) {
+      for (var x = 0; x < CELL; x += 24) {
+        ctx.beginPath(); ctx.arc(x + 12, y + 12, 7, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  });
+
+  // ripstop nylon: a fine grid woven through it
+  painter('xm_ripstop', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    for (var k = 0; k < CELL; k += 8) { ctx.fillRect(k, 0, 1, CELL); ctx.fillRect(0, k, CELL, 1); }
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    for (k = 4; k < CELL; k += 8) ctx.fillRect(0, k, CELL, 1);
+  });
+
+  // a supply crate's label: a snowflake, a star and what is inside
+  painter('xm_supply', function (ctx) {
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#e8641e'; ctx.lineWidth = 6; ctx.strokeRect(6, 6, 116, 116);
+    ctx.strokeStyle = '#1f2a4a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    for (var k = 0; k < 3; k++) {
+      var a = k * Math.PI / 3;
+      ctx.beginPath(); ctx.moveTo(64 + Math.cos(a) * 26, 52 + Math.sin(a) * 26);
+      ctx.lineTo(64 - Math.cos(a) * 26, 52 - Math.sin(a) * 26); ctx.stroke();
+    }
+    ctx.fillStyle = '#1f2a4a'; ctx.font = 'bold 15px Verdana, sans-serif';
+    ctx.textAlign = 'center'; ctx.fillText('SUPPLIES', 64, 104);
+  });
+
+  // a parka's front: the zip, a chest patch with the lights on it, pockets
+  painter('xm_tee_parka', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(62, 0, 4, CELL);
+    ctx.fillStyle = '#c9ced6';
+    for (var y = 4; y < CELL; y += 6) ctx.fillRect(60, y, 8, 2);
+    ctx.fillStyle = '#c9ced6'; ctx.fillRect(58, 14, 12, 8);
+    ctx.fillStyle = '#0c1430'; ctx.fillRect(74, 16, 44, 30);
+    var g = ctx.createLinearGradient(0, 46, 0, 22);
+    g.addColorStop(0, 'rgba(61,255,176,0.9)'); g.addColorStop(1, 'rgba(164,90,255,0.6)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(74, 40);
+    for (var x = 74; x <= 118; x += 4) ctx.lineTo(x, 32 + Math.sin(x / 6) * 4);
+    ctx.lineTo(118, 46); ctx.lineTo(74, 46); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#dfe9f2'; ctx.lineWidth = 2; ctx.strokeRect(74, 16, 44, 30);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('POLAR', 96, 25); ctx.fillText('EXP. 2026', 96, 54);
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
+    ctx.strokeRect(14, 80, 36, 32); ctx.strokeRect(78, 80, 36, 32);
+    ctx.fillStyle = 'rgba(223,233,242,0.85)'; ctx.fillRect(0, 70, CELL, 4);
+  });
+
+  painter('stencil_xm26', stencil({ top: 'AURORA', bottom: 'WINTERLIGHT 2026', icon: 'aurora',
+                                    ink: 'rgba(61,255,176,0.95)', glow: '#3dffb0', colour: true,
+                                    font: 'Georgia, serif', frame: 'round', size: 17, size2: 12 }));
   // @@ christmas painters go above this line @@
 
   Textures.emblems = Object.keys(emblems);

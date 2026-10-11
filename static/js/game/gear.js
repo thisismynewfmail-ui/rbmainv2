@@ -50,7 +50,8 @@
     summon: 'raise', magic: 'power', tick: 'tick', beep: 'beep', crow: 'crow', splat: 'splat',
     whistle: 'loon', drum: 'thunk', banjo: 'scratch', fiddle: 'scratch', bagpipe: 'siren',
     fuse: 'fuse', swing: 'swing', sword: 'sword', shotgun: 'shotgun', pistol: 'pistol',
-    rifle: 'rifle', sniper: 'sniper', smg: 'smg', heal: 'heal', coin: 'coin', splash: 'splash'
+    rifle: 'rifle', sniper: 'sniper', smg: 'smg', heal: 'heal', coin: 'coin', splash: 'splash',
+    whoosh: 'whoosh', zap: 'buzz'
   };
 
   // ------------------------------------------------------------- matrices
