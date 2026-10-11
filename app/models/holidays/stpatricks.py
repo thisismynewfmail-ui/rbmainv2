@@ -19,7 +19,7 @@ import math
 
 from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
                   Event, around, at_frame, band, buckle, cap, dome, mix, part, place,
-                  pompom, ringband, rotate, shade, sides, straps)
+                  pompom, ringband, rod, rotate, shade, sides, straps)
 
 SHAMROCK = "#4fc46e"
 CLOVER = "#2f8a3a"
@@ -648,4 +648,504 @@ SP22.bundle("pair", "Brogue and Buckle", 1, 1050, "One Lucky Brogue, one Buckle 
 SP22.bundle("stash", "Lep's Stash", 3, 3000, "Three brogues, three keys. Saves 300.")
 
 
-EVENTS = [SP22]
+
+# ============================================================ 2023
+RAIN_BLUE = "#3a6ad6"
+CLOUD = "#f6f8fc"
+OILSKIN = "#ffd34a"
+
+
+def _rainbow(at, k, r=None, **kw):
+    """A rainbow arching over ``at`` (the middle of its foot), red on the
+    outside, ``k`` across, standing up facing +Z."""
+    return place("rainbowarc", at, [k, k, 1.6], "#ffffff", anchor=[0, 0, 0], r=r,
+                 decal="sp_rainbow", wrap=True, **kw)
+
+
+def _cloud(at, k, c=CLOUD, r=None, **kw):
+    """A fluffy cloud, about ``k`` wide, middle at ``at`` (the flat cut-out,
+    for things seen from the front)."""
+    return place("cloud", at, [k, k, k * 1.6], c, r=r, **kw)
+
+
+def _puff(at, k, c=CLOUD, **kw):
+    """A cloud in the round, about ``k`` wide: a few soft lumps on a flat
+    underside, for things seen from every side."""
+    x, y, z = at
+    lumps = [(0.0, 0.10, 0.0, 0.62), (0.26, 0.04, 0.06, 0.46), (-0.26, 0.04, -0.04, 0.48),
+             (0.08, 0.04, 0.24, 0.40), (-0.06, 0.06, -0.24, 0.42), (0.10, 0.24, -0.04, 0.40)]
+    out = [part("sph", [x + dx * k, y + dy * k, z + dz * k], [w * k, w * k * 0.82, w * k],
+                c if n % 2 else shade(c, 0.95), **kw) for n, (dx, dy, dz, w) in enumerate(lumps)]
+    out.append(part("cyl", [x, y - 0.06 * k, z], [0.80 * k, 0.10 * k, 0.62 * k], shade(c, 0.88), **kw))
+    return out
+
+
+SP23 = Event(
+    "stpatricks_2023", "stpatricks", 2023, "sp23",
+    name="Rainbow's End", title="Rainbow's End",
+    blurb="St. Patrick's 2023 came in on a week of showers, and on the last afternoon "
+          "the sun broke through and a rainbow came down right in the middle of the "
+          "spawn. Everybody ran for the end of it. There was a pot. There was gold. "
+          "There was also a very cross leprechaun.",
+    tagline="Somewhere over the spawn point.",
+    starts="2023-03-10", ends="2023-03-24",
+    colors={"accent": "#ffd34a", "deep": "#0e1e3a", "glow": "#9fd8ff"},
+    family_effects=["sunbeam", "bubbly", "starstruck"],
+    hero_effect="rainbow_road", stencil="stencil_sp23")
+
+
+@SP23.crate_model("Pot o' Gold",
+                  "The pot at the very end of the rainbow: black iron, a gold rim, heaped "
+                  "over the top with coins, and the rainbow still coming down into it. "
+                  "Holds the Rainbow's End set. Needs a Rainbow Key.",
+                  hinge=[0, 0.30, -0.72], keyhole=[0, -0.12, 0.83])
+def _():
+    iron = "#1c1d22"
+    parts = [
+        # the pot: a fat iron belly on three stubby feet, a gold rim, two ears
+        place("bowl", [0, -0.56, 0], [1.66, 1.42, 1.66], iron, anchor=[0, 0, 0], m="metal"),
+        part("torus", [0, 0.27, 0], [1.50, 0.13, 1.50], GOLD, m="metal"),
+        part("torus", [0, -0.30, 0], [1.66, 0.05, 1.66], shade(iron, 1.4), m="metal"),
+        part("cyl", [0, 0.22, 0], [1.38, 0.04, 1.38], LEP_GOLD, m="neon"),
+        # the lock: a gold plate with a shamrock over the keyhole
+        part("rbox", [0, -0.12, 0.79], [0.32, 0.32, 0.07], GOLD, m="metal", decal="keyhole",
+             lock=1),
+        _shamrock([0, 0.12, 0.79], 0.20, SHAMROCK),
+        # the stencil on the back
+        part("box", [0, -0.12, -0.80], [0.64, 0.46, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_sp23", a=-1),
+        # the lid: the heap of gold, the rainbow coming down into it and the
+        # cloud at each foot of it
+        part("hemi", [0, 0.44, 0], [1.42, 0.40, 1.42], GOLD, m="metal", decal="sp_coins",
+             wrap=True, lid=1),
+        _rainbow([0, 0.40, -0.06], 1.30, lid=1),
+        _cloud([0.64, 0.50, -0.06], 0.62, lid=1),
+        _cloud([-0.64, 0.50, -0.06], 0.62, lid=1),
+    ]
+    for a in (PI / 2, PI * 7 / 6, PI * 11 / 6):
+        parts.append(part("sph", [math.cos(a) * 0.52, -0.62, math.sin(a) * 0.52],
+                          [0.22, 0.16, 0.22], iron, m="metal"))
+    for side in (1, -1):
+        parts.append(part("torus", [0.84 * side, 0.08, 0], [0.30, 0.07, 0.30], iron,
+                          [0, 0, PI / 2], m="metal"))
+    # coins on top of the heap and a few that rolled down the side
+    for x, z, a in ((0.30, 0.24, 0.5), (-0.26, 0.30, -0.4), (0.06, -0.26, 1.1), (0.40, -0.12, -0.8)):
+        parts.append(_coin([x, 0.58 - (x * x + z * z) * 0.6, z], 0.9, r=[-PI / 2 + a * 0.3, a, 0]))
+    for x, y, z in ((0.70, -0.62, 0.42), (-0.62, -0.63, 0.50)):
+        parts.append(_coin([x, y, z], 0.9, r=[-PI / 2, 0, 0]))
+    return parts
+
+
+@SP23.key_model("Rainbow Key",
+                "A gold key whose bow is a little rainbow, a cloud at either foot. Opens "
+                "one Pot o' Gold, if you can get to the end of it first.", shoulder=-0.30)
+def _():
+    return [
+        _rainbow([-0.62, -0.12, 0], 0.66),
+        _cloud([-0.93, -0.08, 0], 0.30),
+        _cloud([-0.31, -0.08, 0], 0.30),
+        part("cyl", [0.13, 0, 0], [0.09, 0.84, 0.09], GOLD, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.27, 0, 0], [0.20, 0.07, 0.20], GOLD_DARK, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0.40, -0.12, 0], [0.08, 0.22, 0.08], GOLD, m="metal"),
+        part("rbox", [0.50, -0.16, 0], [0.08, 0.30, 0.08], GOLD, m="metal"),
+        _coin([0.60, -0.02, 0], 0.7),
+    ]
+
+
+@SP23.hat("rainbow_crown", "Rainbow's End",
+          "A whole rainbow, ear to ear, a cloud at either foot and the pot of gold "
+          "sitting on the right-hand one. You are standing at the end of it. You are "
+          "the end of it.", "legendary", hair="show")
+def _():
+    parts = [
+        ringband(-0.30, 0.10, "#ffffff"),
+        # the arch, wide enough to clear the head, its feet down by the ears
+        _rainbow([0, -0.42, 0], 2.80),
+        _cloud([1.08, -0.40, 0], 0.80),
+        _cloud([-1.08, -0.40, 0], 0.80),
+        part("rbox", [0.78, -0.33, 0], [0.12, 0.08, 0.16], "#ffffff"),
+        part("rbox", [-0.78, -0.33, 0], [0.12, 0.08, 0.16], "#ffffff"),
+        # the pot of gold on the right cloud
+        place("bowl", [1.10, -0.30, 0.04], [0.40, 0.42, 0.40], "#1c1d22", anchor=[0, 0, 0],
+              m="metal"),
+        part("hemi", [1.10, -0.06, 0.04], [0.36, 0.12, 0.36], GOLD, m="metal", decal="sp_coins",
+             wrap=True),
+    ]
+    # the light coming off it
+    parts += [part("sph", [0, 0.92, 0], [0.10, 0.10, 0.10], "#fff3b0", m="neon", a=0.8)]
+    return parts
+
+
+@SP23.hat("souwester", "Puddle-Hopper Sou'wester",
+          "A yellow oilskin rain hat, wide behind to keep the drips off your collar, a "
+          "shamrock badge on the front and a drip on the brim that never quite falls.",
+          "rare")
+def _():
+    parts = [
+        dome(-0.32, 0.86, OILSKIN, t="capcrown", m="glass"),
+        # the brim, short at the front and long down the back
+        place("brim", [0, -0.30, -0.18], [2.30, 1.0, 2.50], OILSKIN, anchor=[0, 0, 0],
+              r=[-0.18, 0, 0], m="glass"),
+        ringband(-0.24, 0.10, shade(OILSKIN, 0.82), margin=0.05),
+        _shamrock([0, -0.06, 0.88], 0.26, SHAMROCK, r=[-0.3, 0, 0]),
+        # the drip
+        place("teardrop", [0.46, -0.52, 0.86], [0.10, 0.16, 0.10], "#9fd8ff", r=[PI, 0, 0],
+              m="glass", a=0.8),
+    ]
+    # the stitching round the crown
+    parts += around(10, 0.93, -0.12, lambda a, x, z: part(
+        "rbox", [x, -0.12, z * 0.97], [0.10, 0.02, 0.02], shade(OILSKIN, 0.7), [0, a, 0]))
+    return parts
+
+
+@SP23.hat("cloud_nine", "Cloud Nine",
+          "Your own little cloud, a foot above your head, raining very gently on you and "
+          "nobody else. There is a rainbow in it, if you stand at the right angle.",
+          "rare", hair="show")
+def _():
+    parts = [
+        *_puff([0, 1.02, 0], 1.60),
+        *_puff([0.46, 1.10, -0.16], 0.80),
+        _rainbow([0.10, 0.66, 0.40], 0.80, r=[0, 0.3, 0]),
+    ]
+    # the rain, a column of drips falling past the head (but clear of it)
+    for k, (x, z) in enumerate(((0.52, 0.30), (-0.50, 0.24), (0.30, -0.42), (-0.24, -0.46),
+                                (0.62, -0.10), (-0.62, -0.06))):
+        for n in range(2):
+            parts.append(place("teardrop", [x, 0.62 - n * 0.42 - (k % 2) * 0.18, z],
+                               [0.07, 0.12, 0.07], "#9fd8ff", r=[PI, 0, 0], m="glass", a=0.75))
+    return parts
+
+
+@SP23.hat("coin_crown", "Crown of Sovereigns",
+          "A crown made of nothing but stacked gold coins -- no glue, no wire, just "
+          "balance and greed. Nod too hard and you will be paying for it.", "uncommon",
+          hair="show")
+def _():
+    parts = [ringband(-0.22, 0.16, GOLD_DARK, m="metal")]
+    heights = [5, 3, 6, 4, 7, 4, 6, 3, 5, 4, 6, 3]
+    for k, n in enumerate(heights):
+        a = k * TAU / len(heights)
+        x, z = math.sin(a) * 0.92, math.cos(a) * 0.89
+        for c in range(n):
+            parts.append(part("cyl", [x + ((c * 7) % 3 - 1) * 0.008, -0.10 + c * 0.055, z],
+                              [0.22, 0.05, 0.22], GOLD if c % 2 else LEP_GOLD, m="metal"))
+    parts.append(_shamrock([0, 0.14, 0.94], 0.24, SHAMROCK, m="glass"))
+    return parts
+
+
+@SP23.hat("rainbow_bucket", "Rainbow Bucket Hat",
+          "A floppy bucket hat sewn from seven panels, one for every band of the "
+          "rainbow, with a shamrock pin. Good in the rain. Better after it.", "uncommon")
+def _():
+    return [
+        place("bell", [0, -0.30, 0], [2.30, 0.66, 2.30], "#ffffff", anchor=[0, 0, 0],
+              decal="sp_rainbow_gores", wrap=True),
+        part("cyl", [0, 0.13, 0], [1.82, 0.54, 1.78], "#ffffff", decal="sp_rainbow_gores",
+             wrap=True),
+        part("sph", [0, 0.40, 0], [1.82, 0.18, 1.78], "#ffffff", decal="sp_rainbow_gores",
+             wrap=True),
+        part("cyl", [0, -0.05, 0], [1.86, 0.13, 1.82], "#16171b"),
+        _shamrock([0.58, 0.02, 0.70], 0.24, SHAMROCK, r=[0, 0.7, 0]),
+    ]
+
+
+@SP23.hat("prism_specs", "Prism Specs",
+          "Wire spectacles with a glass prism for each lens. Look at the world through "
+          "them and everything has a rainbow round it, including the people you are "
+          "aiming at.", "rare", hair="show")
+def _():
+    wire = "#c9a227"
+    parts = [
+        part("rbox", [0, -0.47, 0.74], [0.20, 0.03, 0.03], wire, m="metal"),
+        *sides(lambda s: [
+            place("gem", [0.27 * s, -0.47, 0.76], [0.34, 0.24, 0.30], "#dff6ff",
+                  anchor=[0, 0.36, 0], r=[PI / 2, 0, 0], m="glass", a=0.55),
+            part("torus", [0.27 * s, -0.47, 0.75], [0.34, 0.04, 0.34], wire, [PI / 2, 0, 0],
+                 m="metal"),
+            part("rbox", [0.75 * s, -0.47, 0.28], [0.03, 0.03, 0.90], wire, m="metal"),
+            # the little rainbow each lens throws
+            _rainbow([0.27 * s, -0.33, 0.90], 0.42, r=[-0.4, 0, 0], a=0.9),
+        ]),
+    ]
+    return parts
+
+
+@SP23.hat("weathercock", "Shamrock Weathercock",
+          "A tin weathervane on a green cap: a cockerel on top, a shamrock for the "
+          "arrow, and the four letters underneath. It always points to the nearest "
+          "gold.", "uncommon")
+def _():
+    tin = "#9aa3ad"
+    parts = [
+        cap(-0.28, 0.12, "#2f8a3a", decal="felt", wrap=True),
+        band(-0.22, 0.10, GOLD, grow=0.05, m="metal"),
+        part("cyl", [0, 0.50, 0], [0.05, 0.80, 0.05], tin, m="metal"),
+        part("sph", [0, 0.14, 0], [0.16, 0.06, 0.16], tin, m="metal"),
+    ]
+    # N E S W on their arms
+    for k, a in enumerate((0.0, PI / 2, PI, -PI / 2)):
+        x, z = math.sin(a) * 0.30, math.cos(a) * 0.30
+        parts += [part("cyl", [x / 2, 0.42, z / 2], [0.025, 0.30, 0.025], tin,
+                       [PI / 2, a, 0], m="metal"),
+                  part("box", [x * 1.15, 0.42, z * 1.15], [0.10, 0.12, 0.02], tin, [0, a, 0],
+                       m="metal")]
+    # the vane turns: a shamrock arrow and the cockerel riding it
+    parts += [
+        part("rbox", [0, 0.74, 0], [0.04, 0.04, 0.70], GOLD, m="metal", spin=0.6),
+        _shamrock([0, 0.74, 0.40], 0.24, SHAMROCK, r=[PI / 2, 0, 0], spin=0.6),
+        place("tri", [0, 0.74, -0.38], [0.24, 0.20, 0.3], GOLD, r=[0, PI / 2, 0], m="metal",
+              spin=0.6),
+        part("sph", [0, 0.92, 0.02], [0.20, 0.18, 0.28], GOLD, m="metal", spin=0.6),
+        part("sph", [0, 1.04, 0.12], [0.11, 0.12, 0.11], GOLD, m="metal", spin=0.6),
+        place("tri", [0, 1.02, -0.14], [0.16, 0.22, 0.3], GOLD, r=[0, PI / 2, 0.4], m="metal",
+              spin=0.6),
+    ]
+    return parts
+
+
+@SP23.back("rainbow_cape", "Rainbow Cape",
+           "A cape cut from the rainbow itself, seven bands from collar to hem, fastened "
+           "at the throat with a cloud. It is lighter than it looks. It is lighter than "
+           "anything.", "legendary")
+def _():
+    return [
+        place("cape", [0, 0.96, -0.08], [1.66, 1.90, 1.4], "#ffffff", anchor=[0, 0, 0],
+              decal="sp_rainbow_gores", wrap=True),
+        # a cloud on each shoulder, and one more at the throat for a clasp
+        *_puff([0.80, 1.08, 0.34], 0.50),
+        *_puff([-0.80, 1.08, 0.34], 0.50),
+        *_puff([0, 1.02, 1.17], 0.26),
+    ]
+
+
+@SP23.back("sack_of_gold", "Sack of Gold",
+           "A bulging sack slung over the shoulder, tied at the neck, with a gold coin "
+           "slipping out of a hole near the bottom every few steps. The trail leads "
+           "straight back to you.", "rare")
+def _():
+    burlap = "#b08a52"
+    parts = straps("#5a3a22") + [
+        part("sph", [0.06, 0.10, -0.52], [1.20, 1.30, 0.80], burlap, decal="canvas", wrap=True),
+        place("teardrop", [0.10, 0.70, -0.52], [0.52, 0.56, 0.40], burlap, anchor=[0, 0, 0],
+              decal="canvas", wrap=True),
+        part("torus", [0.10, 0.80, -0.52], [0.34, 0.07, 0.30], "#5a3a22"),
+        place("teardrop", [0.10, 1.04, -0.52], [0.30, 0.30, 0.26], burlap, anchor=[0, 0, 0],
+              r=[0, 0, 0.5], decal="canvas", wrap=True),
+        # a coin peeking out of the hole, and the stencilled pound sign
+        _coin([0.38, -0.36, -0.86], 0.9, r=[0.4, 0.3, 0.6]),
+        part("box", [0.06, 0.18, -0.925], [0.42, 0.42, 0.02], "#000000", [0, PI, 0],
+             decal="sp_coin", a=-1),
+    ]
+    return parts
+
+
+@SP23.hairdo("rainbow_streaks", "Rainbow Streaks",
+             "Long white hair with every colour of the rainbow combed through it, from "
+             "red at the parting to violet at the tips.", "rare")
+def _():
+    return [place("hairlong", [0, 0, 0], [1.05, 1.05, 1.05], "#f4f6f8", anchor=[0, 0, 0],
+                  decal="sp_rainbow_gores", wrap=True),
+            # a white streak at the parting, where the colours start
+            part("rbox", [0, 0.51, 0.10], [0.06, 0.03, 0.60], "#ffffff")]
+
+
+@SP23.hairdo("sunbreak_spikes", "Sunbreak Spikes",
+             "Short spikes bleached gold at the tips, like the sun coming out from behind "
+             "a cloud. Takes an hour and a whole tub of gel. Lasts until the first "
+             "shower.", "uncommon")
+def _():
+    c, tip = "#6a4a2a", "#ffd34a"
+    parts = [place("hairshort", [0, 0, 0], [1.03, 1.03, 1.03], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for k in range(11):
+        a = k * TAU / 11
+        r = 0.30 if k % 2 else 0.18
+        lean = 0.5 if k % 2 else 0.25
+        at = [math.sin(a) * r, 0.50, math.cos(a) * r - 0.04]
+        parts.append(place("cone", at, [0.20, 0.34, 0.20], tip if k % 3 else c,
+                           anchor=[0, -0.5, 0], r=[math.cos(a) * lean, 0, -math.sin(a) * lean]))
+    return parts
+
+
+SP23.face("sun_shower", "Sun Shower",
+          "One eye squinting at the sun, the other one crying at the rain, and a grin "
+          "in between because there is a rainbow coming.", [
+              {"k": "arc", "x": -0.20, "y": -0.12, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "star", "x": -0.20, "y": -0.24, "r": 0.05, "c": "#ffd34a"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.07, "h": 0.10, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.185, "y": -0.15, "w": 0.025, "h": 0.03, "c": "#ffffff"},
+              {"k": "poly", "pts": [[0.23, -0.05], [0.21, 0.04], [0.25, 0.04]], "c": "#5aa8ff"},
+              {"k": "arc", "x": 0.0, "y": 0.02, "r": 0.20, "a0": 0.08, "a1": 0.42, "w": 0.04,
+               "c": "#16171b"},
+          ], "uncommon")
+SP23.face("rainbow_blush", "Rainbow Blush",
+          "Sparkling eyes and a rainbow across each cheek, painted on at the parade and "
+          "never washed off.", [
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.08, "h": 0.11, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.08, "h": 0.11, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.185, "y": -0.16, "w": 0.03, "h": 0.035, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.215, "y": -0.16, "w": 0.03, "h": 0.035, "c": "#ffffff"},
+          ] + [{"k": "arc", "x": sx, "y": 0.10, "r": 0.10 - n * 0.018, "a0": 0.52, "a1": 0.98,
+                "w": 0.016, "c": c}
+               for sx in (-0.30, 0.30)
+               for n, c in enumerate(("#ff5a5a", "#ffb347", "#ffe066", "#6be08a", "#5aa8ff"))] + [
+              {"k": "arc", "x": 0.0, "y": 0.06, "r": 0.12, "a0": 0.10, "a1": 0.40, "w": 0.035,
+               "c": "#16171b"},
+          ], "rare")
+SP23.shirt("rainbow_jumper", "Rainbow Jumper",
+           "A chunky knit in seven stripes with a pot of gold on the chest. Knitted by "
+           "the same aunt as the bobble hat. She has since learned to count.",
+           {"torso": "#f4f6f8", "arms": "#f4f6f8", "decal": "sp_tee_rainbow", "weave": "knit"},
+           "uncommon")
+SP23.pants("puddle_jumpers", "Puddle Jumpers",
+           "Navy oilskin trousers tucked into yellow wellies, for going straight through "
+           "the middle of every puddle between you and the gold.",
+           {"legs": "#24365e", "cuff": OILSKIN, "weave": "canvas"})
+SP23.belt("sovereign_belt", "Sovereign Belt",
+          "A green belt with a gold sovereign for a buckle and two pouches for the change.",
+          {"band": "#1f6b34", "buckle": GOLD, "width": 0.22, "metal": True, "weave": "leather",
+           "pouch": True})
+
+
+@SP23.weapon("rainbow_ray", "Prism Ray",
+             "A brass prism on a stock that splits the sun into a beam of every colour. "
+             "Hold it on somebody and it burns brighter; and while it shines, every "
+             "teammate near you stands a little taller in the light.",
+             {"kind": "beam", "damage": 3, "headshot": 1.0, "rpm": 600, "mag": 0, "range": 60,
+              "auto": True, "sound": "laser", "recoil": 0.05, "spread": 0.3, "beam": "#ffe066",
+              "ramp": {"per_sec": 0.7, "max": 2.4},
+              "heat": {"per_shot": 0.022, "cool": 0.20, "lock": 2.2, "label": "Glare"},
+              "ally_buff": {"radius": 16, "might": [0.12, 1.5], "haste": [0.10, 1.5]}},
+             [["+", "A continuous rainbow beam: up to 2.4x damage held on one target"],
+              ["+", "While it is hitting, teammates within 16 studs do 12% more damage and "
+                    "move 10% faster"],
+              ["-", "Only 3 damage a tick to begin with"],
+              ["-", "Overheats: 2 seconds of Glare if you hold it too long"]],
+             rarity="legendary")
+def _():
+    brass = "#c9a227"
+    return [
+        part("rbox", [0, -0.10, -0.12], [0.16, 0.36, 0.24], "#5a3a22", [-0.25, 0, 0],
+             decal="leather"),
+        part("cyl", [0, 0.04, 0.32], [0.20, 0.80, 0.20], brass, [PI / 2, 0, 0], m="metal"),
+        place("gem", [0, 0.04, 0.86], [0.42, 0.42, 0.42], "#dff6ff", anchor=[0, 0.36, 0],
+              r=[PI / 2, 0, 0], m="glass", a=0.6),
+        part("torus", [0, 0.04, 0.74], [0.30, 0.05, 0.30], brass, [PI / 2, 0, 0], m="metal"),
+        _rainbow([0, 0.04, 1.02], 0.36, r=[PI / 2, 0, 0], a=0.9),
+        _shamrock([0, 0.16, 0.30], 0.16, SHAMROCK, r=[-PI / 2, 0, 0]),
+    ]
+
+
+@SP23.weapon("pot_mortar", "Pot o' Gold Mortar",
+             "Lobs Lep's own pot in a long arc. It bursts where it lands in a shower of "
+             "gold, and every coin a teammate picks up makes them hit harder and fills "
+             "their pockets with ammunition.",
+             {"kind": "projectile", "projectile": "potogold", "damage": 30, "splash": 7.0,
+              "splash_damage": 30, "rpm": 40, "mag": 2, "reload": 2.6, "speed": 58, "range": 260,
+              "auto": False, "sound": "throw", "recoil": 1.4, "reserve": 14, "gravity_scale": 1.2,
+              "self_damage": 0.0, "knockback": 12,
+              "pickups": {"count": 4, "spread": 5.0, "might": [0.15, 6.0], "ammo": 6,
+                          "secs": 14.0, "radius": 3.0, "color": "#ffd34a"}},
+             [["+", "Leaves four gold coins where it lands: a teammate who picks one up does "
+                    "15% more damage for 6 seconds and gets 6 rounds"],
+              ["+", "A 7 stud blast"],
+              ["-", "A high, slow lob"],
+              ["-", "Two to a load"]], rarity="legendary",
+             proj=lambda: [place("bowl", [0, -0.20, 0], [0.80, 0.80, 0.80], "#1c1d22",
+                                 anchor=[0, 0, 0], m="metal"),
+                           part("hemi", [0, 0.28, 0], [0.70, 0.22, 0.70], GOLD, m="metal",
+                                decal="sp_coins", wrap=True)])
+def _():
+    return [
+        part("rbox", [0, -0.16, -0.10], [0.18, 0.40, 0.26], "#5a3a22", [-0.25, 0, 0],
+             decal="leather"),
+        part("cyl", [0, 0.06, 0.40], [0.42, 1.10, 0.42], "#2f8a3a", [PI / 2 - 0.12, 0, 0],
+             m="metal"),
+        part("torus", [0, 0.12, 0.96], [0.46, 0.08, 0.46], GOLD, [PI / 2 - 0.12, 0, 0],
+             m="metal"),
+        part("hemi", [0, 0.13, 1.00], [0.34, 0.12, 0.34], GOLD, [PI / 2 - 0.12, 0, 0],
+             m="metal", decal="sp_coins", wrap=True),
+        _shamrock([0, 0.30, 0.40], 0.24, SHAMROCK, r=[-PI / 2 - 0.12, 0, 0]),
+    ]
+
+
+@SP23.weapon("cloudburst", "Cloudburst",
+             "A little grey cloud in a jar. Point it and pop the lid: the cloud goes and "
+             "sits over whoever you were pointing at, rumbles once, and lets go of a "
+             "bolt that leaves them seeing stars.",
+             {"kind": "strike", "cooldown": 7, "range": 120, "sound": "chime",
+              "strike": {"delay": 1.0, "radius": 5.0, "damage": 45, "knock": 14,
+                         "on_hit": {"stun": 1.0}}},
+             [["+", "A bolt one second after you call it, anywhere you can see up to 120 "
+                    "studs away"],
+              ["+", "Everyone it strikes is stunned for a second"],
+              ["-", "A small strike: 5 studs across"],
+              ["-", "7 seconds between bolts"]], rarity="legendary",
+             proj=lambda: [_cloud([0, 1.4, 0], 2.4, "#8a93a6"),
+                           place("bolt", [0, 0.2, 0], [0.9, 1.6, 0.9], "#ffe066", m="neon")])
+def _():
+    return [
+        part("cyl", [0, 0.20, 0.20], [0.46, 0.60, 0.46], "#dff6ff", m="glass", a=0.45),
+        part("cyl", [0, 0.52, 0.20], [0.50, 0.08, 0.50], "#c9a227", m="metal"),
+        _cloud([0, 0.22, 0.20], 0.36, "#8a93a6"),
+        place("bolt", [0.02, 0.12, 0.20], [0.12, 0.20, 0.12], "#ffe066", m="neon"),
+        part("cyl", [0, -0.12, 0.20], [0.48, 0.06, 0.48], "#c9a227", m="metal"),
+    ]
+
+
+@SP23.gear("leps_brolly", "Lep's Brolly",
+           "A green umbrella with a shamrock on every panel. Open it and the wind takes "
+           "you: you float down from anywhere, and the rain bounces off it -- along with "
+           "a fair bit of everything else.",
+           {"kind": "ability", "cooldown": 22, "sound": "whoosh",
+            "ability": {"glide": {"secs": 5.0, "gravity": 0.3},
+                        "shield": {"secs": 5.0, "amount": 30}}},
+           [["+", "Float for 5 seconds: about a third of the usual gravity"],
+            ["+", "A 30 point shield while it is open"],
+            ["-", "22 second cooldown"]], rarity="rare")
+def _():
+    green = "#2f8a3a"
+    parts = [
+        part("cyl", [0, 0.30, 0.10], [0.05, 0.90, 0.05], "#5a3a22"),
+        place("hook", [0, -0.16, 0.06], [0.30, 0.30, 0.30], "#5a3a22", anchor=[0, 0, 0],
+              r=[PI, 0, 0]),
+        place("hemi", [0, 0.72, 0.10], [1.20, 0.60, 1.20], green, anchor=[0, 0, 0],
+              decal="felt", wrap=True),
+        part("cyl", [0, 1.06, 0.10], [0.05, 0.10, 0.05], GOLD, m="metal"),
+    ]
+    parts += around(8, 0.60, 0.72, lambda a, x, z: part(
+        "sph", [x, 0.72, z + 0.10], [0.06, 0.06, 0.06], GOLD, m="metal"))
+    parts += around(4, 0.42, 0.82, lambda a, x, z: _shamrock(
+        [x * 0.9, 0.86, z * 0.9 + 0.10], 0.18, SHAMROCK, r=[-0.9, a, 0]))
+    return parts
+
+
+SP23.effect("rainbow_road", name="Rainbow Road", rate=3.0, life=[2.0, 2.8],
+            size=[0.40, 0.56], grow=0.1, gravity=0.0, spread=0.2, rise=[0.1, 0.3],
+            blend="normal", spin=0.0, colors=["#ffffff"], shape="sp_rainbow", radius=0.7,
+            orbit=1.2, upright=True, wobble=0.2)
+SP23.effect("sun_shower", name="Sun Shower", rate=7.0, life=[1.2, 1.8],
+            size=[0.14, 0.22], grow=0.0, gravity=-2.4, spread=0.7, rise=[-0.2, 0.0],
+            blend="normal", spin=0.0, colors=["#9fd8ff", "#dff6ff", "#ffe066"],
+            shapes=["sp_raindrop", "sp_raindrop", "spark"], radius=0.8)
+SP23.opening(
+    sky={"top": "#0e1e3a", "horizon": "#3a6a9a", "sun": [0.3, 0.8, 0.5], "clouds": 0.4,
+         "tint": "#dff6ff"},
+    ambient="#7a8aa8", beam="#ffe066", seep="sun_shower", after="rainbow_road",
+    burst=["#ff5a5a", "#ffb347", "#ffe066", "#6be08a", "#5aa8ff"],
+    pieces=[{"shape": "sp_coin", "colors": ["#ffd34a", "#f2c230"], "blend": "normal"},
+            {"shape": "sp_rainbow", "colors": ["#ffffff"], "blend": "normal"},
+            {"shape": "sp_cloud", "colors": ["#ffffff", "#dff6ff"], "blend": "normal"},
+            {"shape": "shamrock", "colors": ["#4fc46e", "#2f8a3a"], "blend": "normal"}],
+    backdrop="sp_rainbow", title_wait="The rain is easing off...",
+    title_shake="Somebody is at the end of the rainbow...")
+SP23.award("Rainbow's End", ["Puddle Hopper", "Rain Dancer", "Rainbow Chaser", "Gold Digger",
+                             "Keeper of the Pot", "The End of the Rainbow"],
+           "Opened Pots o' Gold at Rainbow's End, St. Patrick's Day 2023.", "em_rainbow",
+           "clover")
+SP23.bundle("pair", "Pot and Key", 1, 1050, "One Pot o' Gold, one Rainbow Key.")
+SP23.bundle("hoard", "Double Rainbow", 3, 3000, "Three pots, three keys. Saves 300.")
+
+EVENTS = [SP22, SP23]
