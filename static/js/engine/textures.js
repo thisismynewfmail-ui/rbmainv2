@@ -3397,6 +3397,221 @@
   painter('stencil_xm23', stencil({ top: 'GINGERBREAD', bottom: 'JUNCTION 2023', icon: 'gingerbread',
                                     ink: 'rgba(150,24,30,0.92)', font: 'Georgia, serif',
                                     frame: 'box', size: 15, size2: 13 }));
+  /* -- 2024 North Pole Express: red livery, coal, brown paper and tickets */
+
+  // engine livery: gold lining panels round a red that has been polished every night
+  painter('xm_livery', function (ctx) {
+    var g = ctx.createLinearGradient(0, 0, 0, CELL);
+    g.addColorStop(0, 'rgba(255,255,255,0.10)'); g.addColorStop(0.5, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.18)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#e8b84a'; ctx.lineWidth = 3;
+    var panel = function (x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath(); ctx.stroke();
+    };
+    panel(10, 12, 108, 104, 12);
+    ctx.lineWidth = 1;
+    panel(16, 18, 96, 92, 8);
+    ctx.fillStyle = '#e8b84a';
+    [[16, 18], [112, 18], [16, 110], [112, 110]].forEach(function (q) {
+      ctx.beginPath(); ctx.arc(q[0], q[1], 3, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 24px Georgia, serif';
+    ctx.fillStyle = 'rgba(60,8,12,0.6)'; ctx.fillText('N.P.R.', 65, 65);
+    ctx.fillStyle = '#f2cf6a'; ctx.fillText('N.P.R.', 64, 64);
+  });
+
+  // a heap of coal: faceted black lumps with a cold glint on the edges
+  painter('xm_coal', function (ctx) {
+    var rnd = scatter(241);
+    ctx.fillStyle = '#16161a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 60; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 6 + rnd() * 9, n = 5 + Math.floor(rnd() * 3);
+      var shade = 20 + Math.floor(rnd() * 26);
+      ctx.fillStyle = 'rgb(' + shade + ',' + shade + ',' + (shade + 6) + ')';
+      ctx.beginPath();
+      for (var i = 0; i < n; i++) {
+        var a = i / n * Math.PI * 2 + rnd() * 0.5, rr = r * (0.7 + rnd() * 0.4);
+        ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(170,180,200,' + (0.15 + rnd() * 0.3) + ')'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - r * 0.6, y - r * 0.3); ctx.lineTo(x + r * 0.1, y - r * 0.7);
+      ctx.stroke();
+    }
+  });
+
+  // a driving wheel: rim, twelve spokes, the hub and its crescent counterweight
+  painter('xm_wheel', function (ctx) {
+    ctx.fillStyle = '#a8141e';
+    ctx.beginPath(); ctx.arc(64, 64, 62, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1c1c22';
+    ctx.beginPath(); ctx.arc(64, 64, 52, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#a8141e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (var k = 0; k < 12; k++) {
+      var a = k * Math.PI / 6;
+      ctx.beginPath(); ctx.moveTo(64 + Math.cos(a) * 14, 64 + Math.sin(a) * 14);
+      ctx.lineTo(64 + Math.cos(a) * 52, 64 + Math.sin(a) * 52); ctx.stroke();
+    }
+    ctx.fillStyle = '#a8141e';
+    ctx.beginPath(); ctx.arc(64, 64, 52, 0.5 * Math.PI + 0.7, 0.5 * Math.PI + 2.4);
+    ctx.arc(64, 64, 34, 0.5 * Math.PI + 2.4, 0.5 * Math.PI + 0.7, true); ctx.fill();
+    ctx.fillStyle = '#e8b84a';
+    ctx.beginPath(); ctx.arc(64, 64, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a5a1a';
+    ctx.beginPath(); ctx.arc(64, 64, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#e8b84a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(64, 64, 58, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(64, 64, 63, 0, Math.PI * 2); ctx.stroke();
+  });
+
+  // brown paper: fibres, a crease or two and the scuffs of the journey
+  painter('xm_brownpaper', function (ctx) {
+    var rnd = scatter(251);
+    for (var k = 0; k < 160; k++) {
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(90,60,24,0.18)' : 'rgba(255,240,210,0.16)';
+      ctx.lineWidth = 1;
+      var x = rnd() * CELL, y = rnd() * CELL, a = rnd() * Math.PI, l = 3 + rnd() * 9;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(80,50,20,0.22)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(CELL, 52); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,240,210,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, 42); ctx.lineTo(CELL, 54); ctx.stroke();
+    ctx.strokeStyle = 'rgba(80,50,20,0.16)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(86, 0); ctx.lineTo(76, CELL); ctx.stroke();
+  });
+
+  // a parcel label: the address in crayon, a stamp and the North Pole postmark
+  painter('xm_label', function (ctx) {
+    ctx.fillStyle = '#fbf6e8'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#a8141e'; ctx.lineWidth = 5; ctx.strokeRect(5, 5, 118, 118);
+    ctx.fillStyle = '#a8141e'; ctx.fillRect(80, 14, 34, 40);
+    ctx.fillStyle = '#fbf6e8'; ctx.fillRect(84, 18, 26, 32);
+    ctx.fillStyle = '#1e7a36';
+    ctx.beginPath(); ctx.moveTo(97, 22); ctx.lineTo(106, 44); ctx.lineTo(88, 44); ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(31,42,74,0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(80, 50, 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1f2a4a';
+    ctx.font = 'bold 14px Georgia, serif'; ctx.fillText('TO:', 14, 26);
+    ctx.font = 'italic bold 15px "Comic Sans MS", cursive';
+    ctx.fillStyle = '#c4182a'; ctx.fillText('Blockhaven', 14, 76);
+    ctx.fillStyle = '#1f2a4a'; ctx.font = 'bold 12px Georgia, serif';
+    ctx.fillText('FROM: N. POLE', 14, 104);
+  });
+
+  // the conductor's cap badge: CONDUCTOR pressed into the brass
+  painter('xm_badge', function (ctx) {
+    ctx.strokeStyle = 'rgba(90,60,10,0.8)'; ctx.lineWidth = 4; ctx.strokeRect(6, 18, 116, 92);
+    ctx.strokeStyle = 'rgba(255,240,180,0.7)'; ctx.lineWidth = 1.5; ctx.strokeRect(12, 24, 104, 80);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 18px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,240,180,0.7)'; ctx.fillText('CONDUCTOR', 65, 49);
+    ctx.fillStyle = 'rgba(80,50,6,0.95)'; ctx.fillText('CONDUCTOR', 64, 48);
+    ctx.font = 'bold 13px Georgia, serif'; ctx.fillText('N.P.R.  2024', 64, 80);
+  });
+
+  // hickory stripe: navy and white pinstripes, the cloth every driver wears
+  painter('xm_hickory', function (ctx) {
+    ctx.fillStyle = 'rgba(244,240,232,0.85)';
+    for (var x = 0; x < CELL; x += 8) ctx.fillRect(x, 0, 2, CELL);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (var y = 0; y < CELL; y += 2) ctx.fillRect(0, y, CELL, 1);
+  });
+
+  // a gift tag: BELIEVE in red, the string looped through a hole
+  painter('xm_believe', function (ctx) {
+    ctx.fillStyle = '#f4ecd8'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#1e7a36'; ctx.lineWidth = 4; ctx.strokeRect(8, 8, 112, 112);
+    ctx.fillStyle = '#c9a26a';
+    ctx.beginPath(); ctx.arc(20, 64, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'italic bold 22px Georgia, serif'; ctx.fillStyle = '#c4182a';
+    ctx.fillText('Believe', 70, 64);
+  });
+
+  // a mail sack: canvas, a stencilled N.P. MAIL and a broad stripe
+  painter('xm_mailsack', function (ctx) {
+    var rnd = scatter(263);
+    for (var k = 0; k < CELL; k += 3) {
+      ctx.fillStyle = 'rgba(90,70,40,0.10)'; ctx.fillRect(0, k, CELL, 1);
+      ctx.fillRect(k, 0, 1, CELL);
+    }
+    ctx.fillStyle = 'rgba(168,20,30,0.75)'; ctx.fillRect(0, 92, CELL, 12);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 22px Verdana, sans-serif'; ctx.fillStyle = 'rgba(31,42,74,0.82)';
+    ctx.fillText('N.P.', 64, 40); ctx.fillText('MAIL', 64, 68);
+    for (k = 0; k < 30; k++) {
+      ctx.fillStyle = 'rgba(232,220,190,' + (0.2 + rnd() * 0.3) + ')';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 2 + rnd() * 3, 1 + rnd() * 2);
+    }
+  });
+
+  // a letter to the North Pole: the envelope, a stamp and the address in crayon
+  painter('xm_letter', function (ctx) {
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(64, 60); ctx.lineTo(CELL, 0); ctx.stroke();
+    ctx.fillStyle = '#c4182a'; ctx.fillRect(92, 10, 26, 30);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(96, 14, 18, 22);
+    ctx.fillStyle = '#c4182a';
+    ctx.beginPath(); ctx.arc(105, 25, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px "Comic Sans MS", cursive';
+    ctx.fillStyle = '#2050c8'; ctx.fillText('SANTA', 60, 84);
+    ctx.fillStyle = '#1e7a36'; ctx.fillText('North Pole', 60, 106);
+  });
+
+  // a conductor's coat: lapels, two rows of brass buttons and a watch pocket
+  painter('xm_tee_conductor', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(56, 0); ctx.lineTo(64, 46); ctx.lineTo(40, 30);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(108, 0); ctx.lineTo(72, 0); ctx.lineTo(64, 46); ctx.lineTo(88, 30);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f4f0e6';
+    ctx.beginPath(); ctx.moveTo(56, 0); ctx.lineTo(72, 0); ctx.lineTo(64, 22); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a8141e';
+    ctx.beginPath(); ctx.moveTo(59, 6); ctx.lineTo(69, 6); ctx.lineTo(64, 26); ctx.closePath(); ctx.fill();
+    for (var k = 0; k < 4; k++) {
+      [46, 82].forEach(function (x) {
+        var y = 54 + k * 18;
+        ctx.fillStyle = '#7a5a1a'; ctx.beginPath(); ctx.arc(x + 1, y + 1, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f2cf6a'; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(x - 1.5, y - 1.5, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(64, 46); ctx.lineTo(64, CELL); ctx.stroke();
+    ctx.strokeStyle = '#e8b84a'; ctx.lineWidth = 2; ctx.strokeRect(92, 58, 20, 10);
+    ctx.strokeStyle = '#f2cf6a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(98, 60); ctx.quadraticCurveTo(84, 80, 82, 72); ctx.stroke();
+    ctx.fillStyle = '#e8b84a'; ctx.fillRect(0, CELL - 6, CELL, 3);
+  });
+
+  // a ticket: ADMIT ONE, the route and a punched hole
+  painter('xm_ticket', function (ctx) {
+    ctx.fillStyle = '#f4e4b8'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#a8141e'; ctx.lineWidth = 4; ctx.setLineDash([6, 4]);
+    ctx.strokeRect(6, 14, 116, 100); ctx.setLineDash([]);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#a8141e';
+    ctx.font = 'bold 18px Georgia, serif'; ctx.fillText('ADMIT ONE', 64, 40);
+    ctx.fillStyle = '#1f2a4a'; ctx.font = 'bold 12px Georgia, serif';
+    ctx.fillText('NORTH POLE', 64, 66); ctx.fillText('EXPRESS', 64, 82);
+    ctx.fillStyle = '#16161a';
+    ctx.beginPath(); ctx.arc(102, 98, 6, 0, Math.PI * 2); ctx.fill();
+  });
+
+  painter('stencil_xm24', stencil({ top: 'NORTH POLE', bottom: 'EXPRESS  2024', icon: 'train',
+                                    ink: 'rgba(242,207,106,0.95)', glow: '#e8b84a',
+                                    font: 'Georgia, serif', frame: 'round', size: 16, size2: 13 }));
   // @@ christmas painters go above this line @@
 
   Textures.emblems = Object.keys(emblems);

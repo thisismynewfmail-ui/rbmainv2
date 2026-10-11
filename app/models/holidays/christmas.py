@@ -16,7 +16,7 @@ import math
 
 from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
                   Event, around, at_frame, band, buckle, cap, dome, gift_bow, mix, part,
-                  place, pompom, ringband, rotate, shade, sides, straps)
+                  place, pompom, ringband, rod, rotate, shade, sides, straps)
 
 # the colours every year shares
 BERRY = "#d0141c"
@@ -1267,4 +1267,496 @@ XM23.award("Gingerbread Junction", ["Cookie Cutter", "Icing Piper", "Gumdrop Gat
            "flake")
 XM23.bundle("pair", "Tin and Key", 1, 1050, "One Cookie Tin Crate, one Peppermint Key.")
 XM23.bundle("bakers_dozen", "Baker's Three", 3, 3000, "Three tins, three keys. Saves 300.")
-EVENTS = [XM22, XM23]
+
+
+# ============================================================ 2024
+LIVERY = "#a8141e"
+NAVY_COAT = "#1f2a4a"
+PAPER = "#c9a26a"
+STEAM = "#f4f8fc"
+HICKORY = "#3a4a6a"
+
+
+def _parcel(at, w, h, d, r=None, label=True, bow=None, **kw):
+    """A brown-paper parcel tied with string, middle at ``at``: ``bow``
+    a ribbon colour for a bow on top."""
+    pieces = [
+        part("rbox", [0, 0, 0], [w, h, d], PAPER, decal="xm_brownpaper", wrap=True),
+        part("rbox", [0, 0, 0], [w + 0.01, h + 0.01, 0.025], "#f4ecd8"),
+        part("rbox", [0, 0, 0], [0.025, h + 0.01, d + 0.01], "#f4ecd8"),
+    ]
+    if label:
+        pieces.append(part("box", [w * 0.22, h * 0.18, d / 2 + 0.006], [w * 0.36, h * 0.26, 0.005],
+                           "#ffffff", decal="xm_label"))
+    if bow:
+        pieces += gift_bow([0, h / 2, 0], min(w, d) * 0.55, bow)
+    out = at_frame(pieces, at, r, 1.0)
+    for p in out:
+        p.update(kw)
+    return out
+
+
+def _puffs(at, k=1.0, n=4, **kw):
+    """A column of steam puffs rising from ``at``, smaller and fainter as
+    they go."""
+    x, y, z = at
+    out = []
+    for i in range(n):
+        s = (0.36 - i * 0.05) * k
+        out.append(part("sph", [x + (0.05 if i % 2 else -0.04) * k, y + (0.10 + i * 0.26) * k, z],
+                        [s, s * 0.86, s], STEAM, a=round(0.85 - i * 0.16, 2), **kw))
+    return out
+
+
+XM24 = Event(
+    "christmas_2024", "christmas", 2024, "xm24",
+    name="North Pole Express", title="The North Pole Express",
+    blurb="Christmas 2024 a train came through Blockhaven every night at midnight: a "
+          "red engine, a coal tender heaped with parcels and a mail car with every "
+          "letter anybody had ever written to the North Pole. It never stopped. It only "
+          "slowed down long enough for the parcels to be thrown off.",
+    tagline="All aboard. Tickets, please.",
+    starts="2024-12-01", ends="2024-12-30",
+    colors={"accent": "#e8b84a", "deep": "#14162a", "glow": "#fff3b0"},
+    family_effects=["frostbite", "starstruck", "candlelight_vigil"],
+    hero_effect="steam_puffs", stencil="stencil_xm24")
+
+
+@XM24.crate_model("Coal Tender",
+                  "The coal tender off the North Pole Express, red with gold lining, the "
+                  "railway's name down the side, buffers at the back and a heap of coal "
+                  "with the parcels riding on top. Holds the North Pole Express set. Needs "
+                  "a Whistle Key.",
+                  hinge=[0, 0.32, -0.56], keyhole=[0, -0.30, 0.56])
+def _():
+    parts = [
+        part("rbox", [0, -0.48, 0], [1.80, 0.16, 1.10], COAL, m="metal"),
+        part("rbox", [0, -0.05, 0], [1.70, 0.70, 1.04], LIVERY, decal="xm_livery", wrap=True),
+        part("rbox", [0, 0.32, 0], [1.76, 0.06, 1.10], GOLD, m="metal"),
+        part("rbox", [0, -0.40, 0], [1.74, 0.04, 1.08], GOLD, m="metal"),
+        part("box", [0, 0.28, 0], [1.60, 0.04, 0.96], "#ffd36a", m="neon"),
+        # the lock: a brass plate on the side
+        part("rbox", [0, -0.30, 0.535], [0.26, 0.18, 0.05], BRASS, m="metal", decal="keyhole",
+             lock=1),
+        part("box", [0, -0.05, -0.525], [0.80, 0.46, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_xm24", a=-1),
+        # buffers and the coupling at the back, a lamp on the corner
+        part("rbox", [-0.90, -0.40, 0], [0.10, 0.12, 0.70], COAL, m="metal"),
+        part("rbox", [-0.98, -0.28, 0.22], [0.06, 0.30, 0.20], BRASS, m="metal"),
+        part("cyl", [-1.02, -0.30, 0.30], [0.16, 0.10, 0.16], SILVER, [0, 0, PI / 2], m="metal"),
+        part("cyl", [-1.02, -0.30, -0.30], [0.16, 0.10, 0.16], SILVER, [0, 0, PI / 2], m="metal"),
+        part("torus", [-1.00, -0.44, 0], [0.12, 0.03, 0.12], COAL, [PI / 2, 0, 0], m="metal"),
+        part("sph", [-0.80, 0.42, 0.44], [0.12, 0.12, 0.12], BERRY, m="neon"),
+        # the coal (the lid), and the parcels riding on it
+        part("hemi", [0, 0.48, 0], [1.56, 0.36, 0.96], COAL, decal="xm_coal", wrap=True, lid=1),
+        part("rbox", [0, 0.32, 0], [1.66, 0.04, 1.02], shade(COAL, 1.3), lid=1),
+        *_parcel([0.36, 0.62, 0.08], 0.36, 0.26, 0.30, r=[0, 0.4, 0.1], bow=BERRY, lid=1),
+        *_parcel([-0.30, 0.60, -0.10], 0.30, 0.22, 0.30, r=[0.1, -0.3, -0.1], lid=1),
+        *_parcel([-0.02, 0.76, 0.02], 0.24, 0.20, 0.22, r=[0, 0.9, 0.15], bow=HOLLY, lid=1),
+    ]
+    # the wheels: four spoked wheels each side, red hubs
+    for x in (-0.55, 0.55):
+        for z, yaw in ((0.57, 0.0), (-0.57, PI)):
+            parts += [part("disc", [x, -0.58, z], [0.50, 0.50, 0.40], COAL, [0, yaw, 0],
+                           decal="xm_wheel", m="metal"),
+                      part("sph", [x, -0.58, z * 1.06], [0.10, 0.10, 0.06], BERRY)]
+    parts += [rod([-0.55, -0.58, 0.62], [0.55, -0.58, 0.62], 0.05, SILVER, m="metal"),
+              rod([-0.55, -0.58, -0.62], [0.55, -0.58, -0.62], 0.05, SILVER, m="metal")]
+    return parts
+
+
+@XM24.key_model("Whistle Key",
+                "A brass key whose bow is the engine's own steam whistle, pull-chain and "
+                "all. Opens one Coal Tender. Blow it and every reindeer for a mile "
+                "looks up.", shoulder=-0.30)
+def _():
+    return [
+        part("cyl", [-0.62, -0.02, 0], [0.22, 0.40, 0.22], BRASS, m="metal"),
+        place("bell", [-0.62, 0.18, 0], [0.30, 0.26, 0.30], BRASS, anchor=[0, 0, 0], m="metal"),
+        part("cyl", [-0.62, -0.26, 0], [0.12, 0.10, 0.12], shade(BRASS, 0.8), m="metal"),
+        part("rbox", [-0.48, -0.02, 0], [0.24, 0.05, 0.05], shade(BRASS, 0.8), [0, 0, -0.3],
+             m="metal"),
+        rod([-0.38, -0.08, 0], [-0.40, -0.40, 0], 0.02, SILVER, m="metal"),
+        part("sph", [-0.40, -0.44, 0], [0.06, 0.06, 0.06], BERRY),
+        part("cyl", [0.13, 0, 0], [0.09, 0.84, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.27, 0, 0], [0.20, 0.07, 0.20], GOLD_DARK, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0.40, -0.12, 0], [0.08, 0.22, 0.08], BRASS, m="metal"),
+        part("rbox", [0.52, -0.16, 0], [0.08, 0.30, 0.08], BRASS, m="metal"),
+        *_puffs([-0.62, 0.34, 0], 0.40, n=3),
+    ]
+
+
+@XM24.hat("conductor_cap", "Conductor's Cap",
+          "Navy, peaked, a gold band and the railway's badge on the front. It has "
+          "punched four hundred thousand tickets and never once been late.", "rare")
+def _():
+    return [
+        cap(-0.30, 0.18, NAVY_COAT, grow=0.06, decal="felt", wrap=True),
+        part("rbox", [0, 0.20, 0.04], [1.72, 0.08, 1.62], NAVY_COAT, decal="felt", wrap=True),
+        place("peak", [0, -0.22, 0], [1.84, 1.0, 1.74], BLACK, anchor=[0, 0, 0], m="glass"),
+        band(-0.20, 0.12, GOLD, grow=0.08, m="metal"),
+        part("rbox", [0, -0.02, 0.86], [0.42, 0.28, 0.04], GOLD, [-0.06, 0, 0], m="metal",
+             decal="xm_badge"),
+        part("cyl", [0.80, -0.20, 0.40], [0.10, 0.04, 0.10], GOLD, [0, 0, PI / 2], m="metal"),
+        part("cyl", [-0.80, -0.20, 0.40], [0.10, 0.04, 0.10], GOLD, [0, 0, PI / 2], m="metal"),
+    ]
+
+
+@XM24.hat("smokestack_topper", "Smokestack Topper",
+          "The front of the engine worn as a top hat: a flared black smokestack puffing "
+          "away, the headlamp lit, the brass bell and a cowcatcher for a brim. Clear "
+          "the line.", "legendary")
+def _():
+    parts = [
+        place("brim", [0, -0.05, 0], [2.16, 1.4, 2.06], LIVERY, anchor=[0, 0, 0], decal="felt",
+              wrap=True),
+        place("flare", [0, 0.0, 0], [1.30, 1.30, 1.26], COAL, anchor=[0, 0, 0], m="metal"),
+        part("torus", [0, 1.30, 0], [1.32, 0.08, 1.28], BRASS, m="metal"),
+        part("cyl", [0, 0.16, 0], [1.20, 0.22, 1.16], LIVERY, decal="xm_livery", wrap=True),
+        part("cyl", [0, 0.28, 0], [1.22, 0.04, 1.18], GOLD, m="metal"),
+        # the headlamp on the front, the bell on the side
+        part("rbox", [0, 0.70, 0.62], [0.34, 0.30, 0.20], COAL, m="metal"),
+        part("cyl", [0, 0.70, 0.73], [0.24, 0.04, 0.24], "#fff3b0", [PI / 2, 0, 0], m="neon"),
+        part("torus", [0, 0.70, 0.73], [0.26, 0.04, 0.26], BRASS, [PI / 2, 0, 0], m="metal"),
+        place("bell", [0.62, 0.50, -0.10], [0.24, 0.24, 0.24], BRASS, anchor=[0, 0, 0], m="metal"),
+        part("rbox", [0.62, 0.78, -0.10], [0.04, 0.06, 0.04], BRASS, m="metal"),
+    ]
+    # the cowcatcher: slats raking down and forward over the brim
+    for k in range(5):
+        x = (k - 2) * 0.16
+        parts.append(rod([x * 1.4, -0.04, 1.02], [x, -0.24, 1.30], 0.05, BERRY))
+    parts.append(rod([-0.42, -0.04, 1.02], [0.42, -0.04, 1.02], 0.05, BERRY))
+    parts += _puffs([0.06, 1.34, 0.02], 1.4, n=4)
+    return parts
+
+
+@XM24.hat("parcel_pile", "Parcel Pile",
+          "Three parcels in brown paper and string, stacked on your head, addressed to "
+          "somebody at the North Pole. You are not to look. You will look.", "uncommon",
+          hair="show")
+def _():
+    return (_parcel([0, 0.22, 0], 0.98, 0.44, 0.90)
+            + _parcel([0.06, 0.62, -0.04], 0.74, 0.36, 0.66, r=[0, 0.4, 0])
+            + _parcel([-0.04, 0.96, 0.02], 0.46, 0.32, 0.44, r=[0, -0.3, 0.06], bow=BERRY))
+
+
+@XM24.hat("drivers_cap", "Engine Driver's Cap",
+          "A soft cap in hickory stripe, soot on the peak, and the driver's goggles "
+          "pushed up off his eyes for the long straight stretch.", "uncommon")
+def _():
+    parts = [
+        cap(-0.30, 0.20, HICKORY, grow=0.04, decal="xm_hickory", wrap=True),
+        part("sph", [0, 0.20, -0.06], [1.62, 0.22, 1.54], HICKORY, decal="xm_hickory", wrap=True),
+        place("peak", [0, -0.22, 0], [1.80, 1.0, 1.70], HICKORY, anchor=[0, 0, 0],
+              decal="xm_hickory", wrap=True),
+        ringband(-0.04, 0.08, "#2a2a30", margin=0.08),
+    ]
+    for s in (1, -1):
+        parts += [part("cyl", [0.26 * s, 0.02, 0.84], [0.28, 0.10, 0.28], BRASS, [PI / 2 - 0.4, 0, 0],
+                       m="metal"),
+                  part("cyl", [0.26 * s, 0.02, 0.88], [0.22, 0.02, 0.22], "#9fd8ff",
+                       [PI / 2 - 0.4, 0, 0], m="glass", a=0.6)]
+    parts.append(part("sph", [0.30, -0.18, 0.92], [0.20, 0.06, 0.06], "#2a2a30", a=0.6))
+    return parts
+
+
+@XM24.hat("reindeer_plume", "Reindeer Plume",
+          "The red-and-gold plume off the lead reindeer's harness, two sleigh bells on "
+          "ribbons and a sprig of holly. You are now pulling the sleigh. Good luck.",
+          "rare", hair="show")
+def _():
+    parts = [ringband(-0.24, 0.14, LIVERY, decal="felt", wrap=True),
+             ringband(-0.30, 0.04, GOLD, margin=0.05, m="metal")]
+    for k, (lean, c) in enumerate(((-0.3, BERRY), (0.0, GOLD), (0.3, BERRY), (0.15, "#ffffff"),
+                                   (-0.15, GOLD))):
+        parts.append(place("feather", [0.0, 0.0, -0.10 + k * 0.02], 1.10 - abs(lean) * 0.4, c,
+                           anchor=[0, -0.5, 0], r=[-0.2, PI / 2, lean]))
+    for s in (1, -1):
+        parts += [rod([0.86 * s, -0.24, 0.30], [0.90 * s, -0.56, 0.36], 0.04, BERRY),
+                  part("sph", [0.90 * s, -0.66, 0.36], [0.22, 0.22, 0.22], GOLD, m="metal"),
+                  part("rbox", [0.90 * s, -0.68, 0.46], [0.10, 0.02, 0.02], COAL)]
+    parts += _holly([0.0, -0.10, 0.92], 0.8)
+    return parts
+
+
+@XM24.hat("snowplough_helmet", "Snowplough Helmet",
+          "A hi-vis orange hard hat with a reflective stripe, an amber lamp turning on top "
+          "and a little plough blade bolted to the front, for clearing the line ahead of "
+          "the Express.",
+          "rare")
+def _():
+    hivis, amber = "#ff6a1a", "#ffc21f"
+    parts = [
+        dome(-0.36, 0.86, hivis, t="capcrown", m="glass"),
+        place("brim", [0, -0.30, 0], [2.16, 0.8, 2.06], hivis, anchor=[0, 0, 0], m="glass"),
+        ringband(-0.20, 0.08, COAL, margin=0.05),
+        ringband(-0.08, 0.10, "#e8eef4", margin=0.16, m="metal"),
+        part("cyl", [0, 0.56, 0], [0.30, 0.10, 0.30], COAL, m="metal"),
+        part("cyl", [0, 0.70, 0], [0.24, 0.22, 0.24], amber, m="neon", a=0.8),
+        part("rbox", [0, 0.70, 0], [0.28, 0.06, 0.06], "#ffffff", m="neon", spin=4.0),
+        part("hemi", [0, 0.81, 0], [0.24, 0.10, 0.24], amber, m="glass", a=0.7),
+    ]
+    # the plough blade, raked forward off the brim
+    parts += [part("rbox", [0, -0.20, 1.10], [0.62, 0.22, 0.05], BERRY, [0.45, 0, 0], m="metal",
+                   decal="xm_candystripe"),
+              part("rbox", [0.40, -0.20, 1.00], [0.28, 0.22, 0.05], BERRY, [0.45, 0.7, 0], m="metal"),
+              part("rbox", [-0.40, -0.20, 1.00], [0.28, 0.22, 0.05], BERRY, [0.45, -0.7, 0], m="metal"),
+              rod([0, -0.26, 0.92], [0, -0.22, 1.06], 0.06, COAL, m="metal")]
+    return parts
+
+
+@XM24.hat("sleigh_bell", "Silver Sleigh Bell",
+          "One silver bell off the sleigh's harness, on a red ribbon, with a tag that "
+          "says BELIEVE. Only some people can hear it ring.", "uncommon", hair="show")
+def _():
+    return [
+        place("bowtie", [0, 0.10, 0.10], [0.90, 0.70, 1.0], BERRY),
+        part("sph", [0, 0.10, 0.12], [0.16, 0.14, 0.12], BERRY),
+        place("ribbon", [0.12, 0.08, 0.12], [0.20, 0.34, 0.10], BERRY, anchor=[0, 0.5, 0],
+              r=[0.2, 0, 1.36]),
+        place("ribbon", [-0.12, 0.08, 0.12], [0.20, 0.34, 0.10], BERRY, anchor=[0, 0.5, 0],
+              r=[0.2, 0, -1.36]),
+        part("sph", [0, 0.44, 0.06], [0.50, 0.46, 0.50], SILVER, m="metal"),
+        part("rbox", [0, 0.38, 0.30], [0.20, 0.04, 0.04], COAL),
+        part("torus", [0, 0.70, 0.06], [0.14, 0.04, 0.14], SILVER, [PI / 2, 0, 0], m="metal"),
+        part("box", [0.30, 0.20, 0.26], [0.22, 0.12, 0.01], "#f4ecd8", [0, 0, -0.3],
+             decal="xm_believe"),
+    ]
+
+
+@XM24.back("mail_sack", "North Pole Mail Sack",
+           "A canvas mail sack over the shoulder, stencilled N.P. MAIL, tied at the neck "
+           "with letters poking out of it -- every one addressed in crayon.", "rare")
+def _():
+    canvas = "#c8b48a"
+    parts = straps("#5a3a22") + [
+        part("sph", [0.06, 0.06, -0.52], [1.20, 1.40, 0.80], canvas, decal="xm_mailsack",
+             wrap=True),
+        place("teardrop", [0.10, 0.70, -0.52], [0.52, 0.52, 0.40], canvas, anchor=[0, 0, 0],
+              decal="canvas", wrap=True),
+        part("torus", [0.10, 0.80, -0.52], [0.34, 0.07, 0.30], "#5a3a22"),
+    ]
+    for k, (x, a) in enumerate(((0.0, 0.2), (0.16, -0.4), (-0.12, 0.6), (0.08, 0.0))):
+        parts.append(part("box", [0.10 + x, 1.06 + k * 0.02, -0.52 + x * 0.3], [0.30, 0.20, 0.01],
+                          "#ffffff", [0.2, a, x * 2], decal="xm_letter"))
+    return parts
+
+
+@XM24.back("little_engine", "The Little Engine",
+           "A toy steam engine riding up your back on its own little track, puffing away, "
+           "wheels going round. It thinks it can. It is fairly sure.", "legendary")
+def _():
+    z = -0.56
+    parts = [
+        # the track up your back
+        part("rbox", [0.16, 0.30, -0.22], [0.06, 1.80, 0.06], SILVER, m="metal"),
+        part("rbox", [-0.16, 0.30, -0.22], [0.06, 1.80, 0.06], SILVER, m="metal"),
+        # the engine, climbing: boiler, smokestack, cab, cowcatcher
+        part("cyl", [0, 0.40, z], [0.46, 1.00, 0.46], LIVERY, decal="xm_livery", wrap=True),
+        part("cyl", [0, 0.92, z], [0.48, 0.06, 0.48], GOLD, m="metal"),
+        part("rbox", [0, -0.24, z - 0.04], [0.56, 0.44, 0.56], COAL, m="metal"),
+        part("rbox", [0, -0.24, z - 0.04], [0.40, 0.30, 0.58], "#ffd36a", m="neon"),
+        part("rbox", [0, -0.48, z - 0.04], [0.60, 0.06, 0.60], LIVERY),
+        place("flare", [0, 0.40, z - 0.30], [0.18, 0.30, 0.18], COAL, anchor=[0, 0, 0],
+              r=[-PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.94, z], [0.20, 0.08, 0.20], "#fff3b0", m="neon"),
+        part("sph", [0, 0.62, z - 0.24], [0.14, 0.14, 0.10], BRASS, m="metal"),
+    ]
+    for y in (0.10, 0.56):
+        for s in (1, -1):
+            parts.append(part("disc", [0.26 * s, y, z + 0.08], [0.30, 0.30, 0.40], COAL,
+                              [0, PI / 2 * s, 0], decal="xm_wheel", m="metal"))
+    parts += _puffs([0, 0.40, z - 0.62], 0.9, n=3)
+    return parts
+
+
+@XM24.hairdo("steam_curls", "Steam Curls",
+             "White hair in soft round puffs, like the steam off the Express on a frosty "
+             "night, drifting up off the top.", "uncommon")
+def _():
+    c = "#f4f8fc"
+    parts = [place("hairmid", [0, 0, 0], [1.04, 1.04, 1.04], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for k in range(7):
+        a = k * TAU / 7
+        parts.append(part("sph", [math.sin(a) * 0.30, 0.56 + (k % 2) * 0.06, math.cos(a) * 0.28 - 0.04],
+                          [0.30, 0.26, 0.30], c if k % 2 else "#e8eef4"))
+    parts += [part("sph", [0.04, 0.80, 0.0], [0.26, 0.22, 0.26], c, a=0.8),
+              part("sph", [-0.04, 0.98, 0.02], [0.18, 0.16, 0.18], c, a=0.6)]
+    return parts
+
+
+@XM24.hairdo("soot_crop", "Stoker's Crop",
+             "Short dark hair with the coal dust worked into it, a cowlick that has been "
+             "standing up since Michaelmas, and ash on the ends.", "uncommon")
+def _():
+    c = "#2a2420"
+    parts = [place("hairshort", [0, 0, 0], [1.03, 1.03, 1.03], c, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for k, (x, z) in enumerate(((0.20, 0.30), (-0.14, 0.24), (0.04, 0.40))):
+        parts.append(place("teardrop", [x, 0.50, z], [0.20, 0.30, 0.18], "#4a4440" if k % 2 else c,
+                           anchor=[0, 0.1, 0], r=[0.8, 0, -x], decal="strands", wrap=True))
+    return parts
+
+
+XM24.face("all_aboard", "All Aboard!",
+          "Cheeks puffed, eyes screwed shut, and a whistle between the teeth, giving it "
+          "everything.", [
+              {"k": "arc", "x": -0.20, "y": -0.12, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.12, "r": 0.06, "a0": 0.55, "a1": 0.95, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.30, "y": 0.06, "w": 0.16, "h": 0.12, "c": "#ffb08a"},
+              {"k": "ellipse", "x": 0.30, "y": 0.06, "w": 0.16, "h": 0.12, "c": "#ffb08a"},
+              {"k": "ellipse", "x": 0.0, "y": 0.12, "w": 0.10, "h": 0.07, "c": "#16171b"},
+              {"k": "poly", "pts": [[0.02, 0.10], [0.20, 0.08], [0.22, 0.16], [0.04, 0.15]],
+               "c": "#c9a227"},
+              {"k": "ellipse", "x": 0.21, "y": 0.12, "w": 0.04, "h": 0.06, "c": "#8a6a1a"},
+          ], "uncommon")
+XM24.face("sooty_grin", "Sooty Grin",
+          "A face full of coal dust from a night on the footplate, and a grin as white "
+          "as the snow.", [
+              {"k": "ellipse", "x": -0.26, "y": 0.04, "w": 0.22, "h": 0.12, "c": "#5a5450"},
+              {"k": "ellipse", "x": 0.30, "y": -0.24, "w": 0.18, "h": 0.08, "c": "#5a5450"},
+              {"k": "ellipse", "x": 0.18, "y": 0.10, "w": 0.10, "h": 0.06, "c": "#5a5450"},
+              {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.08, "h": 0.10, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.08, "h": 0.10, "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.22, 0.08], [0.22, 0.08], [0.16, 0.22], [-0.16, 0.22]],
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.18, 0.09], [0.18, 0.09], [0.16, 0.14], [-0.16, 0.14]],
+               "c": "#ffffff"},
+          ], "rare")
+XM24.shirt("conductor_coat", "Conductor's Coat",
+           "Navy, double-breasted, gold buttons and braid, a ticket punch on a chain and "
+           "a pocket watch that is never, ever wrong.",
+           {"torso": NAVY_COAT, "arms": NAVY_COAT, "decal": "xm_tee_conductor", "weave": "felt",
+            "stripe": GOLD}, "rare")
+XM24.pants("hickory_overalls", "Footplate Overalls",
+           "Hickory-stripe overalls, soot at the knees, for shovelling coal at forty miles "
+           "an hour.",
+           {"legs": HICKORY, "weave": "xm_hickory", "cuff": "#2a2a30"})
+XM24.belt("watch_belt", "Guard's Belt",
+          "A black belt with a brass buckle and the guard's watch on its chain, set to "
+          "North Pole time.",
+          {"band": "#2a2a30", "buckle": BRASS, "width": 0.20, "metal": True, "chain": GOLD})
+
+
+@XM24.weapon("coal_shovel", "Fireman's Shovel",
+             "The shovel off the footplate, still hot. A face full of coal dust leaves "
+             "whoever it catches coughing, blinking and in no state to use anything "
+             "clever -- and a long way back from where they were standing.",
+             {"kind": "melee", "damage": 28, "headshot": 1.0, "rpm": 84, "range": 10.5,
+              "arc": 0.62, "sound": "swing", "knockback": 0,
+              "on_hit": {"silence": 2.5, "push": 24}},
+             [["+", "Silences whoever it hits for 2.5 seconds: no abilities, no gear, nothing "
+                    "to drink"],
+              ["+", "...and shovels them well back"],
+              ["-", "28 damage: it is a shovel"],
+              ["-", "Slow to swing"]], rarity="legendary")
+def _():
+    wood, iron = "#8a5a2a", "#3a3d42"
+    return [
+        rod([0, 0, -0.40], [0, 0, 0.96], 0.10, wood),
+        part("rbox", [0, 0, -0.48], [0.30, 0.08, 0.10], wood),
+        part("cyl", [0, 0, 1.00], [0.14, 0.14, 0.14], iron, [PI / 2, 0, 0], m="metal"),
+        part("rbox", [0, -0.02, 1.36], [0.56, 0.04, 0.62], iron, [0.12, 0, 0], m="metal"),
+        part("rbox", [0.28, 0.04, 1.36], [0.04, 0.10, 0.62], iron, [0.12, 0, 0], m="metal"),
+        part("rbox", [-0.28, 0.04, 1.36], [0.04, 0.10, 0.62], iron, [0.12, 0, 0], m="metal"),
+        part("sph", [0.06, 0.06, 1.40], [0.16, 0.10, 0.14], COAL),
+        part("sph", [-0.10, 0.06, 1.30], [0.12, 0.08, 0.12], COAL),
+        part("sph", [0.0, 0.03, 1.52], [0.12, 0.05, 0.10], "#ff5a1a", m="neon"),
+    ]
+
+
+@XM24.weapon("return_to_sender", "Return to Sender",
+             "A parcel, thrown off the back of the Express, that sits wherever it lands. "
+             "The first enemy who goes near it finds out it was addressed to them: it "
+             "pops open, bowls them up and ties them down.",
+             {"kind": "deploy", "cooldown": 9, "sound": "throw",
+              "deploy": {"type": "trap", "thrown": True, "throw": 24, "radius": 3.6,
+                         "secs": 25.0, "limit": 2, "damage": 25, "scale": 1.3,
+                         "enemy": {"root": 2.0, "knockup": 16}, "name": "Parcel",
+                         "color": "#c9a26a"}},
+             [["+", "Throws a parcel that waits up to 25 seconds; the first enemy within 3.6 "
+                    "studs is bowled up and held fast for 2 seconds"],
+              ["+", "Two can be waiting at once"],
+              ["-", "25 damage"],
+              ["-", "Anybody who sees it land knows to go round"]], rarity="legendary",
+             deploy=lambda: _parcel([0, 0.30, 0], 0.80, 0.60, 0.70, bow=BERRY))
+def _():
+    return _parcel([0, 0.10, 0.16], 0.46, 0.36, 0.40, bow=BERRY)
+
+
+@XM24.weapon("ticket_puncher", "Ticket Puncher",
+             "A conductor's punch that clips holes at three hundred tickets a minute. "
+             "Every hole it punches keeps on stinging, five deep, until they get "
+             "somewhere warm.",
+             {"kind": "hitscan", "damage": 8, "headshot": 1.5, "rpm": 300, "mag": 24,
+              "reload": 2.0, "range": 140, "auto": True, "sound": "smg", "recoil": 0.3,
+              "spread": 1.2, "reserve": 144, "tracer": "#ffe066",
+              "on_hit": {"bleed": [2, 4.0, 5]}},
+             [["+", "Every hit punches a hole that bleeds 2 a second for 4 seconds, stacking "
+                    "five deep"],
+              ["+", "300 a minute"],
+              ["-", "8 damage a hit"],
+              ["-", "24 to a clip"]], rarity="legendary")
+def _():
+    nickel = "#c9ced6"
+    return [
+        part("rbox", [0, -0.16, -0.02], [0.16, 0.42, 0.24], NAVY_COAT, [-0.25, 0, 0],
+             decal="felt"),
+        part("rbox", [0, 0.06, 0.32], [0.16, 0.10, 0.80], nickel, m="metal"),
+        part("rbox", [0, -0.06, 0.32], [0.14, 0.06, 0.70], nickel, [0.08, 0, 0], m="metal"),
+        part("cyl", [0, 0.00, 0.72], [0.18, 0.14, 0.18], nickel, [PI / 2, 0, 0], m="metal"),
+        part("rbox", [0, 0.16, 0.10], [0.20, 0.14, 0.20], LIVERY, m="metal"),
+        part("box", [0.06, 0.00, 0.80], [0.22, 0.12, 0.01], "#f4ecd8", [0, 0, 0.1],
+             decal="xm_ticket"),
+    ]
+
+
+@XM24.gear("pocket_watch", "Full Steam Ahead",
+           "The driver's pocket watch. Snap it open and you are running late: a burst of "
+           "speed down the line and the steam up for whatever is at the end of it.",
+           {"kind": "ability", "cooldown": 18, "sound": "whoosh",
+            "ability": {"dash": {"speed": 62}, "might": {"secs": 4.0, "value": 0.20}}},
+           [["+", "Dashes you forward down the line"],
+            ["+", "20% more damage for 4 seconds after"],
+            ["-", "18 second cooldown"],
+            ["-", "Straight lines only"]], rarity="rare")
+def _():
+    return [
+        part("cyl", [0, 0.28, 0.12], [0.44, 0.10, 0.44], GOLD, [PI / 2, 0, 0], m="metal"),
+        part("disc", [0, 0.28, 0.175], [0.36, 0.36, 0.02], "#fffaf0", decal="clockface"),
+        part("cyl", [0, 0.53, 0.12], [0.08, 0.10, 0.08], GOLD, m="metal"),
+        part("torus", [0, 0.62, 0.12], [0.14, 0.03, 0.14], GOLD, [PI / 2, 0, 0], m="metal"),
+        rod([0, 0.64, 0.12], [0.06, 0.04, 0.06], 0.02, GOLD, m="metal"),
+    ]
+
+
+XM24.effect("steam_puffs", name="Steam Puffs", rate=3.2, life=[1.6, 2.4],
+            size=[0.36, 0.56], grow=0.6, gravity=-0.8, spread=0.3, rise=[0.5, 0.9],
+            blend="normal", spin=0.3, colors=["#f4f8fc", "#e2eaf2", "#ffffff"],
+            shape="puff", radius=0.5)
+XM24.effect("parcel_post", name="Parcel Post", rate=1.8, life=[2.4, 3.0],
+            size=[0.30, 0.42], grow=0.0, gravity=0.0, spread=0.2, rise=[0.05, 0.2],
+            blend="normal", spin=1.2, colors=["#c9a26a", "#d0141c", "#1e7a36"],
+            shape="gift", radius=0.9, orbit=1.6, wobble=0.3)
+XM24.opening(
+    sky={"top": "#06081a", "horizon": "#24305a", "sun": [0.2, 0.9, 0.6], "clouds": 0.2,
+         "tint": "#e8f0ff"},
+    ambient="#5a6488", beam="#fff3b0", seep="steam_puffs", after="parcel_post",
+    burst=["#e8b84a", "#d0141c", "#ffffff", "#1e7a36"],
+    pieces=[{"shape": "gift", "colors": ["#c9a26a", "#d0141c", "#1e7a36"], "blend": "normal"},
+            {"shape": "flake", "colors": ["#ffffff", "#dff4ff"], "blend": "normal"},
+            {"shape": "puff", "colors": ["#f4f8fc", "#e2eaf2"], "blend": "normal"},
+            {"shape": "star", "colors": ["#fff3b0", "#e8b84a"], "blend": "add"}],
+    backdrop="xm_express", title_wait="The Express is coming down the line...",
+    title_shake="Tickets, please...")
+XM24.award("North Pole Express", ["Passenger", "Ticket Holder", "Parcel Porter", "Stoker",
+                                  "Engine Driver", "Conductor of the Express"],
+           "Opened Coal Tenders aboard the North Pole Express, Christmas 2024.", "em_train",
+           "flake")
+XM24.bundle("pair", "Tender and Whistle", 1, 1050, "One Coal Tender, one Whistle Key.")
+XM24.bundle("train", "The Whole Train", 3, 3000, "Three tenders, three keys. Saves 300.")
+
+EVENTS = [XM22, XM23, XM24]
