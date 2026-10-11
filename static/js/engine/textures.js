@@ -3612,6 +3612,260 @@
   painter('stencil_xm24', stencil({ top: 'NORTH POLE', bottom: 'EXPRESS  2024', icon: 'train',
                                     ink: 'rgba(242,207,106,0.95)', glow: '#e8b84a',
                                     font: 'Georgia, serif', frame: 'round', size: 16, size2: 13 }));
+  /* -- 2025 Krampusnacht: shaggy fur, black willow, rust, birch and red lacquer */
+
+  // a Krampus pelt: long matted locks, combed down, dark under light
+  painter('xm_kfur', function (ctx) {
+    var rnd = scatter(271);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 340; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, len = 10 + rnd() * 16;
+      var lean = (rnd() - 0.5) * 8;
+      ctx.strokeStyle = rnd() > 0.4 ? 'rgba(0,0,0,0.34)' : 'rgba(255,230,200,0.13)';
+      ctx.lineWidth = 1.2 + rnd() * 2.2;
+      around(ctx, x, y, function (g) {
+        g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(lean * 1.5, len * 0.5, lean, len); g.stroke();
+      });
+    }
+  });
+
+  // black willow, woven over and under: rows of weavers bulging where they
+  // pass over a stake and dipping into shadow where they go behind one
+  painter('xm_kwicker', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var row = 0; row < 16; row++) {
+      var y = row * 8;
+      for (var col = -1; col < 9; col++) {
+        var x = col * 16 + (row % 2 ? 8 : 0);
+        var g = ctx.createLinearGradient(0, y, 0, y + 8);
+        g.addColorStop(0, 'rgba(255,226,180,0.34)'); g.addColorStop(0.45, 'rgba(255,226,180,0.12)');
+        g.addColorStop(1, 'rgba(0,0,0,0.28)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.ellipse(x + 8, y + 4, 9.5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  });
+
+  // rust: orange blooms and dark pits on old iron
+  painter('xm_rust', function (ctx) {
+    var rnd = scatter(277);
+    for (var k = 0; k < 70; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 3 + rnd() * 12;
+      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      var orange = rnd() > 0.4;
+      g.addColorStop(0, orange ? 'rgba(200,100,30,0.45)' : 'rgba(30,20,14,0.40)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (k = 0; k < 40; k++) ctx.fillRect(rnd() * CELL, rnd() * CELL, 2, 2);
+  });
+
+  // a goat's horn: the growth rings, close and ridged, darkening to the tip
+  painter('xm_hornridge', function (ctx) {
+    var g = ctx.createLinearGradient(0, 0, 0, CELL);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(40,24,12,0.55)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    for (var y = 3; y < CELL; y += 9) {
+      ctx.fillStyle = 'rgba(60,40,20,0.40)'; ctx.fillRect(0, y, CELL, 3);
+      ctx.fillStyle = 'rgba(255,248,230,0.22)'; ctx.fillRect(0, y + 3, CELL, 2);
+    }
+  });
+
+  // a Perchten mask: carved and lacquered -- deep brows, sunken sockets,
+  // furrows in the cheeks, the grain of the limewood showing through
+  painter('xm_perchten', function (ctx) {
+    var rnd = scatter(281);
+    for (var k = 0; k < 40; k++) {
+      ctx.strokeStyle = 'rgba(60,10,6,' + (0.08 + rnd() * 0.10) + ')'; ctx.lineWidth = 1;
+      var y = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.bezierCurveTo(40, y + 6, 88, y - 6, CELL, y + rnd() * 6);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(30,4,2,0.75)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (var w = 0; w < 3; w++) {
+      ctx.beginPath(); ctx.moveTo(30, 10 + w * 7); ctx.quadraticCurveTo(64, 20 + w * 7, 98, 10 + w * 7);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(20,2,0,0.85)';
+    ctx.beginPath(); ctx.ellipse(40, 48, 19, 15, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(88, 48, 19, 15, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,4,2,0.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(22, 66); ctx.quadraticCurveTo(30, 88, 42, 98); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(106, 66); ctx.quadraticCurveTo(98, 88, 86, 98); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(14, 40); ctx.quadraticCurveTo(10, 70, 26, 112); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(114, 40); ctx.quadraticCurveTo(118, 70, 102, 112); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,220,200,0.18)';
+    ctx.beginPath(); ctx.ellipse(30, 78, 10, 6, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(98, 78, 10, 6, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(20,2,0,0.7)';
+    ctx.beginPath(); ctx.arc(56, 76, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(72, 76, 3, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // a bishop's mitre: gold orphreys and a star, worked onto white silk.
+  // The panels stand point-up on a turned shield, so this is drawn turned.
+  painter('xm_mitre', function (ctx) {
+    ctx.translate(CELL, CELL); ctx.rotate(Math.PI);
+    ctx.fillStyle = '#d8a82a';
+    ctx.fillRect(54, 0, 20, CELL);
+    ctx.fillRect(0, 104, CELL, 18);
+    ctx.fillStyle = '#f2cf6a';
+    ctx.fillRect(57, 0, 2, CELL); ctx.fillRect(69, 0, 2, CELL);
+    ctx.fillRect(0, 107, CELL, 2); ctx.fillRect(0, 117, CELL, 2);
+    ctx.save(); ctx.translate(64, 62);
+    ctx.fillStyle = '#d8a82a'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2cf6a';
+    ctx.beginPath();
+    for (var n = 0; n < 16; n++) {
+      var a = n * Math.PI / 8, r = n % 2 ? 8 : 19;
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#b01828'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(-2, -2, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+
+  // gold braid worked with little red-centred quatrefoils
+  painter('xm_mitre_band', function (ctx) {
+    ctx.fillStyle = '#d8a82a'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(255,240,180,0.6)'; ctx.fillRect(0, 6, CELL, 3); ctx.fillRect(0, CELL - 9, CELL, 3);
+    for (var x = 16; x < CELL; x += 32) {
+      for (var y = 32; y < CELL; y += 64) {
+        ctx.fillStyle = '#f2cf6a';
+        for (var k = 0; k < 4; k++) {
+          var a = k * Math.PI / 2;
+          ctx.beginPath(); ctx.arc(x + Math.cos(a) * 7, y + Math.sin(a) * 7, 6, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = '#b01828'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  });
+
+  // black and red, round and round, like the list it is named for
+  painter('xm_naughtystripe', function (ctx) {
+    for (var y = 0; y < CELL; y += 32) {
+      ctx.fillStyle = '#b01828'; ctx.fillRect(0, y, CELL, 16);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(0, y + 2, CELL, 2);
+    }
+    var rnd = scatter(283);
+    for (var k = 0; k < 300; k++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.10)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 3, 1);
+    }
+  });
+
+  // a gift tag that says what everybody was thinking
+  painter('xm_naughtytag', function (ctx) {
+    ctx.fillStyle = '#f4ecd8'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#16171b'; ctx.lineWidth = 4; ctx.strokeRect(8, 8, 112, 112);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 22px Georgia, serif'; ctx.fillStyle = '#b01828';
+    ctx.fillText('NAUGHTY', 64, 64);
+  });
+
+  // a twisted cord: two strands spiralling round each other
+  painter('xm_cord', function (ctx) {
+    ctx.fillStyle = '#2a1e16'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.save(); ctx.translate(64, 64); ctx.rotate(-0.8); ctx.translate(-64, -64);
+    for (var x = -CELL; x < CELL * 2; x += 12) {
+      ctx.fillStyle = (x / 12) % 2 ? '#3a5240' : '#c9a26a';
+      ctx.fillRect(x, -CELL, 7, CELL * 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x + 1, -CELL, 2, CELL * 3);
+    }
+    ctx.restore();
+  });
+
+  // the pelt's front: a red bib of fur and a chain across it with a bell
+  painter('xm_tee_krampus', function (ctx) {
+    ctx.fillStyle = 'rgba(138,16,24,0.85)';
+    ctx.beginPath(); ctx.moveTo(34, 0); ctx.lineTo(94, 0); ctx.quadraticCurveTo(100, 70, 64, 112);
+    ctx.quadraticCurveTo(28, 70, 34, 0); ctx.fill();
+    var rnd = scatter(289);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 90; i++) {
+      var x = 34 + rnd() * 60, y = rnd() * 100;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.25)' : 'rgba(255,200,180,0.16)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (rnd() - 0.5) * 4, y + 10); ctx.stroke();
+    }
+    for (var k = 0; k < 11; k++) {
+      var t = k / 10, cx = 8 + t * 112, cy = 14 + t * 84;
+      ctx.strokeStyle = '#2a2c30'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.ellipse(cx, cy, k % 2 ? 7 : 5, k % 2 ? 4 : 6, 0.64, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#8a8d92'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(cx, cy, k % 2 ? 7 : 5, k % 2 ? 4 : 6, 0.64, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = '#8a4a22';
+    ctx.beginPath(); ctx.moveTo(56, 62); ctx.lineTo(72, 62); ctx.lineTo(78, 88); ctx.lineTo(50, 88);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3a3d42'; ctx.beginPath(); ctx.arc(64, 90, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(58, 66, 3, 18);
+  });
+
+  // deerskin: a suede nap, saddle stitching and an edelweiss embroidered
+  painter('xm_lederhosen', function (ctx) {
+    var rnd = scatter(293);
+    for (var i = 0; i < 500; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,240,210,0.08)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 2, 2);
+    }
+    ctx.strokeStyle = 'rgba(240,226,190,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+    ctx.strokeRect(10, 10, 108, 108);
+    ctx.beginPath(); ctx.moveTo(64, 10); ctx.lineTo(64, 40); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.save(); ctx.translate(64, 70);
+    ctx.fillStyle = '#f4f2ea';
+    for (var k = 0; k < 8; k++) {
+      ctx.save(); ctx.rotate(k * Math.PI / 4);
+      ctx.beginPath(); ctx.ellipse(0, -13, 4.5, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = '#2f6a3a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(40, 100); ctx.quadraticCurveTo(52, 86, 56, 80); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(88, 100); ctx.quadraticCurveTo(76, 86, 72, 80); ctx.stroke();
+  });
+
+  // an iron chain, link through link
+  painter('xm_chainlink', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var x = 0; x < CELL + 16; x += 32) {
+      ctx.strokeStyle = '#2a2c30'; ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.ellipse(x, 64, 18, 26, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#9a9da2'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.ellipse(x, 64, 18, 26, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#5a5d62'; ctx.fillRect(x + 12, 58, 12, 12);
+      ctx.fillStyle = '#9a9da2'; ctx.fillRect(x + 12, 60, 12, 3);
+    }
+  });
+
+  // a pierced-tin lantern: stars and dots punched through, the fire behind
+  painter('xm_pierced', function (ctx) {
+    ctx.fillStyle = '#ffb04a'; ctx.shadowColor = '#ff7a1a'; ctx.shadowBlur = 6;
+    for (var row = 0; row < 6; row++) {
+      for (var col = 0; col < 6; col++) {
+        var x = 10 + col * 22 + (row % 2 ? 11 : 0), y = 12 + row * 21;
+        if ((row + col) % 3 === 0) {
+          ctx.beginPath();
+          for (var n = 0; n < 10; n++) {
+            var a = n * Math.PI / 5 - Math.PI / 2, r = n % 2 ? 2.5 : 6;
+            ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+          }
+          ctx.closePath(); ctx.fill();
+        } else {
+          ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.shadowBlur = 0;
+  });
+
+  painter('stencil_xm25', stencil({ top: 'KRAMPUS', bottom: 'NACHT  2025', icon: 'krampus',
+                                    ink: 'rgba(255,122,58,0.95)', glow: '#d8252e',
+                                    font: 'Georgia, serif', frame: 'box' }));
   // @@ christmas painters go above this line @@
 
   Textures.emblems = Object.keys(emblems);

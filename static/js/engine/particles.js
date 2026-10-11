@@ -869,6 +869,18 @@
         c.closePath(); c.fill();
       }
     }],
+    ['xm_birch', function (c) {
+      // a birch switch: a fan of bare twigs, a red ribbon round the handle
+      c.strokeStyle = '#ffffff'; c.lineCap = 'round';
+      for (var k = 0; k < 6; k++) {
+        var a = -0.5 + k * 0.2;
+        c.lineWidth = 5 - (k % 2);
+        c.beginPath(); c.moveTo(64, 116); c.quadraticCurveTo(64 + a * 30, 70, 64 + a * 90, 10); c.stroke();
+      }
+      c.fillStyle = '#9a9a9a';
+      for (k = 0; k < 14; k++) c.fillRect(48 + (k * 37) % 34, 20 + (k * 53) % 70, 5, 2);
+      c.fillStyle = '#7a7a7a'; c.fillRect(54, 92, 20, 12);
+    }],
     // @@ christmas particles go above this line @@
 
     ['_end', function () {}]

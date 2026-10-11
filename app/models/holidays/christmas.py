@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 
-from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
+from .kit import (BLACK, BONE, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
                   Event, around, at_frame, band, buckle, cap, dome, gift_bow, mix, part,
                   place, pompom, ringband, rod, rotate, shade, sides, straps)
 
@@ -1759,4 +1759,600 @@ XM24.award("North Pole Express", ["Passenger", "Ticket Holder", "Parcel Porter",
 XM24.bundle("pair", "Tender and Whistle", 1, 1050, "One Coal Tender, one Whistle Key.")
 XM24.bundle("train", "The Whole Train", 3, 3000, "Three tenders, three keys. Saves 300.")
 
-EVENTS = [XM22, XM23, XM24]
+# ============================================================ 2025
+KR_RED = "#8a1018"
+FUR = "#2e221c"
+FUR_HI = "#54402f"
+HORN = "#cdb994"
+BIRCH = "#ece6da"
+EMBER = "#ff5a1a"
+LODEN = "#3a5240"
+RUST = "#8a4a22"
+TONGUE = "#d4364a"
+WICKER = "#7a5630"
+
+
+def _twigs(base, tip, n, spread, w=0.045, c=BIRCH, **kw):
+    """A birch switch: ``n`` bare twigs from ``base`` fanning out round
+    ``tip`` by ``spread`` -- every one a rod, so no turn has to compose."""
+    d = [tip[i] - base[i] for i in range(3)]
+    length = math.sqrt(sum(v * v for v in d)) or 1.0
+    u = [v / length for v in d]
+    ref = [0.0, 1.0, 0.0] if abs(u[1]) < 0.9 else [1.0, 0.0, 0.0]
+    p = [u[1] * ref[2] - u[2] * ref[1], u[2] * ref[0] - u[0] * ref[2], u[0] * ref[1] - u[1] * ref[0]]
+    pl = math.sqrt(sum(v * v for v in p)) or 1.0
+    p = [v / pl for v in p]
+    q = [u[1] * p[2] - u[2] * p[1], u[2] * p[0] - u[0] * p[2], u[0] * p[1] - u[1] * p[0]]
+    out = []
+    for i in range(n):
+        a = TAU * i / n + 0.4
+        k = spread * (0.55 + 0.45 * ((i * 7) % 3) / 2)
+        end = [tip[j] + (p[j] * math.cos(a) + q[j] * math.sin(a)) * k for j in range(3)]
+        out.append(rod(base, end, w * (0.8 + 0.2 * (i % 2)), c if i % 3 else shade(c, 0.86),
+                       **kw))
+    return out
+
+
+def _switch(base, tip, k=1.0, ribbon=KR_RED, n=6):
+    """A switch with its handle bound in a ribbon a third of the way up."""
+    tie = [base[j] + (tip[j] - base[j]) * 0.22 for j in range(3)]
+    return _twigs(base, tip, n, 0.22 * k, 0.05 * k) + [
+        rod([base[j] + (tip[j] - base[j]) * 0.16 for j in range(3)],
+            [base[j] + (tip[j] - base[j]) * 0.28 for j in range(3)], 0.13 * k, ribbon),
+        part("sph", tie, [0.12 * k, 0.12 * k, 0.12 * k], shade(ribbon, 1.15)),
+    ]
+
+
+def _cowbell(at, k=1.0, c=RUST, yaw=0.0, clapper=True):
+    """A cowbell hanging from ``at`` (the top of its strap loop): flat
+    front to back, wide at the mouth, rust on iron."""
+    x, y, z = at
+    out = [part("torus", [x, y - 0.03 * k, z], [0.14 * k, 0.04 * k, 0.14 * k], IRON, [PI / 2, yaw, 0],
+                m="metal"),
+           place("bell", [x, y - 0.06 * k, z], [0.34 * k, 0.44 * k, 0.24 * k], c, anchor=[0, 1.02, 0],
+                 r=[0, yaw, 0], m="metal", decal="xm_rust", wrap=True)]
+    if clapper:
+        out.append(part("sph", [x, y - 0.50 * k, z], [0.09 * k, 0.09 * k, 0.09 * k], IRON, m="metal"))
+    return out
+
+
+def _goat_horn(side, at, k, lean=0.5, out=0.15, c=HORN):
+    """One of the Krampus's horns: rising from ``at``, sweeping out to
+    ``side`` and back by ``lean``, ridged to a dark tip."""
+    r = [-lean, 0.0, -out] if side > 0 else [lean, PI, -out]
+    tip = rotate([0.376 * k, 0.581 * k, 0], r)
+    end = [at[0] + tip[0], at[1] + tip[1], at[2] + tip[2]]
+    return [place("horn", list(at), [k, k, k], c, anchor=[0, 0, 0], r=r, decal="xm_hornridge",
+                  wrap=True),
+            part("sph", end, [0.05 * k, 0.05 * k, 0.05 * k], shade(c, 0.35))]
+
+
+XM25 = Event(
+    "christmas_2025", "christmas", 2025, "xm25",
+    name="Krampusnacht", title="Krampusnacht",
+    blurb="Christmas 2025 Saint Nicholas came to Blockhaven on the fifth of December, as "
+          "he always does, and brought his companion with him, as he always does. The "
+          "nice got oranges and gingerbread. The naughty heard chains in the street, "
+          "and bells, and something with hooves coming up the stairs.",
+    tagline="Have you been good this year?",
+    starts="2025-12-01", ends="2025-12-30",
+    colors={"accent": "#d8252e", "deep": "#140808", "glow": "#ff7a3a"},
+    family_effects=["ember_storm", "raven_feathers", "candlelight_vigil"],
+    hero_effect="krampuslauf", stencil="stencil_xm25")
+
+
+@XM25.crate_model("Krampus Basket",
+                  "The basket the Krampus carries on his back, woven from black willow, "
+                  "bound in chains, a bell on the front and his switches tucked down "
+                  "the side. Holds the Krampusnacht set. What else it has held, nobody "
+                  "says. Needs a Horn Key.",
+                  hinge=[0, 0.40, -0.62], keyhole=[0, 0.18, 0.66])
+def _():
+    parts = [
+        # the basket: a woven tub wider at the mouth, a rim and a foot
+        place("flare", [0, -0.70, 0], [1.56, 1.10, 1.22], WICKER, anchor=[0, 0, 0],
+              decal="xm_kwicker", wrap=True),
+        place("ring", [0, 0.30, 0], [1.66, 0.6, 1.32], shade(WICKER, 0.7), anchor=[0, 0, 0],
+              decal="xm_kwicker", wrap=True),
+        place("ring", [0, -0.72, 0], [1.42, 0.5, 1.12], shade(WICKER, 0.7), anchor=[0, 0, 0]),
+        # an iron band round the middle, and the chain hung across the front
+        place("ring", [0, -0.24, 0], [1.60, 0.30, 1.26], IRON, anchor=[0, 0, 0], m="metal"),
+        # the lock: a rusted hasp on the rim
+        part("rbox", [0, 0.18, 0.655], [0.30, 0.24, 0.06], RUST, m="metal", decal="keyhole",
+             lock=1),
+        part("box", [0, -0.22, -0.64], [0.86, 0.50, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_xm25", a=-1),
+        # the lid: a woven dome, an iron band and the handle
+        place("hemi", [0, 0.40, 0], [1.62, 0.56, 1.28], shade(WICKER, 0.85), anchor=[0, 0, 0],
+              decal="xm_kwicker", wrap=True, lid=1),
+        place("ring", [0, 0.38, 0], [1.68, 0.4, 1.34], IRON, anchor=[0, 0, 0], m="metal", lid=1),
+        part("torus", [0, 0.72, 0], [0.36, 0.08, 0.36], IRON, [0, 0, PI / 2], m="metal", lid=1),
+        # two little horns either side of the handle, and red eyes in the weave
+        *[dict(p, lid=1) for p in _goat_horn(1, [0.30, 0.62, 0.0], 0.75, 0.1, 0.4)],
+        *[dict(p, lid=1) for p in _goat_horn(-1, [-0.30, 0.62, 0.0], 0.75, 0.1, 0.4)],
+        part("sph", [0.14, 0.58, 0.50], [0.10, 0.06, 0.04], EMBER, [0.6, 0, 0], m="neon", lid=1),
+        part("sph", [-0.14, 0.58, 0.50], [0.10, 0.06, 0.04], EMBER, [0.6, 0, 0], m="neon", lid=1),
+        # the glow from inside, through the gap
+        part("cyl", [0, 0.36, 0], [1.40, 0.04, 1.10], "#ff7a3a", m="neon"),
+    ]
+    # the chain swagged across the front
+    for k in range(15):
+        t = k / 14
+        th = -1.1 + t * 2.2
+        y = -0.26 - math.sin(t * PI) * 0.20
+        parts.append(part("torus", [math.sin(th) * 0.74, y, math.cos(th) * 0.60],
+                          [0.13, 0.04, 0.09], IRON,
+                          [0, th + (PI / 2 if k % 2 else 0.0), PI / 2 if k % 2 else 0.0],
+                          m="metal"))
+    parts += _cowbell([0, -0.52, 0.70], 0.80)
+    # the switches tucked down the side, sprouting out over the rim
+    parts += _switch([0.66, -0.50, -0.20], [0.98, 0.90, -0.40], 1.0)
+    parts += _switch([0.70, -0.50, 0.10], [1.06, 0.80, 0.10], 0.9)
+    parts += [part("rbox", [0.72, -0.20, -0.04], [0.06, 0.12, 0.50], "#3a2a1e")]
+    return parts
+
+
+@XM25.key_model("Horn Key",
+                "An iron key with a little Krampus head for a bow: shaggy, horned, "
+                "red-eyed, and the bit cut like a row of teeth. Opens one Krampus "
+                "Basket. It is warm, and it should not be.", shoulder=-0.36)
+def _():
+    return [
+        part("sph", [-0.62, 0, 0], [0.40, 0.42, 0.36], FUR, decal="xm_kfur", wrap=True),
+        part("sph", [-0.62, -0.04, 0.12], [0.24, 0.20, 0.16], KR_RED),
+        part("sph", [-0.56, 0.04, 0.17], [0.07, 0.05, 0.04], EMBER, m="neon"),
+        part("sph", [-0.68, 0.04, 0.17], [0.07, 0.05, 0.04], EMBER, m="neon"),
+        place("tri", [-0.62, -0.14, 0.19], [0.08, 0.09, 0.4], BONE, r=[0, 0, PI]),
+        *_goat_horn(1, [-0.52, 0.14, 0], 0.62, 0.3, 0.3),
+        *_goat_horn(-1, [-0.72, 0.14, 0], 0.62, 0.3, 0.3),
+        part("cyl", [0.10, 0, 0], [0.09, 0.92, 0.09], IRON, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.36, 0, 0], [0.18, 0.06, 0.18], RUST, [0, 0, PI / 2], m="metal"),
+        place("tri", [0.36, -0.10, 0], [0.12, 0.16, 0.7], IRON, r=[0, 0, PI], m="metal"),
+        place("tri", [0.46, -0.12, 0], [0.12, 0.22, 0.7], IRON, r=[0, 0, PI], m="metal"),
+        place("tri", [0.56, -0.10, 0], [0.12, 0.16, 0.7], IRON, r=[0, 0, PI], m="metal"),
+    ]
+
+
+@XM25.hat("krampus_horns", "Horns of the Krampus",
+          "A shaggy black cap and a pair of goat's horns as long as your arm, ridged, "
+          "sweeping back. On the fifth of December you will find the crowd parts for "
+          "you.", "legendary")
+def _():
+    parts = [
+        cap(-0.32, 0.16, FUR, grow=0.08, decal="xm_kfur", wrap=True),
+        ringband(-0.24, 0.12, FUR_HI, margin=0.07, decal="xm_kfur", wrap=True),
+    ]
+    parts += around(10, 0.80, -0.16, lambda a, x, z: part(
+        "sph", [x, -0.16, z * 0.96], [0.32, 0.34, 0.30], FUR if int(round(a / (TAU / 10))) % 2
+        else FUR_HI, decal="xm_kfur", wrap=True))
+    parts += [part("sph", [0, 0.20, 0.30], [0.50, 0.24, 0.40], FUR_HI, decal="xm_kfur", wrap=True)]
+    parts += _goat_horn(1, [0.40, 0.12, -0.04], 2.3, 0.55, 0.12)
+    parts += _goat_horn(-1, [-0.40, 0.12, -0.04], 2.3, 0.55, 0.12)
+    # pointed ears out to the sides, under the horns
+    for s in (1, -1):
+        parts.append(place("leaf", [0.92 * s, -0.36, -0.04], [0.9, 0.42, 1.0], FUR_HI,
+                           r=[0, 0, -1.25 * s]))
+        parts.append(place("leaf", [0.93 * s, -0.36, -0.01], [0.55, 0.30, 1.0], "#c46a6a",
+                           r=[0, 0, -1.25 * s]))
+    return parts
+
+
+@XM25.hat("perchten_mask", "Perchten Mask",
+          "A hand-carved Alpine Perchten mask: lacquered red, bulging eyes, fangs, a "
+          "tongue down to your chest and a mane of black horsehair. Every village "
+          "carves its own. This one is from the village nobody visits.", "legendary",
+          hair="hide", face_cover=True)
+def _():
+    wood = "#a42a1c"
+    parts = [
+        # the horsehair mane behind and over the top
+        place("hairlong", [0, -0.64, -0.04], [1.62, 1.36, 1.56], FUR, anchor=[0, 0, 0],
+              decal="xm_kfur", wrap=True),
+        part("capsule", [0.34, -1.10, -0.82], [0.30, 0.60, 0.26], FUR_HI, [0.3, 0, 0.1],
+             decal="xm_kfur", wrap=True),
+        part("capsule", [-0.30, -1.06, -0.84], [0.30, 0.60, 0.26], FUR, [0.3, 0, -0.1],
+             decal="xm_kfur", wrap=True),
+        part("capsule", [0.0, -1.14, -0.86], [0.30, 0.64, 0.26], FUR_HI, [0.3, 0, 0],
+             decal="xm_kfur", wrap=True),
+        # the carved face
+        part("rbox", [0, -0.62, 0.79], [1.62, 1.36, 0.16], wood, decal="xm_perchten"),
+        part("rbox", [0, -0.30, 0.89], [1.20, 0.12, 0.08], shade(wood, 0.7), [0.2, 0, 0]),
+        part("sph", [0.30, -0.44, 0.88], [0.30, 0.26, 0.14], "#f4ecd0"),
+        part("sph", [-0.30, -0.44, 0.88], [0.30, 0.26, 0.14], "#f4ecd0"),
+        part("sph", [0.30, -0.44, 0.95], [0.12, 0.12, 0.04], BLACK),
+        part("sph", [-0.30, -0.44, 0.95], [0.12, 0.12, 0.04], BLACK),
+        part("sph", [0, -0.66, 0.92], [0.28, 0.32, 0.22], shade(wood, 1.12)),
+        part("rbox", [0, -0.96, 0.88], [0.86, 0.22, 0.04], "#1a0808"),
+        # fangs top and bottom
+        place("tri", [0.24, -0.90, 0.91], [0.14, 0.16, 0.5], BONE, r=[0, 0, PI]),
+        place("tri", [-0.24, -0.90, 0.91], [0.14, 0.16, 0.5], BONE, r=[0, 0, PI]),
+        place("tri", [0.36, -1.02, 0.91], [0.10, 0.12, 0.5], BONE),
+        place("tri", [-0.36, -1.02, 0.91], [0.10, 0.12, 0.5], BONE),
+        # the tongue, lolling out and down
+        place("ribbon", [0.04, -0.98, 0.94], [0.24, 0.64, 1.0], TONGUE, anchor=[0, 0.5, 0],
+              r=[0.35, 0, 0.12]),
+        part("sph", [0.04 + math.sin(0.12) * 0.62, -0.98 - math.cos(0.35) * 0.60, 0.94 + math.sin(0.35) * 0.62],
+             [0.20, 0.10, 0.08], TONGUE),
+    ]
+    # four horns: two up off the brow, two short and twisted at the temples
+    parts += _goat_horn(1, [0.40, 0.10, 0.30], 1.5, -0.10, 0.35)
+    parts += _goat_horn(-1, [-0.40, 0.10, 0.30], 1.5, -0.10, 0.35)
+    parts += _goat_horn(1, [0.86, -0.40, 0.40], 0.9, 0.3, 1.2)
+    parts += _goat_horn(-1, [-0.86, -0.40, 0.40], 0.9, 0.3, 1.2)
+    # horsehair round the edges of the mask
+    for k in range(6):
+        y = -0.10 - k * 0.22
+        for s in (1, -1):
+            parts.append(part("capsule", [0.90 * s, y - 0.10, 0.62], [0.16, 0.44, 0.14],
+                              FUR if k % 2 else FUR_HI, [0.0, 0, 0.18 * s]))
+    return parts
+
+
+@XM25.hat("nikolaus_mitre", "Nikolaus's Mitre",
+          "The tall white-and-gold mitre of the good bishop who walks in front of the "
+          "Krampus, with the book of names. Wearing it does not make you nice. It does "
+          "make the Krampus wait.", "rare")
+def _():
+    cream = "#f6f2e8"
+    parts = [
+        cap(-0.30, 0.06, cream, grow=0.04),
+        ringband(-0.22, 0.20, GOLD, margin=0.06, m="metal", decal="xm_mitre_band", wrap=True),
+        # the two tall panels: standing on the band at the brow and the nape
+        # and leaning in until they all but meet at the top
+        place("shield", [0, 0.80, 0.42], [1.64, 1.56, 0.7], cream, r=[-0.36, 0, PI],
+              decal="xm_mitre"),
+        place("shield", [0, 0.80, -0.42], [1.64, 1.56, 0.7], cream, r=[-0.36, PI, PI],
+              decal="xm_mitre"),
+        part("rbox", [0, 0.36, 0], [1.30, 0.60, 0.80], KR_RED),
+        part("sph", [0, 1.54, 0.16], [0.12, 0.12, 0.12], GOLD, m="metal"),
+        part("sph", [0, 1.54, -0.16], [0.12, 0.12, 0.12], GOLD, m="metal"),
+    ]
+    # the lappets down the back, fringed with gold
+    for s in (1, -1):
+        parts += [place("ribbon", [0.24 * s, -0.22, -0.84], [0.26, 0.86, 1.2], cream,
+                        anchor=[0, 0.5, 0], r=[0.14, 0, 0], decal="xm_mitre_band"),
+                  part("rbox", [0.24 * s, -1.06, -0.96], [0.28, 0.06, 0.06], GOLD, [0.14, 0, 0],
+                       m="metal")]
+    return parts
+
+
+@XM25.hat("cowbell_crown", "Crown of Cowbells",
+          "A spiked iron crown hung round with cowbells, the way the Krampus runners "
+          "wear them. You will not sneak up on anyone ever again, and you will not "
+          "care.", "rare")
+def _():
+    parts = [
+        ringband(-0.22, 0.16, IRON, margin=0.07, m="metal"),
+        place("spikecrown", [0, -0.24, 0], [1.98, 0.62, 1.92], IRON, anchor=[0, 0, 0],
+              m="metal"),
+        ringband(-0.30, 0.06, RUST, margin=0.10, m="metal"),
+    ]
+    parts += around(7, 1.06, 0.0, lambda a, x, z: _cowbell([x, -0.22, z], 0.62,
+                                                            RUST if int(round(a * 7 / TAU)) % 2
+                                                            else shade(RUST, 1.25), yaw=a))
+    return parts
+
+
+@XM25.hat("naughty_nightcap", "Naughty Nightcap",
+          "A nightcap in black and red stripes for anybody who knows exactly which "
+          "list they are on. The bobble is a lump of coal. It was a present.", "uncommon",
+          hair="show")
+def _():
+    r = [0.0, 0.0, 0.10]
+    tip = rotate([0.376 * 3.0, 0.581 * 1.9, 0], r)
+    at = [-0.30, 0.10, 0.0]
+    return [
+        cap(-0.30, 0.16, BLACK, grow=0.06, decal="xm_naughtystripe", wrap=True),
+        ringband(-0.24, 0.14, SNOW, margin=0.08, decal="fur", wrap=True),
+        place("horn", at, [3.0, 1.9, 4.6], BLACK, anchor=[0, 0, 0], r=r,
+              decal="xm_naughtystripe", wrap=True),
+        part("sph", [at[0] + tip[0] + 0.04, at[1] + tip[1] - 0.10, at[2] + tip[2]],
+             [0.28, 0.24, 0.26], COAL, decal="xm_coal", wrap=True),
+        part("rbox", [at[0] + tip[0] + 0.08, at[1] + tip[1] - 0.36, 0.10], [0.20, 0.12, 0.01],
+             "#f4ecd8", [0, 0, 0.2], decal="xm_naughtytag"),
+        rod([at[0] + tip[0] + 0.04, at[1] + tip[1] - 0.16, 0.06],
+            [at[0] + tip[0] + 0.08, at[1] + tip[1] - 0.30, 0.10], 0.015, KR_RED),
+    ]
+
+
+@XM25.hat("tyrolean_hat", "Tyrolean Hat",
+          "Green loden felt, a twisted cord round the crown, an edelweiss and a "
+          "chamois-hair brush stuck in the band. For walking up to the Krampuslauf "
+          "and very much not taking part.", "uncommon", hair="show")
+def _():
+    parts = [
+        place("brim", [0, -0.05, 0], [2.12, 1.0, 2.00], LODEN, anchor=[0, 0, 0], decal="felt",
+              wrap=True),
+        dome(-0.06, 0.78, LODEN, t="capcrown", decal="felt", wrap=True),
+        part("rbox", [0, 0.70, 0], [0.12, 0.10, 0.80], shade(LODEN, 0.75)),
+        ringband(0.08, 0.12, "#2a1e16", margin=0.04, decal="xm_cord", wrap=True),
+    ]
+    # the gamsbart: a brush of hair sprouting from a silver ferrule at the side
+    base = [0.64, 0.10, -0.40]
+    parts += [part("cyl", [base[0], base[1] + 0.06, base[2]], [0.16, 0.14, 0.16], SILVER,
+                   [0, 0, -0.2], m="metal")]
+    parts += _twigs([base[0], base[1] + 0.10, base[2]], [base[0] + 0.30, base[1] + 0.90, base[2] - 0.12],
+                    9, 0.24, 0.07, "#3a3028")
+    parts += _twigs([base[0], base[1] + 0.10, base[2]], [base[0] + 0.24, base[1] + 0.74, base[2] - 0.10],
+                    6, 0.14, 0.06, "#d8ccb8")
+    # the edelweiss on the front of the band
+    parts += [place("flower", [0.30, 0.14, 0.82], [0.30, 0.30, 0.30], "#f4f2ea", r=[1.3, 0, 0]),
+              part("sph", [0.30, 0.15, 0.86], [0.08, 0.06, 0.08], "#f2c230")]
+    return parts
+
+
+@XM25.hat("birch_crown", "Crown of Switches",
+          "Nine bundles of birch switches bound in red ribbon, standing up round your "
+          "head like a bonfire waiting for a match. Every one has been used. You do not "
+          "want to know on whom.", "rare", hair="show")
+def _():
+    parts = [ringband(-0.20, 0.16, KR_RED, margin=0.08, decal="felt", wrap=True),
+             ringband(-0.12, 0.04, GOLD, margin=0.10, m="metal")]
+    for k in range(9):
+        a = TAU * k / 9 + 0.17
+        s, c = math.sin(a), math.cos(a)
+        parts += _switch([s * 0.98, -0.26, c * 0.95], [s * 1.38, 0.95, c * 1.32], 0.8, n=5)
+    return parts
+
+
+@XM25.back("krampus_bells", "Krampuslauf Bells",
+           "Three great rusted cowbells strapped across your back on a leather harness, "
+           "the way the runners wear them through the streets on the fifth. They are "
+           "loud. That is the point.", "legendary")
+def _():
+    leather = "#3a2a1e"
+    parts = straps(leather) + [
+        part("rbox", [0, 0.40, -0.10], [1.70, 0.16, 0.14], leather, decal="leather", wrap=True),
+        part("rbox", [0, -0.30, -0.10], [1.50, 0.16, 0.14], leather, decal="leather", wrap=True),
+        part("rbox", [0.70, 0.05, -0.10], [0.14, 0.86, 0.12], leather),
+        part("rbox", [-0.70, 0.05, -0.10], [0.14, 0.86, 0.12], leather),
+    ]
+    parts += _cowbell([0, 0.62, -0.46], 2.30, RUST)
+    parts += _cowbell([0.66, 0.40, -0.36], 1.60, shade(RUST, 1.2), yaw=-0.3)
+    parts += _cowbell([-0.66, 0.40, -0.36], 1.60, shade(RUST, 0.85), yaw=0.3)
+    parts += [part("torus", [0, 0.64, -0.24], [0.34, 0.07, 0.34], IRON, [PI / 2, 0, 0], m="metal")]
+    return parts
+
+
+@XM25.back("krampus_tail", "Krampus Tail",
+           "A long black tail with a tuft on the end, hung from the belt and swishing. "
+           "You did not have one this morning. You do now.", "rare")
+def _():
+    pts = [(0, -0.82, -0.10), (0.08, -1.02, -0.40), (0.16, -1.28, -0.66), (0.20, -1.58, -0.82),
+           (0.16, -1.88, -0.86), (0.04, -2.10, -0.74), (-0.12, -2.20, -0.52)]
+    parts = [part("rbox", [0, -0.82, -0.04], [0.40, 0.30, 0.10], "#3a2a1e")]
+    for i, p in enumerate(pts):
+        w = 0.40 - i * 0.03
+        parts.append(part("sph", list(p), [w, w * 1.1, w], FUR if i % 2 else FUR_HI,
+                          decal="xm_kfur", wrap=True))
+        if i:
+            parts.append(rod(pts[i - 1], p, w * 0.9, FUR, decal="xm_kfur", wrap=True))
+    end = pts[-1]
+    parts += [place("flame", [end[0] - 0.14, end[1] + 0.04, end[2] + 0.10], [0.70, 0.60, 2.4], FUR,
+                    r=[0, 0, 1.2], decal="xm_kfur"),
+              part("sph", [end[0] - 0.08, end[1], end[2] + 0.04], [0.30, 0.26, 0.30], FUR_HI,
+                   decal="xm_kfur", wrap=True)]
+    return parts
+
+
+@XM25.hairdo("goat_shag", "Goat Shag",
+             "Long, black and matted, with two little horn nubs poking through. Smells "
+             "faintly of a stable, which is a mercy.", "uncommon")
+def _():
+    parts = [place("hairlong", [0, 0, 0], [1.05, 1.05, 1.05], FUR, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for k in range(9):
+        a = k * TAU / 9
+        parts.append(part("sph", [math.sin(a) * 0.36, 0.62 + (k % 3) * 0.02, math.cos(a) * 0.34 - 0.02],
+                          [0.30, 0.20, 0.30], FUR if k % 2 else FUR_HI, decal="xm_kfur", wrap=True))
+    for s in (1, -1):
+        parts += [place("horn", [0.20 * s, 0.62, 0.18], [0.55, 0.55, 0.55], HORN, anchor=[0, 0, 0],
+                        r=[0.1, 0.0 if s > 0 else PI, 0.25], decal="xm_hornridge", wrap=True)]
+        parts += [part("capsule", [0.62 * s, -0.36, -0.10], [0.14, 0.40, 0.14], FUR, [0, 0, 0.10 * s]),
+                  part("capsule", [0.40 * s, -0.40, -0.62], [0.14, 0.40, 0.14], FUR_HI, [0.1, 0, 0.08 * s])]
+    return parts
+
+
+@XM25.hairdo("alpine_braids", "Alpine Braids",
+             "Golden plaits pinned round the crown and two more down the back, tied off "
+             "in red ribbon, very neat. Very nice. Definitely on the nice list.",
+             "uncommon")
+def _():
+    blond = "#e8c070"
+    parts = [place("hairmid", [0, 0, 0], [1.03, 1.03, 1.03], blond, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    # the plait round the crown: beads of hair alternating as they twist
+    for k in range(18):
+        a = TAU * k / 18
+        parts.append(part("sph", [math.sin(a) * 0.34, 0.60 + 0.015 * (k % 2), math.cos(a) * 0.33],
+                          [0.17, 0.12, 0.17], blond if k % 2 else shade(blond, 0.88),
+                          [0, a, 0.5 if k % 2 else -0.5]))
+    for s in (1, -1):
+        for k in range(5):
+            parts.append(part("sph", [0.24 * s, -0.46 - k * 0.11, -0.64 - k * 0.01],
+                              [0.15 - k * 0.01, 0.13, 0.13], blond if k % 2 else shade(blond, 0.88),
+                              [0, 0, 0.5 if k % 2 else -0.5]))
+        parts += gift_bow([0.24 * s, -1.04, -0.68], 0.26, KR_RED, tails=False, yaw=PI / 2)
+    return parts
+
+
+XM25.face("krampus_grin", "Krampus Grin",
+          "Burning eyes, a mouth full of fangs and a tongue that does not stop where "
+          "tongues should stop.", [
+              {"k": "poly", "pts": [[-0.32, -0.24], [-0.10, -0.14], [-0.14, -0.08], [-0.30, -0.14]],
+               "c": "#ff7a1a"},
+              {"k": "poly", "pts": [[0.32, -0.24], [0.10, -0.14], [0.14, -0.08], [0.30, -0.14]],
+               "c": "#ff7a1a"},
+              {"k": "ellipse", "x": -0.19, "y": -0.14, "w": 0.04, "h": 0.06, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.19, "y": -0.14, "w": 0.04, "h": 0.06, "c": "#16171b"},
+              {"k": "line", "x1": -0.36, "y1": -0.30, "x2": -0.08, "y2": -0.20, "w": 0.05,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.36, "y1": -0.30, "x2": 0.08, "y2": -0.20, "w": 0.05,
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.30, 0.04], [0.30, 0.04], [0.18, 0.18], [-0.18, 0.18]],
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.24, 0.05], [-0.18, 0.13], [-0.12, 0.05]], "c": "#ffffff"},
+              {"k": "poly", "pts": [[0.24, 0.05], [0.18, 0.13], [0.12, 0.05]], "c": "#ffffff"},
+              {"k": "poly", "pts": [[-0.08, 0.10], [0.10, 0.10], [0.08, 0.40], [0.0, 0.46],
+                                    [-0.06, 0.40]], "c": "#d4364a"},
+          ], "rare")
+XM25.face("nice_list", "Nice as Pie",
+          "Big shining eyes, rosy cheeks and a smile that has absolutely never done "
+          "anything wrong, and one small bead of sweat.", [
+              {"k": "ellipse", "x": -0.19, "y": -0.12, "w": 0.15, "h": 0.19, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.19, "y": -0.12, "w": 0.15, "h": 0.19, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.16, "y": -0.16, "w": 0.06, "h": 0.07, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.22, "y": -0.16, "w": 0.06, "h": 0.07, "c": "#ffffff"},
+              {"k": "ellipse", "x": -0.32, "y": 0.06, "w": 0.14, "h": 0.09, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.32, "y": 0.06, "w": 0.14, "h": 0.09, "c": "#ff9aa8"},
+              {"k": "arc", "x": 0.0, "y": 0.06, "r": 0.10, "a0": 0.05, "a1": 0.45, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[0.36, -0.36], [0.40, -0.26], [0.36, -0.22], [0.32, -0.26]],
+               "c": "#8fd0ff"},
+          ], "uncommon")
+XM25.shirt("krampus_pelt", "Krampus Pelt",
+           "A shaggy black pelt, a red chest and a chain across it with a bell on, "
+           "worn the way the runners wear them: all the way to the knuckles.",
+           {"torso": FUR, "arms": FUR, "decal": "xm_tee_krampus", "weave": "xm_kfur"}, "rare")
+XM25.pants("lederhosen", "Krampuslauf Lederhosen",
+           "Deerskin shorts with an embroidered front flap and grey wool knee socks, "
+           "for standing at the side of the road with a mug of something hot, "
+           "cheering.",
+           {"legs": "#6a4a2e", "weave": "xm_lederhosen", "length": 0.55, "skin": "#d8d2c4",
+            "cuff": "#2a1e16"})
+XM25.belt("chain_belt", "Chain Belt",
+          "A length of old iron chain worn as a belt and padlocked at the front. The "
+          "key went in the basket.",
+          {"band": IRON, "buckle": RUST, "width": 0.22, "metal": True, "weave": "xm_chainlink"})
+
+
+@XM25.weapon("birch_rute", "The Rute",
+             "A bundle of birch switches bound in red ribbon. It does not hurt much. "
+             "It does not have to: every fifth swat, everybody near you gets the lot "
+             "at once.",
+             {"kind": "melee", "damage": 18, "headshot": 1.0, "rpm": 170, "range": 9.5,
+              "arc": 0.80, "sound": "swing", "knockback": 4,
+              "aoe_every": {"every": 5, "radius": 9.0, "damage": 34, "knock": 26,
+                            "label": "Thrashing", "fx": "pulse",
+                            "on_hit": {"slow": [0.35, 2.0]}}},
+             [["+", "Fast: nearly three swats a second"],
+              ["+", "Every fifth hit thrashes everyone within 9 studs: 34 damage, a shove "
+                    "and slowed by 35% for 2 seconds"],
+              ["-", "18 damage a swat"],
+              ["-", "Short reach"]], rarity="legendary")
+def _():
+    return [part("rbox", [0, -0.02, -0.08], [0.16, 0.16, 0.34], "#5a3a22")] + \
+        _switch([0, 0, -0.20], [0, 0.10, 1.70], 1.1, n=7)
+
+
+@XM25.weapon("krampus_chains", "Krampus's Chains",
+             "A length of rattling chain with a hook on the end. Crack it at a crowd and "
+             "it wraps the lot and drags them to you, where they find they cannot go "
+             "anywhere for a moment.",
+             {"kind": "cone", "damage": 18, "rpm": 50, "mag": 4, "reload": 2.4, "range": 18.0,
+              "auto": False, "sound": "swing", "recoil": 1.4, "reserve": 24,
+              "cone": {"angle": 0.42, "pull": 34, "color": "#8a8d92"},
+              "on_hit": {"root": 1.2}},
+             [["+", "Drags everyone in a narrow cone 18 studs deep right up to you"],
+              ["+", "...and holds them there for 1.2 seconds"],
+              ["-", "18 damage"],
+              ["-", "Four cracks to a load"]], rarity="legendary")
+def _():
+    parts = [part("rbox", [0, -0.04, -0.02], [0.18, 0.40, 0.22], "#3a2a1e", [-0.2, 0, 0],
+                  decal="leather", wrap=True)]
+    for k in range(14):
+        t = k / 13
+        parts.append(part("torus", [0.0, 0.06 - math.sin(t * PI * 0.8) * 0.26, 0.18 + t * 1.16],
+                          [0.13, 0.04, 0.16], IRON if k % 3 else RUST,
+                          [0, 0, PI / 2 if k % 2 else 0.0], m="metal"))
+    parts += [place("hook", [0, -0.02, 1.38], [0.42, 0.42, 0.30], IRON, anchor=[0, 0, 0],
+                    r=[PI / 2, 0, -PI / 2], m="metal"),
+              part("cyl", [0, -0.02, 1.36], [0.10, 0.06, 0.10], RUST, [PI / 2, 0, 0], m="metal")]
+    return parts
+
+
+@XM25.weapon("brimstone", "Brimstone Coal",
+             "Not coal for your stocking. A lump of brimstone, lit, that sticks to "
+             "whatever it hits and goes up a second later in a cloud of yellow smoke "
+             "nobody wants to breathe.",
+             {"kind": "projectile", "projectile": "brimstone", "damage": 10, "splash": 5.5,
+              "splash_damage": 30, "rpm": 60, "mag": 4, "reload": 2.6, "speed": 58,
+              "range": 220, "auto": False, "sound": "throw", "recoil": 1.0, "reserve": 24,
+              "gravity_scale": 1.1, "self_damage": 0.4, "knockback": 6,
+              "sticky": True, "fuse": 1.0,
+              "on_hit": {"poison": [5, 6.0]},
+              "trail_colors": ["#ffd84a", "#ff7a1a"]},
+             [["+", "Sticks to walls, floors and people, and goes off a second later"],
+              ["+", "Poisons everyone in the cloud: 5 a second for 6 seconds"],
+              ["-", "30 splash damage"],
+              ["-", "Lobbed: it drops"]], rarity="legendary",
+             proj=lambda: [part("sph", [0, 0, 0], [0.70, 0.62, 0.66], COAL, decal="xm_coal",
+                                wrap=True),
+                           part("sph", [0, 0, 0], [0.86, 0.80, 0.82], "#ffd84a", m="neon",
+                                a=0.25)])
+def _():
+    # a lump of it, lit, held out in a pair of smith's tongs
+    return [
+        rod([0.05, -0.02, -0.16], [0.07, 0.02, 0.52], 0.05, IRON, m="metal"),
+        rod([-0.05, -0.06, -0.16], [-0.07, 0.10, 0.52], 0.05, IRON, m="metal"),
+        part("cyl", [0, 0.01, 0.20], [0.10, 0.18, 0.10], RUST, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0, -0.04, -0.10], [0.16, 0.14, 0.24], "#3a2a1e", decal="leather", wrap=True),
+        rod([0.07, 0.02, 0.52], [0.10, 0.00, 0.70], 0.05, IRON, m="metal"),
+        rod([-0.07, 0.10, 0.52], [-0.10, 0.14, 0.70], 0.05, IRON, m="metal"),
+        part("sph", [0, 0.07, 0.80], [0.30, 0.26, 0.28], COAL, decal="xm_coal", wrap=True),
+        part("sph", [0.02, 0.08, 0.80], [0.34, 0.30, 0.32], "#ffd84a", m="neon", a=0.3),
+        part("sph", [0.04, 0.18, 0.84], [0.10, 0.06, 0.10], "#ffd84a", m="neon"),
+    ]
+
+
+@XM25.gear("perchten_lantern", "Krampuslauf Lantern",
+           "A pierced iron lantern on a pole, carried at the head of the run. Shake "
+           "it and you are gone in a puff of brimstone and back twenty studs on, with "
+           "whatever was on you left behind in the smoke.",
+           {"kind": "ability", "cooldown": 14, "sound": "whoosh",
+            "ability": {"blink": {"dist": 20}, "cleanse": {"heal": 15}}},
+           [["+", "Steps you up to 20 studs the way you are looking, through nothing "
+                  "solid"],
+            ["+", "Shakes off every burn, poison, slow and snare, and heals 15"],
+            ["-", "14 second cooldown"],
+            ["-", "No damage at all"]], rarity="rare")
+def _():
+    return [
+        rod([0, -0.10, -0.10], [0, 0.40, 0.30], 0.07, "#3a2a1e"),
+        rod([0, 0.40, 0.30], [0, 0.44, 0.62], 0.05, IRON, m="metal"),
+        part("cyl", [0, 0.20, 0.64], [0.30, 0.34, 0.30], IRON, m="metal", decal="xm_pierced",
+             wrap=True),
+        part("cyl", [0, 0.20, 0.64], [0.22, 0.28, 0.22], "#ff9a3a", m="neon"),
+        place("cone", [0, 0.48, 0.64], [0.36, 0.22, 0.36], IRON, m="metal"),
+        part("torus", [0, 0.60, 0.64], [0.10, 0.03, 0.10], IRON, [PI / 2, 0, 0], m="metal"),
+        part("rbox", [0, 0.02, 0.64], [0.32, 0.04, 0.32], IRON, m="metal"),
+    ]
+
+
+XM25.effect("krampuslauf", name="Krampuslauf", rate=2.4, life=[1.6, 2.2],
+            size=[0.30, 0.42], grow=0.0, gravity=0.0, spread=0.25, rise=[0.1, 0.3],
+            blend="normal", spin=2.0, colors=["#8a4a22", "#5a5d62", "#ff7a3a"],
+            shape="bell", radius=0.9, orbit=2.2, wobble=0.5)
+XM25.effect("birch_flurry", name="Birch Flurry", rate=2.6, life=[1.8, 2.6],
+            size=[0.36, 0.50], grow=0.0, gravity=0.6, spread=0.5, rise=[0.6, 1.0],
+            blend="normal", spin=3.0, colors=["#ece6da", "#8a1018", "#c9a26a"],
+            shape="xm_birch", radius=0.6)
+XM25.opening(
+    sky={"top": "#0a0406", "horizon": "#5a1a14", "sun": [0.1, 0.7, 0.6], "clouds": 0.5,
+         "tint": "#ffd0b0"},
+    ambient="#5a2a24", beam="#ff7a3a", seep="krampuslauf", after="birch_flurry",
+    burst=["#ff7a3a", "#d8252e", "#ece6da", "#2e221c"],
+    pieces=[{"shape": "bell", "colors": ["#8a4a22", "#5a5d62"], "blend": "normal"},
+            {"shape": "xm_birch", "colors": ["#ece6da", "#8a1018"], "blend": "normal"},
+            {"shape": "flame", "colors": ["#ff7a3a", "#ffd84a"], "blend": "add"},
+            {"shape": "flake", "colors": ["#ffffff", "#ffd0b0"], "blend": "normal"}],
+    backdrop="xm_krampus", title_wait="Something is rattling its chains...",
+    title_shake="Have you been good?")
+XM25.award("Krampusnacht", ["Nice", "On Thin Ice", "Naughty", "Very Naughty",
+                            "Basket Case", "The Krampus's Own"],
+           "Opened Krampus Baskets on Krampusnacht, Christmas 2025.", "em_krampus", "flake")
+XM25.bundle("pair", "Basket and Horn", 1, 1050, "One Krampus Basket, one Horn Key.")
+XM25.bundle("naughty_three", "Three in the Basket", 3, 3000,
+            "Three baskets, three keys. Saves 300.")
+
+EVENTS = [XM22, XM23, XM24, XM25]
