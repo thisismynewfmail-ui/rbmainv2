@@ -2631,6 +2631,162 @@
                                     ink: 'rgba(232,178,58,0.95)', glow: '#9aff6a',
                                     font: 'Georgia, serif', frame: 'round' }));
 
+  /* -- 2025 Emerald Jamboree: a fiddle case, a bodhrán, Aran knit and a crios */
+
+  // an old case's leather: scuffed dark green, travel stickers slapped on
+  painter('sp_casestickers', function (ctx) {
+    var rnd = scatter(443);
+    for (var i = 0; i < 300; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.06)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 2, 2);
+    }
+    var stickers = [['#ffd34a', 'GALWAY', 18, 30, -0.2], ['#f4f0e0', 'CÉILÍ', 86, 40, 0.15],
+                    ['#d0281c', 'CORK', 30, 92, 0.1], ['#4fc46e', '♣', 96, 98, -0.1]];
+    stickers.forEach(function (s) {
+      ctx.save(); ctx.translate(s[2], s[3]); ctx.rotate(s[4]);
+      ctx.fillStyle = s[0]; ctx.beginPath(); ctx.ellipse(0, 0, 22, 13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = s[0] === '#d0281c' ? '#ffffff' : '#1a3a24';
+      ctx.font = 'bold 10px Verdana, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(s[1], 0, 1);
+      ctx.restore();
+    });
+  });
+
+  // the lid's big stickers: a shamrock, DUBLIN, a fiddle and a pint of milk
+  painter('sp_stickers', function (ctx) {
+    ctx.save(); ctx.translate(40, 44); ctx.rotate(-0.15);
+    ctx.fillStyle = '#f4f0e0'; ctx.fillRect(-32, -16, 64, 32);
+    ctx.strokeStyle = '#1f6b34'; ctx.lineWidth = 3; ctx.strokeRect(-29, -13, 58, 26);
+    ctx.fillStyle = '#1f6b34'; ctx.font = 'bold 13px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('DUBLIN', 0, 1); ctx.restore();
+    ctx.save(); ctx.translate(92, 84); ctx.rotate(0.2);
+    ctx.fillStyle = '#ffd34a'; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1f6b34';
+    [[0, -8], [-8, 2], [8, 2]].forEach(function (q) { ctx.beginPath(); ctx.arc(q[0], q[1], 8, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillRect(-1.5, 6, 3, 12); ctx.restore();
+    ctx.save(); ctx.translate(34, 98); ctx.rotate(0.1);
+    ctx.fillStyle = '#d0281c'; ctx.fillRect(-26, -12, 52, 24);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('JAMBOREE', 0, 1); ctx.restore();
+  });
+
+  // a bodhrán's goatskin: a knot painted in green and gold
+  painter('sp_bodhran', function (ctx) {
+    var g = ctx.createRadialGradient(56, 54, 6, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,250,235,0.0)'); g.addColorStop(1, 'rgba(120,90,50,0.35)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#1f6b34'; triskele(ctx, 64, 64, 46, 8);
+    ctx.strokeStyle = '#e8b23a'; triskele(ctx, 64, 64, 46, 3);
+    ctx.strokeStyle = 'rgba(31,107,52,0.8)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(64, 64, 56, 0, Math.PI * 2); ctx.stroke();
+  });
+
+  // a drum's frame: steamed ash, the tacks round the rim
+  painter('sp_drumframe', function (ctx) {
+    ctx.strokeStyle = 'rgba(90,60,20,0.25)'; ctx.lineWidth = 1;
+    for (var y = 6; y < CELL; y += 7) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.bezierCurveTo(40, y + 3, 90, y - 3, CELL, y); ctx.stroke();
+    }
+    ctx.fillStyle = '#5a4a3a';
+    for (var x = 4; x < CELL; x += 12) { ctx.beginPath(); ctx.arc(x, 14, 2.5, 0, Math.PI * 2); ctx.fill(); }
+  });
+
+  // a fiddle's front: the two f-holes, purfling round the edge
+  painter('sp_fholes', function (ctx) {
+    ctx.fillStyle = 'rgba(20,10,6,0.9)';
+    [[38, 1], [90, -1]].forEach(function (f) {
+      ctx.save(); ctx.translate(f[0], 64); ctx.scale(f[1], 1);
+      ctx.beginPath(); ctx.moveTo(-2, -34); ctx.bezierCurveTo(6, -18, -6, 18, 2, 34);
+      ctx.lineTo(5, 34); ctx.bezierCurveTo(-2, 18, 10, -18, 1, -34); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, -36, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(4, 36, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+  });
+
+  // varnished maple: a flame figure under amber
+  painter('sp_fiddlewood', function (ctx) {
+    var g = ctx.createLinearGradient(0, 0, CELL, 0);
+    g.addColorStop(0, 'rgba(255,170,90,0.20)'); g.addColorStop(0.5, 'rgba(255,220,150,0.10)');
+    g.addColorStop(1, 'rgba(80,20,0,0.25)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    for (var y = 0; y < CELL; y += 6) {
+      ctx.fillStyle = (y / 6) % 2 ? 'rgba(255,220,160,0.10)' : 'rgba(60,20,0,0.12)';
+      ctx.fillRect(0, y, CELL, 3);
+    }
+  });
+
+  // Aran knit: cables twisting up between columns of moss stitch
+  painter('sp_aran', function (ctx) {
+    var rnd = scatter(449);
+    for (var i = 0; i < 400; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.12)';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 2, 2);
+    }
+    for (var x = 16; x < CELL; x += 32) {
+      for (var y = 0; y < CELL; y += 16) {
+        ctx.strokeStyle = 'rgba(120,100,60,0.45)'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.bezierCurveTo(x - 6, y + 8, x + 6, y + 8, x + 6, y + 16); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,250,0.55)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.bezierCurveTo(x + 6, y + 8, x - 6, y + 8, x - 6, y + 16); ctx.stroke();
+      }
+    }
+  });
+
+  // the jumper's front: a big diamond panel up the middle, cables either side
+  painter('sp_tee_aran', function (ctx) {
+    ctx.strokeStyle = 'rgba(120,100,60,0.55)'; ctx.lineWidth = 4;
+    for (var y = -16; y < CELL; y += 32) {
+      ctx.beginPath(); ctx.moveTo(64, y); ctx.lineTo(88, y + 16); ctx.lineTo(64, y + 32); ctx.lineTo(40, y + 16);
+      ctx.closePath(); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(120,100,60,0.35)';
+    for (y = 0; y < CELL; y += 32) { ctx.beginPath(); ctx.arc(64, y + 16, 3, 0, Math.PI * 2); ctx.fill(); }
+    [20, 108].forEach(function (x) {
+      for (var yy = 0; yy < CELL; yy += 16) {
+        ctx.strokeStyle = 'rgba(120,100,60,0.5)'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(x - 6, yy); ctx.bezierCurveTo(x - 6, yy + 8, x + 6, yy + 8, x + 6, yy + 16); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,250,0.6)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x + 6, yy); ctx.bezierCurveTo(x + 6, yy + 8, x - 6, yy + 8, x - 6, yy + 16); ctx.stroke();
+      }
+    });
+  });
+
+  // corduroy: soft ridges running down the leg
+  painter('sp_corduroy', function (ctx) {
+    for (var x = 0; x < CELL; x += 6) {
+      ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(x, 0, 3, CELL);
+      ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(x + 4, 0, 1, CELL);
+    }
+  });
+
+  // the crios: zigzags of red, green, blue and cream woven tight
+  painter('sp_crios', function (ctx) {
+    var bands = ['#c43a2a', '#2f8a3a', '#2a4ab0', '#ece4cc', '#e8b23a'];
+    for (var row = 0; row < 8; row++) {
+      ctx.fillStyle = bands[row % bands.length];
+      ctx.beginPath();
+      for (var x = 0; x <= CELL; x += 16) {
+        ctx.lineTo(x, row * 16 + (x / 16 % 2 ? 0 : 10));
+      }
+      for (x = CELL; x >= 0; x -= 16) ctx.lineTo(x, row * 16 + 16 + (x / 16 % 2 ? 0 : 10));
+      ctx.closePath(); ctx.fill();
+    }
+  });
+
+  // an accordion's end: a grille of fretwork over the reeds
+  painter('sp_accordion', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(16, 16, 96, 96);
+    ctx.strokeStyle = '#e8b23a'; ctx.lineWidth = 3; ctx.strokeRect(16, 16, 96, 96);
+    ctx.strokeStyle = 'rgba(232,178,58,0.8)'; ctx.lineWidth = 2;
+    triskele(ctx, 64, 64, 34, 3);
+  });
+
+  painter('stencil_sp25', stencil({ top: 'EMERALD', bottom: 'JAMBOREE 2025', icon: 'fiddle',
+                                    ink: 'rgba(154,255,106,0.95)', glow: '#4fc46e',
+                                    font: 'Georgia, serif', frame: 'box', size: 17, size2: 14 }));
+
   // @@ stpatricks painters go above this line @@
 
   /* ----------------------------------------------------------- Easter

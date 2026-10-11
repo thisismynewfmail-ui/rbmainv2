@@ -1675,4 +1675,481 @@ SP24.award("Blarney Hoard", ["Wanderer", "Stone Kisser", "Silver Tongue", "Hoard
 SP24.bundle("pair", "Cist and Torc", 1, 1050, "One Standing Stone Cist, one Torc Key.")
 SP24.bundle("hoard", "The Whole Hoard", 3, 3000, "Three cists, three keys. Saves 300.")
 
-EVENTS = [SP22, SP23, SP24]
+# ============================================================ 2025
+FIDDLE = "#8a3a14"
+EBONY = "#1a1414"
+ARAN = "#ece4cc"
+CASE = "#1a3a24"
+DRUMSKIN = "#e8dcc0"
+ASH = "#d8b888"
+
+
+def _fiddle(k=1.0, c=FIDDLE):
+    """A fiddle lying in the XY plane, its belly to +Z and its scroll up
+    +Y, middle of the body at the origin.  Every part is square to the
+    axes, so ``at_frame`` can turn the whole thing."""
+    return [
+        part("sph", [0, 0.26 * k, 0], [0.52 * k, 0.48 * k, 0.16 * k], c, decal="sp_fiddlewood", wrap=True),
+        part("sph", [0, -0.22 * k, 0], [0.64 * k, 0.60 * k, 0.16 * k], c, decal="sp_fiddlewood", wrap=True),
+        part("rbox", [0, 0.02 * k, 0], [0.40 * k, 0.30 * k, 0.15 * k], c),
+        part("box", [0, -0.02 * k, 0.081 * k], [0.46 * k, 0.70 * k, 0.01 * k], "#000000", decal="sp_fholes",
+             a=-1),
+        part("rbox", [0, 0.56 * k, 0.07 * k], [0.10 * k, 0.86 * k, 0.04 * k], EBONY),
+        part("rbox", [0, 0.86 * k, 0.0], [0.10 * k, 0.40 * k, 0.08 * k], c),
+        part("rbox", [0, 1.10 * k, 0.0], [0.12 * k, 0.20 * k, 0.10 * k], c),
+        part("sph", [0, 1.24 * k, 0.02 * k], [0.14 * k, 0.14 * k, 0.12 * k], c),
+        part("rbox", [0.09 * k, 1.08 * k, 0], [0.08 * k, 0.03 * k, 0.03 * k], EBONY),
+        part("rbox", [-0.09 * k, 1.14 * k, 0], [0.08 * k, 0.03 * k, 0.03 * k], EBONY),
+        part("rbox", [0, -0.12 * k, 0.10 * k], [0.18 * k, 0.04 * k, 0.04 * k], "#e8d0a0"),
+        part("rbox", [0, -0.38 * k, 0.09 * k], [0.12 * k, 0.22 * k, 0.03 * k], EBONY),
+        part("rbox", [0.025 * k, 0.30 * k, 0.10 * k], [0.006 * k, 1.20 * k, 0.006 * k], "#e8e8e8"),
+        part("rbox", [-0.025 * k, 0.30 * k, 0.10 * k], [0.006 * k, 1.20 * k, 0.006 * k], "#e8e8e8"),
+    ]
+
+
+def _bow(p0, p1, k=1.0):
+    """A fiddle bow from its frog at ``p0`` to its tip at ``p1``."""
+    return [rod(p0, p1, 0.03 * k, "#5a2a10"),
+            rod([p0[0], p0[1] - 0.05 * k, p0[2]], [p1[0], p1[1] - 0.05 * k, p1[2]], 0.02 * k, "#f4f0e0"),
+            part("rbox", list(p0), [0.06 * k, 0.08 * k, 0.06 * k], EBONY)]
+
+
+SP25 = Event(
+    "stpatricks_2025", "stpatricks", 2025, "sp25",
+    name="Emerald Jamboree", title="The Emerald Jamboree",
+    blurb="St. Patrick's 2025 somebody strung lamps across the village green, "
+          "somebody else brought a fiddle, and by nine o'clock there was a céilí going "
+          "that nobody could stop. It ran for a week. The fiddler never once put the "
+          "fiddle down, and nobody ever saw who he was.",
+    tagline="One more reel. Just one more.",
+    starts="2025-03-10", ends="2025-03-24",
+    colors={"accent": "#9aff6a", "deep": "#0c2014", "glow": "#ffd34a"},
+    family_effects=["sunbeam", "starstruck", "bubbly"],
+    hero_effect="ceili_notes", stencil="stencil_sp25")
+
+
+@SP25.crate_model("Fiddle Case",
+                  "A battered old fiddle case, green leather gone black at the corners, "
+                  "plastered with stickers from every céilí in the country and two "
+                  "brass latches that never quite shut. Holds the Emerald Jamboree set. "
+                  "Needs a Tuning Key.",
+                  hinge=[0, 0.10, -0.46], keyhole=[0, -0.12, 0.47])
+def _():
+    parts = [
+        # the shell: the wide end for the fiddle's body, the narrow for its neck
+        part("rbox", [-0.34, -0.24, 0], [1.10, 0.62, 0.92], CASE, decal="sp_casestickers", wrap=True),
+        part("rbox", [0.52, -0.24, 0], [0.76, 0.56, 0.62], CASE, decal="sp_casestickers", wrap=True),
+        part("cyl", [-0.88, -0.24, 0], [0.62, 0.60, 0.92], CASE, [0, 0, PI / 2]),
+        part("rbox", [-0.20, 0.06, 0], [1.40, 0.04, 0.86], "#ffd34a", m="neon"),
+        part("rbox", [0, -0.06, 0.455], [1.40, 0.04, 0.02], BRASS, m="metal"),
+        # the lock and the two latches either side
+        part("rbox", [0, -0.12, 0.475], [0.26, 0.24, 0.05], BRASS, m="metal", decal="keyhole", lock=1),
+        part("rbox", [-0.62, -0.08, 0.475], [0.18, 0.20, 0.05], BRASS, m="metal"),
+        part("rbox", [0.58, -0.08, 0.32], [0.18, 0.20, 0.05], BRASS, m="metal"),
+        part("box", [-0.30, -0.30, -0.465], [0.80, 0.44, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_sp25", a=-1),
+        # the lid, its stickers and the carrying handle
+        part("rbox", [-0.34, 0.24, 0], [1.12, 0.30, 0.94], CASE, decal="sp_casestickers", wrap=True,
+             lid=1),
+        part("rbox", [0.52, 0.22, 0], [0.78, 0.26, 0.64], CASE, decal="sp_casestickers", wrap=True,
+             lid=1),
+        part("cyl", [-0.88, 0.24, 0], [0.30, 0.60, 0.94], CASE, [0, 0, PI / 2], lid=1),
+        part("box", [-0.30, 0.395, 0.0], [0.90, 0.70, 0.02], "#000000", [-PI / 2, 0, 0],
+             decal="sp_stickers", a=-1, lid=1),
+        rod([-0.30, 0.26, 0.48], [-0.30, 0.34, 0.60], 0.06, "#3a2a1e", lid=1),
+        rod([0.10, 0.26, 0.48], [0.10, 0.34, 0.60], 0.06, "#3a2a1e", lid=1),
+        rod([-0.30, 0.34, 0.60], [0.10, 0.34, 0.60], 0.08, "#3a2a1e", lid=1),
+    ]
+    # corner guards
+    for x in (-0.88, 0.88):
+        parts.append(part("rbox", [x, -0.50, 0], [0.12, 0.10, 0.70 if x > 0 else 0.94], BRASS, m="metal"))
+    return parts
+
+
+@SP25.key_model("Tuning Key",
+                "A brass key whose bow is a fiddle's scroll and pegbox, two pegs and "
+                "all. Opens one Fiddle Case. Turn it the wrong way and every fiddle in "
+                "earshot goes flat.", shoulder=-0.34)
+def _():
+    return [
+        part("torus", [-0.80, 0.02, 0], [0.26, 0.09, 0.26], FIDDLE, [PI / 2, 0, 0]),
+        part("torus", [-0.82, 0.04, 0], [0.13, 0.07, 0.13], shade(FIDDLE, 0.85), [PI / 2, 0, 0]),
+        part("sph", [-0.83, 0.05, 0], [0.08, 0.08, 0.12], FIDDLE),
+        part("rbox", [-0.56, 0, 0], [0.30, 0.14, 0.12], FIDDLE),
+        part("rbox", [-0.58, 0, 0.10], [0.04, 0.04, 0.16], EBONY),
+        part("rbox", [-0.50, 0, -0.10], [0.04, 0.04, 0.16], EBONY),
+        part("sph", [-0.58, 0, 0.19], [0.08, 0.08, 0.04], EBONY),
+        part("sph", [-0.50, 0, -0.19], [0.08, 0.08, 0.04], EBONY),
+        part("cyl", [0.08, 0, 0], [0.09, 0.84, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.34, 0, 0], [0.18, 0.05, 0.18], GOLD, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0.38, -0.12, 0], [0.08, 0.20, 0.08], BRASS, m="metal"),
+        part("rbox", [0.50, -0.10, 0], [0.08, 0.16, 0.08], BRASS, m="metal"),
+    ]
+
+
+@SP25.hat("maypole_crown", "Maypole Crown",
+          "A little maypole standing up out of your head, gold ball on top, eight "
+          "ribbons wound down to a ring of spring flowers round your brow. Stand still "
+          "and people start dancing round you.", "legendary", hair="show")
+def _():
+    colours = [EMERALD, "#f4f6f8", "#ff8a2a", LEP_GOLD, "#d0281c", "#3a6ad6", SHAMROCK, "#f2a6c8"]
+    parts = [
+        ringband(-0.14, 0.14, "#3a6a1e", margin=0.07, decal="sp_moss", wrap=True),
+        rod([0, 0.0, 0], [0, 1.40, 0], 0.10, "#f4f0e0"),
+        part("sph", [0, 1.46, 0], [0.18, 0.18, 0.18], GOLD, m="metal"),
+        part("torus", [0, 1.28, 0], [0.30, 0.08, 0.30], "#3a6a1e"),
+    ]
+    for k, c in enumerate(colours):
+        a = TAU * k / 8
+        parts.append(rod([math.sin(a) * 0.10, 1.28, math.cos(a) * 0.10],
+                         [math.sin(a + 0.5) * 0.98, -0.06, math.cos(a + 0.5) * 0.95], 0.05, c))
+    parts += around(8, 0.98, -0.10, lambda a, x, z: place(
+        "flower", [x, -0.06, z * 0.97], [0.26, 0.26, 0.5],
+        ["#ffffff", "#ffd34a", "#f2a6c8", "#c8a0ff"][int(round(a * 8 / TAU)) % 4], r=[0, a, 0]),
+        start=0.25)
+    return parts
+
+
+@SP25.hat("feis_tiara", "Feis Tiara",
+          "A dancer's tiara, every stone glittering, a knot of silver in the middle. "
+          "It has won four medals at the feis and lost one, and it is still not over "
+          "the one.", "rare", hair="show")
+def _():
+    # two silver arches standing from the brow and leaning back over the
+    # crown, a stone at every turn, the knot at the top
+    lean = -0.75
+    base = [0, 0.04, 0.60]
+    parts = [place("arch", base, [1.24, 0.90, 1.0], SILVER, r=[lean, 0, 0], m="metal"),
+             place("arch", base, [0.84, 0.64, 1.0], SILVER, r=[lean, 0, 0], m="metal")]
+    for k in range(9):
+        a = (k + 0.5) / 9 * PI
+        x, y = -math.cos(a) * 0.62, math.sin(a) * 0.45
+        parts.append(part("sph", [x, base[1] + y * math.cos(lean), base[2] + y * math.sin(lean)],
+                          [0.10, 0.10, 0.10], "#e8fbff" if k % 2 else "#9aff6a", m="glass"))
+    top = [0, base[1] + 0.52 * math.cos(lean), base[2] + 0.52 * math.sin(lean) + 0.04]
+    parts += [part("disc", top, [0.30, 0.30, 0.06], SILVER, [lean, 0, 0], m="metal",
+                   decal="sp_triskele"),
+              part("sph", [top[0], top[1], top[2] + 0.03], [0.10, 0.10, 0.08], EMERALD, m="glass")]
+    return parts
+
+
+@SP25.hat("bodhran_hat", "Bodhrán Hat",
+          "A bodhrán, goatskin up, a knot painted on the head and the tipper stuck in "
+          "the frame. Tap it and the whole room starts keeping time.", "uncommon",
+          hair="show")
+def _():
+    return [
+        part("cyl", [0, 0.16, 0], [1.76, 0.30, 1.76], ASH, decal="sp_drumframe", wrap=True),
+        part("cyl", [0, 0.32, 0], [1.70, 0.02, 1.70], DRUMSKIN),
+        part("box", [0, 0.335, 0], [1.40, 1.40, 0.01], "#000000", [-PI / 2, 0, 0], decal="sp_bodhran",
+             a=-1),
+        part("torus", [0, 0.31, 0], [1.76, 0.06, 1.76], shade(ASH, 0.8)),
+        rod([0.40, 0.40, 0.50], [0.80, 1.00, 0.30], 0.07, "#5a3a22"),
+        part("sph", [0.40, 0.40, 0.50], [0.12, 0.12, 0.12], "#5a3a22"),
+        part("sph", [0.80, 1.00, 0.30], [0.12, 0.12, 0.12], "#5a3a22"),
+    ]
+
+
+@SP25.hat("festoon_crown", "Festoon Crown",
+          "A string of lamps looped round your head on a black wire, every bulb lit, "
+          "the same ones that were strung over the green. Dance till they go out.",
+          "rare", hair="show")
+def _():
+    # eight little posts round the brim and the wire swagged between them,
+    # a lamp hanging at the bottom of every swag
+    n = 8
+    pts = [[math.sin(TAU * k / n) * 0.96, 0.40, math.cos(TAU * k / n) * 0.93] for k in range(n)]
+    parts = [ringband(-0.10, 0.08, BLACK, margin=0.06)]
+    for k in range(n):
+        p, q = pts[k], pts[(k + 1) % n]
+        mid = [(p[0] + q[0]) / 2 * 1.03, 0.24, (p[2] + q[2]) / 2 * 1.03]
+        parts += [rod(p, mid, 0.025, BLACK), rod(mid, q, 0.025, BLACK),
+                  rod([p[0], -0.06, p[2]], [p[0], p[1] + 0.04, p[2]], 0.04, BLACK),
+                  part("sph", [p[0], p[1] + 0.05, p[2]], [0.06, 0.06, 0.06], BRASS, m="metal")]
+        bulb = [mid[0], mid[1] - 0.12, mid[2]]
+        parts += [part("cyl", [mid[0], mid[1] - 0.03, mid[2]], [0.08, 0.06, 0.08], BLACK),
+                  part("sph", bulb, [0.16, 0.20, 0.16],
+                       ["#ffe08a", "#9aff6a", "#ff9a4a", "#fff3b0", "#ff6a8a"][k % 5], m="neon")]
+    return parts
+
+
+@SP25.hat("squeezebox", "Squeezebox",
+          "A button accordion balanced on your head, bellows open, playing a jig by "
+          "itself. Nobody has ever played one of these quietly. Nobody ever will.",
+          "uncommon", hair="show")
+def _():
+    red = "#b0202a"
+    parts = [part("rbox", [0.70, 0.36, 0], [0.24, 0.70, 0.62], red, decal="sp_accordion"),
+             part("rbox", [-0.70, 0.36, 0], [0.24, 0.70, 0.62], red, decal="sp_accordion")]
+    for k in range(9):
+        x = -0.54 + k * 0.135
+        parts.append(part("rbox", [x, 0.36, 0], [0.11, 0.66 - 0.04 * (k % 2), 0.58 - 0.04 * (k % 2)],
+                          "#f4ecd8" if k % 2 else "#1a1a20"))
+    for k in range(10):
+        parts.append(part("cyl", [0.83, 0.20 + (k % 5) * 0.08, 0.10 if k < 5 else -0.10],
+                          [0.05, 0.03, 0.05], "#f4ecd8", [0, 0, PI / 2]))
+    parts += [part("rbox", [0, 0.02, 0], [1.20, 0.04, 0.20], "#3a2a1e")]
+    return parts
+
+
+@SP25.hat("caubeen", "Piper's Caubeen",
+          "The big floppy green beret the pipers wear, pulled down over one ear, a "
+          "silver badge and a hackle of feathers on the other side.", "rare")
+def _():
+    green = "#1f5a30"
+    return [
+        cap(-0.30, 0.10, green, grow=0.04, decal="felt", wrap=True),
+        part("sph", [-0.24, 0.12, 0.02], [2.0, 0.36, 1.86], green, [0, 0, 0.18], decal="felt", wrap=True),
+        ringband(-0.24, 0.10, "#1a1a20", margin=0.06),
+        part("cyl", [-0.20, 0.30, 0.0], [0.12, 0.08, 0.12], shade(green, 0.8)),
+        part("disc", [0.70, -0.06, 0.40], [0.26, 0.26, 0.06], SILVER, [0, 0.9, 0], m="metal",
+             decal="sp_triskele"),
+        place("feather", [0.80, 0.10, 0.20], [1.0, 0.60, 1.0], "#2f8a3a", r=[0, PI / 2, -0.4]),
+        place("feather", [0.82, 0.12, 0.10], [1.0, 0.55, 1.0], "#f4f6f8", r=[0, PI / 2, -0.2]),
+        place("feather", [0.80, 0.10, 0.00], [1.0, 0.50, 1.0], "#ff8a2a", r=[0, PI / 2, 0.0]),
+    ]
+
+
+@SP25.hat("derby_bow", "Fiddler's Derby",
+          "A green derby with a fiddle bow stuck through the band, worn by the "
+          "fiddler at the jamboree that nobody could put a name to.", "uncommon")
+def _():
+    green = "#1f4a2a"
+    parts = [
+        place("brim", [0, -0.05, 0], [2.10, 1.0, 2.0], green, anchor=[0, 0, 0], decal="felt", wrap=True),
+        dome(-0.06, 0.70, green, t="capcrown", decal="felt", wrap=True),
+        ringband(0.06, 0.14, EBONY, margin=0.04),
+    ]
+    parts += _bow([-0.86, 0.14, 0.40], [0.80, 0.40, -0.50], 1.0)
+    return parts
+
+
+@SP25.back("uilleann_pipes", "Uilleann Pipes",
+           "The Irish pipes, bag and bellows and drones and regulators and a chanter "
+           "on a ribbon, all strapped across your back. Takes seven years to learn, "
+           "seven to practise and seven to play.", "legendary")
+def _():
+    velvet = "#1f5a30"
+    parts = straps("#5a3a22") + [
+        part("sph", [0.40, 0.26, -0.40], [0.80, 0.62, 0.50], velvet, decal="felt", wrap=True),
+        part("rbox", [-0.50, -0.30, -0.30], [0.50, 0.60, 0.20], "#6a3a1e", decal="leather", wrap=True),
+        rod([-0.50, 0.00, -0.30], [0.20, 0.20, -0.36], 0.08, "#5a3a22"),
+    ]
+    # the drones and regulators lying across, ivory mounts and brass rings
+    for k, (y, w) in enumerate(((0.80, 0.12), (0.64, 0.10), (0.50, 0.09), (0.36, 0.08))):
+        p0, p1 = [0.80, y - 0.40, -0.50 - 0.04 * k], [-0.90, y + 0.30, -0.50 - 0.04 * k]
+        parts.append(rod(p0, p1, w, EBONY))
+        parts += [part("sph", list(p1), [w * 1.4, w * 1.4, w * 1.4], "#ece4d0"),
+                  part("sph", [p0[0] * 0.4 + p1[0] * 0.6, p0[1] * 0.4 + p1[1] * 0.6, p0[2]],
+                       [w * 1.3, w * 1.3, w * 1.3], BRASS, m="metal")]
+    parts += [rod([0.40, -0.04, -0.46], [0.36, -1.00, -0.40], 0.09, EBONY),
+              part("sph", [0.36, -1.02, -0.40], [0.14, 0.14, 0.14], "#ece4d0"),
+              place("ribbon", [0.44, -0.08, -0.48], [0.14, 0.60, 0.5], EMERALD, anchor=[0, 0.5, 0],
+                    r=[0.1, 0, 0.3])]
+    return parts
+
+
+@SP25.back("fiddle_back", "Fiddle and Bow",
+           "The fiddle slung across your back on a green strap, the bow tucked under "
+           "it, ready for the next tune somebody calls.", "rare")
+def _():
+    parts = [rod([0.70, 1.00, 0.20], [-0.60, -0.70, -0.20], 0.10, EMERALD),
+             part("rbox", [0.36, 1.025, 0.20], [0.14, 0.06, 0.72], EMERALD)]
+    parts += at_frame(_fiddle(1.25), [0.0, 0.20, -0.22], [0, PI, 0.55])
+    parts += _bow([-0.50, -0.50, -0.34], [0.60, 1.10, -0.34], 1.2)
+    return parts
+
+
+@SP25.hairdo("feis_ringlets", "Feis Ringlets",
+             "Ginger ringlets, a hundred of them, every one bouncing in time, and a "
+             "band across the top to hold the whole lot down.", "rare")
+def _():
+    parts = [place("hairmid", [0, 0, 0], [1.04, 1.04, 1.04], GINGER, anchor=[0, 0, 0],
+                   decal="strands", wrap=True),
+             part("rbox", [0, 0.50, 0.04], [1.06, 0.08, 1.08], EMERALD)]
+    for k in range(14):
+        a = PI * 0.30 + k * (PI * 1.40 / 13)
+        x, z = math.sin(a) * 0.58, math.cos(a) * 0.58
+        parts.append(place("spiral", [x, 0.10 - (k % 2) * 0.06, z], [0.20, 0.42, 0.20],
+                           GINGER if k % 2 else shade(GINGER, 0.88), anchor=[0, 1.1, 0]))
+    return parts
+
+
+@SP25.hairdo("sean_nos_curls", "Sean-nós Curls",
+             "A thick mop of black curls that bounces when you dance, which is "
+             "always.", "uncommon")
+def _():
+    black = "#1e1a18"
+    parts = [place("hairshort", [0, 0, 0], [1.04, 1.04, 1.04], black, anchor=[0, 0, 0],
+                   decal="strands", wrap=True)]
+    for k in range(16):
+        a = k * 2.399
+        r = 0.12 + 0.26 * ((k * 7) % 16) / 16
+        parts.append(part("sph", [math.sin(a) * r, 0.56 + 0.04 * (k % 3), math.cos(a) * r],
+                          [0.20, 0.16, 0.20], black if k % 2 else "#2e2824"))
+    return parts
+
+
+SP25.face("lost_in_the_reel", "Lost in the Reel",
+          "Eyes shut, head back, a grin from ear to ear and a tune going round in "
+          "there that will not stop.", [
+              {"k": "arc", "x": -0.20, "y": -0.14, "r": 0.07, "a0": 0.55, "a1": 0.95, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.14, "r": 0.07, "a0": 0.55, "a1": 0.95, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.0, "y": 0.02, "r": 0.22, "a0": 0.05, "a1": 0.45, "w": 0.045,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.32, "y": 0.04, "w": 0.12, "h": 0.07, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.32, "y": 0.04, "w": 0.12, "h": 0.07, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.34, "y": -0.30, "w": 0.07, "h": 0.05, "c": "#2f8a3a"},
+              {"k": "line", "x1": 0.37, "y1": -0.30, "x2": 0.37, "y2": -0.44, "w": 0.015,
+               "c": "#2f8a3a"},
+              {"k": "line", "x1": 0.37, "y1": -0.44, "x2": 0.42, "y2": -0.40, "w": 0.015,
+               "c": "#2f8a3a"},
+          ], "uncommon")
+SP25.face("out_of_breath", "Out of Breath",
+          "Red to the ears, gasping, a bead of sweat on the brow -- and asking the "
+          "band for one more.", [
+              {"k": "line", "x1": -0.28, "y1": -0.16, "x2": -0.12, "y2": -0.12, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.28, "y1": -0.16, "x2": 0.12, "y2": -0.12, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.30, "y": 0.04, "w": 0.18, "h": 0.12, "c": "#ff6a6a"},
+              {"k": "ellipse", "x": 0.30, "y": 0.04, "w": 0.18, "h": 0.12, "c": "#ff6a6a"},
+              {"k": "ellipse", "x": 0.0, "y": 0.14, "w": 0.16, "h": 0.18, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.0, "y": 0.19, "w": 0.10, "h": 0.06, "c": "#e05a6a"},
+              {"k": "poly", "pts": [[-0.36, -0.36], [-0.32, -0.26], [-0.36, -0.22], [-0.40, -0.26]],
+               "c": "#8fd0ff"},
+              {"k": "poly", "pts": [[0.40, -0.30], [0.43, -0.22], [0.40, -0.19], [0.37, -0.22]],
+               "c": "#8fd0ff"},
+          ], "uncommon")
+SP25.shirt("aran_jumper", "Aran Jumper",
+           "A cream Aran jumper, cables and diamonds and honeycomb, knitted on the "
+           "islands and heavy enough to stop a bullet. Probably.",
+           {"torso": ARAN, "arms": ARAN, "decal": "sp_tee_aran", "weave": "sp_aran"}, "rare")
+SP25.pants("cord_trousers", "Céilí Cords",
+           "Olive corduroy trousers with the knees gone shiny, tucked into "
+           "dancing boots.",
+           {"legs": "#5a6a2e", "weave": "sp_corduroy", "cuff": "#2a1e16"})
+SP25.belt("crios", "Crios",
+          "The woven belt of the Aran Islands: red and green and blue in zigzags, "
+          "tied round twice, the fringes hanging.",
+          {"band": "#c43a2a", "width": 0.18, "weave": "sp_crios"})
+
+
+@SP25.weapon("devils_reel", "The Devil's Reel",
+             "The fiddler's fiddle. Play it fast enough for long enough and it starts "
+             "to play itself, faster, harder, every note landing heavier than the last "
+             "-- until you miss one.",
+             {"kind": "hitscan", "damage": 7, "headshot": 1.5, "rpm": 420, "mag": 40,
+              "reload": 2.4, "range": 120, "auto": True, "sound": "fiddle", "recoil": 0.2,
+              "spread": 1.4, "reserve": 200, "tracer": "#9aff6a",
+              "streak": {"per_hit": 0.05, "max": 1.0, "label": "Reel"}},
+             [["+", "Every hit in a row plays 5% harder, up to double after twenty"],
+              ["+", "Seven notes a second"],
+              ["-", "7 damage to start with"],
+              ["-", "One missed note and you start the reel again"]], rarity="legendary")
+def _():
+    return at_frame(_fiddle(0.80), [0, 0.12, 0.30], [PI / 2, 0, 0]) + \
+        _bow([0.30, 0.30, 0.10], [-0.20, 0.30, 1.00], 0.9)
+
+
+@SP25.weapon("bodhran", "Bodhrán",
+             "Throw the drum down and it keeps the beat on its own. Your side dances to "
+             "it, quicker; the other side trips over their feet trying to keep up.",
+             {"kind": "deploy", "cooldown": 24, "sound": "drum",
+              "deploy": {"type": "zone", "thrown": True, "throw": 18, "radius": 10.0,
+                         "secs": 10.0, "limit": 1, "color": "#9aff6a", "particle": "note",
+                         "ally": {"haste": [0.25, 1.0]},
+                         "enemy": {"slow": [0.30, 1.0], "jumpless": 1.0}, "name": "Bodhrán"}},
+             [["+", "Teammates within 10 studs of the drum run 25% faster"],
+              ["+", "Enemies within 10 studs are slowed by 30% and cannot jump"],
+              ["-", "Keeps time for 10 seconds, then stops"],
+              ["-", "24 second cooldown"]], rarity="rare",
+             deploy=lambda: [
+                 part("cyl", [0, 0.20, 0], [1.80, 0.30, 1.80], ASH, decal="sp_drumframe", wrap=True),
+                 part("cyl", [0, 0.36, 0], [1.74, 0.02, 1.74], DRUMSKIN),
+                 part("box", [0, 0.375, 0], [1.40, 1.40, 0.01], "#000000", [-PI / 2, 0, 0],
+                      decal="sp_bodhran", a=-1),
+                 rod([0.40, 0.46, 0.30], [-0.20, 0.80, -0.30], 0.08, "#5a3a22", spin=3.0)])
+def _():
+    return [
+        part("cyl", [0, 0.10, 0.36], [0.90, 0.16, 0.90], ASH, [PI / 2, 0, 0], decal="sp_drumframe",
+             wrap=True),
+        part("cyl", [0, 0.10, 0.45], [0.86, 0.01, 0.86], DRUMSKIN, [PI / 2, 0, 0]),
+        part("box", [0, 0.10, 0.455], [0.70, 0.70, 0.01], "#000000", decal="sp_bodhran", a=-1),
+        rod([0, -0.06, -0.06], [0, 0.10, 0.30], 0.06, "#5a3a22"),
+    ]
+
+
+@SP25.weapon("hurley", "Hurley",
+             "An ash hurley with a sliotar's worth of welts on the bas. One swing puts "
+             "them up in the air; the next, while they are still up there, puts them in "
+             "the back of the net.",
+             {"kind": "melee", "damage": 30, "headshot": 1.0, "rpm": 84, "range": 11.0,
+              "arc": 0.70, "sound": "swing", "knockback": 6,
+              "on_hit": {"knockup": 20}, "vs_airborne": 1.6},
+             [["+", "Pucks whoever it hits up into the air"],
+              ["+", "60% more damage to anyone already off the ground"],
+              ["-", "30 damage on the ground"],
+              ["-", "Close in only"]], rarity="legendary")
+def _():
+    return [
+        rod([0, 0, -0.30], [0, 0.06, 1.10], 0.12, ASH, decal="leather"),
+        part("rbox", [0, -0.02, -0.18], [0.14, 0.14, 0.30], "#2a2a30"),
+        part("sph", [0, -0.04, 1.32], [0.10, 0.36, 0.60], ASH, [0.5, 0, 0], decal="sp_fiddlewood",
+             wrap=True),
+        part("rbox", [0, -0.16, 1.40], [0.11, 0.06, 0.36], "#c9ced6", [0.5, 0, 0], m="metal"),
+        part("sph", [0.20, 0.14, 1.20], [0.18, 0.18, 0.18], "#f4f0e0", decal="leather", wrap=True),
+    ]
+
+
+@SP25.gear("hornpipe_shoes", "Hornpipe Shoes",
+           "A pair of hard dancing shoes. Click your heels and you leap straight up "
+           "and come floating down as if the music were holding you.",
+           {"kind": "ability", "cooldown": 16, "sound": "drum",
+            "ability": {"launch": {"up": 46, "forward": 10}, "jump": {"secs": 6.0, "gravity": 0.5}}},
+           [["+", "A standing leap straight up"],
+            ["+", "Half gravity for 6 seconds after"],
+            ["-", "16 second cooldown"],
+            ["-", "No damage at all"]], rarity="rare")
+def _():
+    out = []
+    for s in (1, -1):
+        x = 0.14 * s
+        out += [part("sph", [x, -0.02, 0.46], [0.22, 0.18, 0.34], BLACK, m="glass"),
+                part("rbox", [x, 0.02, 0.22], [0.22, 0.24, 0.30], BLACK, m="glass"),
+                part("rbox", [x, -0.14, 0.10], [0.20, 0.10, 0.12], "#3a3a40"),
+                part("rbox", [x, -0.12, 0.50], [0.20, 0.04, 0.22], "#3a3a40"),
+                part("rbox", [x, 0.12, 0.34], [0.18, 0.04, 0.12], SILVER, [-0.4, 0, 0], m="metal"),
+                part("rbox", [x, 0.12, 0.34], [0.10, 0.05, 0.06], BLACK, [-0.4, 0, 0])]
+    return out
+
+
+SP25.effect("ceili_notes", name="Céilí Notes", rate=2.6, life=[1.8, 2.4],
+            size=[0.30, 0.42], grow=0.0, gravity=-0.4, spread=0.4, rise=[0.3, 0.6],
+            blend="normal", spin=1.0, colors=["#9aff6a", "#ffffff", "#ffd34a"], shape="note",
+            radius=0.8, orbit=1.4, wobble=0.6)
+SP25.effect("lamps_lit", name="Lamps Lit", rate=3.0, life=[1.4, 2.0],
+            size=[0.18, 0.26], grow=0.0, gravity=0.0, spread=0.3, rise=[0.0, 0.1],
+            blend="add", spin=0.0, colors=["#ffe08a", "#9aff6a", "#ff9a4a", "#ff6a8a"],
+            shape="bubble", radius=1.0, orbit=2.0, wobble=0.2)
+SP25.opening(
+    sky={"top": "#06140c", "horizon": "#2a4a2a", "sun": [0.1, 0.5, 0.6], "clouds": 0.3,
+         "tint": "#fff0c8"},
+    ambient="#5a6a4a", beam="#ffd34a", seep="lamps_lit", after="ceili_notes",
+    burst=["#9aff6a", "#ffd34a", "#ffffff", "#ff9a4a"],
+    pieces=[{"shape": "note", "colors": ["#9aff6a", "#ffffff"], "blend": "normal"},
+            {"shape": "shamrock", "colors": ["#4fc46e", "#2f8a3a"], "blend": "normal"},
+            {"shape": "sp_coin", "colors": ["#ffd34a"], "blend": "normal"},
+            {"shape": "spark", "colors": ["#ffe08a", "#ff9a4a"], "blend": "add"}],
+    backdrop="sp_ceili", title_wait="The fiddler is tuning up...",
+    title_shake="Take your partners...")
+SP25.award("Emerald Jamboree", ["Wallflower", "Toe Tapper", "Set Dancer", "Reel Runner",
+                                "Céilí Caller", "The Fiddler Himself"],
+           "Opened Fiddle Cases at the Emerald Jamboree, St. Patrick's 2025.", "em_fiddle",
+           "clover")
+SP25.bundle("pair", "Case and Key", 1, 1050, "One Fiddle Case, one Tuning Key.")
+SP25.bundle("set", "A Set of Three", 3, 3000, "Three cases, three keys. Saves 300.")
+
+EVENTS = [SP22, SP23, SP24, SP25]
