@@ -939,7 +939,7 @@ def _():
     parts += around(9, 0.92, -0.20, lambda a, x, z: place(
         "teardrop", [x, -0.24, z * 0.97], [0.10, 0.20, 0.10], ICING, anchor=[0, 1, 0],
         r=[PI, 0, 0]), start=TAU / 18)
-    parts.append(_gumdrop([0, -0.02, 0], 2.2, GUMDROPS[0]))
+    parts.append(_gumdrop([0, 0.02, 0], 2.2, GUMDROPS[0]))
     return parts
 
 
@@ -1048,14 +1048,16 @@ def _():
     c = "#fff2e0"
     parts = [place("hairmid", [0, 0, 0], [1.04, 1.04, 1.04], c, anchor=[0, 0, 0],
                    decal="strands", wrap=True),
-             place("spiral", [0, 0.50, -0.02], [0.78, 0.46, 0.78], c),
-             place("spiral", [0, 0.68, -0.02], [0.56, 0.34, 0.56], c),
-             place("teardrop", [0, 0.86, -0.02], [0.30, 0.34, 0.30], c),
-             part("sph", [0, 0.50, -0.02], [0.82, 0.30, 0.82], c)]
+             # the rosette, piped in rings from a base that sits on the hair
+             place("hemi", [0, 0.50, -0.02], [0.86, 0.60, 0.86], c, anchor=[0, 0, 0]),
+             place("spiral", [0, 0.62, -0.02], [0.70, 0.40, 0.70], c, anchor=[0, 0, 0]),
+             place("spiral", [0, 0.92, -0.02], [0.48, 0.30, 0.48], c, anchor=[0, 0, 0]),
+             place("teardrop", [0, 1.18, -0.02], [0.26, 0.30, 0.26], c, anchor=[0, 0, 0])]
     for n in range(14):
         a = n * 2.39996
-        rr = 0.18 + (n % 4) * 0.10
-        parts.append(part("rbox", [math.sin(a) * rr, 0.53 + (0.3 - rr) * 0.4, math.cos(a) * rr],
+        rr = 0.12 + (n % 4) * 0.09
+        y = 0.50 + 0.30 * math.sqrt(max(0.0, 1.0 - (rr / 0.45) ** 2)) + 0.01
+        parts.append(part("rbox", [math.sin(a) * rr, y, math.cos(a) * rr - 0.02],
                           [0.10, 0.03, 0.03], GUMDROPS[n % len(GUMDROPS)], [0.3, a * 1.7, 0.2]))
     return parts
 
