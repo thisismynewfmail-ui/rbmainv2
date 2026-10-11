@@ -17,9 +17,9 @@ from __future__ import annotations
 
 import math
 
-from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
-                  Event, around, at_frame, band, buckle, cap, dome, mix, part, place,
-                  pompom, ringband, rod, rotate, shade, sides, straps)
+from .kit import (BLACK, BONE, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
+                  Event, around, at_frame, band, buckle, cap, dome, gift_bow, mix, part,
+                  place, pompom, reach, ringband, rod, rotate, shade, sides, straps)
 
 SHAMROCK = "#4fc46e"
 CLOVER = "#2f8a3a"
@@ -2152,4 +2152,10 @@ SP25.award("Emerald Jamboree", ["Wallflower", "Toe Tapper", "Set Dancer", "Reel 
 SP25.bundle("pair", "Case and Key", 1, 1050, "One Fiddle Case, one Tuning Key.")
 SP25.bundle("set", "A Set of Three", 3, 3000, "Three cases, three keys. Saves 300.")
 
+# @@ SP26 Leprechaun's Last Laugh goes above this line @@
+
+
 EVENTS = [SP22, SP23, SP24, SP25]
+
+# (SP26 adds itself to the list here)
+EVENTS += []  # @@ SP26 @@

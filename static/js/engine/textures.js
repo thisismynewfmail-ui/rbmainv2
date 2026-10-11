@@ -2787,6 +2787,8 @@
                                     ink: 'rgba(154,255,106,0.95)', glow: '#4fc46e',
                                     font: 'Georgia, serif', frame: 'box', size: 17, size2: 14 }));
 
+  // @@ sp26 painters go above this line @@
+
   // @@ stpatricks painters go above this line @@
 
   /* ----------------------------------------------------------- Easter
@@ -3019,6 +3021,12 @@
   painter('stencil_ea23', stencil({ top: 'BUNNY BURROW', bottom: 'WIPE YOUR PAWS', icon: 'bunny',
                                     size: 14, size2: 11, ink: 'rgba(70,40,20,0.85)',
                                     font: 'Georgia, serif', frame: 'round' }));
+
+  // @@ ea24 painters go above this line @@
+
+  // @@ ea25 painters go above this line @@
+
+  // @@ ea26 painters go above this line @@
 
   // @@ easter painters go above this line @@
 
@@ -3453,6 +3461,10 @@
   painter('stencil_jl24', stencil({ top: 'LIBERTY', bottom: 'LIGHTS  2024', icon: 'torch',
                                     ink: 'rgba(255,201,74,0.95)', glow: '#ffc94a',
                                     font: 'Georgia, serif', frame: 'round' }));
+
+  // @@ jl25 painters go above this line @@
+
+  // @@ jl26 painters go above this line @@
 
   // @@ july4 painters go above this line @@
 

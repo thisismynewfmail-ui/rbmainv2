@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import math
 
-from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
+from .kit import (BLACK, BONE, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
                   Event, around, at_frame, band, buckle, cap, dome, gift_bow, mix, part,
-                  place, pompom, ringband, rod, rotate, shade, sides, straps)
+                  place, pompom, reach, ringband, rod, rotate, shade, sides, straps)
 
 # the egg mesh: native 0.92 wide and 1.30 tall, its bottom at its origin
 EGG_W, EGG_H = 0.92, 1.30
@@ -1250,4 +1250,20 @@ EA23.award("Bunny Burrow", ["Lawn Lounger", "Hole Spotter", "Carrot Grower", "Wa
 EA23.bundle("pair", "Mound and Key", 1, 1050, "One Burrow Mound, one Carrot Key.")
 EA23.bundle("warren", "The Whole Warren", 3, 3000, "Three mounds, three keys. Saves 300.")
 
+# @@ EA24 The Great Hatch goes above this line @@
+
+# @@ EA25 Choc-o-Lock goes above this line @@
+
+# @@ EA26 Faberge Gala goes above this line @@
+
+
 EVENTS = [EA22, EA23]
+
+# (EA24 adds itself to the list here)
+EVENTS += []  # @@ EA24 @@
+
+# (EA25 adds itself to the list here)
+EVENTS += []  # @@ EA25 @@
+
+# (EA26 adds itself to the list here)
+EVENTS += []  # @@ EA26 @@

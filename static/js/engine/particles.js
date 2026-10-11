@@ -829,9 +829,17 @@
         c.stroke();
       }
     }],
+    // @@ sp26 particles go above this line @@
+
     // @@ stpatricks particles go above this line @@
 
     // ---- Easter particle shapes
+    // @@ ea24 particles go above this line @@
+
+    // @@ ea25 particles go above this line @@
+
+    // @@ ea26 particles go above this line @@
+
     // @@ easter particles go above this line @@
 
     // ---- Fourth of July particle shapes
@@ -866,6 +874,10 @@
       for (var x = 16; x <= 112; x += 12) c.lineTo(x, (x / 12) % 2 ? 52 : 64);
       c.stroke();
     }],
+    // @@ jl25 particles go above this line @@
+
+    // @@ jl26 particles go above this line @@
+
     // @@ july4 particles go above this line @@
 
     // ---- Christmas particle shapes

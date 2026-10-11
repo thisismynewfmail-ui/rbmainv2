@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import math
 
-from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
-                  Event, around, at_frame, band, buckle, cap, dome, mix, part, place,
-                  pompom, ringband, rotate, shade, sides, straps)
+from .kit import (BLACK, BONE, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
+                  Event, around, at_frame, band, buckle, cap, dome, gift_bow, mix, part,
+                  place, pompom, reach, ringband, rod, rotate, shade, sides, straps)
 
 RED = "#c8202f"
 NAVY = "#22306e"
@@ -1647,4 +1647,15 @@ JL24.award("Liberty Lights", ["Lantern Bearer", "Firefly Catcher", "Lamplighter"
 JL24.bundle("pair", "Lantern and Torch", 1, 1050, "One Tin Lantern Crate, one Torch Key.")
 JL24.bundle("parade", "Lantern Parade", 3, 3000, "Three lanterns, three keys. Saves 300.")
 
+# @@ JL25 Rocket's Red Glare goes above this line @@
+
+# @@ JL26 America 250 goes above this line @@
+
+
 EVENTS = [JL22, JL23, JL24]
+
+# (JL25 adds itself to the list here)
+EVENTS += []  # @@ JL25 @@
+
+# (JL26 adds itself to the list here)
+EVENTS += []  # @@ JL26 @@

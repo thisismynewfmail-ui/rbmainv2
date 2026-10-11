@@ -1254,6 +1254,8 @@
   add('sp_taper', lathe([[0.5, 0.0, 1], [0.475, 0.30], [0.44, 0.70], [0.42, 1.0, 1],
                          [0.0, 1.0]], { segs: 36 }));
 
+  // @@ sp26 shapes go above this line @@
+
   // @@ stpatricks shapes go above this line @@
 
   /* ---- Easter meshes (any the Easter events needed that were not here) */
@@ -1271,9 +1273,19 @@
     var r = Math.max(0.001, Math.cos(a) * 0.5 * (1.0 - 0.16 * y));
     return [Math.cos(th) * r, y * 1.30, Math.sin(th) * r];
   }, 54, 10, 0.03, true));
+  // @@ ea24 shapes go above this line @@
+
+  // @@ ea25 shapes go above this line @@
+
+  // @@ ea26 shapes go above this line @@
+
   // @@ easter shapes go above this line @@
 
   /* ---- Fourth of July meshes (any the Fourth of July events needed that were not here) */
+  // @@ jl25 shapes go above this line @@
+
+  // @@ jl26 shapes go above this line @@
+
   // @@ july4 shapes go above this line @@
 
   /* ---- Christmas meshes (any the Christmas events needed that were not here) */
