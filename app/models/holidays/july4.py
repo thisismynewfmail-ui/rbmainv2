@@ -780,27 +780,29 @@ def _():
           "tucked in the band where they belong. The person in this hat is in charge "
           "of the grill. That is not up for discussion.", "legendary")
 def _():
+    white = "#ffffff"
     parts = [
-        band(-0.10, 0.32, WHITE, grow=0.04, decal="linen", wrap=True),
-        part("cyl", [0, 0.38, 0], [1.50, 0.66, 1.44], WHITE, decal="jl_pleats", wrap=True),
-        part("sph", [0, 0.86, 0], [1.94, 0.78, 1.86], "#fbfbf8", decal="linen", wrap=True),
-        part("box", [0, -0.10, 0.795], [0.96, 0.24, 0.02], "#000000", decal="jl_grillband", a=-1),
+        band(-0.10, 0.32, white, grow=0.04, decal="linen", wrap=True),
+        part("cyl", [0, 0.52, 0], [1.46, 0.94, 1.40], white, decal="jl_pleats", wrap=True),
+        part("sph", [0, 1.12, 0], [2.00, 0.86, 1.92], white, decal="linen", wrap=True),
+        part("box", [0, -0.10, 0.795], [1.00, 0.30, 0.02], "#000000", decal="jl_grillband", a=-1),
     ]
-    for n in range(6):
-        a = n * TAU / 6 + 0.3
-        parts.append(part("sph", [math.sin(a) * 0.62, 0.96, math.cos(a) * 0.60],
-                          [0.66, 0.50, 0.66], "#fbfbf8", decal="linen", wrap=True))
-    # tongs one side, a spatula the other
-    parts += [part("rbox", [0.74, 0.20, 0.30], [0.05, 0.86, 0.06], SILVER, [0.10, 0, -0.22],
+    for n in range(7):
+        a = n * TAU / 7 + 0.3
+        parts.append(part("sph", [math.sin(a) * 0.66, 1.20, math.cos(a) * 0.64],
+                          [0.70, 0.56, 0.70], white, decal="linen", wrap=True))
+    parts.append(part("sph", [0, 1.46, 0], [0.90, 0.40, 0.86], white, decal="linen", wrap=True))
+    # tongs one side, a spatula the other, both tucked in the band
+    parts += [part("rbox", [0.84, 0.16, -0.06], [0.05, 0.96, 0.06], SILVER, [0.10, 0, -0.16],
                    m="metal"),
-              part("rbox", [0.78, 0.20, 0.36], [0.05, 0.86, 0.06], SILVER, [0.30, 0, -0.22],
+              part("rbox", [0.86, 0.16, 0.04], [0.05, 0.96, 0.06], SILVER, [-0.12, 0, -0.16],
                    m="metal"),
-              part("rbox", [0.84, 0.66, 0.40], [0.10, 0.10, 0.20], KETCHUP, [0.2, 0, -0.22]),
-              part("rbox", [-0.74, 0.14, 0.20], [0.06, 0.66, 0.06], "#3a2414", [0, 0, 0.18]),
-              part("rbox", [-0.86, 0.62, 0.20], [0.04, 0.34, 0.30], SILVER, [0, 0, 0.18],
-                   m="metal"),
-              part("sph", [0.30, 1.42, -0.10], [0.36, 0.26, 0.32], "#c9ccd2", a=0.5),
-              part("sph", [0.42, 1.66, -0.18], [0.24, 0.20, 0.22], "#d9dce2", a=0.38)]
+              part("rbox", [0.92, 0.62, -0.01], [0.10, 0.12, 0.18], KETCHUP, [0, 0, -0.16]),
+              part("rbox", [-0.84, 0.14, -0.10], [0.06, 0.66, 0.06], "#3a2414", [0, 0, 0.16]),
+              part("rbox", [-0.92, 0.62, -0.10], [0.04, 0.36, 0.32], SILVER, [0, 0, 0.16],
+                   m="metal", decal="jl_slots"),
+              part("sph", [0.30, 1.78, -0.10], [0.36, 0.26, 0.32], "#c9ccd2", a=0.5),
+              part("sph", [0.42, 2.02, -0.18], [0.24, 0.20, 0.22], "#d9dce2", a=0.38)]
     return parts
 
 
@@ -866,7 +868,8 @@ def _():
         x = 1.02 * side
         parts += [
             part("rbox", [0.90 * side, 0.02, 0.0], [0.24, 0.08, 0.10], KETCHUP),
-            part("cyl", [x, 0.02, 0.0], [0.42, 0.36, 0.42], KETCHUP),
+            part("torus", [x, -0.10, 0.0], [0.42, 0.08, 0.42], KETCHUP),
+            part("torus", [x, 0.12, 0.0], [0.42, 0.08, 0.42], KETCHUP),
             part("cyl", [x, 0.16, 0.0], [0.34, 0.52, 0.34], "#ffe680", m="glass", a=0.8),
             part("cyl", [x, 0.42, 0.0], [0.30, 0.02, 0.30], "#fff6c0"),
             part("cyl", [x + 0.10 * side, 0.44, 0.10], [0.20, 0.03, 0.20], "#f5e04a",
@@ -875,8 +878,8 @@ def _():
         path = [(x, 0.30, 0.04), (x, 0.64, 0.04), (1.16 * side, 0.42, 0.14),
                 (1.06 * side, -0.60, 0.36), (0.78 * side, -0.86, 0.80), (0.10 * side, -0.86, 0.80)]
         for a, b in zip(path, path[1:]):
-            parts.append(_rod(a, b, 0.05, straw))
-            parts.append(part("sph", list(b), [0.05, 0.05, 0.05], straw))
+            parts.append(_rod(a, b, 0.07, straw))
+            parts.append(part("sph", list(b), [0.07, 0.07, 0.07], straw))
     return parts
 
 
@@ -922,18 +925,20 @@ def _():
 def _():
     alu = "#c9ced6"
     parts = [
-        part("rbox", [0, 0.30, -0.30], [1.30, 1.26, 0.04], "#2f8a4a", decal="jl_webbing"),
-        part("rbox", [0, 0.20, -0.40], [1.30, 1.10, 0.04], "#2f8a4a", decal="jl_webbing"),
-        part("box", [0, 0.20, -0.425], [1.24, 1.04, 0.01], "#000000", [0, PI, 0],
+        part("rbox", [0, 0.50, -0.30], [1.54, 1.66, 0.04], "#2f8a4a", decal="jl_webbing"),
+        part("rbox", [0, 0.30, -0.44], [1.54, 1.30, 0.04], "#2f8a4a"),
+        part("box", [0, 0.30, -0.465], [1.48, 1.24, 0.01], "#000000", [0, PI, 0],
              decal="jl_webbing", a=-1),
         *straps("#2b2b30", 0.34, 0.12),
     ]
-    for x in (-0.66, 0.66):
-        parts += [part("cyl", [x, 0.28, -0.34], [0.07, 1.42, 0.07], alu, m="metal"),
-                  part("rbox", [x * 1.06, 0.62, -0.40], [0.10, 0.06, 0.40], "#e8e2d0"),
-                  part("cyl", [x, -0.44, -0.46], [0.07, 0.30, 0.07], alu, [0.5, 0, 0], m="metal")]
-    for y in (0.95, -0.37):
-        parts.append(part("cyl", [0, y, -0.34], [0.07, 1.36, 0.07], alu, [0, 0, PI / 2], m="metal"))
+    for x in (-0.80, 0.80):
+        parts += [part("cyl", [x, 0.50, -0.30], [0.08, 1.80, 0.08], alu, m="metal"),
+                  part("cyl", [x * 0.97, 0.20, -0.46], [0.08, 1.50, 0.08], alu, m="metal"),
+                  part("rbox", [x * 1.04, 0.70, -0.38], [0.12, 0.08, 0.50], "#e8e2d0"),
+                  part("cyl", [x * 0.97, -0.62, -0.50], [0.08, 0.40, 0.08], alu, [0.4, 0, 0],
+                       m="metal")]
+    for y, z in ((1.38, -0.30), (-0.36, -0.30), (0.94, -0.46), (-0.52, -0.46)):
+        parts.append(part("cyl", [0, y, z], [0.08, 1.60, 0.08], alu, [0, 0, PI / 2], m="metal"))
     return parts
 
 
@@ -961,10 +966,10 @@ def _():
     c, hi = "#1c1612", "#3a2e24"
     parts = [place("hairshort", [0, 0, 0], [1.02, 1.02, 1.02], c, anchor=[0, 0, 0],
                    decal="strands", wrap=True)]
-    parts += [part("sph", [0, 0.64, 0.16], [0.82, 0.36, 0.62], c, decal="strands", wrap=True),
-              part("sph", [0, 0.68, 0.38], [0.70, 0.34, 0.44], hi, [0.3, 0, 0], decal="strands",
-                   wrap=True),
-              place("spiral", [0.06, 0.46, 0.58], [0.10, 0.20, 0.10], c, r=[0.4, 0, 0.2])]
+    parts += [part("sph", [0, 0.62, 0.10], [0.86, 0.34, 0.70], c, decal="strands", wrap=True),
+              place("capsule", [0, 0.68, 0.40], [0.40, 0.27, 0.42], hi, r=[0, 0, PI / 2],
+                    decal="strands", wrap=True),
+              place("teardrop", [0.12, 0.52, 0.60], [0.12, 0.26, 0.10], c, r=[2.4, 0, -0.3])]
     return parts
 
 
@@ -986,7 +991,9 @@ def _():
 JL23.face("sunglasses_tan", "Sunglasses Tan",
           "Six hours at the grill in sunglasses. The sunglasses are off now. The tan "
           "is not.", [
-              {"k": "ellipse", "x": 0, "y": 0.02, "w": 0.86, "h": 0.66, "c": "rgba(255,96,72,0.45)"},
+              {"k": "ellipse", "x": -0.26, "y": 0.02, "w": 0.30, "h": 0.22, "c": "rgba(255,96,72,0.40)"},
+              {"k": "ellipse", "x": 0.26, "y": 0.02, "w": 0.30, "h": 0.22, "c": "rgba(255,96,72,0.40)"},
+              {"k": "ellipse", "x": 0, "y": -0.26, "w": 0.60, "h": 0.16, "c": "rgba(255,96,72,0.32)"},
               {"k": "ellipse", "x": -0.20, "y": -0.13, "w": 0.24, "h": 0.17, "c": "#fff1dc"},
               {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.24, "h": 0.17, "c": "#fff1dc"},
               {"k": "rect", "x": 0, "y": -0.15, "w": 0.18, "h": 0.04, "c": "#fff1dc"},
@@ -1045,9 +1052,10 @@ def _():
              decal="leather", wrap=True),
         part("torus", [0, 0.0, -0.44], [0.16, 0.04, 0.16], steel, [0, 0, PI / 2], m="metal"),
         part("rbox", [0, 0.0, 0.60], [0.08, 0.05, 1.20], steel, [-0.12, 0, 0], m="metal"),
-        part("rbox", [0, 0.10, 1.34], [0.66, 0.05, 0.70], steel, [-0.18, 0, 0], m="metal",
+        part("rbox", [0, 0.12, 1.44], [0.82, 0.05, 0.86], steel, [-0.18, 0, 0], m="metal",
              decal="jl_slots"),
-        part("rbox", [0, 0.13, 1.26], [0.40, 0.06, 0.08], "#5a2e1a", [-0.18, 0, 0]),
+        part("cyl", [0.12, 0.17, 1.40], [0.40, 0.08, 0.40], "#5a2e1a", [-0.18, 0, 0],
+             decal="jl_patty", wrap=True),
     ]
 
 
