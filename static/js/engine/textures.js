@@ -2066,6 +2066,73 @@
   painter('stencil_sp22', stencil({ top: "LUCKY LEP'S", bottom: 'LOCKBOX  2022', icon: 'shamrock',
                                     ink: 'rgba(255,211,74,0.94)', font: 'Georgia, serif',
                                     frame: 'box', size: 16 }));
+
+  // ---- 2023: Rainbow's End
+  var SP_RAINBOW = ['#ff4a5a', '#ff9a3a', '#ffe14a', '#4fd06a', '#3a9cff', '#6a5ad8', '#b25ae8'];
+
+  // seven bands, red at the top: across a rainbow's width, round a sash
+  painter('sp_rainbow', function (ctx) {
+    var h = CELL / SP_RAINBOW.length;
+    SP_RAINBOW.forEach(function (c, i) {
+      ctx.fillStyle = c; ctx.fillRect(0, Math.floor(i * h), CELL, Math.ceil(h) + 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(0, Math.floor(i * h), CELL, 2);
+    });
+  });
+
+  // the same bands standing up, for gores and capes
+  painter('sp_rainbow_gores', function (ctx) {
+    var w = CELL / 6;
+    SP_RAINBOW.slice(0, 6).forEach(function (c, i) {
+      ctx.fillStyle = c; ctx.fillRect(Math.floor(i * w), 0, Math.ceil(w) + 1, CELL);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(Math.floor(i * w), 0, 2, CELL);
+    });
+  });
+
+  // a heap of gold: overlapping coins, every one catching the light
+  painter('sp_coins', function (ctx) {
+    var rnd = scatter(311);
+    ctx.fillStyle = '#c99a1a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var i = 0; i < 70; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 7 + rnd() * 6, squash = 0.45 + rnd() * 0.55;
+      around(ctx, x, y, function (g) {
+        g.save(); g.scale(1, squash);
+        var grd = g.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r);
+        grd.addColorStop(0, '#fff3b0'); grd.addColorStop(0.6, '#f2c230'); grd.addColorStop(1, '#a8780a');
+        g.fillStyle = grd; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(110,70,0,0.6)'; g.lineWidth = 1.2;
+        g.beginPath(); g.arc(0, 0, r * 0.72, 0, Math.PI * 2); g.stroke();
+        g.restore();
+      });
+    }
+  });
+
+  // a rainbow jumper: knitted bands, and a pot of gold on the chest
+  painter('sp_tee_rainbow', function (ctx) {
+    var h = CELL / 8;
+    SP_RAINBOW.concat(['#ff4a5a']).forEach(function (c, i) {
+      ctx.fillStyle = c; ctx.fillRect(0, i * h, CELL, h + 1);
+    });
+    ctx.lineCap = 'round';
+    for (var row = 0; row < 16; row++) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 2.5;
+      for (var col = -1; col < 17; col++) {
+        var x = col * 8 + (row % 2 ? 4 : 0), y = row * 8 + 4;
+        ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x + 4, y + 2); ctx.lineTo(x + 8, y - 3); ctx.stroke();
+      }
+    }
+    ctx.fillStyle = '#f4f6f8'; ctx.beginPath(); ctx.arc(64, 70, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1e1e24';
+    ctx.beginPath(); ctx.ellipse(64, 80, 20, 15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(46, 64, 36, 6);
+    ctx.fillStyle = '#ffd34a';
+    [[54, 62], [64, 58], [74, 62], [59, 55], [69, 55]].forEach(function (q) {
+      ctx.beginPath(); ctx.arc(q[0], q[1], 5.5, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  painter('stencil_sp23', stencil({ top: "RAINBOW'S", bottom: 'END  2023', icon: 'rainbow', colour: true,
+                                    ink: 'rgba(255,225,74,0.95)', glow: '#ffe14a',
+                                    font: 'Georgia, serif', frame: 'round' }));
   // @@ stpatricks painters go above this line @@
 
   /* ----------------------------------------------------------- Easter

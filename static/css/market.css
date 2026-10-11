@@ -560,6 +560,20 @@ body.cs-open { overflow: hidden; }
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='320'%3E%3Cg fill='%239fffb0'%3E%3Cg transform='translate(200 100) rotate(60)'%3E%3Ccircle cy='-3' r='3'/%3E%3Ccircle cx='-3' cy='2' r='3'/%3E%3Ccircle cx='3' cy='2' r='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
 .theme-sp_cobbler .cs-title b { color: #ffd34a; text-shadow: 0 0 22px rgba(79, 196, 110, .55), 0 3px 0 rgba(0, 0, 0, .5); }
 
+/* 2023, Rainbow's End: a rainbow right across the sky after rain, and the
+   gold coming down where it lands */
+.theme-sp_rainbow .cs-bg { background: radial-gradient(circle at 50% 70%, #3a5a8a, #182a4a 55%, #070c18 100%); }
+.theme-sp_rainbow .cs-art { display: block !important; }
+.theme-sp_rainbow .cs-art.a { left: 50%; top: 4%; width: 620px; height: 330px; margin-left: -310px; opacity: .55;
+  filter: blur(1px) drop-shadow(0 0 30px rgba(255, 255, 255, .25));
+  background: no-repeat center top/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 104'%3E%3Cg fill='none' stroke-width='6'%3E%3Cpath d='M8 100a92 92 0 0 1 184 0' stroke='%23ff4a5a'/%3E%3Cpath d='M14 100a86 86 0 0 1 172 0' stroke='%23ff9a3a'/%3E%3Cpath d='M20 100a80 80 0 0 1 160 0' stroke='%23ffe14a'/%3E%3Cpath d='M26 100a74 74 0 0 1 148 0' stroke='%234fd06a'/%3E%3Cpath d='M32 100a68 68 0 0 1 136 0' stroke='%233a9cff'/%3E%3Cpath d='M38 100a62 62 0 0 1 124 0' stroke='%238a5ae8'/%3E%3C/g%3E%3Cg fill='%23eef4ff'%3E%3Ccircle cx='16' cy='98' r='12'/%3E%3Ccircle cx='32' cy='100' r='9'/%3E%3Ccircle cx='4' cy='102' r='8'/%3E%3Ccircle cx='184' cy='98' r='12'/%3E%3Ccircle cx='168' cy='100' r='9'/%3E%3Ccircle cx='196' cy='102' r='8'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-sp_rainbow .cs-art.b { inset: 0; opacity: .8; animation: cs-fall 8s linear infinite;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='320'%3E%3Cg fill='%239fd8ff' opacity='.8'%3E%3Cpath d='M30 40q4 8 4 12a4 4 0 0 1-8 0q0-4 4-12z'/%3E%3Cpath d='M130 170q4 8 4 12a4 4 0 0 1-8 0q0-4 4-12z'/%3E%3Cpath d='M80 260q3 6 3 9a3 3 0 0 1-6 0q0-3 3-9z'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='320'%3E%3Cg fill='%23ffd34a' stroke='%23b8860b' stroke-width='1.5'%3E%3Cellipse cx='60' cy='120' rx='6' ry='6'/%3E%3Cellipse cx='190' cy='30' rx='3' ry='6'/%3E%3Cellipse cx='150' cy='250' rx='5' ry='6'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='320'%3E%3Cg fill='%23fff3b0'%3E%3Ccircle cx='60' cy='60' r='2'/%3E%3Ccircle cx='210' cy='190' r='2.5'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-sp_rainbow .cs-title b { color: #ffe14a; text-shadow: 0 0 22px rgba(255, 90, 160, .5), 0 3px 0 rgba(0, 0, 0, .5); }
+
 /* @@ stpatricks backdrops go above this line @@ */
 
 /* Easter backdrops (the opening themes of the Easter crates) */

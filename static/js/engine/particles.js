@@ -786,6 +786,34 @@
       }
       c.beginPath(); c.ellipse(46, 40, 9, 4, -0.7, 0, Math.PI * 2); c.fill();
     }],
+    // a little rainbow in its own colours (tint it white to keep them)
+    ['sp_rainbow', function (c) {
+      var bands = ['#ff4a5a', '#ff9a3a', '#ffe14a', '#4fd06a', '#3a9cff', '#8a5ae8'];
+      c.lineWidth = 8;
+      for (var k = 0; k < bands.length; k++) {
+        c.strokeStyle = bands[k];
+        c.beginPath(); c.arc(64, 92, 50 - k * 7.5, Math.PI, 0); c.stroke();
+      }
+      c.fillStyle = '#ffffff';
+      [[16, 92], [112, 92]].forEach(function (q) {
+        dot(c, q[0], q[1] + 4, 11); dot(c, q[0] - 9, q[1] + 8, 8); dot(c, q[0] + 9, q[1] + 8, 8);
+      });
+    }],
+    // a fat raindrop with a glint
+    ['sp_raindrop', function (c) {
+      c.beginPath(); c.moveTo(64, 10);
+      c.bezierCurveTo(70, 40, 96, 64, 96, 86); c.bezierCurveTo(96, 106, 82, 118, 64, 118);
+      c.bezierCurveTo(46, 118, 32, 106, 32, 86); c.bezierCurveTo(32, 64, 58, 40, 64, 10); c.fill();
+      c.fillStyle = '#c8c8c8'; dot(c, 64, 92, 18);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(50, 84, 5, 11, 0.3, 0, Math.PI * 2); c.fill();
+    }],
+    // a puffy cartoon cloud, shaded underneath
+    ['sp_cloud', function (c) {
+      dot(c, 40, 72, 22); dot(c, 64, 58, 28); dot(c, 90, 68, 22); dot(c, 104, 82, 14);
+      dot(c, 24, 84, 13); c.fillRect(24, 76, 82, 20);
+      c.fillStyle = '#bcbcbc';
+      c.beginPath(); c.ellipse(64, 94, 40, 6, 0, 0, Math.PI * 2); c.fill();
+    }],
     // @@ stpatricks particles go above this line @@
 
     // ---- Easter particle shapes
