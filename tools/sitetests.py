@@ -378,10 +378,14 @@ def run(host: str, port: int, tls: bool = False) -> int:
               "follow up 3" in str(mine[0].get("subject", "")), mine[0])
         check("messages: the row counts what is unread",
               mine[0].get("unread", 0) >= 4, mine[0])
+        # (the API's list stops at eight people and the page's does not, and a
+        # dev database collects a new sender every run -- so count this
+        # sender's rows on the page rather than comparing the two lengths)
         status, threaded_html = other.get("/messages")
+        own_rows = threaded_html.count('<span class="msgwho">%s' % client_name)
         check("messages: the mailbox page shows that one row too",
-              threaded_html.count('class="msgrow') ==
-              len(threads), threaded_html.count('class="msgrow'))
+              own_rows == 1 and threaded_html.count('class="msgrow') >= len(threads),
+              (own_rows, threaded_html.count('class="msgrow'), len(threads)))
     check("messages: the unread counter moves",
           other.get_api("/api/social/counts").get("unread", 0) >= 1, counts)
     match = re.search(r'/messages/(\d+)', inbox_html)
