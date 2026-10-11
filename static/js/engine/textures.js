@@ -2394,6 +2394,235 @@
 
   /* ----------------------------------------------------------- Easter
      The decals of the Easter crates, 2022 to 2026. */
+  // -- 2022, the Eggstravaganza: pastel paint, straw, knitting and wicker
+
+  // a painted egg's spots: a scatter of pastel dots, each with a highlight,
+  // on transparency so the egg keeps its own colour underneath
+  painter('ea_eggdots', function (ctx) {
+    var rnd = scatter(2022);
+    var cols = ['#ffffff', '#ff9cc9', '#ffe58a', '#8fe3c0', '#9fd4ff'];
+    for (var k = 0; k < 26; k++) {
+      var x = rnd() * CELL, y = 6 + rnd() * (CELL - 12), r = 3 + rnd() * 4;
+      var c = cols[k % cols.length];
+      around(ctx, x, y, function (g) {
+        g.fillStyle = 'rgba(60,30,80,0.18)';
+        g.beginPath(); g.arc(0.8, 1.2, r, 0, Math.PI * 2); g.fill();
+        g.fillStyle = c;
+        g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.6)';
+        g.beginPath(); g.arc(-r * 0.35, -r * 0.35, r * 0.3, 0, Math.PI * 2); g.fill();
+      });
+    }
+  });
+
+  // plaited straw: rows of short diagonal strands, light and dark, for a
+  // bonnet, a sun hat or a nest
+  painter('ea_straw', function (ctx) {
+    ctx.lineCap = 'round';
+    for (var row = 0; row < 16; row++) {
+      var y = row * 8 + 4, lean = row % 2 ? 1 : -1;
+      for (var x = -8; x < CELL + 8; x += 8) {
+        ctx.strokeStyle = 'rgba(120,80,20,0.35)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x - 3 * lean, y - 3); ctx.lineTo(x + 3 * lean, y + 3); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,248,220,0.45)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(x - 3 * lean, y - 3.6); ctx.lineTo(x + 3 * lean, y + 2.4); ctx.stroke();
+      }
+    }
+  });
+
+  // an egg cosy's knitting: pastel stripes, every row of it stitched in Vs
+  painter('ea_cosy', function (ctx) {
+    var cols = ['#ff9cc9', '#fff6e0', '#8fe3c0', '#fff6e0', '#ffe58a', '#fff6e0', '#9fd4ff', '#fff6e0'];
+    for (var b = 0; b < 8; b++) {
+      ctx.fillStyle = cols[b]; ctx.fillRect(0, b * 16, CELL, 16);
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.13)'; ctx.lineWidth = 2;
+    for (var y = 0; y < CELL; y += 8) {
+      for (var x = 0; x < CELL; x += 8) {
+        ctx.beginPath(); ctx.moveTo(x, y + 1); ctx.lineTo(x + 4, y + 7); ctx.lineTo(x + 8, y + 1); ctx.stroke();
+      }
+    }
+  });
+
+  // wicker: an over-and-under weave of cane round upright stakes
+  painter('ea_wicker', function (ctx) {
+    for (var row = 0; row < 8; row++) {
+      for (var col = 0; col < 8; col++) {
+        var x = col * 16, y = row * 16, over = (row + col) % 2;
+        ctx.fillStyle = over ? 'rgba(255,240,200,0.30)' : 'rgba(90,50,10,0.28)';
+        ctx.fillRect(x, y + 2, 16, 12);
+        ctx.fillStyle = 'rgba(70,40,10,0.45)';
+        ctx.fillRect(x + (over ? 14 : 0), y, 2, 16);
+        ctx.fillStyle = 'rgba(255,250,230,0.35)';
+        ctx.fillRect(x + 2, y + 3, 11, 2);
+      }
+    }
+  });
+
+  // dungarees in zig-zag stripes, the crack in an egg over and over
+  painter('ea_zigzag', function (ctx) {
+    ctx.fillStyle = '#c7a8f0'; ctx.fillRect(0, 0, CELL, CELL);
+    var cols = ['#ff9cc9', '#fff6e0', '#8fe3c0', '#ffe58a'];
+    ctx.lineWidth = 6; ctx.lineJoin = 'round';
+    for (var row = 0; row < 8; row++) {
+      ctx.strokeStyle = cols[row % cols.length];
+      var y = row * 16 + 8;
+      ctx.beginPath();
+      for (var x = -8; x <= CELL + 8; x += 16) {
+        ctx[x === -8 ? 'moveTo' : 'lineTo'](x, y - 4);
+        ctx.lineTo(x + 8, y + 4);
+      }
+      ctx.stroke();
+    }
+  });
+
+  // the hunt marshal's badge: a painted egg under a magnifying glass
+  painter('ea_tee_marshal', function (ctx) {
+    ctx.fillStyle = '#fff6e0';
+    ctx.beginPath(); ctx.arc(64, 54, 38, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ff6fae'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(64, 54, 38, 0, Math.PI * 2); ctx.stroke();
+    drawIcon(ctx, 'egg', 38, 26, 52, false);
+    ctx.strokeStyle = '#4a3a5a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(74, 46, 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 7; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(84, 56); ctx.lineTo(96, 70); ctx.stroke();
+    ctx.fillStyle = '#4a3a5a'; ctx.font = 'bold 15px Verdana, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('HUNT', 64, 104);
+    ctx.font = 'bold 11px Verdana, sans-serif';
+    ctx.fillText('MARSHAL', 64, 119);
+  });
+
+  // pastel gingham, for a ribbon or a picnic
+  painter('ea_gingham', function (ctx) {
+    for (var k = 0; k < 8; k++) {
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(k * 16, 0, 8, CELL);
+      ctx.fillRect(0, k * 16, CELL, 8);
+    }
+  });
+
+  painter('stencil_ea22', stencil({ top: 'EGGSTRAVAGANZA', bottom: 'SPRING  2022', icon: 'egg',
+                                    size: 11, ink: 'rgba(122,72,160,0.88)', frame: 'round' }));
+
+  // -- 2023, Bunny Burrow: turf, earth, corduroy and garden twine
+
+  // turf: blades of grass in three greens and a clover or two, on
+  // transparency over whatever green the hill is
+  painter('ea_turf', function (ctx) {
+    var rnd = scatter(2023);
+    ctx.lineCap = 'round';
+    for (var k = 0; k < 220; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, h = 5 + rnd() * 8, lean = (rnd() - 0.5) * 5;
+      var shade = rnd();
+      ctx.strokeStyle = shade > 0.66 ? 'rgba(230,255,190,0.55)' : (shade > 0.33 ? 'rgba(40,90,20,0.45)'
+                                                                              : 'rgba(120,190,70,0.5)');
+      ctx.lineWidth = 1.6;
+      around(ctx, x, y, function (g) {
+        g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(lean * 0.3, -h * 0.6, lean, -h); g.stroke();
+      });
+    }
+    for (k = 0; k < 7; k++) {
+      var cx = rnd() * CELL, cy = rnd() * CELL;
+      around(ctx, cx, cy, function (g) {
+        g.fillStyle = 'rgba(255,255,255,0.85)';
+        for (var p = 0; p < 5; p++) {
+          var a = p * Math.PI * 2 / 5;
+          g.beginPath(); g.arc(Math.cos(a) * 2.2, Math.sin(a) * 2.2, 1.6, 0, Math.PI * 2); g.fill();
+        }
+        g.fillStyle = '#ffd84a'; g.beginPath(); g.arc(0, 0, 1.3, 0, Math.PI * 2); g.fill();
+      });
+    }
+  });
+
+  // dug earth: dark loam, pebbles, and roots wandering through it
+  painter('ea_earth', function (ctx) {
+    var rnd = scatter(523);
+    ctx.fillStyle = '#6a4428'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 160; k++) {
+      ctx.fillStyle = 'rgba(' + (rnd() > 0.5 ? '40,22,10' : '150,110,70') + ',' + (0.15 + rnd() * 0.25) + ')';
+      ctx.beginPath(); ctx.arc(rnd() * CELL, rnd() * CELL, 1 + rnd() * 3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(210,170,120,0.55)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (k = 0; k < 6; k++) {
+      var x = rnd() * CELL, y = rnd() * 40;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      for (var s = 0; s < 4; s++) { x += (rnd() - 0.5) * 24; y += 14 + rnd() * 10; ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    for (k = 0; k < 12; k++) {
+      ctx.fillStyle = 'rgba(190,180,170,0.8)';
+      ctx.beginPath(); ctx.ellipse(rnd() * CELL, rnd() * CELL, 3 + rnd() * 3, 2 + rnd() * 2, rnd() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // a band of turf along the top edge, where the grass meets the soil
+    ctx.fillStyle = '#5aa83a'; ctx.fillRect(0, 0, CELL, 10);
+    for (var x2 = 0; x2 < CELL; x2 += 4) {
+      ctx.beginPath(); ctx.moveTo(x2, 10); ctx.lineTo(x2 + 2, 16 + (x2 % 12) / 2); ctx.lineTo(x2 + 4, 10); ctx.fill();
+    }
+  });
+
+  // a jumper with a carrot knitted into the front
+  painter('ea_tee_carrot', function (ctx) {
+    ctx.save();
+    ctx.translate(64, 64); ctx.rotate(-0.5);
+    ctx.fillStyle = '#ff8c2a';
+    ctx.beginPath(); ctx.moveTo(-14, -30); ctx.quadraticCurveTo(0, -40, 14, -30);
+    ctx.lineTo(2, 44); ctx.lineTo(-2, 44); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,60,10,0.6)'; ctx.lineWidth = 2.5;
+    [-14, 0, 14, 28].forEach(function (y) {
+      ctx.beginPath(); ctx.moveTo(-8 + (y + 30) / 10, y); ctx.lineTo(2, y + 3); ctx.stroke();
+    });
+    ctx.fillStyle = '#4caf3a';
+    [[-10, -0.5], [0, 0], [10, 0.5]].forEach(function (l) {
+      ctx.save(); ctx.translate(l[0] * 0.6, -36); ctx.rotate(l[1]);
+      ctx.beginPath(); ctx.ellipse(0, -14, 5, 15, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    });
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 2;
+    for (var y = 0; y < CELL; y += 8) {
+      for (var x = 0; x < CELL; x += 8) {
+        ctx.beginPath(); ctx.moveTo(x, y + 1); ctx.lineTo(x + 4, y + 7); ctx.lineTo(x + 8, y + 1); ctx.stroke();
+      }
+    }
+  });
+
+  // corduroy: soft raised ribs running down the leg
+  painter('ea_cord', function (ctx) {
+    for (var x = 0; x < CELL; x += 6) {
+      ctx.fillStyle = 'rgba(255,255,255,0.13)'; ctx.fillRect(x, 0, 3, CELL);
+      ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(x + 4, 0, 1.5, CELL);
+    }
+  });
+
+  // garden twine: a twisted cord, wound round and round
+  painter('ea_twine', function (ctx) {
+    ctx.fillStyle = '#c9a46a'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var x = -CELL; x < CELL * 2; x += 10) {
+      ctx.strokeStyle = 'rgba(110,80,40,0.55)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + CELL * 0.4, CELL); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,240,200,0.35)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x + 4, 0); ctx.lineTo(x + 4 + CELL * 0.4, CELL); ctx.stroke();
+    }
+  });
+
+  // a carrot-patch seed packet, for the quiver
+  painter('ea_seeds', function (ctx) {
+    ctx.fillStyle = '#fff3d8'; ctx.fillRect(14, 6, 100, 116);
+    ctx.fillStyle = '#5aa83a'; ctx.fillRect(14, 6, 100, 24);
+    ctx.fillStyle = '#fff3d8'; ctx.font = 'bold 15px Georgia, serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('CARROTS', 64, 19);
+    drawIcon(ctx, 'bunny', 34, 34, 60, false);
+    ctx.fillStyle = '#6a4428'; ctx.font = 'bold 11px Georgia, serif';
+    ctx.fillText('BURROW HILL', 64, 108);
+  });
+
+  painter('stencil_ea23', stencil({ top: 'BUNNY BURROW', bottom: 'WIPE YOUR PAWS', icon: 'bunny',
+                                    size: 14, size2: 11, ink: 'rgba(70,40,20,0.85)',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
   // @@ easter painters go above this line @@
 
   /* ----------------------------------------------------------- Fourth of July

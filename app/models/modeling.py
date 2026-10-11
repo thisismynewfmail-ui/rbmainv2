@@ -114,6 +114,7 @@ SHAPES: Dict[str, Dict[str, List[float]]] = {
     "cracker": {"size": [0.6, 1, 0.5832], "centre": [0, 0.5, 0]},
     "spikecrown": {"size": [1, 1, 1], "centre": [0, 0.5, 0]},
     "sp_taper": {"size": [1, 1, 1], "centre": [0, 0.5, 0]},
+    "ea_eggtop": {"size": [0.8856, 0.6139, 0.8993], "centre": [-0.0138, 0.9931, 0]},
     # --- end of generated shapes ---
 }
 
