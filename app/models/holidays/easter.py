@@ -1250,6 +1250,861 @@ EA23.award("Bunny Burrow", ["Lawn Lounger", "Hole Spotter", "Carrot Grower", "Wa
 EA23.bundle("pair", "Mound and Key", 1, 1050, "One Burrow Mound, one Carrot Key.")
 EA23.bundle("warren", "The Whole Warren", 3, 3000, "Three mounds, three keys. Saves 300.")
 
+# ============================================================ 2024
+EA24_CHICK = "#ffd23a"
+EA24_BEAK = "#ff9a1a"
+EA24_HEN = "#b5562a"
+EA24_HEN_DARK = "#7a3216"
+EA24_COMB = "#e0302a"
+EA24_GOOSE = "#f6f4ee"
+EA24_GOSLING = "#c9c07c"
+EA24_STRAW = "#e8c468"
+EA24_BARN = "#b8322a"
+EA24_TRIM = "#f6f2e8"
+EA24_ROOF = "#4a4f58"
+EA24_WOOD = "#b0703a"
+EA24_WOOD_DARK = "#6a3e1e"
+EA24_ALU = "#c9ced6"
+EA24_LAMP = "#ff5a24"
+EA24_GLASS = "#e8f6ff"
+EA24_SHELL = "#f6ecda"
+EA24_BROWN_EGG = "#dcae7c"
+EA24_DUCK_EGG = "#c8e6da"
+EA24_BURLAP = "#c8a56a"
+
+
+def _ea24_turn(parts, at, yaw=0.0, k=1.0, **kw):
+    """A little model authored round its own origin and looking along +Z,
+    scaled by ``k``, turned by ``yaw`` about the upright and moved to ``at``.
+    A turn about the upright composes with any part's own turn just by
+    adding to its yaw, so -- unlike ``at_frame`` -- tilted parts come too."""
+    c, s = math.cos(yaw), math.sin(yaw)
+    out = []
+    for p in parts:
+        x, y, z = (v * k for v in p["p"])
+        q = dict(p)
+        q["p"] = [round(at[0] + x * c + z * s, 4), round(at[1] + y, 4),
+                  round(at[2] - x * s + z * c, 4)]
+        q["s"] = [round(v * k, 4) for v in p["s"]]
+        if yaw:
+            r = list(p.get("r") or [0.0, 0.0, 0.0])
+            q["r"] = [round(r[0], 4), round(r[1] + yaw, 4), round(r[2], 4)]
+        q.update(kw)
+        out.append(q)
+    return out
+
+
+def _ea24_on_dome(d, y, ang, out=0.0):
+    """The point at height ``y`` on the outside of a crown made by ``dome``
+    (a hemi or a capcrown part), ``ang`` round from the front, stood ``out``
+    off its surface."""
+    base = d["p"][1] - d["s"][1] / 2
+    f = min(1.0, max(0.0, (y - base) / d["s"][1]))
+    if d["t"] == "capcrown":
+        band = 0.10 / 0.52
+        r = 1.0 if f <= band else math.sqrt(max(0.0, 1 - ((f - band) / (1 - band)) ** 2))
+    else:
+        r = math.sqrt(max(0.0, 1 - f * f))
+    return [math.sin(ang) * (d["s"][0] / 2 * r + out), y,
+            d["p"][2] + math.cos(ang) * (d["s"][2] / 2 * r + out)]
+
+
+def _ea24_chick(at=(0, 0, 0), k=1.0, yaw=0.0, c=EA24_CHICK, eyes="open", **kw):
+    """A chick sat down, about ``k`` tall: feet at ``at``, looking along
+    ``yaw``, all down and no sense."""
+    lo = shade(c, 0.86)
+    parts = [
+        part("sph", [0, 0.36, -0.02], [0.74, 0.70, 0.80], c, decal="ea24_down", wrap=True),
+        part("sph", [0, 0.80, 0.10], [0.54, 0.52, 0.52], c, decal="ea24_down", wrap=True),
+        place("cone", [0, 0.78, 0.42], [0.15, 0.17, 0.15], EA24_BEAK, r=[PI / 2, 0, 0]),
+        part("sph", [0.36, 0.38, -0.04], [0.14, 0.36, 0.46], lo, [0, 0, -0.25]),
+        part("sph", [-0.36, 0.38, -0.04], [0.14, 0.36, 0.46], lo, [0, 0, 0.25]),
+        # a tuft of fluff on top, and a stub of a tail
+        place("teardrop", [0.0, 1.02, 0.10], [0.09, 0.16, 0.09], c, anchor=[0, 0, 0], r=[0.2, 0, 0]),
+        place("teardrop", [0.05, 1.01, 0.06], [0.07, 0.13, 0.07], c, anchor=[0, 0, 0],
+              r=[-0.1, 0, -0.5]),
+        place("teardrop", [-0.05, 1.01, 0.07], [0.07, 0.12, 0.07], c, anchor=[0, 0, 0],
+              r=[-0.1, 0, 0.5]),
+        place("teardrop", [0, 0.40, -0.38], [0.16, 0.22, 0.12], lo, anchor=[0, 0, 0], r=[-1.2, 0, 0]),
+        part("rbox", [0.13, 0.025, 0.20], [0.12, 0.05, 0.22], EA24_BEAK),
+        part("rbox", [-0.13, 0.025, 0.20], [0.12, 0.05, 0.22], EA24_BEAK),
+    ]
+    for s in (1, -1):
+        if eyes == "open":
+            parts += [part("sph", [0.12 * s, 0.86, 0.33], [0.08, 0.10, 0.05], BLACK),
+                      part("sph", [0.105 * s, 0.885, 0.355], [0.03, 0.03, 0.015], WHITE)]
+        else:
+            parts.append(part("rbox", [0.12 * s, 0.85, 0.345], [0.10, 0.025, 0.02], BLACK))
+    return _ea24_turn(parts, at, yaw, k, **kw)
+
+
+def _ea24_hen(at=(0, 0, 0), k=1.0, yaw=0.0, c=EA24_HEN, wing=EA24_HEN_DARK, **kw):
+    """A broody hen sat down on her eggs (no legs to be seen), about 1.4
+    ``k`` tall: russet scallops, a red comb and a look in her eye."""
+    parts = [
+        part("sph", [0, 0.46, -0.06], [1.00, 0.86, 1.20], c, decal="ea24_plumage", wrap=True),
+        part("sph", [0, 0.60, 0.30], [0.78, 0.74, 0.62], c, decal="ea24_plumage", wrap=True),
+        part("sph", [0, 1.02, 0.40], [0.44, 0.50, 0.44], c, decal="ea24_plumage", wrap=True),
+        # comb, wattle, beak
+        part("sph", [0, 1.29, 0.52], [0.08, 0.16, 0.12], EA24_COMB),
+        part("sph", [0, 1.32, 0.42], [0.08, 0.18, 0.12], EA24_COMB),
+        part("sph", [0, 1.29, 0.32], [0.08, 0.15, 0.11], EA24_COMB),
+        place("teardrop", [0, 0.90, 0.62], [0.10, 0.16, 0.08], EA24_COMB, r=[PI, 0, 0]),
+        place("cone", [0, 0.99, 0.69], [0.13, 0.18, 0.12], "#f2b23a", r=[PI / 2 + 0.25, 0, 0]),
+        # the wings folded at her sides, and the tail fanned up behind
+        part("sph", [0.47, 0.50, -0.10], [0.22, 0.58, 0.88], wing, [0.1, 0, -0.12],
+             decal="ea24_plumage", wrap=True),
+        part("sph", [-0.47, 0.50, -0.10], [0.22, 0.58, 0.88], wing, [0.1, 0, 0.12],
+             decal="ea24_plumage", wrap=True),
+    ]
+    for s in (1, -1):
+        parts += [part("sph", [0.15 * s, 1.08, 0.56], [0.09, 0.10, 0.05], "#f2a62a"),
+                  part("sph", [0.16 * s, 1.08, 0.58], [0.05, 0.06, 0.03], BLACK)]
+    for x, roll, tone in ((0.13, -0.40, 1.0), (0.0, 0.0, 0.8), (-0.13, 0.40, 1.0)):
+        parts.append(place("feather", [x, 0.66, -0.58], [2.0, 0.82, 2.0], shade(wing, tone),
+                           anchor=[0, -0.5, 0], r=[-0.75, 0, roll]))
+    return _ea24_turn(parts, at, yaw, k, **kw)
+
+
+def _ea24_egg(at, w, c, speckle=False, r=None, **kw):
+    """An egg ``w`` wide stood on ``at`` (turned as a whole by ``r``):
+    a hen's, a duck's or a goose's, plain or speckled."""
+    k = w / EGG_W
+    egg = place("egg", [0, 0, 0], [k, k, k], c, anchor=[0, 0, 0],
+                decal="ea24_speckle" if speckle else None, wrap=True if speckle else None)
+    out = at_frame([egg], at, r)
+    for p in out:
+        p.update(kw)
+    return out
+
+
+EA24 = Event(
+    "easter_2024", "easter", 2024, "ea24",
+    name="The Great Hatch", title="The Great Hatch",
+    blurb="Easter 2024 somebody found the barn's old incubator, plugged it back in, "
+          "filled it with every egg left over from the hunt and forgot all about it. "
+          "Twenty-one days later the whole barn started peeping. Chicks, ducklings, "
+          "three goslings and one thing nobody can identify now run the farm, and they "
+          "have very firm views on the pecking order.",
+    tagline="Keep them warm. Keep them fed. Keep your ankles moving.",
+    starts="2024-03-22", ends="2024-04-09",
+    colors={"accent": "#ffc93a", "deep": "#3a2412", "glow": "#ff9a3a"},
+    family_effects=["sunbeam", "candlelight_vigil", "starstruck"],
+    hero_effect="hatching_hour", stencil="stencil_ea24")
+
+
+@EA24.crate_model("Incubator",
+                  "The barn's old incubator: a varnished cabinet on turned legs, a glass "
+                  "dome of eggs on top with the heat lamp glowing in it, a paraffin heater "
+                  "ticking at its side and the dial stuck on ninety-nine and a half. Some "
+                  "of the eggs have started without you. Holds The Great Hatch set. Needs "
+                  "an Egg Tooth Key.",
+                  hinge=[0, 0.21, -0.48], keyhole=[0, -0.15, 0.50])
+def _():
+    tray_y = 0.22
+    parts = [
+        # the cabinet on its legs
+        part("rbox", [0, -0.17, 0], [1.36, 0.62, 0.90], EA24_WOOD, decal="ea24_cabinet", wrap=True),
+        part("rbox", [0, -0.50, 0], [1.30, 0.08, 0.84], EA24_WOOD_DARK),
+        part("rbox", [0, 0.17, 0], [1.44, 0.08, 0.98], EA24_WOOD_DARK),
+        # the front: a maker's plate, the lock, the dial, a vent and the water drawer
+        part("box", [0, 0.05, 0.452], [0.74, 0.12, 0.02], "#000000", decal="ea24_incplate", a=-1),
+        part("rbox", [0, -0.15, 0.47], [0.28, 0.28, 0.06], BRASS, m="metal", decal="keyhole", lock=1),
+        part("disc", [-0.43, -0.12, 0.465], [0.30, 0.30, 0.05], "#f6f0dc", decal="ea24_dial"),
+        part("torus", [-0.43, -0.12, 0.47], [0.34, 0.34, 0.34], BRASS, [PI / 2, 0, 0], m="metal"),
+        part("rbox", [0, -0.38, 0.455], [0.86, 0.13, 0.03], shade(EA24_WOOD, 0.85)),
+        part("sph", [0, -0.38, 0.48], [0.07, 0.07, 0.05], BRASS, m="metal"),
+        # the stencil, painted on the back
+        part("box", [0, -0.17, -0.455], [0.62, 0.50, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_ea24", a=-1),
+        # the tray of eggs under the dome, warm straw under them, and the
+        # light of the lamp on it
+        part("rbox", [0, tray_y - 0.01, 0], [1.20, 0.03, 0.78], SILVER, m="metal"),
+        part("cyl", [0, tray_y + 0.005, 0], [1.16, 0.02, 0.74], "#ffb04a", m="neon", a=0.6),
+        # the glass dome (the lid): a brass ring at its foot, two straps over
+        # it, a knob, and the heat lamp hung inside
+        place("hemi", [0, tray_y - 0.01, 0], [1.40, 1.20, 1.00], EA24_GLASS, anchor=[0, 0, 0],
+              m="glass", a=0.30, lid=1),
+        place("ring", [0, tray_y - 0.02, 0], [1.44, 0.4, 1.04], BRASS, anchor=[0, 0, 0], m="metal",
+              lid=1),
+        place("arch", [0, tray_y + 0.02, 0], [1.26, 1.06, 0.30], BRASS, anchor=[0, 0, 0], m="metal",
+              lid=1),
+        place("arch", [0, tray_y + 0.02, 0], [0.90, 1.06, 0.30], BRASS, anchor=[0, 0, 0],
+              r=[0, PI / 2, 0], m="metal", lid=1),
+        part("sph", [0, tray_y + 0.62, 0], [0.12, 0.10, 0.12], BRASS, m="metal", lid=1),
+        place("bell", [0, tray_y + 0.40, 0], [0.32, 0.17, 0.32], EA24_ALU, anchor=[0, 0, 0],
+              m="metal", lid=1),
+        part("sph", [0, tray_y + 0.40, 0], [0.17, 0.15, 0.17], EA24_LAMP, m="neon", lid=1),
+        # the paraffin heater on its bracket at the side, and its chimney
+        part("rbox", [0.80, -0.22, 0], [0.24, 0.40, 0.38], "#8a929a", m="metal",
+             decal="rivets", wrap=True),
+        part("rbox", [0.925, -0.26, 0], [0.02, 0.14, 0.18], "#ff9a3a", m="neon"),
+        part("rbox", [0.70, -0.40, 0], [0.12, 0.06, 0.30], "#5a5f66", m="metal"),
+        part("cyl", [0.80, 0.24, 0], [0.11, 0.56, 0.11], "#6a7078", m="metal"),
+        place("cone", [0.80, 0.58, 0], [0.22, 0.12, 0.22], "#5a5f66", m="metal"),
+        part("sph", [0.84, 0.74, 0.02], [0.18, 0.14, 0.18], "#eef2f6", a=0.55),
+        part("sph", [0.90, 0.88, 0.0], [0.13, 0.10, 0.13], "#eef2f6", a=0.4),
+        # the egg-turner's crank on the other side
+        part("cyl", [-0.72, -0.10, 0], [0.08, 0.10, 0.08], BRASS, [0, 0, PI / 2], m="metal"),
+        part("rbox", [-0.78, -0.18, 0], [0.04, 0.24, 0.06], BRASS, m="metal"),
+        part("cyl", [-0.83, -0.27, 0], [0.07, 0.12, 0.07], EA24_WOOD_DARK, [0, 0, PI / 2]),
+    ]
+    # turned legs and their feet
+    for sx in (1, -1):
+        for sz in (1, -1):
+            parts += [part("cyl", [0.56 * sx, -0.70, 0.32 * sz], [0.12, 0.36, 0.12], EA24_WOOD_DARK),
+                      part("sph", [0.56 * sx, -0.62, 0.32 * sz], [0.16, 0.10, 0.16], EA24_WOOD),
+                      part("sph", [0.56 * sx, -0.86, 0.32 * sz], [0.15, 0.08, 0.15], EA24_WOOD_DARK)]
+    # the eggs: hens', a duck's, a goose's -- two of them hatching, one pipping
+    for x, z, c, w, speck in ((-0.40, 0.17, EA24_SHELL, 0.24, False),
+                              (0.14, 0.17, EA24_DUCK_EGG, 0.24, False),
+                              (0.40, 0.17, EA24_BROWN_EGG, 0.24, True),
+                              (-0.40, -0.15, WHITE, 0.30, False),
+                              (-0.13, -0.15, EA24_BROWN_EGG, 0.24, True),
+                              (0.40, -0.15, EA24_SHELL, 0.23, True)):
+        parts += _ea24_egg([x, tray_y, z], w, c, speck)
+    # pipping: a beak through a hole in the brown egg at the front
+    parts += [part("sph", [0.40, tray_y + 0.20, 0.285], [0.08, 0.07, 0.03], "#3a2a1a"),
+              place("cone", [0.40, tray_y + 0.20, 0.31], [0.05, 0.06, 0.05], EA24_BEAK,
+                    r=[PI / 2, 0, 0])]
+    # hatching: a chick and a gosling out through the tops of theirs
+    for x, z, c, shell, yaw in ((-0.14, 0.17, EA24_CHICK, EA24_SHELL, 0.3),
+                                (0.13, -0.15, EA24_GOSLING, EA24_DUCK_EGG, -0.4)):
+        k = 0.26 / EGG_W
+        parts.append(place("crackedshell", [x, tray_y, z], [k, k, k], shell, anchor=[0, 0, 0]))
+        parts += [p for p in _ea24_chick([x, tray_y + 0.02, z], 0.36, yaw, c)
+                  if p["p"][1] > tray_y + 0.18]
+        parts.append(place("ea_eggtop", [x + 0.17, tray_y, z + 0.02], [k, k, k], shell,
+                           anchor=[0, 0.69, 0], r=[0.3, 0.5, 1.6]))
+    # and one already out, sat on top of the dome where it is warm
+    parts += _ea24_chick([0.22, tray_y + 0.52, 0.10], 0.30, 0.5, lid=1)
+    return parts
+
+
+@EA24.key_model("Egg Tooth Key",
+                "A brass key with a chick for a bow, still sat in the bottom of its "
+                "shell, and the bit cut with an egg tooth -- the little point a chick "
+                "chips its way out with. Opens one Incubator, tap by tap.",
+                shoulder=-0.30)
+def _():
+    k = 0.40 / EGG_W
+    parts = [
+        place("crackedshell", [-0.62, -0.24, 0], [k, k, k], EA24_SHELL, anchor=[0, 0, 0]),
+        part("cyl", [0.06, 0, 0], [0.09, 0.92, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.30, 0, 0], [0.20, 0.20, 0.20], GOLD_DARK, [0, 0, PI / 2], m="metal"),
+        part("rbox", [-0.40, 0.0, 0], [0.12, 0.10, 0.08], BRASS, m="metal"),
+        # the bit: two wards and the egg tooth on the tip
+        part("rbox", [0.34, -0.11, 0], [0.07, 0.16, 0.07], BRASS, m="metal"),
+        part("rbox", [0.44, -0.14, 0], [0.07, 0.22, 0.07], BRASS, m="metal"),
+        place("tri", [0.56, 0.0, 0], [0.12, 0.14, 0.6], "#fff8e8", r=[0, 0, -PI / 2]),
+    ]
+    parts += [p for p in _ea24_chick([-0.62, -0.20, 0], 0.50, 0.0) if p["p"][1] > -0.04]
+    return parts
+
+
+@EA24.hat("broody_hen", "Broody Hen",
+          "She has sat down on your head, and she is not getting up until everything "
+          "under her has hatched. You are what is under her. Her chicks peep out from "
+          "under her wings to see how you are getting on.", "legendary")
+def _():
+    parts = [
+        cap(-0.26, 0.12, EA24_STRAW, grow=0.06, decal="ea_straw", wrap=True),
+        ringband(-0.20, 0.20, shade(EA24_STRAW, 0.85), margin=0.07, decal="ea_straw", wrap=True),
+    ]
+    parts += _ea24_hen([0, 0.06, -0.02], 0.92)
+    # straws poking out of the nest all round
+    parts += around(14, 0.86, 0.06, lambda a, x, z: rod(
+        [x * 0.98, 0.04, z * 0.95], [x * 1.18, 0.14 + 0.05 * math.sin(a * 3), z * 1.12], 0.03,
+        shade(EA24_STRAW, 1.05 if int(round(a * 14 / TAU)) % 2 else 0.85)), start=0.1)
+    # her chicks, peeping out from under her wings
+    parts += _ea24_chick([0.50, 0.10, 0.34], 0.36, 0.4)
+    parts += _ea24_chick([-0.50, 0.10, 0.36], 0.33, -0.5)
+    return parts
+
+
+@EA24.hat("eggshell", "Just Hatched",
+          "The top of the shell you came out of, still on your head where it landed. "
+          "Everybody else took theirs off. Everybody else did not think it was a good "
+          "look.", "uncommon")
+def _():
+    k = 1.62
+    tilt = [0.10, 0.0, -0.22]
+    parts = [place("ea_eggtop", [0.02, 0.06, 0], [k, k, k], EA24_SHELL, anchor=[0, 0.69, 0],
+                   r=tilt, decal="ea24_speckle", wrap=True)]
+    # a wisp of down and a stalk of straw stuck to it
+    tip = rotate([0, (1.30 - 0.69) * k, 0], tilt)
+    parts += [place("feather", [0.02 + tip[0] - 0.10, 0.06 + tip[1] - 0.20, 0.32],
+                    [0.9, 0.36, 1.0], "#fff8de", r=[-0.5, 0.2, 0.9], decal="ea24_down"),
+              rod([-0.46, 0.34, 0.50], [0.10, 0.56, 0.56], 0.03, EA24_STRAW)]
+    return parts
+
+
+@EA24.hat("brooder_lamp", "Brooder Lamp",
+          "The heat lamp off the incubator, worn like a lampshade at a party, the "
+          "bulb still on and a chick asleep on top because it is the warmest place in "
+          "the barn. The plug is somewhere down your back.", "rare")
+def _():
+    shade_ = dome(-0.32, 0.76, EA24_ALU, m="metal", decal="ea24_reflector", wrap=True)
+    top = shade_["p"][1] + shade_["s"][1] / 2
+    rim = shade_["s"][0] / 2
+    parts = [
+        shade_,
+        place("ring", [0, -0.35, 0], [rim * 2 + 0.10, 0.45, rim * 2 * 0.97 + 0.10],
+              shade(EA24_ALU, 0.8), anchor=[0, 0, 0], m="metal"),
+        part("torus", [0, -0.34, 0], [rim * 2 - 0.04, 0.30, (rim * 2 - 0.04) * 0.97], EA24_LAMP,
+             m="neon"),
+        # the socket, its switch, and the chain it hangs by
+        part("cyl", [0, top + 0.08, 0], [0.32, 0.20, 0.32], "#2a2420"),
+        part("cyl", [0, top + 0.20, 0], [0.22, 0.08, 0.22], "#2a2420"),
+        part("sph", [0.17, top + 0.10, 0.04], [0.06, 0.06, 0.06], "#ff3a2a", m="neon"),
+    ]
+    for n in range(3):
+        parts.append(part("torus", [0, top + 0.32 + n * 0.12, 0], [0.12, 0.10, 0.16], SILVER,
+                          [PI / 2, (n % 2) * PI / 2, 0], m="metal"))
+    parts.append(place("hook", [0, top + 0.66, 0], [0.30, 0.30, 0.30], SILVER, r=[0, PI / 2, 0],
+                       m="metal"))
+    # the cord, down over the back of the shade to the plug
+    cord = [[0.04, top + 0.06, -0.16]]
+    for y in (top - 0.08, top - 0.30, 0.0, -0.22):
+        cord.append(_ea24_on_dome(shade_, y, PI - 0.15, 0.04))
+    cord += [[cord[-1][0], -0.62, cord[-1][2] - 0.02], [cord[-1][0] + 0.02, -0.86, cord[-1][2] - 0.04]]
+    for a, b in zip(cord, cord[1:]):
+        parts.append(rod(a, b, 0.05, "#2a2420"))
+    end = cord[-1]
+    parts += [part("rbox", [end[0], end[1] - 0.10, end[2]], [0.14, 0.16, 0.10], "#2a2420"),
+              part("rbox", [end[0] - 0.035, end[1] - 0.22, end[2]], [0.02, 0.10, 0.03], BRASS, m="metal"),
+              part("rbox", [end[0] + 0.035, end[1] - 0.22, end[2]], [0.02, 0.10, 0.03], BRASS, m="metal")]
+    # a thermometer clipped to the rim, and the sleeper on top
+    side = _ea24_on_dome(shade_, -0.30, 1.30, 0.03)
+    parts += [part("rbox", [side[0], -0.46, side[2]], [0.03, 0.34, 0.09], WHITE, [0, 1.30, 0]),
+              part("rbox", [side[0] + 0.01, -0.44, side[2]], [0.02, 0.26, 0.02], "#e0302a", [0, 1.30, 0]),
+              part("sph", [side[0] + 0.01, -0.61, side[2]], [0.06, 0.06, 0.06], "#e0302a")]
+    parts += _ea24_chick(_ea24_on_dome(shade_, top - 0.06, -0.9, -0.05), 0.34, 0.6, eyes="shut")
+    return parts
+
+
+@EA24.hat("puddle_duck", "Puddle Duck Cap",
+          "A white cap with an orange bill for a peak, two button eyes and the drake's "
+          "curl on top. Anyone who meets you will say 'quack'. Everyone who meets you "
+          "will say 'quack'.", "uncommon")
+def _():
+    crown = dome(-0.30, 0.84, EA24_GOOSE, t="capcrown", decal="felt", wrap=True)
+    top = crown["p"][1] + crown["s"][1] / 2
+    parts = [
+        crown,
+        ringband(-0.22, 0.10, shade(EA24_GOOSE, 0.88), margin=0.05),
+        # the bill: a broad flat peak and its rounded tip, nostrils on top
+        place("peak", [0, -0.20, 0.0], [1.20, 1.8, 1.90], EA24_BEAK, anchor=[0, 0, 0]),
+        part("sph", [0, -0.25, 1.30], [0.92, 0.12, 0.30], EA24_BEAK),
+        part("rbox", [0.10, -0.15, 0.98], [0.06, 0.02, 0.10], "#b85a10"),
+        part("rbox", [-0.10, -0.15, 0.98], [0.06, 0.02, 0.10], "#b85a10"),
+        part("cyl", [0, top + 0.01, 0], [0.12, 0.03, 0.12], shade(EA24_GOOSE, 0.85)),
+    ]
+    for s in (1, -1):
+        eye = _ea24_on_dome(crown, 0.08, 0.36 * s, 0.0)
+        parts += [part("sph", eye, [0.26, 0.28, 0.12], WHITE, [0, 0.36 * s, 0]),
+                  part("sph", [eye[0] + math.sin(0.36 * s) * 0.05, eye[1] - 0.02,
+                               eye[2] + math.cos(0.36 * s) * 0.05],
+                       [0.12, 0.14, 0.06], BLACK, [0, 0.36 * s, 0])]
+    # the drake's curl
+    parts.append(place("spiral", [0, top - 0.02, -0.10], [0.22, 0.30, 0.22], "#3a8a5a",
+                       anchor=[0, 0, 0], r=[-0.3, 0, 0]))
+    return parts
+
+
+@EA24.hat("barn_roof", "Weathervane Barn",
+          "The big red barn, gambrel roof, X-braced door and all, with the hay still "
+          "in the loft and the rooster on the weathervane pointing whichever way the "
+          "wind is blowing. It is blowing out of the barn, mostly.", "legendary")
+def _():
+    wall, eave, knee, ridge = 0.30, [0.90, 0.30], [0.64, 0.66], [0.0, 0.86]
+    depth = 1.80
+    parts = [part("rbox", [0, 0.0, 0], [1.74, 0.62, 1.62], EA24_BARN, decal="ea24_barnboards",
+                  wrap=True)]
+    # white corner boards
+    parts += [part("rbox", [0.87 * sx, 0.0, 0.81 * sz], [0.08, 0.64, 0.08], EA24_TRIM)
+              for sx in (1, -1) for sz in (1, -1)]
+
+    def slab(a, b, side):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        rz = math.atan2(-dx, dy)
+        n = [math.cos(rz), math.sin(rz)]
+        mid = [(a[0] + b[0]) / 2 + n[0] * 0.035, (a[1] + b[1]) / 2 + n[1] * 0.035]
+        return part("rbox", [mid[0] * side, mid[1], 0], [0.07, length + 0.06, depth], EA24_ROOF,
+                    [0, 0, rz * side], decal="ea24_shingles", wrap=True)
+    for side in (1, -1):
+        parts += [slab(eave, knee, side), slab(knee, ridge, side)]
+    # the gable ends: the barn red up to the roof, a hayloft door in each
+    for sz in (1, -1):
+        z = 0.80 * sz
+        parts += [
+            part("rbox", [0, 0.39, z], [1.54, 0.18, 0.04], EA24_BARN, decal="ea24_barnboards"),
+            part("rbox", [0, 0.57, z], [1.28, 0.18, 0.04], EA24_BARN, decal="ea24_barnboards"),
+            place("tri", [0, 0.66, z], [1.28, 0.20 / 0.9, 0.34], EA24_BARN, anchor=[0, -0.40, 0]),
+        ]
+    # the big door, X-braced in white
+    f = 0.82
+    parts += [
+        part("rbox", [0, -0.05, f], [0.60, 0.50, 0.02], "#8a2018", decal="ea24_barnboards"),
+        part("rbox", [0, 0.21, f + 0.01], [0.66, 0.05, 0.03], EA24_TRIM),
+        part("rbox", [0, -0.30, f + 0.01], [0.66, 0.05, 0.03], EA24_TRIM),
+        part("rbox", [0.31, -0.05, f + 0.01], [0.05, 0.54, 0.03], EA24_TRIM),
+        part("rbox", [-0.31, -0.05, f + 0.01], [0.05, 0.54, 0.03], EA24_TRIM),
+        rod([-0.28, -0.28, f + 0.02], [0.28, 0.19, f + 0.02], 0.045, EA24_TRIM, t="rbox"),
+        rod([0.28, -0.28, f + 0.02], [-0.28, 0.19, f + 0.02], 0.045, EA24_TRIM, t="rbox"),
+        # the hayloft, and the hay coming out of it
+        part("rbox", [0, 0.56, f], [0.30, 0.24, 0.02], "#3a1a10"),
+        part("rbox", [0, 0.56, f + 0.005], [0.36, 0.30, 0.01], EA24_TRIM),
+    ]
+    for n, (x, lean) in enumerate(((-0.08, 0.4), (0.0, 0.0), (0.08, -0.4), (0.04, 0.2))):
+        parts.append(place("teardrop", [x, 0.50, f + 0.03], [0.06, 0.18, 0.05],
+                           shade(EA24_STRAW, 1.0 if n % 2 else 0.85), anchor=[0, 1.0, 0],
+                           r=[PI - 0.5, 0, lean]))
+    # the cupola on the ridge, and the weathervane on top of it
+    parts += [
+        part("rbox", [0, 0.98, 0], [0.30, 0.24, 0.30], EA24_TRIM),
+        part("rbox", [0, 0.98, 0.152], [0.18, 0.14, 0.01], "#3a1a10"),
+        place("cone", [0, 1.16, 0], [0.44, 0.18, 0.44], EA24_ROOF),
+        part("cyl", [0, 1.42, 0], [0.03, 0.40, 0.03], IRON, m="metal"),
+        part("cyl", [0, 1.40, 0], [0.025, 0.40, 0.025], IRON, [0, 0, PI / 2], m="metal"),
+        part("cyl", [0, 1.40, 0], [0.025, 0.40, 0.025], IRON, [PI / 2, 0, 0], m="metal"),
+    ]
+    parts += [part("sph", p, [0.05, 0.05, 0.05], GOLD, m="metal")
+              for p in ([0.20, 1.40, 0], [-0.20, 1.40, 0], [0, 1.40, 0.20], [0, 1.40, -0.20])]
+    # the rooster, cut from sheet iron, crowing into the wind
+    vane = [
+        part("sph", [0.0, 1.70, 0], [0.30, 0.18, 0.04], BLACK, [0, 0, 0.25]),
+        part("sph", [0.15, 1.82, 0], [0.11, 0.12, 0.04], BLACK),
+        place("tri", [0.24, 1.83, 0], [0.08, 0.06, 0.3], BLACK, r=[0, 0, -PI / 2]),
+        place("tri", [0.15, 1.91, 0], [0.10, 0.07, 0.3], "#c42a22"),
+        place("fan", [-0.14, 1.78, 0], [0.30, 0.50, 0.6], BLACK, anchor=[0, 0, 0], r=[0, 0, 0.6]),
+        part("rbox", [0.0, 1.61, 0], [0.025, 0.12, 0.03], BLACK),
+        place("arrow", [0.0, 1.55, 0], [0.30, 0.56, 0.4], BLACK, r=[0, 0, -PI / 2]),
+    ]
+    return parts + vane
+
+
+@EA24.hat("rooster_comb", "Cock-a-Doodle Crest",
+          "A great red comb on an elastic band and a wattle clipped on either side. "
+          "Whoever wears it is up first. Every morning. Loudly. Sorry.", "uncommon",
+          hair="show")
+def _():
+    band_c = "#c42a22"
+    parts = [
+        part("rbox", [0, 0.035, 0], [1.00, 0.07, 0.16], band_c),
+        *sides(lambda s: [
+            part("rbox", [0.62 * s, -0.035, 0], [0.34, 0.07, 0.16], band_c, [0, 0, 0.55 * s]),
+            part("rbox", [0.775 * s, -0.40, 0], [0.07, 0.58, 0.16], band_c),
+            place("teardrop", [0.80 * s, -0.66, 0.02], [0.16, 0.30, 0.10], EA24_COMB,
+                  anchor=[0, 1.0, 0], r=[PI, 0, 0.12 * s]),
+        ]),
+        part("capsule", [0, 0.11, 0], [0.18, 0.88, 0.18], EA24_COMB, [PI / 2, 0, 0]),
+    ]
+    # the comb: five lobes, the tallest in the middle, leaning back a touch
+    for z, h, w in ((0.36, 0.28, 0.24), (0.18, 0.40, 0.28), (0.0, 0.48, 0.30),
+                    (-0.18, 0.42, 0.28), (-0.36, 0.32, 0.24)):
+        parts.append(part("sph", [0, 0.10 + h / 2, z - 0.04 * h], [0.14, h, w],
+                          EA24_COMB if int(round(z * 10)) % 2 == 0 else shade(EA24_COMB, 1.1),
+                          [-0.15, 0, 0], m="glass"))
+    return parts
+
+
+@EA24.hat("feed_sack", "Chick Crumb Sack",
+          "An empty sack of chick crumb, turned up at the edge and tied at the top. "
+          "It still smells of breakfast. Every chick in the barn knows it, and follows "
+          "it, everywhere.", "uncommon")
+def _():
+    parts = [
+        cap(-0.30, 0.22, EA24_BURLAP, grow=0.06, decal="ea24_burlap", wrap=True),
+        ringband(-0.22, 0.16, shade(EA24_BURLAP, 0.9), margin=0.08, decal="ea24_burlap", wrap=True),
+        part("box", [0.0, 0.0, 0.825], [0.70, 0.36, 0.02], "#000000", decal="ea24_feedlabel", a=-1),
+    ]
+    # the top, gathered up, twisted and tied, flopping over to one side
+    lean = [0.10, 0.0, -0.55]
+    base = [0.06, 0.18, -0.04]
+    parts.append(place("teardrop", base, [0.86, 0.66, 0.78], EA24_BURLAP, anchor=[0, 0, 0], r=lean,
+                       decal="ea24_burlap", wrap=True))
+    neck = rotate([0, 0.52, 0], lean)
+    tie = [base[0] + neck[0], base[1] + neck[1], base[2] + neck[2]]
+    parts.append(part("torus", tie, [0.20, 0.16, 0.20], "#c9a26a", lean, decal="ea_twine", wrap=True))
+    for n in range(5):
+        a = n * TAU / 5
+        flop = rotate([math.sin(a) * 0.08, 0.14, math.cos(a) * 0.08], lean)
+        parts.append(place("leaf", [tie[0] + flop[0], tie[1] + flop[1], tie[2] + flop[2]],
+                           [0.70, 0.26, 1.0], shade(EA24_BURLAP, 1.0 if n % 2 else 0.9),
+                           anchor=[0, -0.5, 0], r=[lean[0] + math.cos(a) * 0.7, a, lean[2] - math.sin(a) * 0.7],
+                           decal="ea24_burlap"))
+    # a few crumbs caught in the turn-up
+    for x, z in ((0.50, 0.70), (-0.30, 0.82), (0.84, 0.20), (-0.70, -0.50)):
+        parts.append(part("sph", [x, -0.12, z], [0.05, 0.04, 0.05], "#f2dca0"))
+    return parts
+
+
+@EA24.back("goose_pack", "Hitchhiking Goose",
+           "A rucksack with a goose in it. You did not put the goose in it. The goose "
+           "does not want to get out of it. The goose would like a word with whoever is "
+           "behind you, and the word is HONK.", "legendary")
+def _():
+    canvas, strap = "#6a7a4a", "#4a5a32"
+    parts = straps(strap) + [
+        part("rbox", [0, 0.28, -0.42], [1.10, 0.96, 0.70], canvas, decal="canvas", wrap=True),
+        part("rbox", [0, 0.78, -0.42], [1.16, 0.08, 0.76], shade(canvas, 0.85)),
+        part("rbox", [0, 0.06, -0.80], [0.72, 0.40, 0.10], shade(canvas, 1.08), decal="canvas"),
+        part("rbox", [0, 0.24, -0.86], [0.74, 0.08, 0.04], strap),
+        part("rbox", [0.20, 0.16, -0.86], [0.06, 0.20, 0.03], strap),
+        part("rbox", [-0.20, 0.16, -0.86], [0.06, 0.20, 0.03], strap),
+        part("rbox", [0.20, 0.06, -0.865], [0.10, 0.08, 0.02], BRASS, m="metal"),
+        part("rbox", [-0.20, 0.06, -0.865], [0.10, 0.08, 0.02], BRASS, m="metal"),
+        # the goose, sat in the top of it
+        part("sph", [0, 0.92, -0.45], [0.82, 0.56, 0.66], EA24_GOOSE, decal="ea24_plumage", wrap=True),
+        part("sph", [0.34, 0.94, -0.48], [0.18, 0.36, 0.56], "#e4e2dc", [0.2, 0, -0.2]),
+        part("sph", [-0.34, 0.94, -0.48], [0.18, 0.36, 0.56], "#e4e2dc", [0.2, 0, 0.2]),
+        place("teardrop", [0, 1.00, -0.76], [0.22, 0.26, 0.14], "#e4e2dc", anchor=[0, 0, 0],
+              r=[-1.1, 0, 0]),
+    ]
+    # its neck, up out of the bag and round past your right ear
+    neck = [[0.16, 1.02, -0.36], [0.50, 1.40, -0.44], [0.88, 1.80, -0.34], [0.98, 2.08, -0.10]]
+    for a, b in zip(neck, neck[1:]):
+        parts.append(rod(a, b, 0.20, EA24_GOOSE, t="capsule"))
+    parts += [part("sph", p, [0.20, 0.20, 0.20], EA24_GOOSE) for p in neck[1:]]
+    head = [1.00, 2.16, 0.02]
+    parts += [
+        part("sph", head, [0.28, 0.26, 0.36], EA24_GOOSE),
+        # the bill, wide open, and the knob on top of it
+        place("cone", [head[0], head[1] + 0.02, head[2] + 0.26], [0.14, 0.22, 0.10], EA24_BEAK,
+              r=[PI / 2 - 0.15, 0, 0]),
+        place("cone", [head[0], head[1] - 0.07, head[2] + 0.22], [0.11, 0.18, 0.07], "#e8801a",
+              r=[PI / 2 + 0.35, 0, 0]),
+        part("sph", [head[0], head[1] + 0.07, head[2] + 0.16], [0.08, 0.07, 0.07], "#e8801a"),
+        part("sph", [head[0] + 0.12, head[1] + 0.05, head[2] + 0.07], [0.05, 0.06, 0.05], BLACK),
+        part("sph", [head[0] - 0.12, head[1] + 0.05, head[2] + 0.07], [0.05, 0.06, 0.05], BLACK),
+    ]
+    # and a gosling, looking out of the front pocket
+    parts += [p for p in _ea24_chick([-0.22, -0.02, -0.86], 0.34, PI, EA24_GOSLING)
+              if p["p"][1] > 0.18]
+    return parts
+
+
+@EA24.back("hay_bale", "Hay Bale",
+           "A bale of good dry straw on your back, with the pitchfork still in it and "
+           "a chick asleep on top. You are, for all practical purposes, a bed now.",
+           "rare")
+def _():
+    twine = "#a8743a"
+    parts = straps("#7a5426") + [
+        part("rbox", [0, 0.28, -0.42], [1.36, 0.80, 0.66], EA24_STRAW, decal="ea24_hay", wrap=True),
+        part("rbox", [0.36, 0.28, -0.42], [0.05, 0.82, 0.68], twine),
+        part("rbox", [-0.36, 0.28, -0.42], [0.05, 0.82, 0.68], twine),
+        part("rbox", [0, 0.40, -0.05], [0.30, 0.14, 0.10], "#7a5426"),
+    ]
+    # loose stalks sticking out of the ends
+    for n in range(10):
+        s = 1 if n % 2 else -1
+        y = 0.0 + (n // 2) * 0.13
+        z = -0.20 - ((n * 7) % 5) * 0.10
+        parts.append(rod([0.66 * s, y, z], [0.84 * s, y + 0.05 * ((n % 3) - 1), z - 0.04], 0.025,
+                         shade(EA24_STRAW, 0.9 + 0.1 * (n % 3))))
+    # the pitchfork, stuck in the top and leaning off over your shoulder
+    base, top = [0.26, 0.60, -0.50], [0.92, 1.92, -0.66]
+    parts += [rod(base, top, 0.07, "#a8743a"),
+              rod([top[0] - 0.02, top[1] - 0.04, top[2]], [top[0] + 0.06, top[1] + 0.12, top[2] - 0.01],
+                  0.09, "#8a5a2a")]
+    d = [top[i] - base[i] for i in range(3)]
+    length = math.sqrt(sum(v * v for v in d))
+    u = [v / length for v in d]
+    cross = [base[i] + u[i] * 0.04 for i in range(3)]
+    parts.append(rod([cross[0] - 0.16, cross[1] + 0.08, cross[2]], [cross[0] + 0.16, cross[1] - 0.08, cross[2]],
+                     0.05, IRON, m="metal"))
+    for dx in (-0.14, 0.0, 0.14):
+        p0 = [cross[0] + dx, cross[1] - dx * 0.5, cross[2]]
+        parts.append(rod(p0, [p0[0] - u[0] * 0.26, p0[1] - u[1] * 0.26, p0[2] - u[2] * 0.26], 0.035,
+                         IRON, m="metal"))
+    # a red bandana tied round the handle
+    mid = [base[i] + d[i] * 0.62 for i in range(3)]
+    parts += [part("cyl", mid, [0.12, 0.10, 0.12], "#c42a22",
+                   [math.acos(u[1]), math.atan2(u[0], u[2]), 0], decal="ea24_flannel", wrap=True),
+              place("tri", [mid[0] + 0.07, mid[1] - 0.12, mid[2]], [0.16, 0.20, 0.4], "#c42a22",
+                    r=[0, 0, PI + 0.3])]
+    # and the sleeper on top of it all
+    parts += _ea24_chick([-0.34, 0.68, -0.40], 0.34, 0.3, eyes="shut")
+    return parts
+
+
+@EA24.hairdo("silkie_puff", "Silkie Pompom",
+             "The great white powder-puff crest of a silkie hen, the fluffiest chicken "
+             "there is, and a pair of turquoise ear clips because silkies have "
+             "turquoise ears. Look it up.", "uncommon")
+def _():
+    c = "#fbf6ec"
+    parts = [place("hairshort", [0, 0, 0], [1.04, 1.04, 1.04], c, anchor=[0, 0, 0],
+                   decal="ea24_down", wrap=True),
+             part("sph", [0, 0.70, 0.02], [0.82, 0.58, 0.78], c, decal="ea24_down", wrap=True)]
+    parts += around(8, 0.34, 0.0, lambda a, x, z: part(
+        "sph", [x, 0.62 + 0.04 * math.cos(a), z * 0.95 + 0.02], [0.34, 0.30, 0.32],
+        c if int(round(a * 8 / TAU)) % 2 else shade(c, 0.95), decal="ea24_down", wrap=True), start=0.2)
+    parts += [part("sph", [0.12, 0.98, 0.04], [0.30, 0.22, 0.28], c, decal="ea24_down", wrap=True),
+              part("sph", [-0.10, 0.96, -0.06], [0.26, 0.20, 0.26], c, decal="ea24_down", wrap=True),
+              part("sph", [0.0, 0.52, 0.46], [0.40, 0.22, 0.20], c, decal="ea24_down", wrap=True)]
+    parts += sides(lambda s: [part("sph", [0.565 * s, -0.10, 0.06], [0.06, 0.16, 0.12], "#2fc8c0",
+                                   m="glass")])
+    return parts
+
+
+@EA24.hairdo("ducks_tail", "Duck's Tail",
+             "A greased black pompadour: the quiff up front, a kiss curl on the brow and "
+             "the back combed in from both sides to meet like the tail of a duck. Takes "
+             "two hours and a whole tin of brilliantine.", "rare")
+def _():
+    c = "#1c1816"
+    parts = [
+        place("hairmid", [0, 0, 0], [1.04, 1.02, 1.05], c, anchor=[0, 0, 0], decal="strands",
+              wrap=True),
+        # the quiff, swept up off the brow and rolled forward
+        part("sph", [0, 0.67, 0.14], [0.86, 0.38, 0.70], c, [-0.30, 0, 0], decal="strands", wrap=True),
+        part("sph", [0, 0.66, 0.42], [0.70, 0.34, 0.36], c, [-0.70, 0, 0], decal="strands", wrap=True),
+        part("capsule", [0, 0.70, 0.54], [0.18, 0.62, 0.18], shade(c, 1.5), [0, 0, PI / 2], m="glass"),
+        # the kiss curl
+        place("spiral", [0.10, 0.38, 0.57], [0.10, 0.12, 0.06], c, r=[PI / 2, 0, 0]),
+    ]
+    # the duck's tail: both sides combed in to meet in a seam down the back,
+    # flicking up where they meet
+    for s in (1, -1):
+        parts.append(part("sph", [0.17 * s, 0.02, -0.57], [0.38, 0.92, 0.16], c, [0.0, -0.30 * s, 0.20 * s],
+                          decal="strands", wrap=True))
+    parts.append(place("teardrop", [0, -0.38, -0.60], [0.22, 0.26, 0.12], c, anchor=[0, 0, 0],
+                       r=[-2.3, 0, 0], decal="strands", wrap=True))
+    return parts
+
+
+EA24.face("peep", "Peep!",
+          "Two great round eyes, a little beak open for the first word anyone ever says, "
+          "and the word is 'peep'. Everything is new. Everything is a mother.", [
+              {"k": "ellipse", "x": -0.19, "y": -0.12, "w": 0.16, "h": 0.19, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.19, "y": -0.12, "w": 0.16, "h": 0.19, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.16, "y": -0.16, "w": 0.06, "h": 0.07, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.22, "y": -0.16, "w": 0.06, "h": 0.07, "c": "#ffffff"},
+              {"k": "ellipse", "x": -0.21, "y": -0.07, "w": 0.025, "h": 0.025, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.17, "y": -0.07, "w": 0.025, "h": 0.025, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.0, "y": 0.13, "w": 0.13, "h": 0.06, "c": "#7a2a1a"},
+              {"k": "poly", "pts": [[-0.10, 0.03], [0.10, 0.03], [0.0, 0.12]], "c": "#ff9a1a"},
+              {"k": "poly", "pts": [[-0.08, 0.15], [0.08, 0.15], [0.0, 0.22]], "c": "#e0781a"},
+              {"k": "ellipse", "x": -0.33, "y": 0.05, "w": 0.11, "h": 0.06, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.33, "y": 0.05, "w": 0.11, "h": 0.06, "c": "#ff9aa8"},
+          ], "uncommon")
+EA24.face("up_with_the_rooster", "Up With the Rooster",
+          "Half past four in the morning. One eye open, one still asleep, a yawn you "
+          "could post a letter in. The rooster is very pleased with himself.", [
+              {"k": "arc", "x": -0.19, "y": -0.13, "r": 0.07, "a0": 0.05, "a1": 0.45, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": 0.19, "y": -0.10, "w": 0.12, "h": 0.07, "c": "#16171b"},
+              {"k": "line", "x1": 0.10, "y1": -0.135, "x2": 0.28, "y2": -0.13, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "arc", "x": -0.19, "y": -0.10, "r": 0.10, "a0": 0.12, "a1": 0.38, "w": 0.02,
+               "c": "#8a6a9a"},
+              {"k": "arc", "x": 0.19, "y": -0.08, "r": 0.10, "a0": 0.12, "a1": 0.38, "w": 0.02,
+               "c": "#8a6a9a"},
+              {"k": "ellipse", "x": 0.0, "y": 0.17, "w": 0.15, "h": 0.21, "c": "#3a1414"},
+              {"k": "ellipse", "x": 0.0, "y": 0.235, "w": 0.10, "h": 0.06, "c": "#e05a6a"},
+              {"k": "line", "x1": 0.30, "y1": -0.42, "x2": 0.40, "y2": -0.42, "w": 0.02, "c": "#4a5ab0"},
+              {"k": "line", "x1": 0.40, "y1": -0.42, "x2": 0.30, "y2": -0.34, "w": 0.02, "c": "#4a5ab0"},
+              {"k": "line", "x1": 0.30, "y1": -0.34, "x2": 0.40, "y2": -0.34, "w": 0.02, "c": "#4a5ab0"},
+          ], "rare")
+EA24.shirt("hatchery_flannel", "Hatchery Hand's Flannel",
+           "A red check work shirt with the hatchery's patch on it and a chick living in "
+           "the pocket. It came with the shirt. It is not leaving with the shirt.",
+           {"torso": "#a8302a", "arms": "#a8302a", "decal": "ea24_tee_pocket",
+            "weave": "ea24_flannel"}, "rare")
+EA24.pants("chicken_legs", "Chicken Legs",
+           "Feathered drumsticks above, yellow and scaly below, three toes apiece. "
+           "Very comfortable. Nobody will take you seriously ever again.",
+           {"legs": "#f4efe4", "weave": "ea24_drumsticks", "cuff": "#e8901a"})
+EA24.belt("follow_my_leader", "Follow-My-Leader Belt",
+          "Green webbing with a line of chicks marching round and round it, each one "
+          "sure the one in front knows where they are going, and a pocket thermometer "
+          "on a chain.",
+          {"band": "#4f8a3a", "buckle": BRASS, "width": 0.22, "metal": True,
+           "weave": "ea24_chickrow", "chain": GOLD})
+
+
+EA24_CHICK_MINION = {
+    "name": "Chick", "model": "parts", "count": 5, "hp": 15, "speed": 22, "damage": 4,
+    "reach": 3.0, "rate": 0.55, "secs": 14, "sight": 60, "scale": 0.5,
+    "on_hit": {"mark": [0.15, 3.0]},
+    "parts": _ea24_chick([0, 0, 0], 3.0),
+}
+
+
+@EA24.weapon("pecking_order", "The Pecking Order",
+             "Mother Hen, tucked under your arm. Point her at somebody and she clucks, "
+             "and five chicks come tumbling out of her feathers to peck them about the "
+             "ankles until they understand exactly where they stand.",
+             {"kind": "summon", "cooldown": 24, "sound": "crow"},
+             [["+", "Five chicks run at the nearest enemy and peck: 4 a peck, nearly two "
+                    "pecks a second each"],
+              ["+", "Pecked is marked: anyone they peck takes 15% more damage from "
+                    "everybody for 3 seconds"],
+              ["-", "15 health apiece: one stray shot and a chick is gone"],
+              ["-", "They lose interest after 14 seconds; 24 second cooldown"]],
+             rarity="legendary", minion=EA24_CHICK_MINION)
+def _():
+    parts = _ea24_hen([0, -0.26, 0.24], 0.56)
+    parts += [p for p in _ea24_chick([0.26, -0.22, 0.36], 0.24, 0.5) if p["p"][1] > -0.14]
+    parts += [p for p in _ea24_chick([-0.25, -0.22, 0.34], 0.22, -0.6) if p["p"][1] > -0.14]
+    return parts
+
+
+def _ea24_goose_egg(k=1.0, flying=False):
+    """The nest egg: a speckled goose egg with a coin slot in the top and a
+    coin half in it -- upright, or (``flying``) lying along +Z."""
+    w = 0.40 * k
+    s = w / EGG_W
+    parts = [place("egg", [0, 0, 0], [s, s, s], "#f8f2e4", anchor=[0, 0, 0], decal="ea24_speckle",
+                   wrap=True),
+             part("rbox", [0, EGG_H * s - 0.01 * k, 0], [0.10 * k, 0.03 * k, 0.025 * k], "#3a2a1a"),
+             part("disc", [0, EGG_H * s + 0.03 * k, 0], [0.09 * k, 0.09 * k, 0.02 * k], GOLD, m="metal")]
+    if flying:
+        return at_frame(parts, [0, 0, -EGG_H * s / 2], [PI / 2, 0, 0])
+    return parts
+
+
+@EA24.weapon("nest_egg", "Nest Egg",
+             "A goose egg the size of your head with a coin slot in the top: everything "
+             "you were saving for a rainy day. Throw it and it pays out -- yolk in the "
+             "face of whoever it hits, and five little eggs bursting out all over "
+             "everybody near them.",
+             {"kind": "projectile", "projectile": "nestegg", "damage": 20, "splash": 4.5,
+              "splash_damage": 22, "rpm": 40, "mag": 1, "reload": 1.6, "speed": 46,
+              "range": 220, "auto": False, "sound": "throw", "recoil": 1.0, "reserve": 16,
+              "gravity_scale": 1.25, "self_damage": 0.3, "knockback": 8,
+              "on_hit": {"blind": [1.0, "light"]},
+              "cluster": {"count": 5, "damage": 18, "radius": 4.0, "speed": 16,
+                          "projectile": "eggling", "color": "#fff1d0",
+                          "on_hit": {"slow": [0.30, 2.0]}},
+              "trail_colors": ["#fff1d0", "#ffd23a"]},
+             [["+", "A direct hit gets yolk in their eyes: blinded for a second"],
+              ["+", "Cracks open into five little eggs that burst for 18 each and leave "
+                    "everyone they hit slowed by 30% for 2 seconds"],
+              ["-", "The goose egg itself only bursts for 22"],
+              ["-", "One at a time, lobbed: it drops"],
+              ["-", "Your own savings can hurt you"]], rarity="legendary",
+             proj=lambda: _ea24_goose_egg(1.4, flying=True))
+def _():
+    parts = [
+        place("bowl", [0, -0.14, 0.34], [0.64, 0.42, 0.64], EA24_STRAW, anchor=[0, 0, 0],
+              decal="ea_straw", wrap=True),
+        part("torus", [0, 0.10, 0.34], [0.70, 0.70, 0.70], shade(EA24_STRAW, 0.9), decal="ea_straw",
+             wrap=True),
+    ]
+    parts += at_frame(_ea24_goose_egg(1.0), [0, -0.04, 0.34])
+    for a in (0.4, 1.9, 3.3, 4.6):
+        parts.append(rod([math.sin(a) * 0.30, 0.10, 0.34 + math.cos(a) * 0.30],
+                         [math.sin(a) * 0.42, 0.20, 0.34 + math.cos(a) * 0.42], 0.025, EA24_STRAW))
+    return parts
+
+
+def _ea24_bulb(k=1.0):
+    """A red heat-lamp bulb lying along +Z: the brass screw at the back, the
+    big domed face glowing at the front."""
+    parts = [part("cyl", [0, 0, 0.06 * k], [0.16 * k, 0.16 * k, 0.16 * k], BRASS, [PI / 2, 0, 0],
+                  m="metal")]
+    for n in range(3):
+        parts.append(part("torus", [0, 0, (0.01 + n * 0.05) * k], [0.19 * k, 0.12 * k, 0.19 * k],
+                          GOLD_DARK, [PI / 2, 0, 0], m="metal"))
+    parts += [part("cyl", [0, 0, -0.05 * k], [0.10 * k, 0.06 * k, 0.10 * k], BLACK, [PI / 2, 0, 0]),
+              place("bell", [0, 0, 0.72 * k], [0.56 * k, 0.56 * k, 0.56 * k], "#c42a1a",
+                    anchor=[0, 0, 0], r=[-PI / 2, 0, 0], m="glass"),
+              part("sph", [0, 0, 0.72 * k], [0.55 * k, 0.55 * k, 0.16 * k], EA24_LAMP, m="neon"),
+              part("sph", [0.10 * k, 0.10 * k, 0.78 * k], [0.10 * k, 0.08 * k, 0.04 * k], "#ffd0a0",
+                   m="neon")]
+    return parts
+
+
+@EA24.weapon("brooder_bulb", "Brooder Bulb",
+             "The incubator's spare heat lamp, lobbed underarm. It goes off with a pop "
+             "and leaves the ground glowing like the floor of the brooder: your side "
+             "warm and mending in it, the other side warm and very, very sleepy.",
+             {"kind": "projectile", "projectile": "heatbulb", "damage": 14, "splash": 3.5,
+              "splash_damage": 16, "rpm": 50, "mag": 2, "reload": 2.2, "speed": 52,
+              "range": 200, "auto": False, "sound": "throw", "recoil": 0.6, "reserve": 16,
+              "gravity_scale": 1.2, "self_damage": 0.0, "knockback": 4,
+              "on_hit": {"burn": [4, 2.0]},
+              "ground_zone": {"radius": 7.0, "secs": 6.0, "color": "#ff8a3a",
+                              "particle": "ea24_down", "name": "Heat Lamp",
+                              "ally": {"regen": [6, 1.0]}, "enemy": {"slow": [0.30, 1.0]}},
+              "trail_colors": ["#ff8a3a", "#ffd0a0"]},
+             [["+", "Leaves a warm patch for 6 seconds: you and your team heal 6 a second "
+                    "in it"],
+              ["+", "Enemies in it are drowsy: 30% slower"],
+              ["+", "The hot glass singes: 4 burn a second for 2 seconds"],
+              ["-", "The pop itself is small: 16"],
+              ["-", "Two bulbs, then a careful reload"]], rarity="legendary",
+             proj=lambda: _ea24_bulb(1.3),
+             deploy=lambda: [
+                 *at_frame(_ea24_bulb(1.4)[:5], [0.3, 0.14, -0.2], [0, 0.8, 0]),
+                 *[place("tri", [math.sin(a) * 0.8, 0.06, math.cos(a) * 0.8], [0.30, 0.34, 0.6],
+                         "#c42a1a", r=[-PI / 2 + 0.2, a, 0.4 * (n % 2)], m="glass")
+                   for n, a in enumerate((0.3, 1.6, 2.7, 4.0, 5.2))],
+                 *[place("leaf", [math.sin(a) * r_, 0.03, math.cos(a) * r_], [1.2, 1.4, 1.0],
+                         shade(EA24_STRAW, 0.85 + 0.1 * (n % 3)), r=[-PI / 2, a, 0])
+                   for n, (a, r_) in enumerate(((0.9, 1.6), (2.0, 2.2), (3.1, 1.4), (4.3, 2.6),
+                                                 (5.5, 1.9), (0.2, 2.8)))]])
+def _():
+    return _ea24_bulb(1.0) + [part("rbox", [0, -0.06, -0.06], [0.12, 0.16, 0.10], "#2a2420")]
+
+
+@EA24.gear("coddler", "The Coddler",
+           "A porcelain egg coddler with a chick painted on it and a coddled egg inside, "
+           "still warm. Eat it and you are coddled: wrapped up, kept warm and very hard "
+           "to hurt for a little while. Your gran would approve.",
+           {"kind": "consume", "cooldown": 26, "sound": "eat",
+            "consume": {"shield": [45, 8.0], "regen": [4, 8.0]}},
+           [["+", "Coddled: the next 45 damage you take within 8 seconds is soaked up"],
+            ["+", "...and you mend 4 health a second while it lasts"],
+            ["-", "No instant healing at all"],
+            ["-", "26 second cooldown"]], rarity="rare")
+def _():
+    china = "#f8f6f0"
+    return [
+        part("cyl", [0, 0.10, 0.16], [0.36, 0.34, 0.36], china, decal="ea24_coddler", wrap=True),
+        part("sph", [0, -0.07, 0.16], [0.36, 0.14, 0.36], china),
+        part("torus", [0, 0.27, 0.16], [0.40, 0.40, 0.40], "#4a7ac8"),
+        # the screw lid and its wire ring
+        part("cyl", [0, 0.31, 0.16], [0.38, 0.08, 0.38], SILVER, m="metal"),
+        place("hemi", [0, 0.35, 0.16], [0.30, 0.16, 0.30], SILVER, anchor=[0, 0, 0], m="metal"),
+        part("torus", [0, 0.50, 0.16], [0.18, 0.18, 0.18], SILVER, [PI / 2, 0, 0], m="metal"),
+        # a spoon, at the ready
+        rod([0.22, -0.02, 0.00], [0.26, 0.40, 0.30], 0.03, SILVER, m="metal"),
+        part("sph", [0.27, 0.44, 0.33], [0.08, 0.04, 0.12], SILVER, [0.6, 0, 0], m="metal"),
+    ]
+
+
+EA24.effect("hatching_hour", name="Hatching Hour", rate=2.2, life=[1.4, 2.0],
+            size=[0.34, 0.46], grow=0.0, gravity=1.2, spread=0.35, rise=[1.0, 1.5],
+            blend="normal", spin=0.5, colors=["#ffd93a", "#fff4d0", "#ffc64a"],
+            shapes=["ea24_hatchling", "ea24_hatchling", "ea24_shell"], radius=0.8,
+            upright=True, wobble=0.4)
+EA24.effect("downy_drift", name="Downy Drift", rate=3.0, life=[2.2, 3.2],
+            size=[0.20, 0.32], grow=0.1, gravity=0.12, spread=0.7, rise=[0.2, 0.4],
+            blend="normal", spin=1.4, colors=["#fff6dc", "#ffe08a", "#ffc890"],
+            shapes=["ea24_down", "ea24_down", "puff"], radius=0.8, wobble=0.9)
+EA24.opening(
+    sky={"top": "#4a5ac8", "horizon": "#ffb878", "sun": [0.2, 0.25, 0.7], "clouds": 0.4,
+         "tint": "#ffe8cc"},
+    ambient="#ffd8a8", beam="#ffb04a", seep="downy_drift", after="hatching_hour",
+    burst=["#ffd93a", "#ffb04a", "#ffffff", "#e8c468"],
+    pieces=[{"shape": "chick", "colors": ["#ffd93a", "#ffe680", "#c9c07c"], "blend": "normal"},
+            {"shape": "ea24_shell", "colors": ["#fff4e0", "#f2dcc0", "#c8e6da"], "blend": "normal"},
+            {"shape": "ea24_down", "colors": ["#fff6dc", "#ffe08a"], "blend": "normal"},
+            {"shape": "feather", "colors": ["#b5562a", "#f4efe4"], "blend": "normal"}],
+    backdrop="ea24_barnyard", title_wait="Something is tapping on the inside...",
+    title_shake="Peep!")
+EA24.award("The Great Hatch", ["Egg Sitter", "Peeper", "Fledgling", "Brooder",
+                               "Top of the Pecking Order", "Mother Hen"],
+           "Opened Incubators during The Great Hatch, Easter 2024.", "em_chick", "egg")
+EA24.bundle("pair", "Incubator and Key", 1, 1050, "One Incubator, one Egg Tooth Key.")
+EA24.bundle("brood", "A Whole Brood", 3, 3000, "Three incubators, three keys. Saves 300.")
+
 # @@ EA24 The Great Hatch goes above this line @@
 
 # @@ EA25 Choc-o-Lock goes above this line @@
@@ -1260,7 +2115,7 @@ EA23.bundle("warren", "The Whole Warren", 3, 3000, "Three mounds, three keys. Sa
 EVENTS = [EA22, EA23]
 
 # (EA24 adds itself to the list here)
-EVENTS += []  # @@ EA24 @@
+EVENTS += [EA24]  # @@ EA24 @@
 
 # (EA25 adds itself to the list here)
 EVENTS += []  # @@ EA25 @@

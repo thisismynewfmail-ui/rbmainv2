@@ -44,7 +44,7 @@ def engine_shapes() -> list:
     if start < 0:
         raise SystemExit("checkeffects: SHAPE_CELLS not found in %s" % ENGINE)
     body = source[start:source.find("var ATLAS_ROWS", start)]
-    return re.findall(r"\['([a-z_]+)', function", body)
+    return re.findall(r"\['([a-z0-9_]+)', function", body)
 
 
 def main() -> int:

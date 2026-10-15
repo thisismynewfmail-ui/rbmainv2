@@ -3022,6 +3022,274 @@
                                     size: 14, size2: 11, ink: 'rgba(70,40,20,0.85)',
                                     font: 'Georgia, serif', frame: 'round' }));
 
+  /* -- 2024 The Great Hatch: the barn, the incubator, straw and down */
+
+  // fit a line of text across a long thin plate: squeezed to the width and
+  // drawn tall, so it reads right once the plate stretches it back out
+  function ea24Plate(ctx, text, stretch, colour) {
+    ctx.save(); ctx.translate(64, 66);
+    ctx.font = 'bold 60px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var w = ctx.measureText(text).width;
+    ctx.scale(Math.min(stretch, 116 / w), 1);
+    ctx.fillStyle = colour; ctx.fillText(text, 0, 0);
+    ctx.restore();
+  }
+
+  // barn boards: red planks, their grain, the gaps and a nail at each end
+  painter('ea24_barnboards', function (ctx) {
+    var rnd = scatter(503);
+    for (var x = 0; x < CELL; x += 16) {
+      ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(x, 0, 2, CELL);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(x + 2, 0, 3, CELL);
+      for (var k = 0; k < 5; k++) {
+        ctx.strokeStyle = 'rgba(60,10,6,' + (0.10 + rnd() * 0.12) + ')'; ctx.lineWidth = 1;
+        var gx = x + 4 + rnd() * 9;
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.bezierCurveTo(gx + 3, 40, gx - 3, 90, gx + 1, CELL); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(30,20,16,0.6)';
+      ctx.beginPath(); ctx.arc(x + 8, 8, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 8, CELL - 8, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    for (k = 0; k < 30; k++) {
+      ctx.fillStyle = 'rgba(255,240,220,' + (0.04 + rnd() * 0.08) + ')';
+      ctx.fillRect(rnd() * CELL, rnd() * CELL, 3 + rnd() * 8, 1 + rnd() * 2);
+    }
+  });
+
+  // burlap: a coarse open weave
+  painter('ea24_burlap', function (ctx) {
+    for (var y = 0; y < CELL; y += 5) {
+      ctx.fillStyle = 'rgba(80,50,20,0.22)'; ctx.fillRect(0, y, CELL, 2);
+      ctx.fillStyle = 'rgba(255,240,200,0.10)'; ctx.fillRect(0, y + 2, CELL, 1);
+    }
+    for (var x = 0; x < CELL; x += 5) {
+      ctx.fillStyle = 'rgba(80,50,20,0.18)'; ctx.fillRect(x, 0, 2, CELL);
+    }
+    var rnd = scatter(509);
+    ctx.strokeStyle = 'rgba(80,50,20,0.25)'; ctx.lineWidth = 1;
+    for (var k = 0; k < 20; k++) {
+      var sx = rnd() * CELL, sy = rnd() * CELL;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + rnd() * 10 - 5, sy + rnd() * 10 - 5); ctx.stroke();
+    }
+  });
+
+  // the incubator's cabinet: varnished oak, a fielded panel on every face
+  painter('ea24_cabinet', function (ctx) {
+    var rnd = scatter(521);
+    for (var y = 0; y < CELL; y += 3) {
+      ctx.fillStyle = 'rgba(70,30,6,' + (0.04 + rnd() * 0.10) + ')';
+      ctx.fillRect(0, y + Math.sin(y / 9) * 2, CELL, 1.5);
+    }
+    ctx.strokeStyle = 'rgba(50,20,4,0.55)'; ctx.lineWidth = 3; ctx.strokeRect(12, 14, 104, 100);
+    ctx.strokeStyle = 'rgba(255,230,180,0.30)'; ctx.lineWidth = 1.5; ctx.strokeRect(16, 18, 96, 92);
+    var g = ctx.createLinearGradient(0, 0, CELL, CELL);
+    g.addColorStop(0, 'rgba(255,240,200,0.14)'); g.addColorStop(0.5, 'rgba(255,240,200,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+  });
+
+  // a belt of little chicks, one behind the other, follow-my-leader
+  painter('ea24_chickrow', function (ctx) {
+    ctx.fillStyle = '#6a4a2a'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, 0, CELL, 10); ctx.fillRect(0, CELL - 10, CELL, 10);
+    for (var x = 16; x < CELL; x += 32) {
+      ctx.fillStyle = '#ffd93a';
+      ctx.beginPath(); ctx.ellipse(x, 72, 12, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 10, 58, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e8901a';
+      ctx.beginPath(); ctx.moveTo(x + 16, 57); ctx.lineTo(x + 22, 59); ctx.lineTo(x + 16, 61); ctx.fill();
+      ctx.fillRect(x - 4, 82, 2, 8); ctx.fillRect(x + 3, 82, 2, 8);
+      ctx.fillStyle = '#16171b'; ctx.beginPath(); ctx.arc(x + 12, 56, 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(200,150,20,0.6)';
+      ctx.beginPath(); ctx.ellipse(x - 2, 70, 6, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // an egg coddler: white china painted with a band of blue forget-me-nots
+  painter('ea24_coddler', function (ctx) {
+    ctx.fillStyle = '#2a5ab0'; ctx.fillRect(0, 10, CELL, 4); ctx.fillRect(0, CELL - 14, CELL, 4);
+    for (var x = 16; x < CELL; x += 32) {
+      for (var p = 0; p < 5; p++) {
+        var a = p * Math.PI * 2 / 5;
+        ctx.fillStyle = '#5a8ae0';
+        ctx.beginPath(); ctx.arc(x + Math.cos(a) * 7, 64 + Math.sin(a) * 7, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#ffd93a'; ctx.beginPath(); ctx.arc(x, 64, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#3a8a4a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + 10, 70); ctx.quadraticCurveTo(x + 16, 84, x + 6, 92); ctx.stroke();
+    }
+  });
+
+  // the incubator thermometer: a dial stuck at ninety-nine and a half
+  painter('ea24_dial', function (ctx) {
+    ctx.translate(64, 64);
+    ctx.strokeStyle = '#2a2018'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 56, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(200,40,30,0.25)';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 50, -0.1 * Math.PI, 0.15 * Math.PI); ctx.closePath(); ctx.fill();
+    for (var k = 0; k <= 22; k++) {
+      var a = Math.PI * 0.75 + k * (Math.PI * 1.5 / 22), big = k % 2 === 0;
+      ctx.lineWidth = big ? 2.5 : 1;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * (big ? 40 : 45), Math.sin(a) * (big ? 40 : 45));
+      ctx.lineTo(Math.cos(a) * 50, Math.sin(a) * 50); ctx.stroke();
+    }
+    ctx.fillStyle = '#2a2018'; ctx.font = 'bold 12px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillText('°F', 0, 30);
+    var na = Math.PI * 0.75 + (99.5 / 110) * Math.PI * 1.5;
+    ctx.strokeStyle = '#c8281c'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(na) * 42, Math.sin(na) * 42); ctx.stroke();
+    ctx.fillStyle = '#2a2018'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // down: soft fluff, wisps over wisps
+  painter('ea24_down', function (ctx) {
+    var rnd = scatter(523);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 220; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, a = rnd() * Math.PI * 2, l = 4 + rnd() * 7;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(180,140,60,0.16)';
+      ctx.lineWidth = 1 + rnd() * 1.5;
+      around(ctx, x, y, function (g) {
+        g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(Math.cos(a + 0.6) * l, Math.sin(a + 0.6) * l,
+                                                          Math.cos(a) * l * 1.6, Math.sin(a) * l * 1.6);
+        g.stroke();
+      });
+    }
+  });
+
+  // chicken legs: white feathers up top, then the yellow scaly shins
+  painter('ea24_drumsticks', function (ctx) {
+    for (var row = 0; row < 7; row++) {
+      for (var x = -8; x < CELL; x += 16) {
+        var y = row * 9 + 4;
+        ctx.fillStyle = row % 2 ? 'rgba(220,210,190,0.55)' : 'rgba(255,255,255,0.6)';
+        ctx.beginPath(); ctx.ellipse(x + (row % 2 ? 8 : 0), y, 9, 7, 0, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = 'rgba(150,130,100,0.35)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(x + (row % 2 ? 8 : 0), y, 9, 7, 0, 0, Math.PI); ctx.stroke();
+      }
+    }
+    ctx.fillStyle = '#f2b23a'; ctx.fillRect(0, 66, CELL, 62);
+    for (row = 0; row < 8; row++) {
+      for (x = 0; x < CELL; x += 12) {
+        ctx.strokeStyle = 'rgba(160,90,10,0.55)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x + (row % 2 ? 6 : 0), 70 + row * 8, 6, 0, Math.PI); ctx.stroke();
+      }
+    }
+  });
+
+  // the feed sack's label: CHICK CRUMBS, a chick and the weight
+  painter('ea24_feedlabel', function (ctx) {
+    ctx.fillStyle = '#f6efd8'; ctx.fillRect(2, 22, 124, 84);
+    ctx.strokeStyle = '#2f6a2a'; ctx.lineWidth = 4; ctx.strokeRect(6, 26, 116, 76);
+    ctx.fillStyle = '#ffd93a'; ctx.beginPath(); ctx.ellipse(26, 66, 13, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(36, 52, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e8901a'; ctx.beginPath(); ctx.moveTo(43, 51); ctx.lineTo(50, 53); ctx.lineTo(43, 55); ctx.fill();
+    ctx.fillStyle = '#c8281c'; ctx.font = 'bold 15px Georgia, serif'; ctx.textAlign = 'left';
+    ctx.fillText('CHICK', 54, 54); ctx.fillText('CRUMBS', 54, 72);
+    ctx.fillStyle = '#2f6a2a'; ctx.font = 'bold 9px Verdana, sans-serif'; ctx.fillText('NET WT 25 LB', 54, 90);
+  });
+
+  // red flannel plaid
+  painter('ea24_flannel', function (ctx) {
+    ctx.fillStyle = 'rgba(30,10,10,0.35)';
+    for (var k = 0; k < CELL; k += 32) { ctx.fillRect(k, 0, 12, CELL); ctx.fillRect(0, k, CELL, 12); }
+    ctx.fillStyle = 'rgba(255,230,210,0.25)';
+    for (k = 20; k < CELL; k += 32) { ctx.fillRect(k, 0, 2, CELL); ctx.fillRect(0, k, CELL, 2); }
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    for (k = 0; k < CELL; k += 2) ctx.fillRect(0, k, CELL, 1);
+  });
+
+  // hay: golden straw every which way, bound by two strings
+  painter('ea24_hay', function (ctx) {
+    var rnd = scatter(541);
+    ctx.lineCap = 'round';
+    for (var i = 0; i < 260; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, a = (rnd() - 0.5) * 0.9, l = 10 + rnd() * 18;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(255,240,170,0.45)' : 'rgba(140,100,20,0.35)';
+      ctx.lineWidth = 1 + rnd() * 1.5;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(120,80,30,0.8)'; ctx.fillRect(30, 0, 4, CELL); ctx.fillRect(94, 0, 4, CELL);
+  });
+
+  // the maker's plate on the incubator: HATCHWELL & SONS
+  painter('ea24_incplate', function (ctx) {
+    ctx.fillStyle = '#c9a227'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(0, 0, CELL, 30);
+    ea24Plate(ctx, 'HATCHWELL & SONS', 0.5, '#3a2a10');
+  });
+
+  // goose feathers: rows of scalloped plumes, grey-tipped
+  painter('ea24_plumage', function (ctx) {
+    for (var row = 0; row < 12; row++) {
+      for (var x = -8; x < CELL + 8; x += 16) {
+        var cx = x + (row % 2 ? 8 : 0), cy = row * 11 + 6;
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath(); ctx.ellipse(cx, cy, 8, 9, 0, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = 'rgba(120,120,130,0.45)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(cx, cy, 8, 9, 0, 0, Math.PI); ctx.stroke();
+        ctx.strokeStyle = 'rgba(120,120,130,0.25)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + 8); ctx.stroke();
+      }
+    }
+  });
+
+  // a brooder lamp's reflector: spun aluminium, rings and a row of vents
+  painter('ea24_reflector', function (ctx) {
+    for (var y = 0; y < CELL; y += 4) {
+      ctx.fillStyle = (y / 4) % 2 ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)';
+      ctx.fillRect(0, y, CELL, 2);
+    }
+    ctx.fillStyle = 'rgba(30,30,30,0.6)';
+    for (var x = 6; x < CELL; x += 16) ctx.fillRect(x, 24, 8, 4);
+    ctx.fillStyle = 'rgba(255,220,150,0.25)'; ctx.fillRect(0, CELL - 18, CELL, 18);
+  });
+
+  // roof shingles, row on row, weathered
+  painter('ea24_shingles', function (ctx) {
+    var rnd = scatter(547);
+    for (var row = 0; row < 8; row++) {
+      var y = row * 16;
+      ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(0, y + 14, CELL, 2);
+      for (var x = (row % 2 ? -10 : 0); x < CELL; x += 20) {
+        ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(x, y, 2, 14);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.03 + rnd() * 0.08) + ')'; ctx.fillRect(x + 3, y + 2, 15, 10);
+      }
+    }
+  });
+
+  // a speckled egg: brown freckles, a few big, most small
+  painter('ea24_speckle', function (ctx) {
+    var rnd = scatter(557);
+    for (var k = 0; k < 120; k++) {
+      var r = rnd() > 0.9 ? 2.5 + rnd() * 2 : 0.7 + rnd() * 1.3;
+      ctx.fillStyle = 'rgba(' + (110 + Math.floor(rnd() * 40)) + ',70,40,' + (0.45 + rnd() * 0.4) + ')';
+      ctx.beginPath(); ctx.ellipse(rnd() * CELL, rnd() * CELL, r, r * (0.7 + rnd() * 0.4), rnd() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  // a flannel shirt's front: the placket, two pocket flaps, a feather tucked in
+  painter('ea24_tee_pocket', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fillRect(60, 0, 8, CELL);
+    ctx.fillStyle = '#f2e8d4';
+    for (var y = 14; y < CELL; y += 22) { ctx.beginPath(); ctx.arc(64, y, 3, 0, Math.PI * 2); ctx.fill(); }
+    [26, 102].forEach(function (x) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.40)'; ctx.lineWidth = 2; ctx.strokeRect(x - 18, 34, 36, 34);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.moveTo(x - 19, 32); ctx.lineTo(x + 19, 32); ctx.lineTo(x + 19, 42); ctx.lineTo(x, 48);
+      ctx.lineTo(x - 19, 42); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f2e8d4'; ctx.beginPath(); ctx.arc(x, 44, 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = '#f4efe4';
+    ctx.beginPath(); ctx.ellipse(96, 22, 4, 14, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,130,100,0.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(100, 36); ctx.lineTo(92, 8); ctx.stroke();
+  });
+
+  painter('stencil_ea24', stencil({ top: 'THE GREAT', bottom: 'HATCH  2024', icon: 'chick',
+                                    ink: 'rgba(58,36,18,0.85)', font: 'Georgia, serif',
+                                    frame: 'box' }));
+
   // @@ ea24 painters go above this line @@
 
   // @@ ea25 painters go above this line @@
