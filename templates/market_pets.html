@@ -1,0 +1,127 @@
+{% include "partials/head.html" %}
+<link rel="stylesheet" href="{{ asset('/static/css/store.css') }}">
+{#  THE PET SHOP -- a wing of the Crate Vault (store.css) with its own
+    pastel lamps.  Pets up top, their wardrobe underneath, a fitting room
+    beside the wardrobe.  Data is app/models/pets.py (pets.shelf); buying is
+    the market's own till (/api/market/buy) through Crates.buy, and
+    pets_shop.js runs the stages.
+    Template rules: never set or loop over a context name (shelf, slot, tags,
+    grades) -- the loop names below are pp, ww, it and tg. #}
+<div class="mk vt pt" id="market" data-owns="{{ 1 if shelf.owns_pet else 0 }}"
+     style="--ev-accent:#ff8fb8;--ev-deep:#3a1f3a;--ev-glow:#ffd6ea;--ev-ink:#2a0f20">
+  {% include "partials/store_sprite.html" %}
+
+  <nav class="vt-bar" aria-label="Market sections">
+    <div class="vt-bar-scroll">
+      <a class="vt-tool" href="/market"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-hall"/></svg>Crate Vault</a>
+      <a class="vt-tool ev" href="#adopt"><span class="pt-paw" aria-hidden="true"></span>Adopt</a>
+      <a class="vt-tool" href="#wardrobe"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-bag"/></svg>Wardrobe</a>
+      {% if shelf.owns_pet %}<a class="vt-tool" href="/pet"><span class="pt-paw" aria-hidden="true"></span>Edit Pet</a>{% endif %}
+    </div>
+    {% if user %}<span class="vt-coins" title="Your Noogets"><span class="coin"></span><b id="mk-wallet">{{ fmt_num(user.credits) }}</b></span>
+    {% else %}<a class="mk-btn vt-plate small" href="/login?next=/market/pets"><span>Sign in</span></a>{% endif %}
+  </nav>
+
+  <!-- ============================================================== the pets -->
+  <section class="vt-win pt-adopt" id="adopt" aria-labelledby="adopt-h">
+    <h2 class="vt-titlebar" id="adopt-h"><span class="pt-paw" aria-hidden="true"></span>
+      {{ 'Your pets & friends' if shelf.owns_pet else 'Adopt a pet' }}
+      <small>half your height &bull; follows you everywhere &bull; one of each</small></h2>
+    <div class="vt-win-body">
+      <p class="pt-intro">A pet is a little companion who follows you into every world, copies your moves,
+        cheers your wins and has a mind of her own &mdash; her <b>persona tags</b> decide how she behaves.
+        Colour her, name her and dress her up in <a href="/pet">Edit Pet</a>.</p>
+      <div class="pt-pets">
+        {% for pp in shelf.pets %}
+        <article class="pt-card g-{{ pp.rarity }}{{ ' owned' if pp.owned else '' }}" data-species="{{ pp.species }}"
+                 data-offer-host style="--pc:{{ pp.colors.hair }};--pa:{{ pp.colors.accent }};--po:{{ pp.colors.outfit }}">
+          <div class="pt-stage">
+            <canvas class="pt-live" width="320" height="380" data-pet="{{ to_json(pp.preview) }}"
+                    aria-label="{{ pp.name }}, animated"></canvas>
+            <span class="vt-chip pt-grade" style="--rc:{{ pp.rarity_color }}">{{ pp.rarity }}</span>
+            {% if pp.owned %}<span class="vt-chip pt-owned">&#10003; Yours</span>{% endif %}
+            <div class="pt-looks" role="group" aria-label="Try a look">
+              <button type="button" class="pt-look on" data-look="0" title="Her own colours" aria-pressed="true"></button>
+              <button type="button" class="pt-look" data-look="1" title="Another look" aria-pressed="false"></button>
+              <button type="button" class="pt-look" data-look="2" title="Another look" aria-pressed="false"></button>
+            </div>
+          </div>
+          <div class="pt-card-body">
+            <h3 class="pt-name">{{ pp.name }}</h3>
+            <p class="pt-tagline">{{ pp.tagline }}</p>
+            <ul class="pt-persona" aria-label="{{ pp.name }}'s persona tags">
+              {% for tg in pp.tags %}<li class="ptag ptag-{{ tg.id }}" tabindex="0" data-tip="{{ tg.blurb }}">{{ tg.name }}</li>{% endfor %}
+            </ul>
+            <p class="pt-sig"><span aria-hidden="true">&#9733;</span> {{ pp.signature }}</p>
+            <div class="pt-buy">
+              {% if pp.owned %}
+              <a class="mk-btn vt-plate pt-edit" href="/pet"><span>Dress her up</span></a>
+              {% elif user %}
+              <button class="mk-btn hot" data-buy="{{ pp.id }}" data-price="{{ pp.price }}" data-name="{{ pp.name }}"
+                      data-slot="pet"><span>Adopt</span><em><span class="coin"></span>{{ fmt_num(pp.price) }}</em></button>
+              {% else %}
+              <a class="mk-btn vt-plate" href="/login?next=/market/pets"><span>Sign in to adopt</span></a>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================= the wardrobe -->
+  <section class="vt-win pt-wardrobe" id="wardrobe" aria-labelledby="wardrobe-h">
+    <h2 class="vt-titlebar" id="wardrobe-h"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-bag"/></svg>
+      Pet wardrobe <small>buy once &bull; every pet you own can wear it</small></h2>
+    <div class="vt-win-body pt-ward-grid">
+      <aside class="pt-fitting" aria-label="Fitting room">
+        <div class="pt-fit-stage">
+          <canvas class="pt-live pt-fit" id="pt-fit" width="360" height="420"
+                  data-pet="{{ to_json(shelf.mine[0] if shelf.mine else shelf.pets[0].preview) }}"
+                  data-try="1" aria-label="Fitting room preview"></canvas>
+          <span class="vt-chip pt-fit-chip">Fitting room</span>
+        </div>
+        <p class="pt-fit-who" id="pt-fit-who">{{ 'Trying things on ' + shelf.mine[0].name if shelf.mine else 'Fern is modelling today' }}</p>
+        {% if shelf.mine and len(shelf.mine) > 1 %}
+        <div class="pt-fit-pick" role="group" aria-label="Who tries things on">
+          {% for pp in shelf.mine %}<button type="button" class="pt-who{{ ' on' if loop.first else '' }}" data-who="{{ loop.index0 }}" aria-pressed="{{ 'true' if loop.first else 'false' }}">{{ pp.name }}</button>{% endfor %}
+        </div>
+        <script type="application/json" id="pt-mine">{{& to_json(shelf.mine) }}</script>
+        {% endif %}
+        <button type="button" class="mk-btn vt-plate small" id="pt-fit-clear"><span>Take it all off</span></button>
+        <p class="tiny pt-fit-tip">Tap anything to try it on. Tap again to take it off.</p>
+      </aside>
+      <div class="pt-ward-main">
+        <div class="pt-slots mk-tabs" role="tablist" aria-label="Wardrobe sections">
+          {% for ww in shelf.wardrobe %}
+          <button type="button" role="tab" class="pt-slot{{ ' on' if ww.slot == slot else '' }}" data-slot-tab="{{ ww.slot }}"
+                  aria-selected="{{ 'true' if ww.slot == slot else 'false' }}"><span class="pt-ico pt-ico-{{ ww.slot }}" aria-hidden="true"></span>{{ ww.label }}</button>
+          {% endfor %}
+        </div>
+        {% for ww in shelf.wardrobe %}
+        <div class="pt-items{{ '' if ww.slot == slot else ' hidden' }}" role="tabpanel" data-slot-panel="{{ ww.slot }}">
+          {% for it in ww.cards %}
+          <article class="pt-item g-{{ it.rarity }}{{ ' owned' if it.owned else '' }}" data-try="{{ it.id }}" data-slot="{{ it.slot }}"
+                   tabindex="0" aria-label="Try on {{ it.name }}" style="--rc:{{ it.rarity_color }}">
+            <div class="vt-slot pt-item-art"><canvas class="item-thumb" width="150" height="150" data-item="{{ it.id }}"></canvas>
+              {% if it.owned %}<span class="vt-chip pt-owned">&#10003;</span>{% endif %}</div>
+            <b class="pt-item-name">{{ it.name }}</b>
+            <small class="pt-item-desc">{{ it.description }}</small>
+            {% if it.owned %}
+            <span class="pt-have">In your wardrobe</span>
+            {% elif user %}
+            <button class="mk-btn tiny" data-buy="{{ it.id }}" data-price="{{ it.price }}" data-name="{{ it.name }}"
+                    data-slot="{{ it.slot }}"><span>Get</span><em><span class="coin"></span>{{ fmt_num(it.price) }}</em></button>
+            {% else %}
+            <a class="mk-btn tiny" href="/login?next=/market/pets"><span>Sign in</span></a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</div>
+{% include "partials/foot.html" %}

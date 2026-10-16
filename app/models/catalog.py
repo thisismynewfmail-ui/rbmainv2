@@ -362,6 +362,10 @@ SLOT_LABELS = {
     "pants": "Pants", "belt": "Belt", "back": "Back", "usable": "Usable",
     "crate": "Crate", "key": "Key",
 }
+# Pets and what they wear (app/models/pets.py) are items too, in slots of
+# their own that an avatar never wears.
+from .pets import SLOT_LABELS as _PET_SLOT_LABELS  # noqa: E402
+SLOT_LABELS.update(_PET_SLOT_LABELS)
 
 # Slots that hold things you own but do not wear: a crate waits to be opened,
 # a key waits to open one.  Neither can be equipped, put on the hotbar or
@@ -760,11 +764,14 @@ _EVENT_IDS = {it["id"] for it in EVENT_ITEMS}
 UNUSUAL_EFFECTS.update(holidays.all_effects())
 EFFECT_IDS = list(UNUSUAL_EFFECTS.keys())
 
+# The Pets shelf: five pets and their wardrobe (app/models/pets.py).
+from .pets import ITEMS as PET_ITEMS  # noqa: E402
+
 ALL_ITEMS: List[Dict[str, Any]] = (
     [k for k in KEYS if k["id"] not in _EVENT_IDS]
     + [c for c in CRATES if c["id"] not in _EVENT_IDS]
     + HATS + FACES + HAIRS + SHIRTS + PANTS + BELTS + BACK_ITEMS + USABLES
-    + EVENT_ITEMS)
+    + EVENT_ITEMS + PET_ITEMS)
 
 
 def _normalise_parts(items: List[Dict[str, Any]]) -> None:

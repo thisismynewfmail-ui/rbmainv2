@@ -12,7 +12,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .. import db, security
-from . import badges, catalog, inventory
+from . import badges, catalog, inventory, pets
 
 
 class AvatarError(Exception):
@@ -196,6 +196,7 @@ def unequip_missing(user_id: int) -> None:
               for inv in avatar["hotbar"]]
     if equipped != avatar["equipped"] or hotbar != avatar["hotbar"]:
         _save(user_id, avatar["colors"], equipped, hotbar)
+    pets.forget_missing(user_id)
 
 
 # ----------------------------------------------------------------- descriptor
@@ -234,6 +235,8 @@ def descriptor(user_id: int, username: Optional[str] = None) -> Dict[str, Any]:
         "hotbar": hotbar,
         # the badge pinned to the chest, with its model, or None
         "badge": badges.worn_payload(user_id),
+        # the pet who follows them about (app/models/pets.py), or None
+        "pet": pets.payload(user_id),
         "updated_at": avatar["updated_at"],
     }
 
@@ -285,6 +288,7 @@ def compact(descriptor: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(badge, dict):
         out["badge"] = {k: badge.get(k) for k in
                         ("id", "name", "level", "tier", "tier_label", "rank")}
+    out["pet"] = pets.compact(descriptor.get("pet"))
     return out
 
 
@@ -322,6 +326,7 @@ def expand(descriptor: Dict[str, Any]) -> Dict[str, Any]:
         badge = dict(badge)
         badge["parts"] = badges.model(str(badge["id"]), int(badge.get("level") or 1))
         out["badge"] = badge
+    out["pet"] = pets.expand(descriptor.get("pet"))
     return out
 
 

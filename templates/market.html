@@ -24,6 +24,7 @@
       <a class="vt-tool" href="#hall"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-hall"/></svg>Crate Hall</a>
       {% if user %}<a class="vt-tool" href="#stash-bar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-ring"/></svg>Key Ring</a>{% endif %}
       <a class="vt-tool" href="#aisles"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-bag"/></svg>Supply</a>
+      <a class="vt-tool pt-tool" href="/market/pets"><span class="pt-paw" aria-hidden="true"></span>Pets <b class="pt-new">NEW</b></a>
       <a class="vt-tool" href="#odds"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-dice"/></svg>Odds</a>
     </div>
     {% if user %}<span class="vt-coins" title="Your Noogets"><span class="coin"></span><b id="mk-wallet">{{ fmt_num(user.credits) }}</b></span>
@@ -115,6 +116,18 @@
       <div class="vt-chase-rail">{% for ch in cn.chase %}<button class="mk-chase-item" data-contents="{{ ss.id }}" style="--g:{{ ch.color }}" title="See the odds"><canvas class="item-thumb" width="96" height="96" data-item="{{ ch.id }}"></canvas></button>{% endfor %}</div>
     </div>
   </section>
+
+  <!-- ============================================================ pet teaser
+       The way into the Pets shelf: a little window Fern keeps peeking out
+       of (pets_shop.js runs her), with hearts drifting up behind. -->
+  <a class="pt-teaser" href="/market/pets" aria-label="New: Pets. Adopt a little companion who follows you everywhere.">
+    <span class="pt-peek" aria-hidden="true"><canvas class="pt-live" width="176" height="206" data-dist="5.6" data-focus="1.85"
+      data-pet='{"species":"fern","tags":["cheerful","loyal","curious"],"items":{}}'></canvas></span>
+    <span><b><span class="pt-new">NEW</span>Pets have arrived</b>
+      <small>Five little companions, half your height, who follow you into every world. Dress them up, give them a persona.</small></span>
+    <span class="pt-go">Meet them &#9656;</span>
+    <span class="pt-hearts" aria-hidden="true"><i></i><i></i><i></i></span>
+  </a>
 
   <!-- ============================================================= drop log -->
   <section class="mk-drops" id="drop-feed" aria-label="Live drops">

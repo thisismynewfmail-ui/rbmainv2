@@ -7,6 +7,25 @@
         <div class="avatar-view" style="height:300px" data-avatar="{{ to_json(avatar) }}">
           <span class="hint">drag to rotate</span>
         </div>
+        {% if avatar.pet %}
+        {% set pet = avatar.pet %}
+        <!-- the pet at their side: her name, and her persona on hover -->
+        <div class="pet-plate" tabindex="0" aria-describedby="pet-persona">
+          <span class="pet-paw" aria-hidden="true"></span>
+          <b>{{ pet.name }}</b>
+          <small>{{ pet.species_name }}</small>
+          <span class="pet-tagdots" aria-hidden="true">{% for t in pet.tag_info %}<i class="ptag-{{ t.id }}"></i>{% endfor %}</span>
+          <div class="pet-persona" id="pet-persona" role="tooltip">
+            <span class="pp-head">{{ pet.name }}'s persona</span>
+            {% for t in pet.tag_info %}
+            <span class="pp-tag"><b class="ptag ptag-{{ t.id }}">{{ t.name }}</b> {{ t.blurb }}</span>
+            {% endfor %}
+            {% if not pet.tag_info %}
+            <span class="pp-tag muted">No persona tags yet &mdash; she is still deciding who she is.</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
         <div class="center" style="margin-top:6px">
           {% if playing %}
             <span class="pill green"><span class="dot game"></span> Playing {{ playing }}</span>
@@ -22,6 +41,7 @@
           {% if is_self %}
             <a class="btn block primary" href="/profile-editor">&#9998; Edit profile</a>
             <a class="btn block" href="/avatar">Edit my avatar</a>
+            {% if owns_pet %}<a class="btn block pet-btn" href="/pet"><span class="pet-paw" aria-hidden="true"></span> Edit Pet</a>{% endif %}
             {% if show_inventory %}<a class="btn block" href="/inventory">My inventory ({{ inventory_summary.total }})</a>{% endif %}
           {% else %}
             {% if show_inventory %}

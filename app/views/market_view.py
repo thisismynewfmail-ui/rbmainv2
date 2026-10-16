@@ -84,7 +84,8 @@ def market_page(req: Request):
                   ring=store.ring(series, stash, cn["sid"]),
                   side_odds=store.side_odds(cn, now),
                   archive_n=0 if archive else market.archive_count(now),
-                  extra_scripts=["/static/js/ui/crates.js", "/static/js/ui/store.js"])
+                  extra_scripts=["/static/js/ui/crates.js", "/static/js/ui/store.js",
+                                 "/static/js/ui/pets_shop.js"])
 
 
 @router.get("/inventory")

@@ -242,9 +242,64 @@
   }
 
   // ------------------------------------------------------------ item icons
+  /* Pets (static/js/engine/pet.js) and what they wear.  A pet is shown as
+     herself, smiling; a piece of her wardrobe is shown worn by a pet in
+     plain colours, with the camera framed on the piece -- a pin is a
+     close-up of a chest, wings are seen from behind. */
+  var PET_MANNEQUIN = { hair: '#6b5a4c', outfit: '#d7dde4', accent: '#b9c3cf',
+                        eyes: '#5b7da8', legs: '#3a3f48', skin: '#f0cfb4' };
+  // where the camera stands for each slot, and what it frames: the piece
+  // and the part of her it is worn on (pet.js tags parts with ``k``)
+  var PET_TILE = {
+    pet_hat:  { angle: -0.5, tilt: 0.22, padding: 1.08, on: 'head' },
+    pet_face: { angle: 0.22, tilt: 0.04, padding: 1.0, on: 'head' },
+    // a chibi's chin hides her collar from above, so neckwear and pins are
+    // shot from a little below
+    pet_neck: { angle: -0.3, tilt: -0.34, padding: 1.15, on: 'torso' },
+    pet_pin:  { angle: -0.28, tilt: -0.14, padding: 1.25, on: 'torso' },
+    pet_back: { angle: Math.PI * 0.82, tilt: 0.02, padding: 1.12, on: 'torso' },
+    pet_top:  { angle: -0.42, tilt: 0.12, padding: 1.06, on: 'all' }
+  };
+
+  Thumbs.PET_SPOT = [2.15, 0, 0.8];
+  Thumbs.PET_YAW = -0.5;
+
+  function petTilePose(species) {
+    var pose = Pet.act('idle', 0.6);
+    pose.eyes = species.eyes || 'happy';
+    pose.mouth = species.mouth || 'smile';
+    pose.blush = 0.35;
+    return pose;
+  }
+
+  function petItemParts(item, slot, data) {
+    if (!global.Pet) return { parts: [], angle: 0, tilt: 0, padding: 1 };
+    if (slot === 'pet') {
+      var pet = { species: data.species, colors: data.colors, tags: data.tags, items: {} };
+      var sp = Pet.species(pet);
+      var pose = petTilePose(sp);
+      pose.headRoll = 0.12; pose.armRZ = 0.3;
+      return { parts: Pet.build(pet, { position: [0, 0, 0], yaw: 0.25, pose: pose, time: 0.6 }),
+               angle: -0.32, tilt: 0.12, padding: 1.06 };
+    }
+    var worn = { species: 'fern', colors: PET_MANNEQUIN, items: {} };
+    worn.items[slot] = { item_id: item.id, slot: slot, data: data };
+    var parts = Pet.build(worn, { position: [0, 0, 0], yaw: 0,
+                                  pose: petTilePose(Pet.species(worn)) });
+    var tile = PET_TILE[slot] || PET_TILE.pet_top;
+    var frame = tile.on === 'all' ? null : parts.filter(function (p) {
+      return p.k === 'worn' || p.k === tile.on;
+    });
+    return { parts: parts, frame: frame, angle: tile.angle, tilt: tile.tilt,
+             padding: tile.padding };
+  }
+
   Thumbs.itemParts = function (item, effect) {
     var slot = item.slot;
     var data = item.data || {};
+    if (slot === 'pet' || (slot && slot.indexOf('pet_') === 0)) {
+      return petItemParts(item, slot, data);
+    }
     if (slot === 'crate' || slot === 'key') {
       // crates and keys are objects, shown on their own and from a little
       // above, the way they sit on a shelf
@@ -477,9 +532,10 @@
      sends (a decal by name) into what the renderer draws. */
   Thumbs.prepParts = function (raw) {
     return (raw || []).map(function (piece) {
+      // parts built by a rig (a pet) arrive with their decal already resolved
       return { t: piece.t || 'box', p: piece.p.slice(), s: piece.s.slice(),
                c: piece.c, r: piece.r, m: piece.m, a: piece.a, dw: piece.dw,
-               decSlot: piece.decal ? Textures.decal(piece.decal) : null };
+               decSlot: piece.decSlot || (piece.decal ? Textures.decal(piece.decal) : null) };
     });
   };
 
@@ -544,6 +600,13 @@
           position: [0, 0, 0], yaw: 0.35,
           pose: Avatar.pose('idle', 0, 0, descriptor)
         });
+        if (descriptor.pet && global.Pet) {
+          // their pet, at her real height, at their side
+          var sp = Pet.species(descriptor.pet);
+          parts = parts.concat(Pet.build(descriptor.pet, {
+            position: Thumbs.PET_SPOT, yaw: Thumbs.PET_YAW + 0.25, pose: petTilePose(sp)
+          }));
+        }
         var hat = (descriptor.items || {}).hat;
         var source = renderParts(parts, {
           angle: -0.35, tilt: 0.12, padding: 1.07, sky: AVATAR_SKY,
@@ -1236,11 +1299,18 @@
       band.hi = Math.max(band.hi, y);
       band.r = Math.max(band.r, r);
     }
+    var pet = descriptor.pet && global.Pet ? descriptor.pet : null;
     times.forEach(function (t) {
       var parts = Avatar.build(descriptor, {
         position: [0, 0, 0], yaw: 0,
         pose: Avatar.pose(state, t, speed, descriptor)
       });
+      if (pet) {
+        // her reach is measured standing and with her arms up, so whatever
+        // she does in the preview stays in frame
+        parts = parts.concat(Pet.build(pet, { position: Thumbs.PET_SPOT, yaw: Thumbs.PET_YAW,
+                                              pose: Pet.act(t > 0.5 ? 'cheer' : 'idle', 0.2) }));
+      }
       parts.forEach(function (p) {
         var r = p.r || [0, 0, 0];
         M.compose(m, 0, p.p[0], p.p[1], p.p[2], r[0], r[1], r[2],
@@ -1484,6 +1554,16 @@
         pt.a = (pt.a === undefined ? 1 : pt.a) * swap.alpha;
       }
     }
+    var pet = this.descriptor.pet && global.Pet ? this.descriptor.pet : null;
+    if (pet) {
+      // the pet stands at their side and keeps herself busy
+      if (!this.petShow || this.petShow.pet !== pet) this.petShow = new Pet.Showcase(pet);
+      var petPose = this.petShow.step(dt);
+      var petParts = Pet.build(pet, { position: [Thumbs.PET_SPOT[0], swap.lift, Thumbs.PET_SPOT[2]],
+                                      yaw: Thumbs.PET_YAW, pose: petPose, time: this.time,
+                                      alpha: swap.alpha < 0.999 ? swap.alpha : undefined });
+      parts = parts.concat(petParts);
+    }
     var hat = (this.descriptor.items || {}).hat;
     var unusual = (hat && hat.tier === 'unusual' && hat.effect_def) ? 1 : 0;
     // Aim at the middle of what the character is wearing and stand back
@@ -1518,6 +1598,11 @@
     this.renderer.pushRaw('cyl', 0, 0.02, 0, 0, 0, 0,
                           SHADOW[0] * 2 * shadow, 0.04, SHADOW[1] * 2 * shadow,
                           [0.35, 0.42, 0.5], 0.32, 0, 0, 0.8, null);
+    if (pet) {
+      this.renderer.pushRaw('cyl', Thumbs.PET_SPOT[0], 0.02, Thumbs.PET_SPOT[2], 0, 0, 0,
+                            1.7 * shadow, 0.04, 1.4 * shadow,
+                            [0.35, 0.42, 0.5], 0.28, 0, 0, 0.8, null);
+    }
     var centre = [0, this.frame.focus, 0];
     var eye = [
       centre[0] + Math.sin(this.angle) * distance,

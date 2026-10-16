@@ -4,7 +4,7 @@ from __future__ import annotations
 from ..http import router as R
 from ..http.router import Request
 from ..game import registry as game_registry
-from ..models import avatars, badges, inventory, users, worlds
+from ..models import avatars, badges, inventory, pets, users, worlds
 from ..social import comments, follows, friends, posts
 from .base import (api_error, api_ok, flash_redirect, login_required, render,
                    router)
@@ -60,6 +60,8 @@ def profile(req: Request, username: str = ""):
         badge_total=len(badges.BADGES),
         avatar=avatars.descriptor(pid, profile_user["username"]),
         is_self=viewer == pid,
+        # the Edit Pet button only appears once there is a pet to edit
+        owns_pet=pets.owns_any(pid) if viewer == pid else False,
         online=users.is_online(profile_user) and show_online,
         show_online=show_online,
         playing=playing,
