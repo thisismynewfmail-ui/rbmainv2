@@ -51,6 +51,7 @@
 </div>
 {% endif %}
 <div class="wrap">
+  {% if season and season.holiday == 'halloween' and not season.lite %}{% include "partials/season_halloween_foot.html" %}{% endif %}
   <div class="footer">
     <a href="/">Home</a> | <a href="/worlds">Worlds</a> | <a href="/market">Market</a> |
     <a href="/users">People</a> | <a href="/help">Help</a>
@@ -70,5 +71,6 @@
 <script src="{{ asset('/static/js/ui/site.js') }}"></script>
 {% if page_script %}<script src="{{ asset(page_script) }}"></script>{% endif %}
 {% for extra in extra_scripts %}<script src="{{ asset(extra) }}"></script>{% endfor %}
+{% if season %}<script src="{{ asset('/static/js/ui/season.js') }}"></script>{% endif %}
 </body>
 </html>

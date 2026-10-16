@@ -1,0 +1,5 @@
+{# The Halloween console's ghost: a pixel sheet that peeks out from behind
+   the pedestal, watches the pointer and has opinions about your pulls
+   (store.js, bindBoo).  It is the only console decoration that takes
+   clicks.  Its lines go to #vt-boo-live once each, for screen readers. #}
+<button type="button" class="vt-boo" aria-label="Boo the ghost"><svg viewBox="0 0 16 18" shape-rendering="crispEdges" aria-hidden="true"><path fill="#f4f1ff" d="M0 5h1v-2h1v-1h1v-1h2v-1h6v1h2v1h1v1h1v2h1v11h-1v1h-1v1h-2v-1h-1v-1h-2v1h-1v1h-2v-1h-1v-1h-2v1h-1v1h-2z"/><path fill="#d9d2f2" d="M1 13h14v2h-14z"/><path fill="#ffb3c7" d="M2 9h2v1h-2zM12 9h2v1h-2z"/><g class="vt-eyes" fill="#1a0f24"><rect x="4" y="5" width="2" height="3"/><rect x="10" y="5" width="2" height="3"/></g><path class="vt-mouth" fill="#1a0f24" d="M7 9h2v2h-2z"/></svg></button><span class="vt-boo-says" aria-hidden="true"></span><span class="vt-sr" aria-live="polite" id="vt-boo-live"></span>

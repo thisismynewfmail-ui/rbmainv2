@@ -7,7 +7,10 @@ cannot change a price, grant a free item, or force an outcome.
 Hats are not on the shelf any more: they come out of crates (crates.py), and
 so does anything else a crate holds exclusively.  The market sells the keys
 and crates that open them, the bundles, everything wearable that is not a
-crate exclusive, and the event items while their event runs.
+crate exclusive, the event items while their event runs, and -- once an
+event is over -- its collection in the archive: its crate and key, and
+everything it held bar the hats.  ``purchase`` asks ``crates.for_sale``, the
+same rule the shelf is drawn from, so what is listed is what can be bought.
 """
 from __future__ import annotations
 
@@ -36,18 +39,33 @@ class MarketError(Exception):
 
 
 def listing(slot: Optional[str] = None, sort: str = "featured",
-            search: str = "") -> List[Dict[str, Any]]:
-    """What is on the shelf right now."""
+            search: str = "", archive: Optional[bool] = None) -> List[Dict[str, Any]]:
+    """What is on the shelf right now.
+
+    ``archive`` says whether past events' collections are included.  Left
+    as None it means "only when searching", so a search finds an old
+    Halloween's coffin while the plain aisles stay the everyday gear (the
+    archive has its own home in the market's Crate Hall).  The "event" aisle
+    is the live event's things only."""
     now = int(time.time())
+    term = (search or "").strip().lower()
+    if archive is None:
+        archive = bool(term)
+
+    def age(it: Dict[str, Any]) -> str:
+        return crates.event_state(it.get("event", ""), now)
+
     items = [it for it in catalog.ALL_ITEMS if crates.for_sale(it, now)]
+    if not archive:
+        items = [it for it in items if age(it) != "past"]
     if slot and slot not in ("all", "featured"):
         if slot == "stash":
             items = [it for it in items if it["slot"] in STACKABLE]
         elif slot == "event":
-            items = [it for it in items if it.get("event")]
+            items = [it for it in items
+                     if it.get("event") and crates.event_active(it["event"], now)]
         else:
             items = [it for it in items if it["slot"] == slot]
-    term = (search or "").strip().lower()
     if term:
         items = [it for it in items
                  if term in it["name"].lower() or term in it["id"].lower()
@@ -59,10 +77,22 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
     elif sort == "name":
         items.sort(key=lambda i: i["name"].lower())
     else:
-        items.sort(key=lambda i: (AISLE_ORDER.get(i["slot"], 9),
-                                  0 if i.get("event") else 1,
+        # within an aisle: the live event first, then the everyday shelf,
+        # then the archive, newest event first
+        rank = {"live": 0, "always": 1, "past": 2}
+        items.sort(key=lambda i: (AISLE_ORDER.get(i["slot"], 9), rank.get(age(i), 3),
+                                  -crates.EVENTS.get(i.get("event", ""), {}).get("starts", 0),
                                   i.get("sort_order", 0), i["name"]))
     return [_card(it, now) for it in items]
+
+
+def archive_count(now: Optional[int] = None) -> int:
+    """How many things past events' collections sell -- the pieces the
+    everyday aisles leave to the Crate Hall."""
+    now = int(now if now is not None else time.time())
+    return sum(1 for it in catalog.ALL_ITEMS
+               if it.get("event") and crates.for_sale(it, now)
+               and crates.event_state(it["event"], now) == "past")
 
 
 def catalog_listing() -> List[Dict[str, Any]]:
@@ -104,11 +134,16 @@ def purchase(user_id: int, item_id: str, qty: int = 1) -> Dict[str, Any]:
     item = catalog.get(item_id)
     if item is None:
         raise MarketError("That item is not in the catalogue.")
-    if item["id"] in crates.CRATE_EXCLUSIVE:
-        raise MarketError("%s only comes out of a crate now -- grab a crate and a key!"
-                          % item["name"])
-    if item.get("event") and not crates.event_active(item["event"]):
-        raise MarketError("%s went away with the event." % item["name"])
+    now = int(time.time())
+    # one rule for the shelf and the till: whatever for_sale() lists can be
+    # bought (a past event's collection included), and nothing else can
+    if not crates.for_sale(item, now):
+        if item.get("event") and crates.event_state(item["event"], now) == "upcoming":
+            raise MarketError("%s is not out yet." % item["name"])
+        if item["id"] in crates.CRATE_EXCLUSIVE:
+            raise MarketError("%s only comes out of a crate now -- grab a crate and a key!"
+                              % item["name"])
+        raise MarketError("That item is not for sale.")
     price = int(item.get("price", 0))
     if price < 0:
         raise MarketError("That item is not for sale.")
@@ -120,7 +155,6 @@ def purchase(user_id: int, item_id: str, qty: int = 1) -> Dict[str, Any]:
         qty = 1
     qty = max(1, min(crates.MAX_QTY if item["slot"] in STACKABLE else 1, qty))
     total = price * qty
-    now = int(time.time())
 
     with db.transaction() as conn:
         row = conn.execute("SELECT credits, username FROM users WHERE id=?",

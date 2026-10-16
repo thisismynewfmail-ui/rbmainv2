@@ -21,6 +21,11 @@
     function pad(n) { return n < 10 ? '0' + n : String(n); }
     function tick() {
       var left = Math.max(0, ends - (Math.floor(Date.now() / 1000) + skew));
+      var root = $('#market');
+      if (root) {
+        root.classList.toggle('vt-last', left > 0 && left < 259200);
+        root.classList.toggle('vt-over', left <= 0);
+      }
       var parts = { d: Math.floor(left / 86400), h: pad(Math.floor(left / 3600) % 24),
                     m: pad(Math.floor(left / 60) % 60), s: pad(left % 60) };
       Object.keys(parts).forEach(function (k) {
@@ -67,7 +72,8 @@
       var pick = picks[index];
       picks.forEach(function (p) { p.classList.toggle('on', p === pick); });
       var crate = pick.dataset.crate;
-      var pool = SPOT_EFFECTS[crate] || SPOT_EFFECTS.classic;
+      var pool = (pick.dataset.effects || '').split(' ').filter(Boolean);
+      if (!pool.length) pool = SPOT_EFFECTS[crate] || SPOT_EFFECTS.classic;
       if (!keepEffect) effectIndex = Math.floor(Math.random() * pool.length);
       var effect = pool[effectIndex % pool.length];
       var item = (Thumbs.catalog || {})[pick.dataset.spot];
@@ -220,7 +226,17 @@
       var b = e.target.closest('[data-buy], [data-offer]');
       if (!b || b.disabled) return;
       e.preventDefault();
-      if (window.Crates) Crates.buy(b);
+      if (!window.Crates) return;
+      var bought = Crates.buy(b);
+      // "Unbox now" and the get-and-unbox buttons open the crate straight
+      // after the purchase; if the open fails, the stage says why and the
+      // crate and key wait on the Key Ring
+      if (b.dataset.thenOpen && bought && bought.then) {
+        bought.then(function (res) {
+          if (!res || !res.ok) return;
+          setTimeout(function () { Crates.open({ series: b.dataset.thenOpen }); }, reduced() ? 0 : 650);
+        });
+      }
     });
   });
 })();

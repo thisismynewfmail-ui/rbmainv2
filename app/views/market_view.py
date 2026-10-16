@@ -7,7 +7,7 @@ from .. import db
 from ..http import router as R
 from ..http.router import Request
 from ..models import (avatars, catalog, crates, economy, inventory, market,
-                      notifications)
+                      notifications, store)
 from .base import api_error, api_ok, login_required, render, router
 
 # The market's aisles.  Hats are not one of them any more -- they come out of
@@ -37,35 +37,54 @@ def _owned_counts(uid: int):
 
 @router.get("/market")
 def market_page(req: Request):
+    """The Crate Vault: the Event Console, the Key Ring, the Crate Hall
+    (every holiday's collection, year by year), the Inspect Bench and the
+    Supply Shelves.  The grouping is app/models/store.py; prices and the
+    rules of what is for sale stay in market.py and crates.py."""
     slot = req.query.get("slot", "all")
     sort = req.query.get("sort", "featured")
     term = req.query.get("q", "")
-    events = crates.active_events()
-    tabs = [t for t in MARKET_TABS if t[0] != "event" or events]
+    now = int(time.time())
+    events = crates.active_events(now)
+    # the event aisle is named after whatever is running (MARKET_TABS keeps
+    # its old shape for anything importing it)
+    tabs = []
+    for tab in MARKET_TABS:
+        if tab[0] == "event":
+            if not events:
+                continue
+            meta = store.HOLIDAY_META.get(events[0]["holiday"], store.CLASSIC)
+            tab = ("event", events[0]["name"], meta["icon"])
+        tabs.append(tab)
     if slot not in [t[0] for t in tabs]:
         slot = "all"
-    items = market.listing(slot, sort, term)
+    # a specific aisle lists past collections' pieces too (with a chip that
+    # jumps to their shelf); "Everything" leaves them to the Crate Hall
+    archive = bool(term) or slot not in ("all", "event")
+    items = store.decorate(market.listing(slot, sort, term, archive=archive), now)
     owned = _owned_counts(int(req.user["id"])) if req.user else {}
     stash = crates.stash_counts(int(req.user["id"])) if req.user else {}
     series = crates.all_series()
-    offers = [dict(o, active=crates.series_active(crates.SERIES[o["series"]]),
+    offers = [dict(o, active=crates.series_active(crates.SERIES[o["series"]], now),
                    value=sum(int(catalog.get(i)["price"]) * n
                              for i, n in o["contents"].items()))
               for o in crates.OFFERS]
     offers = [o for o in offers if o["active"]]
-    spotlight = [catalog.get(i) for i in ("hat_hexed_witch", "hat_halo", "hat_lantern",
-                                          "hat_tagalong_ghost", "hat_crown",
-                                          "back_nightwing_cloak")]
     feature = crates.event_feature(events[0]["id"]) if events else None
+    cn = store.console(now, events, stash)
     return render(req, "market.html", page_title="Market",
                   feature=feature,
                   items=items, slot=slot, sort=sort, term=term, tabs=tabs,
                   owned=owned, stash=stash, series=series, offers=offers,
                   events=events, feed=crates.recent_openings(14),
-                  crate_stats=crates.stats(), spotlight=[s for s in spotlight if s],
+                  crate_stats=crates.stats(), spotlight=store.spotlight(cn),
                   grades=crates.GRADES, tiers=catalog.TIERS,
                   effects=catalog.UNUSUAL_EFFECTS,
-                  extra_scripts=["/static/js/ui/crates.js"])
+                  cn=cn, wings=store.wings(now, owned, stash),
+                  ring=store.ring(series, stash, cn["sid"]),
+                  side_odds=store.side_odds(cn, now),
+                  archive_n=0 if archive else market.archive_count(now),
+                  extra_scripts=["/static/js/ui/crates.js", "/static/js/ui/store.js"])
 
 
 @router.get("/inventory")

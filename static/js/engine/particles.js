@@ -834,6 +834,38 @@
     // @@ stpatricks particles go above this line @@
 
     // ---- Easter particle shapes
+    ['ea24_hatchling', function (c) {
+      // a chick bursting out of the top of its egg, the shell still round its middle
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.arc(64, 54, 26, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(64, 30, 18, 16, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#9a9a9a';
+      poly(c, [[82, 28], [98, 32], [82, 36]]);
+      c.fillStyle = '#4a4a4a'; dot(c, 72, 26, 3);
+      c.fillStyle = '#d8d8d8';
+      poly(c, [[30, 66], [40, 56], [50, 68], [60, 56], [70, 68], [80, 56], [90, 68], [98, 60],
+               [96, 100], [80, 118], [48, 118], [32, 100]]);
+    }],
+    ['ea24_shell', function (c) {
+      // half an eggshell, the zig-zag edge where it cracked
+      c.fillStyle = '#ffffff';
+      poly(c, [[22, 54], [34, 40], [46, 56], [58, 40], [70, 56], [82, 40], [94, 56], [106, 42],
+               [108, 80], [92, 108], [64, 116], [36, 108], [20, 80]]);
+      c.fillStyle = '#c8c8c8';
+      poly(c, [[26, 60], [34, 50], [46, 62], [58, 50], [70, 62], [82, 50], [94, 62], [104, 52],
+               [104, 64], [26, 70]]);
+    }],
+    ['ea24_down', function (c) {
+      // a wisp of down: a soft quill with fluff fanning off it
+      c.strokeStyle = '#ffffff'; c.lineCap = 'round';
+      c.lineWidth = 3; c.beginPath(); c.moveTo(64, 116); c.quadraticCurveTo(60, 70, 70, 20); c.stroke();
+      c.lineWidth = 2;
+      for (var k = 0; k < 14; k++) {
+        var t = k / 13, y = 108 - t * 84, x = 64 + (1 - t) * -2 + t * 4;
+        c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x - 20, y - 6, x - 30 + t * 10, y - 18); c.stroke();
+        c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 20, y - 6, x + 30 - t * 10, y - 18); c.stroke();
+      }
+    }],
     // @@ ea24 particles go above this line @@
 
     // @@ ea25 particles go above this line @@

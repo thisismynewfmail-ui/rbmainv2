@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ theme }}">
+<html lang="en" data-theme="{{ theme }}"{% if season %} data-season="{{ season.holiday }}"{% if season.lite %} data-season-lite="1"{% endif %}{% if season.calm %} data-season-calm="1"{% endif %}{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14548e">
+<meta name="theme-color" content="{{ season.theme_light if season else '#14548e' }}" data-light="{{ season.theme_light if season else '#14548e' }}" data-dark="{{ season.theme_dark if season else '#0a2b48' }}">
 <title>{{ page_title }} | {{ SITE_NAME }}</title>
 <link rel="stylesheet" href="{{ asset('/static/css/site.css') }}">
 <link rel="stylesheet" href="{{ asset('/static/css/market.css') }}">
 <link rel="stylesheet" href="{{ asset('/static/css/badges.css') }}">
+{% if season %}<link rel="stylesheet" href="{{ asset('/static/css/season.css') }}">{% endif %}
 <link rel="icon" href="{{ asset('/static/img/favicon.svg') }}" type="image/svg+xml">
 <script>
 window.BH = {
   csrf: "{{ csrf }}",
   user: {% if user %}{"id": {{ user.id }}, "name": "{{ user.username }}", "credits": {{ user.credits }}, "admin": {{ 1 if user.is_admin else 0 }}}{% else %}null{% endif %},
   path: "{{ path }}",
-  theme: "{{ theme }}"
+  theme: "{{ theme }}",
+  season: {{& to_json(season.client) if season else 'null' }}
 };
 /* Applied before first paint so a dark-theme reload never flashes white.
    BH.theme is already the server's answer -- the account's stored choice if
@@ -30,10 +32,21 @@ window.BH = {
   document.documentElement.setAttribute('data-theme', theme);
   window.BH.theme = theme;
 })();
+/* The browser chrome colour follows the theme from the first paint too (the
+   tag carries both), and a player who muted the seasonal critters on this
+   device never sees them flash in before the script runs. */
+(function () {
+  var t = window.BH.theme;
+  var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', m.getAttribute(dark ? 'data-dark' : 'data-light') || m.getAttribute('content'));
+  if (window.BH.season) { try { if (localStorage.getItem('blockhaven.season.fx') === 'off') document.documentElement.setAttribute('data-season-fx', 'off'); } catch (e) {} }
+})();
 </script>
 </head>
 <body>
 <div class="topbar">
+  {% if season and season.holiday == 'halloween' %}{% include "partials/season_halloween.html" %}{% endif %}
   <div class="wrap">
     <a class="brand" href="/">
       <img class="brand-logo" src="{{ asset('/static/img/logo.png') }}"
@@ -87,7 +100,7 @@ window.BH = {
     <a href="/avatar" class="{{ 'on' if path == '/avatar' else '' }}">Avatar</a>
     <a href="/inventory" class="{{ 'on' if path.startswith('/inventory') else '' }}">Inventory</a>
     <a href="/worlds" class="{{ 'on' if path.startswith('/worlds') else '' }}">Worlds</a>
-    <a href="/market" class="{{ 'on' if path == '/market' else '' }}">Market</a>
+    <a href="/market" class="{{ 'on' if path == '/market' else '' }}">Market{% if season %}<span class="sn-navtag">EVENT · <span data-sn-left="short">{{ season.left_short }}</span></span>{% endif %}</a>
     <a class="off" aria-disabled="true" title="The world editor is not ready yet.">Editor<span class="soon">soon</span></a>
     <a class="off" aria-disabled="true" title="The economy pages are not ready yet.">Economy<span class="soon">soon</span></a>
     <a href="/settings" class="{{ 'on' if path == '/settings' else '' }}">Settings</a>
@@ -96,7 +109,7 @@ window.BH = {
     <a href="/logout" class="only-mobile">Sign out</a>
     {% else %}
     <a href="/worlds">Worlds</a>
-    <a href="/market">Market</a>
+    <a href="/market">Market{% if season %}<span class="sn-navtag">EVENT · <span data-sn-left="short">{{ season.left_short }}</span></span>{% endif %}</a>
     <a href="/users">People</a>
     <a class="off" aria-disabled="true" title="The world editor is not ready yet.">Editor<span class="soon">soon</span></a>
     <a class="off" aria-disabled="true" title="The economy pages are not ready yet.">Economy<span class="soon">soon</span></a>
@@ -111,11 +124,18 @@ window.BH = {
         <span class="knob"><i class="limb"></i><i class="term"></i></span>
       </button>
     </div>
+    {% if season and not season.lite %}
+    <div class="drawer-extra only-mobile sn-drawer-row">
+      <span>{{ season.critters }}</span>
+      <button class="switch sn-fx-switch" type="button" role="switch" aria-checked="true" aria-label="Show the {{ season.critters }}"><i></i></button>
+    </div>
+    {% endif %}
   </div>
 </div>
 
 <div class="ticker">
   <div class="wrap">
+    {% if season %}<a class="sn-chip" href="{{ season.href }}" data-sn-ends="{{ season.ends }}" title="{{ season.title }}: the {{ season.crate_name }} and its key, only while the event runs"><i class="sn-chip-icon" aria-hidden="true"></i><span class="sn-chip-name">{{ season.name }}</span><span class="sn-chip-short" aria-hidden="true">Event crate</span><span class="sn-chip-deal">Crate {{ fmt_num(season.crate_price) }} · Key {{ fmt_num(season.key_price) }}</span><span class="sn-chip-left" data-sn-left="long">{{ season.left_long }}</span><span class="sn-chip-compact" data-sn-left="compact" aria-hidden="true">{{ season.left_compact }}</span><span class="sn-chip-go" aria-hidden="true">›</span></a>{% endif %}
     <b>NEWS</b>
     <span class="ticker-window"><span class="ticker-track"><span>{{ ticker }}</span><span>{{ ticker }}</span></span></span>
   </div>

@@ -2,16 +2,23 @@
 from __future__ import annotations
 
 import functools
+import logging
 import time
 from typing import Any, Callable, Dict, Optional
 
 from .. import config, security
 from ..http import router as R
+from ..http import templating
 from ..http.router import Request, Response
 from ..models import users
 from ..social import friends, messages
 
 router = R.Router()
+
+# The seasonal skin (app/models/season.py) is read by head.html and foot.html.
+# A page rendered without the base context -- an error page, say -- still has
+# to find the name, so it defaults to "no season" here.
+templating.register_global("season", None)
 
 
 def flash_redirect(location: str, message: str = "", kind: str = "ok") -> Response:
@@ -68,9 +75,11 @@ def site_ticker() -> str:
             bits.append("%s is one of the newest noogers here" % row["username"])
     from ..models import crates
     for event in crates.active_events():
-        bits.append("EVENT: %s is on -- %d day%s left to open a Hallowed Harvest crate"
+        bits.append("EVENT: %s is on -- %d day%s left to unbox the %s"
                     % (event["name"], event["seconds_left"] // 86400,
-                       "" if event["seconds_left"] // 86400 == 1 else "s")
+                       "" if event["seconds_left"] // 86400 == 1 else "s",
+                       crates.SERIES.get(event.get("series", ""), {}).get("name")
+                       or "event crate")
                     if event["ends"] else "EVENT: %s is on" % event["name"])
     for row in crates.recent_openings(6):
         if row["tier"] == "unusual":
@@ -140,6 +149,17 @@ def remember_theme(resp: Response, theme: str) -> Response:
     return resp
 
 
+def _season(path: str) -> Optional[Dict[str, Any]]:
+    """The holiday skin for this page, or None.  Decoration must never take
+    a page down with it, so any failure renders the page undressed."""
+    try:
+        from ..models import season
+        return season.current(path=path)
+    except Exception:
+        logging.getLogger(__name__).exception("season skin failed")
+        return None
+
+
 def context(req: Request, **extra: Any) -> Dict[str, Any]:
     user = req.user
     ctx: Dict[str, Any] = {
@@ -159,6 +179,7 @@ def context(req: Request, **extra: Any) -> Dict[str, Any]:
         "is_admin": bool(user and user["is_admin"]),
         "prefs": users.prefs_of(user) if user else dict(users.PREF_DEFAULTS),
         "theme": theme_for(req),
+        "season": _season(req.path),
         "fmt_time": fmt_time,
         "fmt_date": fmt_date,
         "fmt_num": fmt_num,
