@@ -147,8 +147,8 @@ def _():
 def _():
     parts = _skull([-0.70, 0.02, 0], 1.25, facing=0.0, glow="#9fe870")
     parts += [
-        place("bone", [0.10, 0, 0], [0.80, 0.55, 1.2], BONE),
-        part("torus", [-0.30, 0, 0], [0.22, 0.07, 0.22], IRON, [0, 0, PI / 2], m="metal"),
+        place("bone", [0.03, 0, 0], [0.96, 0.55, 1.2], BONE),
+        part("torus", [-0.38, 0, 0], [0.22, 0.07, 0.22], IRON, [0, 0, PI / 2], m="metal"),
         # the bit: three crooked iron teeth
         part("rbox", [0.40, -0.12, 0], [0.08, 0.22, 0.08], IRON, m="metal"),
         part("rbox", [0.52, -0.16, 0], [0.08, 0.30, 0.08], IRON, m="metal"),

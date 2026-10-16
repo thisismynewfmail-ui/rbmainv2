@@ -15,7 +15,7 @@ import math
 
 from .kit import (BLACK, BRASS, GOLD, GOLD_DARK, IRON, PI, SILVER, SNOW, TAU, WHITE,
                   Event, around, at_frame, band, buckle, cap, dome, gift_bow, mix, part,
-                  place, pompom, ringband, rotate, shade, sides, straps)
+                  place, pompom, ringband, rod, rotate, shade, sides, straps)
 
 NAVY = "#0b1433"
 MIDNIGHT = "#141d45"
@@ -592,10 +592,12 @@ def _():
         part("torus", [-0.62, 0, 0], [0.44, 0.04, 0.44], SILVER, [0, 0, PI / 2], m="metal"),
         part("torus", [-0.78, 0, 0], [0.42, 0.04, 0.42], SILVER, [0, 0, PI / 2], m="metal"),
         part("disc", [-0.88, 0, 0], [0.34, 0.34, 0.06], "#e8c46a", [0, PI / 2, 0], m="metal"),
-        part("cyl", [-0.30, 0, 0], [0.16, 0.20, 0.16], "#e8c46a", [0, 0, PI / 2], m="metal"),
+        part("cyl", [-0.35, 0, 0], [0.16, 0.30, 0.16], "#e8c46a", [0, 0, PI / 2], m="metal"),
         place("spiral", [0.22, 0, 0], [0.18, 0.86, 0.18], "#e8c46a", anchor=[0, 0, 0],
               r=[0, 0, -PI / 2], m="metal"),
         part("cyl", [0.0, 0, 0], [0.05, 0.50, 0.05], "#e8c46a", [0, 0, PI / 2], m="metal"),
+        # the coil starts on its rim, off the shaft's axis: a short crank joins them
+        rod([0.20, 0, 0], [0.235, -0.076, 0], 0.045, "#e8c46a", m="metal"),
     ]
 
 

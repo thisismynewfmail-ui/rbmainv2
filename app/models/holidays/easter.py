@@ -832,9 +832,8 @@ def _():
 def _():
     parts = _carrot([-0.62, 0.26, 0], 0.62, r=[0, 0, 0.0])
     parts += [
-        part("cyl", [0.13, 0, 0], [0.09, 0.84, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
-        part("torus", [-0.27, 0, 0], [0.20, 0.07, 0.20], GOLD_DARK, [0, 0, PI / 2], m="metal"),
-        part("rbox", [-0.48, 0.0, 0], [0.30, 0.06, 0.06], BRASS, m="metal"),
+        part("cyl", [-0.03, 0, 0], [0.09, 1.16, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.44, 0, 0], [0.20, 0.07, 0.20], GOLD_DARK, [0, 0, PI / 2], m="metal"),
         part("rbox", [0.40, -0.12, 0], [0.08, 0.22, 0.08], BRASS, m="metal"),
         part("rbox", [0.52, -0.10, 0], [0.08, 0.18, 0.08], BRASS, m="metal"),
     ]

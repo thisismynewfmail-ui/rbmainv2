@@ -60,10 +60,6 @@
           <div><dt>Rounds</dt><dd>{{ fmt_num(stats.total.rounds) }}</dd></div>
           <div><dt>Score</dt><dd>{{ fmt_num(stats.total.score) }}</dd></div>
         </dl>
-        {% if stats.total.zkills %}
-        <p class="p-horde tiny muted">Kills count other players only. Infected put down in
-          Last Light: <b>{{ fmt_num(stats.total.zkills) }}</b></p>
-        {% endif %}
         {% else %}
         <p class="muted tiny">{{ profile.username }} keeps their combat record private.</p>
         {% endif %}
