@@ -1,0 +1,15 @@
+{# Halloween header art: decoration only, behind the topbar's controls.
+   Every node is pointer-events:none (static/css/season.css); the moon and
+   the two floaters stay hidden until season.js measures a free gap for them.
+   Three nested boxes per ghost keep the moves apart: the slot (where JS put
+   it), .hw-flee (JS pushing it away from the pointer) and .hw-bob (the CSS
+   idle loop).  No ids and no hooks other scripts look for. #}
+<div class="hw-sky" aria-hidden="true">
+  <i class="hw-fog hw-back"></i>
+  <span class="hw-slot hw-moon" data-hw-slot="moon"><i></i><i></i><i></i></span>
+  <span class="hw-bats"><span class="hw-bat b1"><i></i></span><span class="hw-bat b2"><i></i></span><span class="hw-bat b3"><i></i></span></span>
+  <span class="hw-slot hw-ghost hw-float" data-hw-slot="ghost"><span class="hw-flee"><span class="hw-bob"><i class="hw-sheet"></i><i class="hw-eye l"></i><i class="hw-eye r"></i><i class="hw-mouth"></i></span></span></span>
+  <span class="hw-slot hw-ghost hw-float" data-hw-slot="ghost"><span class="hw-flee"><span class="hw-bob"><i class="hw-sheet"></i><i class="hw-eye l"></i><i class="hw-eye r"></i><i class="hw-mouth"></i></span></span></span>
+  <span class="hw-lane"><span class="hw-track"><span class="hw-ghost hw-peeker"><span class="hw-flee"><span class="hw-bob"><i class="hw-sheet"></i><i class="hw-eye l"></i><i class="hw-eye r"></i><i class="hw-mouth"></i></span></span></span></span></span>
+  <i class="hw-skyline"></i><i class="hw-windows"></i><i class="hw-fog hw-front"></i><i class="hw-web"></i>
+</div>
