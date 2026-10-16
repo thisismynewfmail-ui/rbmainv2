@@ -49,6 +49,8 @@
     viewDistance: 900,
     particles: true,
     showNames: true,
+    // everybody's pets following them about (static/js/game/pets.js)
+    showPets: true,
     volume: 0.55,
     binds: DEFAULT_BINDS
   };

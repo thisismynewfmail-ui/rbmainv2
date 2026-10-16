@@ -942,6 +942,55 @@
     }],
     // @@ christmas particles go above this line @@
 
+    // pets (static/js/game/pets.js): what floats up over a pet's head
+    ['pet_heart', function (c) {
+      // a pixel heart, in the same blocks as her face
+      var px = 14, rows = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
+      rows.forEach(function (row, r) {
+        for (var k = 0; k < row.length; k++) {
+          if (row.charAt(k) === 'X') c.fillRect(15 + k * px, 22 + r * px, px, px);
+        }
+      });
+    }],
+    ['pet_zzz', function (c) {
+      poly(c, [[24, 22], [104, 22], [104, 40], [52, 88], [104, 88], [104, 106], [24, 106],
+               [24, 88], [76, 40], [24, 40]]);
+    }],
+    ['pet_bang', function (c) {
+      poly(c, [[50, 10], [78, 10], [72, 80], [56, 80]]);
+      c.fillRect(52, 94, 24, 24);
+    }],
+    ['pet_quest', function (c) {
+      c.lineWidth = 18; c.lineCap = 'butt'; c.strokeStyle = '#fff';
+      c.beginPath(); c.arc(64, 42, 26, Math.PI * 1.05, Math.PI * 2.35); c.stroke();
+      c.fillRect(55, 62, 18, 24);
+      c.fillRect(55, 96, 18, 18);
+    }],
+    ['pet_sweat', function (c) {
+      c.beginPath(); c.moveTo(64, 12);
+      c.bezierCurveTo(96, 60, 100, 112, 64, 112);
+      c.bezierCurveTo(28, 112, 32, 60, 64, 12); c.fill();
+    }],
+    ['pet_anger', function (c) {
+      // the anime cross vein: four bent strokes round a gap
+      c.lineWidth = 14; c.lineCap = 'round'; c.strokeStyle = '#fff';
+      [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (q) {
+        var sx = q[0] ? 1 : -1, sy = q[1] ? 1 : -1;
+        c.beginPath();
+        c.moveTo(64 + sx * 14, 64 + sy * 44);
+        c.quadraticCurveTo(64 + sx * 14, 64 + sy * 14, 64 + sx * 44, 64 + sy * 14);
+        c.stroke();
+      });
+    }],
+    ['pet_dots', function (c) {
+      // a speech bubble with three dots in it
+      c.beginPath(); c.ellipse(64, 56, 54, 38, 0, 0, Math.PI * 2); c.fill();
+      poly(c, [[40, 84], [30, 116], [62, 90]]);
+      punch(c, function () {
+        [36, 64, 92].forEach(function (x) { c.beginPath(); c.arc(x, 56, 9, 0, Math.PI * 2); c.fill(); });
+      });
+    }],
+    ['pet_pixel', function (c) { c.fillRect(34, 34, 60, 60); }],
     ['_end', function () {}]
   ];
 

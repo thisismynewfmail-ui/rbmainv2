@@ -26,6 +26,8 @@
     this.projectiles = {};
     // statuses, cooldowns, summons, turrets, strikes (game/gear.js)
     this.gear = global.Gear ? new Gear(this) : null;
+    // everybody's pets, run on this client (static/js/game/pets.js)
+    this.pets = global.PetWorld ? new PetWorld(this) : null;
     this.tracers = [];
     this.state = {};
     this.local = {
@@ -647,6 +649,7 @@
     net.on('chat', function (msg) {
       self.hud.addChat(msg);
       if (msg.kind !== 'system') self.audio.play('chat', { volume: 0.3 });
+      if (self.pets && msg.kind !== 'system') self.pets.notify('chat', msg);
     });
     net.on('kill', function (msg) { self.onKill(msg); });
     if (this.survival) this.survival.bind(net);
@@ -1009,6 +1012,7 @@
 
   Client.prototype.onKill = function (msg) {
     this.hud.addKill(msg, BH.user.name);
+    if (this.pets) this.pets.notify('kill', msg);
     if (msg.kid === this.myId) {
       this.audio.play('kill');
       if (msg.streak >= 3) {
@@ -1043,6 +1047,7 @@
                                         shooter.pos[2]] : null);
       if (!origin) return;
       this.spawnTracer(origin, msg.d, 400, msg.c);
+      if (this.pets) this.pets.notify('shot', { id: msg.id });
       this.particles.burst('muzzle', [origin[0] + msg.d[0] * 1.6,
                                       origin[1] + msg.d[1] * 1.6,
                                       origin[2] + msg.d[2] * 1.6]);
@@ -1053,6 +1058,7 @@
         : weapon.indexOf('rifle') >= 0 ? 'rifle' : 'pistol';
       this.audio.play(sound, { volume: this.volumeAt(origin) });
     } else if (msg.k === 'explode') {
+      if (this.pets) this.pets.notify('boom', { p: msg.p });
       if (msg.kind === 'pumpkin') {
         this.particles.burst('candy', msg.p, { radius: msg.r || 8 });
         this.audio.play('explode', { volume: this.volumeAt(msg.p) * 0.7 });
@@ -1076,6 +1082,7 @@
         this.audio.play('swing', { volume: this.volumeAt(reaper.pos) });
       }
     } else if (msg.k === 'swing') {
+      if (this.pets) this.pets.notify('swing', { id: msg.id });
       var player = this.players[msg.id];
       if (player) this.audio.play('swing', { volume: this.volumeAt(player.pos) });
     } else if (msg.k === 'gone') {
@@ -1144,6 +1151,7 @@
     var origin = [this.local.pos[0], this.local.pos[1] + Avatar.EYE_HEIGHT,
                   this.local.pos[2]];
     this.net.send({ t: 'fire', d: dir, o: origin });
+    if (this.pets) this.pets.notify('shot', { id: this.myId });
     if (special) {
       gear.localFire(stats, origin, dir);
       return;
@@ -1461,6 +1469,9 @@
                                   Avatar.hatAnchor(this.local.pos, this.local.yaw, myHat));
       }
     }
+
+    // ---- pets, at their owners' sides
+    if (this.pets) this.pets.frame(dt, time, camera);
 
     // ---- projectiles
     Object.keys(this.projectiles).forEach(function (id) {

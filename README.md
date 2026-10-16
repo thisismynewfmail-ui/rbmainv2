@@ -831,6 +831,52 @@ garment — the sleeves and the legs too, not just the chest. A part carries one
 decal, so on a shirt the segment a graphic is printed on keeps the graphic and
 the rest of the shirt carries the weave.
 
+## Pets
+
+A pet is a little companion who follows her owner into every world: a chibi
+girl about **half a player's height** (2.62 against 5.4), built in the same
+rounded-block language as the avatar by her own rig,
+`static/js/engine/pet.js`. Five ship on the market's **Pet Shop**
+(`/market/pets`), one of each per account:
+
+| Pet | Look | Signature |
+| --- | --- | --- |
+| **Fern** | the reference design: green bob, fringe, face-framing locks, green dress, black stockings | a sprout on her crown that perks up and wilts with her mood; she skips when happy |
+| **Ember** | flame-red twin tails, hoodie, sneakers, a fang | tail tips that burn brighter as she gets fired up; she sneezes sparks |
+| **Luna** | knee-length midnight hair, capelet, striped stockings | she floats instead of walking; a crescent in her hair glows |
+| **Mochi** | a bunny hood, pompom tail, mary-janes | ears that perk, droop, twitch and flop over; she hops everywhere |
+| **Pixel** | headphones, a tech dress, thigh boots | LED eyes, an antenna lit in her mood's colour, jet boots for catching up |
+
+Every species shares one body -- big head, flared dress, stub arms, stockinged
+legs -- so the **pet wardrobe** (hats, glasses & face, neckwear, pins, outfits,
+back) fits all five; it is bought once and every pet you own can wear it.
+Faces are pixel bitmaps laid on the face as tiny blocks rather than painted
+textures, so eye colour is just a colour, blinks and glances animate, and no
+atlas cell is spent however many pets are about.
+
+**Edit Pet** (`/pet`, a button under *Edit my avatar* once you own a pet):
+choose which pet follows you (or none), and give her a name, six colours
+(hair, outfit, accent, eyes, legwear, skin), up to three of fourteen
+**persona tags** and an outfit. Everything saves as it changes, and she
+reacts to every change in the preview. The active pet rides in the avatar
+descriptor, so she stands at her owner's side in the profile preview and in
+every avatar thumbnail, with a nameplate whose tooltip shows her persona.
+
+In a world, `static/js/game/pets.js` runs every pet on every client from what
+the client already knows about her owner -- nothing about a pet goes over the
+network. She perceives (moving, jumping, landing, hurt, healed, shooting,
+scoring, dead, chatting; strangers, enemies, the horde, other pets), feels
+(joy, energy, fear, anger, sadness, love, boredom, sleepiness, drifting back
+to her persona's baseline), chooses a state (follow, catch up, settle, sit,
+sleep, wander, play, greet, guard, hide, comfort, mourn, meet another pet)
+and plays some fifty named actions on top. Persona tags are numbers, not
+scripts -- Shy weighs hiding up and greeting down, Curious widens how far
+she wanders, Sleepy shortens how long she waits before sitting down -- so
+three tags make a character rather than three bolted-on behaviours. She
+steers round walls, hops up ledges, keeps out of the line of fire, and
+reappears at her owner's side when left far behind. *Show pets* in the game
+settings turns them all off.
+
 ## Appearance and privacy
 
 A dark theme ships alongside the light one. It is a second hand-built palette
@@ -1399,6 +1445,9 @@ tools/mapcheck.py ironvale              # ...or just one
 tools/mapcheck.py lastlight             # each Last Light area on its own, routes from its safe room
 tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
+tools/pettests.py                       # pets: shop rules, Edit Pet, the descriptor (no server)
+node tools/pettests.js                  # the pet rig and the follower AI, headless
+node tools/petsheet.js --scale          # render the pets to a contact sheet
 tools/bottests.py                       # bot unit tests, headless rounds, scale
 tools/bottests.py scale --bots 100000   # ...just the scale test, bigger
 tools/mockllm.py --port 5055            # a stand-in language model endpoint
