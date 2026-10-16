@@ -1,0 +1,37 @@
+{# One year's crate on its shelf in the Crate Hall (store.shelf).  Reads
+   ``sh`` -- the loop variable in market.html -- plus user, owned and fmt_num.
+   A sealed shelf (an event not out yet) carries no buy, offer, contents or
+   open attributes at all: nothing on it can be bought or peeked at.
+   Interactive attributes are never nested: plates, locks and links are
+   siblings. #}
+{% if sh.state == 'upcoming' %}
+<article class="vt-shelf sealed" id="ed-{{ sh.id }}" data-series="{{ sh.id }}" data-state="upcoming" style="--accent:{{ sh.colors.accent }}">
+  <div class="vt-plaque"><b>{{ sh.ordinal }} · {{ sh.year }}</b><i class="vt-chip sealed">SEALED · <span data-unseal="{{ sh.starts }}">{{ sh.days_until }}d</span></i></div>
+  <div class="vt-slot vt-silhouette"><canvas class="item-thumb" width="200" height="200" data-item="{{ sh.crate }}"></canvas><svg class="vt-i vt-padlock" aria-hidden="true"><use href="#vt-i-lock"/></svg></div>
+  <div class="vt-info"><b class="vt-shelf-title">{{ sh.title }}</b><p>Opens {{ sh.opens_on }}. Pieces revealed on the day.</p></div>
+</article>
+{% else %}
+<article class="vt-shelf theme-{{ sh.theme }}" id="ed-{{ sh.id }}" data-series="{{ sh.id }}" data-state="{{ sh.state }}" data-title="{{ sh.title }}{{ (' · ' + sh.holiday_name + ' ' + str(sh.year)) if sh.event else '' }}" style="--accent:{{ sh.colors.accent }};--glow:{{ sh.colors.glow }};--acc-ink:{{ sh.ink }}">
+  <div class="vt-plaque"><b>{{ (sh.ordinal + ' · ' + str(sh.year)) if sh.event else 'ALWAYS' }}</b>{% if sh.state == 'live' %}<i class="vt-chip live">{{ 'LAST CALL' if sh.last_call else 'LIVE · ' + str(sh.days_left) + 'd left' }}</i>{% elif sh.state == 'past' %}<i class="vt-chip arc">ARCHIVE</i>{% else %}<i class="vt-chip always">ALWAYS ON</i>{% endif %}</div>
+  <div class="mk-show-art" data-tilt="1"><canvas class="item-thumb" width="200" height="200" data-item="{{ sh.crate }}"></canvas><span class="mk-shine"></span>{% if owned.get(sh.crate) %}<i class="mk-owned" data-owned="{{ sh.crate }}">x{{ owned.get(sh.crate) }}</i>{% endif %}</div>
+  <div class="vt-hook"><canvas class="item-thumb" width="90" height="90" data-item="{{ sh.key }}"></canvas>{% if owned.get(sh.key) %}<i class="mk-owned" data-owned="{{ sh.key }}">x{{ owned.get(sh.key) }}</i>{% endif %}</div>
+  <div class="vt-info">
+    <b class="vt-shelf-title">{{ sh.title }}</b><small class="vt-shelf-sub">{{ sh.crate_name }} · {{ sh.tagline }}</small>
+    {% if sh.state == 'live' %}<a class="vt-tolive" href="#console">Also on the Event Console ↑</a>{% elif sh.state == 'past' %}<p class="vt-archive-note">Past event — still on the shelf. Its hats stay crate-only; everything else sells outright.</p>{% endif %}
+    <div class="mk-oddsbar">{% for g in sh.odds %}<i style="flex:{{ g.chance }};background:{{ g.color }}" title="{{ g.label }} {{ g.chance }}%"></i>{% endfor %}</div>
+    <div class="mk-oddskey">{% for g in sh.odds %}<span><b style="background:{{ g.color }}"></b>{{ g.label }} {{ g.chance }}%</span>{% endfor %}</div>
+    <p class="vt-unu">★ {{ sh.unusual_chance }}% of hats come out Unusual</p>
+    <div class="vt-plates">
+      {% if user %}<button class="mk-btn vt-plate" data-buy="{{ sh.crate }}" data-name="{{ sh.crate_name }}" data-price="{{ sh.crate_price }}" data-slot="crate" data-stack="1" aria-label="Buy the {{ sh.crate_name }} for {{ sh.crate_price }} Noogets"><span>Crate</span><em><span class="coin"></span>{{ fmt_num(sh.crate_price) }}</em></button><button class="mk-btn vt-plate" data-buy="{{ sh.key }}" data-name="{{ sh.key_name }}" data-price="{{ sh.key_price }}" data-slot="key" data-stack="1" aria-label="Buy the {{ sh.key_name }} for {{ sh.key_price }} Noogets"><span>Key</span><em><span class="coin"></span>{{ fmt_num(sh.key_price) }}</em></button>
+      {% else %}<a class="mk-btn vt-plate locked" href="/login?next=/market"><span>Crate</span><em><span class="coin"></span>{{ fmt_num(sh.crate_price) }}</em></a><a class="mk-btn vt-plate locked" href="/login?next=/market"><span>Key</span><em><span class="coin"></span>{{ fmt_num(sh.key_price) }}</em></a>{% endif %}{% for kt in sh.kits %}<div class="mk-offer vt-kit"><span class="vt-kit-art"><canvas class="item-thumb" width="48" height="48" data-item="{{ sh.crate }}"></canvas><i>×{{ kt.n_crates }}</i></span><span class="vt-kit-txt"><b>{{ kt.name }}</b>{% if sh.id == 'classic' and kt.short == 'PAIR' %}<i class="vt-chip start">NEW? START HERE</i>{% endif %}<small>{{ kt.n_crates }} crate{{ '' if kt.n_crates == 1 else 's' }} + {{ kt.n_keys }} key{{ '' if kt.n_keys == 1 else 's' }} · worth <span class="coin"></span>{{ fmt_num(kt.value) }}</small></span>{% if user %}<button class="mk-btn vt-plate" data-offer="{{ kt.id }}" data-name="{{ kt.name }}" data-price="{{ kt.price }}" data-series="{{ sh.id }}" data-preview="{{ sh.crate }}"><span>{{ kt.short }}</span><em><span class="coin"></span>{{ fmt_num(kt.price) }}</em></button>{% else %}<a class="mk-btn vt-plate locked" href="/login?next=/market"><span>{{ kt.short }}</span><em><span class="coin"></span>{{ fmt_num(kt.price) }}</em></a>{% endif %}</div>{% endfor %}
+    </div>
+    <button class="mk-link vt-inspect" data-contents="{{ sh.id }}">Peek inside · odds</button>
+  </div>
+  <details class="vt-loot"{{ ' open' if sh.state == 'live' else '' }}>
+    <summary>{{ len(sh.pieces) }} pieces · {{ sh.on_shelf }} on the shelf{{ (' · you own ' + str(sh.collected)) if user else '' }}</summary>
+    <ul class="vt-pieces">{% for pc in sh.pieces %}
+<li class="vt-piece g-{{ pc.grade }}"><canvas class="item-thumb" width="88" height="88" data-item="{{ pc.id }}"></canvas><b class="vt-name">{{ pc.name }}</b><small>{{ pc.slot_label }} · {{ pc.grade_label }}</small>{% if pc.buy %}{% if user %}<button class="mk-btn tiny" data-buy="{{ pc.id }}" data-price="{{ pc.price }}" data-name="{{ pc.name }}" data-slot="{{ pc.slot }}" data-stack="0"><span>Get</span><em><span class="coin"></span>{{ fmt_num(pc.price) }}</em></button>{% if pc.owned %}<i class="mk-owned" data-owned="{{ pc.id }}">x{{ pc.owned }}</i>{% endif %}{% else %}<span class="vt-price"><span class="coin"></span>{{ fmt_num(pc.price) }}</span>{% endif %}{% else %}<button class="vt-lock" data-contents="{{ sh.id }}">{{ '★ Crate only' if pc.hat else 'Crate only for now' }}</button>{% endif %}</li>{% endfor %}
+    </ul>
+  </details>
+</article>
+{% endif %}

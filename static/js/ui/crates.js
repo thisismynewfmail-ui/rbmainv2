@@ -308,40 +308,92 @@
   Crates.buy = function (button) {
     var itemId = button.dataset.buy, offer = button.dataset.offer;
     var price = parseInt(button.dataset.price, 10) || 0;
+    var stack = button.dataset.stack === '1';
     var qty = 1;
-    var qtyBox = itemId && document.querySelector('[data-qty-for="' + itemId + '"] input');
-    if (button.dataset.stack === '1' && qtyBox) qty = clamp(parseInt(qtyBox.value, 10) || 1, 1, 10);
+    // a quantity box beside the button (scoped to its card when it has one);
+    // with none, a stackable buy asks "how many?" inside the dialog itself
+    var scope = button.closest('[data-qty-scope]');
+    var qtyBox = itemId && (scope || document).querySelector('[data-qty-for="' + itemId + '"] input');
+    if (stack && qtyBox) qty = clamp(parseInt(qtyBox.value, 10) || 1, 1, 10);
+    var ask = stack && !qtyBox && !offer;
     var name = button.dataset.name || 'this';
-    var total = price * qty;
     var balance = (global.BH && BH.user && BH.user.credits) || 0;
     var wallet = document.getElementById('wallet-amount');
     if (wallet) balance = parseInt(wallet.textContent.replace(/[^0-9]/g, ''), 10) || balance;
-    var preview = itemId || (offer && button.closest('.mk-offer') &&
-                              button.closest('.mk-offer').querySelector('canvas').dataset.item);
+    var host = button.closest('.mk-offer, [data-offer-host]');
+    var art = host && host.querySelector('canvas[data-item]');
+    var preview = itemId || button.dataset.preview || (art && art.dataset.item) || '';
+    function math(q) {
+      var total = price * q;
+      return '<span>Price</span><span><span class="coin"></span> ' + num(total) + '</span>' +
+        '<span>Your Noogets</span><span>' + num(balance) + '</span>' +
+        '<span>After</span><span class="' + (balance < total ? 'short' : '') + '">' +
+        num(balance - total) + '</span>';
+    }
+    function short(q) { return Math.max(0, price * q - balance); }
+    var counter = ask
+      ? '<div class="buy-count" role="group" aria-label="How many"><span>How many?</span>' +
+        '<button type="button" data-q="-1" aria-label="One fewer">&#9666;</button>' +
+        '<output aria-live="polite">1</output>' +
+        '<button type="button" data-q="1" aria-label="One more">&#9656;</button>' +
+        '<span class="buy-presets"><button type="button" data-q-set="1" aria-pressed="true">&times;1</button>' +
+        '<button type="button" data-q-set="3">&times;3</button><button type="button" data-q-set="5">&times;5</button>' +
+        '<button type="button" data-q-set="10">&times;10</button></span></div>'
+      : (qty > 1 ? '<span class="buy-qty">&times; ' + qty + '</span>' : '');
     var body =
       '<div class="buy-sheet">' +
       '<div class="buy-art"><canvas id="buy-spin" width="300" height="300"></canvas></div>' +
-      '<div class="buy-info"><b>' + esc(name) + '</b>' +
-      (qty > 1 ? '<span class="buy-qty">&times; ' + qty + '</span>' : '') +
-      '<div class="buy-math"><span>Price</span><span><span class="coin"></span> ' + num(total) + '</span>' +
-      '<span>Your Noogets</span><span>' + num(balance) + '</span>' +
-      '<span>After</span><span class="' + (balance < total ? 'short' : '') + '">' +
-      num(balance - total) + '</span></div>' +
-      (balance < total ? '<p class="tiny" style="color:var(--bad-ink)">You are ' + num(total - balance) +
-        ' Noogets short.</p>' : '') +
+      '<div class="buy-info"><b>' + esc(name) + '</b>' + counter +
+      '<div class="buy-math">' + math(qty) + '</div>' +
+      '<p class="tiny buy-short" style="color:var(--bad-ink)"' + (short(qty) ? '' : ' hidden') +
+        '>You are <span>' + num(short(qty)) + '</span> Noogets short.</p>' +
       (button.dataset.slot === 'crate' ? '<p class="tiny muted">Crates need a matching key to open.</p>' : '') +
       (button.dataset.slot === 'key' ? '<p class="tiny muted">One key opens one crate, then it is used up.</p>' : '') +
       '</div></div>';
-    var spin = null;
+    var spin = null, stopKeys = null;
+    function confirmLabel(q) { return balance < price * q ? 'Try anyway' : 'Buy · ' + num(price * q); }
     var dialog = Site.dialog({
-      title: offer ? 'Grab this bundle?' : 'Buy ' + (qty > 1 ? qty + ' of these' : 'this') + '?',
-      tone: 'gold', bodyHtml: body, confirm: balance < total ? 'Try anyway' : 'Buy it',
-      cancel: 'Not now', centered: true,
-      onClose: function () { if (spin && global.Thumbs) Thumbs.stopLive(spin); }
+      title: (offer ? 'Take the ' : 'Get the ') + name + '?',
+      tone: 'gold', bodyHtml: body, confirm: confirmLabel(qty),
+      cancel: 'Back', centered: true,
+      onClose: function () {
+        if (spin && global.Thumbs) Thumbs.stopLive(spin);
+        if (stopKeys) stopKeys();
+      }
     });
     setTimeout(function () {
       spin = document.getElementById('buy-spin');
       if (spin && preview && global.Thumbs) Thumbs.animateItem(spin, preview, '', { spin: 0.9 });
+      var box = ask && document.querySelector('.buy-count');
+      if (!box) return;
+      var sheet = box.closest('.buy-info');
+      function set(q) {
+        qty = clamp(q, 1, 10);
+        box.querySelector('output').textContent = qty;
+        sheet.querySelector('.buy-math').innerHTML = math(qty);
+        var warn = sheet.querySelector('.buy-short');
+        warn.hidden = !short(qty);
+        warn.querySelector('span').textContent = num(short(qty));
+        var dlg = box.closest('[role="dialog"]');
+        var ok = dlg && dlg.querySelector('[data-modal="ok"]');
+        if (ok) ok.textContent = confirmLabel(qty);
+        box.querySelectorAll('[data-q-set]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(parseInt(b.dataset.qSet, 10) === qty));
+        });
+      }
+      box.addEventListener('click', function (e) {
+        var step = e.target.closest('[data-q]'), pick = e.target.closest('[data-q-set]');
+        if (step) set(qty + parseInt(step.dataset.q, 10));
+        if (pick) set(parseInt(pick.dataset.qSet, 10));
+      });
+      // Enter on a focused counter button presses it, not the dialog's OK
+      box.addEventListener('keydown', function (e) { if (e.key === 'Enter') e.stopPropagation(); });
+      function arrows(e) {
+        if (e.key === 'ArrowLeft') { set(qty - 1); e.preventDefault(); }
+        if (e.key === 'ArrowRight') { set(qty + 1); e.preventDefault(); }
+      }
+      document.addEventListener('keydown', arrows);
+      stopKeys = function () { document.removeEventListener('keydown', arrows); };
     }, 30);
     return dialog.then(function (yes) {
       if (!yes) return null;
@@ -366,6 +418,9 @@
             flag.classList.remove('pop'); void flag.offsetWidth; flag.classList.add('pop');
           });
         }
+        document.dispatchEvent(new CustomEvent('crates:bought', { detail: {
+          item: itemId || '', offer: offer || '', series: button.dataset.series || '',
+          slot: button.dataset.slot || '', qty: offer ? 1 : qty, result: res } }));
         Site.toast((qty > 1 ? qty + ' x ' : '') + name + ' is yours!');
         return res;
       });

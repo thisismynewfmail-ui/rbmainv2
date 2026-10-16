@@ -1,70 +1,122 @@
 {% include "partials/head.html" %}
-{% set event = events[0] if events else None %}
-<div class="mk" id="market" data-now="{{ now }}">
+<link rel="stylesheet" href="{{ asset('/static/css/store.css') }}">
+<noscript><style>.vt-wing[hidden]{display:block!important}</style></noscript>
+{#  THE CRATE VAULT -- the market.
+    Every section is built from five pieces (store.css): a window
+    (.vt-win + .vt-titlebar), a sunken slot (.vt-slot), a price plate
+    (.vt .mk-btn), a lamp chip (.vt-chip) and an LCD (.vt-lcd).  The grouping
+    comes from app/models/store.py; prices and the rules of what is for sale
+    stay in market.py and crates.py.  The --ev-* colours are the live event's
+    own, so the next event re-tints the page by itself.
+    Template rules: each template compiles to one function, so never set or
+    loop over a context name (event, series, feature, items, ...), and read
+    held counts as x.held['keys'] -- AttrDict answers .keys / .items with
+    dict methods. #}
+{% set ev = cn.event %}{% set ss = cn.series %}
+<div class="mk vt{{ ' vt-last' if cn.last_call else '' }}" id="market" data-now="{{ now }}" data-holiday="{{ cn.holiday }}"
+     style="--ev-accent:{{ cn.colors.accent }};--ev-deep:{{ cn.colors.deep }};--ev-glow:{{ cn.colors.glow }};--ev-ink:{{ cn.ink }}">
+  {% include "partials/store_sprite.html" %}
 
-  {% if event and feature %}
-  {% set es = feature.series %}
-  <!-- ======================================================= the event hero
-       Everything sold here comes from the event's series (crates.EVENTS ->
-       crates.SERIES), so a new event is data plus a theme-<id> skin in
-       market.css; see reference_images_to_start_with/CRATES_AND_KEYS.md. -->
-  <section class="mk-hero theme-{{ event.id }}" data-event-ends="{{ event.ends }}">
-    <div class="mk-sky" aria-hidden="true">
-      <div class="mk-stars"></div>
-      <div class="mk-moon"><i></i><i></i><i></i></div>
-      <div class="mk-bats"><b></b><b></b><b></b><b></b><b></b></div>
-      <div class="mk-fog a"></div><div class="mk-fog b"></div>
-      <svg class="mk-graves" viewBox="0 0 1200 140" preserveAspectRatio="none">
-        <path d="M0 140 L0 96 Q60 70 120 92 T260 88 Q300 60 350 84 T470 80 Q540 52 600 82 T760 86 Q820 58 880 84 T1020 82 Q1100 64 1200 90 L1200 140 Z"/>
-        <path class="g" d="M90 140v-34a18 18 0 0 1 36 0v34zM210 140v-26h6v-10h8v10h6v26zM330 140v-40a22 22 0 0 1 44 0v40zM690 140v-30a16 16 0 0 1 32 0v30zM800 140v-22h5v-12h8v12h5v22zM960 140v-38a20 20 0 0 1 40 0v38zM1100 140v-28a14 14 0 0 1 28 0v28z"/>
-        <path class="t" d="M520 140 L528 70 L512 86 L520 60 L506 74 L516 40 L532 74 L524 64 L536 92 L528 84 L534 140 Z"/>
-      </svg>
-      <div class="mk-lanterns"><i></i><i></i><i></i></div>
+  <!-- ================================================================ toolbar -->
+  <nav class="vt-bar" aria-label="Market sections">
+    <div class="vt-bar-scroll">
+      {% if ev %}<a class="vt-tool ev" href="#console"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-{{ cn.icon }}"/></svg>{{ ev.name }} <b>{{ ('LAST CALL' if cn.last_call else (str(cn.days_left) + 'd')) if cn.days_left or cn.last_call else '<1d' }}</b></a>{% endif %}
+      <a class="vt-tool" href="#hall"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-hall"/></svg>Crate Hall</a>
+      {% if user %}<a class="vt-tool" href="#stash-bar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-ring"/></svg>Key Ring</a>{% endif %}
+      <a class="vt-tool" href="#aisles"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-bag"/></svg>Supply</a>
+      <a class="vt-tool" href="#odds"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-dice"/></svg>Odds</a>
     </div>
-    <div class="mk-hero-copy">
-      <h1 class="mk-title" data-text="{{ event.title }}">{{ event.title }}</h1>
-      <p class="mk-blurb">{{ event.blurb }}</p>
-      <div class="mk-countdown" aria-label="Time left in the event">
-        <div><b data-cd="d">--</b><span>days</span></div>
-        <div><b data-cd="h">--</b><span>hours</span></div>
-        <div><b data-cd="m">--</b><span>min</span></div>
-        <div><b data-cd="s">--</b><span>sec</span></div>
+    {% if user %}<span class="vt-coins" title="Your Noogets"><span class="coin"></span><b id="mk-wallet">{{ fmt_num(user.credits) }}</b></span>
+    {% else %}<a class="mk-btn vt-plate small" href="/login?next=/market"><span>Sign in</span></a>{% endif %}
+  </nav>
+
+  <!-- ========================================================== event console
+       The live event's crate -- or the Blockhaven Hat Crate when nothing is
+       on.  data-need picks which one of the arcade buttons shows (store.css),
+       and store.js keeps it right as the stash changes. -->
+  <section class="mk-hero vt-console theme-{{ ss.theme }}" id="console" data-offer-host data-sid="{{ ss.id }}"
+           data-holiday="{{ cn.holiday }}" data-need="{{ cn.need if user else 'signin' }}"
+           {% if ev %}data-event-ends="{{ ev.ends }}"{% endif %}>
+    <div class="vt-bulbs" aria-hidden="true"></div>
+    <div class="vt-screen">
+      {% if cn.holiday == 'halloween' %}{% include "partials/store_sky_halloween.html" %}
+      {% else %}<div class="mk-sky vt-sky" aria-hidden="true"><div class="mk-stars"></div></div>{% endif %}
+      <div class="mk-hero-stage">
+        <div class="mk-pedestal"><i></i></div>
+        <canvas class="mk-hero-crate" id="hero-crate" width="460" height="460" data-item="{{ ss.crate }}"
+                data-glow="{{ cn.feature.glow }}" data-series="{{ ss.id }}" data-effect="{{ cn.feature.hero_effect }}"></canvas>
+        {% if cn.holiday == 'halloween' %}{% include "partials/store_ghost.html" %}{% endif %}
+        <div class="mk-unusual-tease"><span class="mk-tease-k">★ {{ ss.unusual_chance }}% Unusual</span><span class="mk-tease-v">{{ ' • '.join(cn.feature.effects) }}</span></div>
       </div>
-      <div class="mk-cta">
+    </div>
+
+    <div class="mk-hero-copy vt-deck-head">
+      {% if ev %}<p class="vt-kicker"><span class="vt-kick-live">▶ Now live</span> · {{ cn.holiday_name }} {{ cn.year }} · {{ cn.ordinal }} annual</p>
+      {% else %}<p class="vt-kicker"><span class="vt-kick-live">▶ Always on</span> · Blockhaven Classic</p>{% endif %}
+      <h1 class="mk-title" data-text="{{ ev.title if ev else ss.name }}">{{ ev.title if ev else ss.name }}</h1>
+      <p class="mk-blurb">{{ ev.blurb if ev else ss.tagline }}</p>
+      {% if ev %}
+      <div class="mk-countdown vt-lcd" aria-label="Time left in the event">
+        <small>ENDS IN</small>
+        <div><b data-cd="d">{{ cn.seconds_left // 86400 }}</b><span>DAYS</span></div>
+        <div><b data-cd="h">{{ '%02d' % ((cn.seconds_left // 3600) % 24) }}</b><span>HRS</span></div>
+        <div><b data-cd="m">{{ '%02d' % ((cn.seconds_left // 60) % 60) }}</b><span>MIN</span></div>
+        <div><b data-cd="s">{{ '%02d' % (cn.seconds_left % 60) }}</b><span>SEC</span></div>
+      </div>
+      <p class="vt-over-note">Event over — the {{ ss.crate_name }} is now in the {{ cn.holiday_name }} collection. <a href="/market#ed-{{ ss.id }}">See its shelf</a></p>
+      {% elif cn.next %}
+      <a class="vt-next" href="#ed-{{ cn.next.id }}">NEXT EVENT: <svg class="vt-i" aria-hidden="true"><use href="#vt-i-{{ cn.next.icon }}"/></svg> {{ cn.next.name }} unseals in {{ cn.next.days }}d</a>
+      {% endif %}
+    </div>
+
+    <div class="vt-deck-act">
+      <div class="vt-act-row">
         {% if user %}
-        <button class="mk-btn hot" data-buy="{{ es.crate }}" data-name="{{ es.crate_name }}"
-                data-price="{{ es.crate_price }}" data-slot="crate" data-stack="1">
-          <span>Buy the Crate</span><em><span class="coin"></span> {{ fmt_num(es.crate_price) }}</em></button>
-        <button class="mk-btn" data-buy="{{ es.key }}" data-name="{{ es.key_name }}"
-                data-price="{{ es.key_price }}" data-slot="key" data-stack="1">
-          <span>Buy the Key</span><em><span class="coin"></span> {{ fmt_num(es.key_price) }}</em></button>
-        {% else %}
-        <a class="mk-btn hot" href="/login?next=/market"><span>Sign in to unbox</span></a>
+        <div class="vt-loadout" aria-label="What you hold for this crate">
+          <div class="vt-slot vt-load"><canvas class="item-thumb" width="64" height="64" data-item="{{ ss.crate }}"></canvas><small>CRATES</small><b data-held="crates">{{ cn.held['crates'] }}</b></div>
+          <div class="vt-slot vt-load"><canvas class="item-thumb" width="64" height="64" data-item="{{ ss.key }}"></canvas><small>KEYS</small><b data-held="keys">{{ cn.held['keys'] }}</b></div>
+        </div>
         {% endif %}
-        <button class="mk-btn ghost" data-contents="{{ es.id }}"><span>&#128269; What's inside?</span></button>
+        <div class="vt-arcade-slot">
+          {% if user %}
+          {% if cn.pair %}<button class="mk-btn hot vt-arcade buy" data-offer="{{ cn.pair.id }}" data-name="{{ cn.pair.name }}" data-price="{{ cn.pair.price }}" data-series="{{ ss.id }}" data-preview="{{ ss.crate }}" data-then-open="{{ ss.id }}" aria-label="Buy the {{ cn.pair.name }} for {{ cn.pair.price }} Noogets and open it"><span>Unbox now</span><em><span class="coin"></span>{{ fmt_num(cn.pair.price) }}</em></button>
+          {% else %}<button class="mk-btn hot vt-arcade buy" data-buy="{{ ss.crate }}" data-name="{{ ss.crate_name }}" data-price="{{ ss.crate_price }}" data-slot="crate" data-stack="0"><span>Get a crate</span><em><span class="coin"></span>{{ fmt_num(ss.crate_price) }}</em></button>{% endif %}
+          <button class="mk-btn hot vt-arcade go" data-open-series="{{ ss.id }}"><span>▶ Unbox</span><em><b data-ready>{{ cn.ready }}</b> ready</em></button>
+          <button class="mk-btn hot vt-arcade needkey" data-buy="{{ ss.key }}" data-name="{{ ss.key_name }}" data-price="{{ ss.key_price }}" data-slot="key" data-stack="0" data-then-open="{{ ss.id }}"><span>Get key &amp; unbox</span><em><span class="coin"></span>{{ fmt_num(ss.key_price) }}</em></button>
+          <button class="mk-btn hot vt-arcade needcrate" data-buy="{{ ss.crate }}" data-name="{{ ss.crate_name }}" data-price="{{ ss.crate_price }}" data-slot="crate" data-stack="0" data-then-open="{{ ss.id }}"><span>Get crate &amp; unbox</span><em><span class="coin"></span>{{ fmt_num(ss.crate_price) }}</em></button>
+          <small class="vt-arcade-note buy">{% if cn.pair %}1 crate + 1 key, opened on the spot{% if cn.pair.saving > 0 %} · saves <span class="coin"></span>{{ fmt_num(cn.pair.saving) }}{% endif %}{% else %}It needs a {{ ss.key_name }} to open{% endif %}</small>
+          <small class="vt-arcade-note go">One crate + one key = one reel</small>
+          <small class="vt-arcade-note needkey">You hold a crate. One key opens it on the spot</small>
+          <small class="vt-arcade-note needcrate">You hold a key. Grab a crate and it opens on the spot</small>
+          {% else %}
+          <a class="mk-btn hot vt-arcade" href="/login?next=/market"><span>Sign in to unbox</span></a>
+          <small class="vt-arcade-note signin">Crate <span class="coin"></span>{{ fmt_num(ss.crate_price) }} · Key <span class="coin"></span>{{ fmt_num(ss.key_price) }}{% if cn.pair %} · Pair <span class="coin"></span>{{ fmt_num(cn.pair.price) }}{% endif %}</small>
+          {% endif %}
+        </div>
       </div>
-      <div class="mk-chase" aria-label="In the {{ es.crate_name }}">
-        {% for item_id in feature.loot %}
-        <button class="mk-chase-item" data-contents="{{ es.id }}" title="See the odds">
-          <canvas class="item-thumb" width="96" height="96" data-item="{{ item_id }}"></canvas>
-        </button>
-        {% endfor %}
+      <div class="vt-carts">
+        {% if user %}
+        <button class="mk-btn vt-plate" data-buy="{{ ss.crate }}" data-name="{{ ss.crate_name }}" data-price="{{ ss.crate_price }}" data-slot="crate" data-stack="1" aria-label="Buy the {{ ss.crate_name }} for {{ ss.crate_price }} Noogets"><span>Crate</span><em><span class="coin"></span>{{ fmt_num(ss.crate_price) }}</em></button>
+        <button class="mk-btn vt-plate" data-buy="{{ ss.key }}" data-name="{{ ss.key_name }}" data-price="{{ ss.key_price }}" data-slot="key" data-stack="1" aria-label="Buy the {{ ss.key_name }} for {{ ss.key_price }} Noogets"><span>Key</span><em><span class="coin"></span>{{ fmt_num(ss.key_price) }}</em></button>
+        {% if cn.multi %}<button class="mk-btn vt-plate" data-offer="{{ cn.multi.id }}" data-name="{{ cn.multi.name }}" data-price="{{ cn.multi.price }}" data-series="{{ ss.id }}" data-preview="{{ ss.crate }}" aria-label="Buy the {{ cn.multi.name }} for {{ cn.multi.price }} Noogets"><span>{{ cn.multi.short }}</span><em><span class="coin"></span>{{ fmt_num(cn.multi.price) }}</em></button>{% endif %}
+        {% else %}
+        <a class="mk-btn vt-plate locked" href="/login?next=/market"><span>Crate</span><em><span class="coin"></span>{{ fmt_num(ss.crate_price) }}</em></a>
+        <a class="mk-btn vt-plate locked" href="/login?next=/market"><span>Key</span><em><span class="coin"></span>{{ fmt_num(ss.key_price) }}</em></a>
+        {% if cn.multi %}<a class="mk-btn vt-plate locked" href="/login?next=/market"><span>{{ cn.multi.short }}</span><em><span class="coin"></span>{{ fmt_num(cn.multi.price) }}</em></a>{% endif %}
+        {% endif %}
       </div>
+      {% if cn.multi %}<small class="vt-carts-note">{{ cn.multi.short }}: {{ cn.multi.n_crates }} crates + {{ cn.multi.n_keys }} keys · worth <span class="coin"></span>{{ fmt_num(cn.multi.value) }}</small>{% endif %}
+      {% if ev %}<p class="vt-honest">When the clock runs out it joins the {{ cn.holiday_name }} collection in the Crate Hall — same price, still openable.</p>{% endif %}
+      <button class="mk-btn ghost vt-inspect" data-contents="{{ ss.id }}"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-eye"/></svg><span>Peek inside · odds</span></button>
     </div>
-    <div class="mk-hero-stage">
-      <div class="mk-pedestal"><i></i></div>
-      <canvas class="mk-hero-crate" id="hero-crate" width="460" height="460"
-              data-item="{{ es.crate }}" data-glow="{{ feature.glow }}"
-              data-series="{{ es.id }}" data-effect="{{ feature.hero_effect }}"></canvas>
-      <div class="mk-unusual-tease">
-        <span class="mk-tease-k">&#9733; {{ es.unusual_chance }}% Unusual</span>
-        <span class="mk-tease-v">{{ ' \u2022 '.join(feature.effects) }}</span>
-      </div>
+
+    <div class="mk-chase" aria-label="In the {{ ss.crate_name }}">
+      <small class="vt-label">IN THIS CRATE · best first</small>
+      <div class="vt-chase-rail">{% for ch in cn.chase %}<button class="mk-chase-item" data-contents="{{ ss.id }}" style="--g:{{ ch.color }}" title="See the odds"><canvas class="item-thumb" width="96" height="96" data-item="{{ ch.id }}"></canvas></button>{% endfor %}</div>
     </div>
   </section>
-  {% endif %}
 
-  <!-- =============================================================== live drops -->
+  <!-- ============================================================= drop log -->
   <section class="mk-drops" id="drop-feed" aria-label="Live drops">
     <span class="mk-drops-tag"><span class="mk-live-dot"></span> LIVE DROPS</span>
     <div class="mk-drops-window">
@@ -80,154 +132,63 @@
       </div>
     </div>
     <span class="mk-drops-count"><b id="opened-count">{{ fmt_num(crate_stats.opened) }}</b> opened &bull;
-      <b style="color:#c98bff">{{ crate_stats.unusuals }}</b> Unusual</span>
+      <b class="vt-unu-n">{{ crate_stats.unusuals }}</b> Unusual</span>
   </section>
 
   {% if user %}
-  <!-- ================================================================ your stash -->
-  <section class="mk-stash" id="stash-bar">
-    <div class="mk-wallet">
-      <span class="mk-coin-big"></span>
-      <div><small>Your Noogets</small><b id="mk-wallet">{{ fmt_num(user.credits) }}</b></div>
-    </div>
-    {% for s in series %}
-    {% set held = stash.get(s.id) or {'crates': 0, 'keys': 0} %}
-    <div class="mk-stash-row theme-{{ s.theme }}" data-series="{{ s.id }}" style="--accent:{{ s.colors.accent }}">
-      <canvas class="item-thumb" width="88" height="88" data-item="{{ s.crate }}"></canvas>
-      <div class="mk-stash-txt">
-        <b>{{ s.crate_name }}</b>
-        <span><i data-count="crates">{{ held['crates'] }}</i> crate{{ '' if held['crates'] == 1 else 's' }}
-          &bull; <i data-count="keys">{{ held['keys'] }}</i> key{{ '' if held['keys'] == 1 else 's' }}</span>
-      </div>
-      <button class="mk-btn small open {{ '' if held['crates'] and held['keys'] else 'hidden' }}"
-              data-open-series="{{ s.id }}"><span>&#128275; Open now</span></button>
-    </div>
-    {% endfor %}
-    <a class="mk-stash-link" href="/inventory?slot=stash">Your crates &amp; keys &rarr;</a>
+  <!-- ============================================================= key ring
+       A row for every series (crates.js setStash finds its row by
+       data-series); the empty ones stay hidden until something lands. -->
+  <section class="mk-stash vt-ring vt-win" id="stash-bar">
+    <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-ring"/></svg> Your Key Ring <small>Every crate and key you hold</small> <a href="/inventory?slot=stash">Backpack →</a></h2>
+    <div class="vt-ring-rows">{% for rg in ring %}
+      <div class="mk-stash-row vt-ringrow theme-{{ rg.theme }}{{ ' empty' if rg.empty else '' }}{{ ' pinned' if rg.pinned else '' }}{{ ' vt-need-key' if rg.need_key else '' }}{{ ' vt-need-crate' if rg.need_crate else '' }}" data-series="{{ rg.id }}" style="--accent:{{ rg.colors.accent }}">
+        <span class="vt-slot vt-ringslot"><canvas class="item-thumb" width="64" height="64" data-item="{{ rg.crate }}"></canvas></span>
+        <div class="vt-ringtxt"><b>{{ rg.crate_name }}</b>
+          <span><svg class="vt-i" role="img" aria-label="Crates"><use href="#vt-i-crate"/></svg><i data-count="crates">{{ rg.held['crates'] }}</i> <svg class="vt-i" role="img" aria-label="Keys"><use href="#vt-i-key"/></svg><i data-count="keys">{{ rg.held['keys'] }}</i></span></div>
+        <button class="mk-btn small open{{ '' if rg.ready else ' hidden' }}" data-open-series="{{ rg.id }}"><span>Open</span></button>
+        {% if rg.sellable %}<button class="mk-btn vt-plate small vt-getkey" data-buy="{{ rg.key }}" data-name="{{ rg.key_name }}" data-price="{{ rg.key_price }}" data-slot="key" data-stack="0"><span>Get key</span><em><span class="coin"></span>{{ fmt_num(rg.key_price) }}</em></button><button class="mk-btn vt-plate small vt-getcrate" data-buy="{{ rg.crate }}" data-name="{{ rg.crate_name }}" data-price="{{ rg.crate_price }}" data-slot="crate" data-stack="0"><span>Get crate</span><em><span class="coin"></span>{{ fmt_num(rg.crate_price) }}</em></button><a class="vt-shoplink" href="#ed-{{ rg.id }}">Find it in the Hall ↓</a>{% endif %}
+      </div>{% endfor %}</div>
   </section>
   {% endif %}
 
   <div class="row mk-row">
     <div class="col">
-      <!-- ============================================================ crate hall -->
-      <section class="panel mk-hall">
-        <div class="panel-head gold">
-          <span>&#128273; The Crate Hall</span>
-          <span class="head-links">Every hat comes out of a crate now &mdash; any of them can be <b>Unusual</b></span>
-        </div>
-        <div class="panel-body">
-          <div class="mk-steps">
-            <div><i>1</i><b>Get a key</b><span>Keys open one crate each. Match the key to the crate.</span></div>
-            <div><i>2</i><b>Get a crate</b><span>500 Noogets. It lands in your inventory, under Crates &amp; Keys.</span></div>
-            <div><i>3</i><b>Open it</b><span>Click the key, then the crate &mdash; and watch the reel.</span></div>
-          </div>
-          <div class="mk-showcase">
-            {% for s in series %}{% if s.active %}
-            {% for kind in ['key', 'crate'] %}
-            {% set item_id = s.key if kind == 'key' else s.crate %}
-            {% set price = s.key_price if kind == 'key' else s.crate_price %}
-            <article class="mk-show {{ kind }} theme-{{ s.theme }}" style="--accent:{{ s.colors.accent }};--glow:{{ s.colors.glow }}"
-                     data-tilt="1">
-              {% if s.event %}<span class="mk-ribbon">EVENT</span>{% elif kind == 'key' and loop.first %}<span class="mk-ribbon gold">START HERE</span>{% endif %}
-              <div class="mk-show-art">
-                <canvas class="item-thumb" width="260" height="260" data-item="{{ item_id }}"></canvas>
-                <span class="mk-shine"></span>
-              </div>
-              <div class="mk-show-body">
-                <small>{{ 'Key' if kind == 'key' else 'Crate' }} &bull; Series #{{ s.number }}</small>
-                <h3>{{ s.key_name if kind == 'key' else s.crate_name }}</h3>
-                <p>{{ ('Opens one ' + s.crate_name + '.') if kind == 'key' else s.tagline }}</p>
-                <div class="mk-show-foot">
-                  <span class="mk-price"><span class="coin"></span> {{ fmt_num(price) }}</span>
-                  <span class="mk-owned {{ '' if owned.get(item_id) else 'hidden' }}" data-owned="{{ item_id }}">x{{ owned.get(item_id) or 0 }}</span>
-                </div>
-                <div class="mk-show-actions">
-                  {% if user %}
-                  <div class="mk-qty" data-qty-for="{{ item_id }}">
-                    <button type="button" data-step="-1" aria-label="One fewer">&minus;</button>
-                    <input type="number" value="1" min="1" max="10" aria-label="How many">
-                    <button type="button" data-step="1" aria-label="One more">+</button>
-                  </div>
-                  <button class="mk-btn hot small" data-buy="{{ item_id }}" data-name="{{ s.key_name if kind == 'key' else s.crate_name }}"
-                          data-price="{{ price }}" data-slot="{{ kind }}" data-stack="1"><span>Buy</span></button>
-                  {% else %}
-                  <a class="mk-btn small" href="/login?next=/market"><span>Sign in</span></a>
-                  {% endif %}
-                </div>
-                <button class="mk-link" data-contents="{{ s.id }}">Contents &amp; odds &rarr;</button>
-              </div>
-            </article>
-            {% endfor %}
-            {% endif %}{% endfor %}
-          </div>
-
-          {% if offers %}
-          <h3 class="mk-sub">Bundles</h3>
-          <div class="mk-offers">
-            {% for o in offers %}
-            {% set s = [x for x in series if x.id == o.series][0] %}
-            <article class="mk-offer theme-{{ s.theme }}" style="--accent:{{ s.colors.accent }}">
-              <span class="mk-save">SAVE {{ fmt_num(o.value - o.price) }}</span>
-              <div class="mk-offer-art">
-                <canvas class="item-thumb" width="120" height="120" data-item="{{ s.crate }}"></canvas>
-                <canvas class="item-thumb k" width="90" height="90" data-item="{{ s.key }}"></canvas>
-              </div>
-              <div class="mk-offer-body">
-                <b>{{ o.name }}</b>
-                <span>{{ o.blurb }}</span>
-                <div class="mk-show-foot">
-                  <span class="mk-price"><span class="coin"></span> {{ fmt_num(o.price) }}
-                    <s>{{ fmt_num(o.value) }}</s></span>
-                  {% if user %}
-                  <button class="mk-btn small hot" data-offer="{{ o.id }}" data-name="{{ o.name }}"
-                          data-price="{{ o.price }}" data-series="{{ o.series }}"><span>Grab it</span></button>
-                  {% endif %}
-                </div>
-              </div>
-            </article>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
+      <!-- ========================================================= crate hall -->
+      <section class="panel mk-hall vt-win" id="hall">
+        <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-hall"/></svg> The Crate Hall <small>Every crate ever cut, by holiday. Newest year first.</small></h2>
+        <div class="vt-wings" role="tablist" aria-label="Collections">{% for wg in wings %}
+          <a class="vt-wing-tab" role="tab" id="tab-{{ wg.id }}" href="#hall-{{ wg.id }}" aria-controls="hall-{{ wg.id }}" aria-selected="{{ 'true' if wg.selected else 'false' }}" tabindex="{{ 0 if wg.selected else -1 }}" style="--accent:{{ wg.accent }}"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-{{ wg.icon }}"/></svg><b>{{ wg.name }}</b>{% if wg.live %}<i class="vt-chip live">LIVE</i>{% elif wg.id == 'classic' %}<i class="vt-chip start">START</i>{% elif wg.soon %}<i class="vt-chip soon">SOON</i>{% endif %}<small>{{ wg.count }}</small></a>{% endfor %}</div>
+        {% for wg in wings %}
+        <section class="vt-wing" id="hall-{{ wg.id }}" role="tabpanel" aria-labelledby="tab-{{ wg.id }}" style="--accent:{{ wg.accent }}" {{ '' if wg.selected else 'hidden' }}>
+          <header class="vt-wing-head"><span class="vt-slot vt-wing-icon"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-{{ wg.icon }}"/></svg></span>
+            <div><b>{{ wg.name }}</b> <span>{{ wg.count }} crate{{ '' if wg.count == 1 else 's' }} · {{ wg.span }}{{ ' · 1 coming' if wg.soon else '' }}</span>
+              <p>{{ wg.blurb }}</p></div>
+            {% if user and wg.total_n %}<span class="vt-meter" style="--p:{{ (100 * wg.owned_n) // wg.total_n }}%">You own {{ wg.owned_n }} of {{ wg.total_n }} pieces</span>{% endif %}</header>
+          {% for sh in wg.shelves %}{% include "partials/store_shelf.html" %}{% endfor %}
+        </section>{% endfor %}
       </section>
 
-      <!-- ===================================================== the spotlight -->
-      <section class="panel mk-spot" id="spotlight">
-        <div class="panel-head purple">
-          <span>&#9733; From the crates</span>
-          <span class="head-links">What could be waiting in yours</span>
-        </div>
-        <div class="panel-body mk-spot-body">
+      <!-- ======================================================= inspect bench -->
+      <section class="panel mk-spot vt-win" id="spotlight">
+        <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-star"/></svg> The Inspect Bench <small>What could come out of yours</small></h2>
+        <div class="mk-spot-body">
           <div class="mk-spot-stage">
             <canvas id="spot-canvas" width="360" height="360"></canvas>
             <div class="mk-spot-fx" id="spot-fx">Unusual: <b>&mdash;</b></div>
           </div>
-          <div class="mk-spot-list" id="spot-list">
-            {% for it in spotlight %}
-            <button class="mk-spot-pick {{ 'on' if loop.first else '' }}" data-spot="{{ it.id }}"
-                    data-name="{{ it.name }}" data-rarity="{{ it.rarity }}" data-desc="{{ it.description }}"
-                    data-crate="{{ 'halloween' if it.get('event') else 'classic' }}">
-              <canvas class="item-thumb" width="96" height="96" data-item="{{ it.id }}"></canvas>
-              <span><b>{{ it.name }}</b><i class="r-{{ it.rarity }}">{{ it.rarity }}</i></span>
-            </button>
-            {% endfor %}
+          <div class="mk-spot-list" id="spot-list">{% for sp in spotlight %}
+            <button class="mk-spot-pick{{ ' on' if loop.first else '' }}" data-spot="{{ sp.id }}" data-name="{{ sp.name }}" data-rarity="{{ sp.rarity }}" data-desc="{{ sp.description }}" data-crate="{{ sp.crate }}" data-effects="{{ sp.fx }}"><canvas class="item-thumb" width="96" height="96" data-item="{{ sp.id }}"></canvas><span><b>{{ sp.name }}</b><i class="r-{{ sp.rarity }}">{{ sp.rarity }}</i></span></button>{% endfor %}
           </div>
           <div class="mk-spot-copy" id="spot-copy"></div>
         </div>
       </section>
 
-      <!-- ========================================================= the aisles -->
-      <section class="panel mk-aisles" id="aisles">
-        <div class="panel-head">
-          <span>The Aisles</span>
-          <span class="head-links">{{ len(items) }} item{{ '' if len(items) == 1 else 's' }}</span>
-        </div>
-        <div class="panel-body">
-          <nav class="mk-tabs">
-            {% for t in tabs %}
-            <a href="/market?slot={{ t[0] }}&sort={{ sort }}#aisles" class="{{ 'on' if slot == t[0] else '' }} ic-{{ t[2] }}">{{ t[1] }}</a>
-            {% endfor %}
-          </nav>
+      <!-- ====================================================== supply shelves -->
+      <section class="panel mk-aisles vt-win" id="aisles">
+        <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-bag"/></svg> Supply Shelves <small>{{ len(items) }} piece{{ '' if len(items) == 1 else 's' }} · everyday gear and threads</small></h2>
+        <div class="vt-win-body">
+          <nav class="mk-tabs" aria-label="Aisles">{% for tb in tabs %}<a href="/market?slot={{ tb[0] }}&amp;sort={{ sort }}#aisles" class="{{ 'on' if slot == tb[0] else '' }} ic-{{ tb[2] }}"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-{{ tb[2] }}"/></svg>{{ tb[1] }}</a>{% endfor %}</nav>
           <form class="mk-filter" method="get" action="/market#aisles">
             <input type="hidden" name="slot" value="{{ slot }}">
             <input type="search" name="q" value="{{ term }}" placeholder="Search the shelves">
@@ -239,68 +200,75 @@
             </select>
             <button class="btn">Search</button>
           </form>
-          <div class="mk-grid">
-            {% for it in items %}
-            <article class="mk-card r-{{ it.rarity }} {{ 'stash' if it.stackable else '' }}" data-market-item="{{ it.id }}"
-                     style="--rc:{{ it.rarity_color }}" data-tilt="1">
-              {% if it.event %}<span class="mk-ribbon">EVENT</span>{% elif it.is_new %}<span class="mk-ribbon new">NEW</span>{% endif %}
-              <div class="mk-card-art">
-                <canvas class="item-thumb" width="216" height="216" data-item="{{ it.id }}"></canvas>
-                <span class="mk-shine"></span>
-                <span class="mk-owned {{ '' if owned.get(it.id) else 'hidden' }}" data-owned="{{ it.id }}">x{{ owned.get(it.id) or 0 }}</span>
-              </div>
-              <div class="mk-card-body">
-                <span class="mk-card-name" title="{{ it.name }}">{{ it.name }}</span>
-                <span class="mk-card-meta">{{ it.slot_label }} <i>{{ it.rarity }}</i></span>
-                <div class="mk-card-foot">
-                  <span class="mk-price">{% if it.free %}Free{% else %}<span class="coin"></span> {{ fmt_num(it.price) }}{% endif %}</span>
-                  {% if user %}
-                  <button class="mk-btn tiny" data-buy="{{ it.id }}" data-price="{{ it.price }}"
-                          data-name="{{ it.name }}" data-slot="{{ it.slot }}"
-                          data-stack="{{ 1 if it.stackable else 0 }}"><span>Buy</span></button>
-                  {% else %}
-                  <a class="mk-btn tiny" href="/login?next=/market"><span>Sign in</span></a>
-                  {% endif %}
-                </div>
-              </div>
-            </article>
-            {% endfor %}
+          <div class="mk-grid">{% for ca in items %}
+<article class="mk-card vt-slotcard r-{{ ca.rarity }}{{ ' stash' if ca.stackable else '' }}" data-market-item="{{ ca.id }}" style="--rc:{{ ca.rarity_color }}" data-tilt="1">{% if ca.state == 'live' %}<span class="vt-chip live">EVENT</span>{% elif ca.state == 'past' %}<a class="vt-chip arc" href="#ed-{{ ca.event }}" title="From {{ ca.ed_label }}">{{ ca.ed_short }}</a>{% elif ca.is_new and not ca.event %}<span class="vt-chip new">NEW</span>{% endif %}<div class="mk-card-art"><canvas class="item-thumb" width="160" height="160" data-item="{{ ca.id }}"></canvas>{% if owned.get(ca.id) %}<span class="mk-owned" data-owned="{{ ca.id }}">x{{ owned.get(ca.id) }}</span>{% endif %}</div><b class="vt-name">{{ ca.name }}</b><small>{{ ca.slot_label }} · {{ ca.rarity }}</small>{% if user %}<button class="mk-btn tiny" data-buy="{{ ca.id }}" data-price="{{ ca.price }}" data-name="{{ ca.name }}" data-slot="{{ ca.slot }}" data-stack="{{ 1 if ca.stackable else 0 }}"><span>{{ 'Free' if ca.free else 'Get' }}</span>{% if not ca.free %}<em><span class="coin"></span>{{ fmt_num(ca.price) }}</em>{% endif %}</button>{% else %}<a class="mk-btn tiny locked" href="/login?next=/market"><span>Sign in</span></a>{% endif %}</article>{% endfor %}
+            {% if archive_n %}<a class="vt-slotcard vt-more" href="#hall"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-hall"/></svg><b>+{{ fmt_num(archive_n) }} more pieces</b><small>live in the Crate Hall's collections ↑</small></a>{% endif %}
           </div>
           {% if not items %}<p class="muted">Nothing on these shelves matches that.</p>{% endif %}
         </div>
       </section>
     </div>
 
-    <div class="col-narrow mk-side">
-      <div class="panel">
-        <div class="panel-head purple">Crate odds</div>
-        <div class="panel-body">
-          {% for s in series %}{% if s.active %}
-          <div class="mk-odds" data-odds="{{ s.id }}">
-            <b>{{ s.crate_name }}</b>
-            <div class="mk-oddsbar" data-oddsbar="{{ s.id }}"><i style="flex:1;background:var(--line-soft)"></i></div>
-            <div class="mk-oddskey tiny" data-oddskey="{{ s.id }}"></div>
-            <span class="tiny">&#9733; <b style="color:var(--unusual-ink)">{{ s.unusual_chance }}%</b> of hats come out Unusual</span>
-            <button class="mk-link" data-contents="{{ s.id }}">Every item &amp; its odds &rarr;</button>
+    <div class="col-narrow mk-side" id="odds">
+      <!-- ============================================================ side -->
+      <section class="panel vt-win">
+        <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-dice"/></svg> Odds Board</h2>
+        <div class="vt-win-body">
+          {% for od in side_odds %}
+          <div class="mk-odds">
+            <b>{{ od.series.crate_name }}</b>
+            <div class="mk-oddsbar">{% for g in od.grades %}<i style="flex:{{ g.chance }};background:{{ g.color }}" title="{{ g.label }} {{ g.chance }}%"></i>{% endfor %}</div>
+            <div class="mk-oddskey tiny">{% for g in od.grades %}<span><b style="background:{{ g.color }}"></b>{{ g.label }} {{ g.chance }}%</span>{% endfor %}</div>
+            <span class="tiny">★ <b class="vt-unu-n">{{ od.series.unusual_chance }}%</b> of hats come out Unusual</span>
+            <button class="mk-link" data-contents="{{ od.series.id }}">Every item &amp; its odds →</button>
           </div>
-          {% endif %}{% endfor %}
+          {% endfor %}
+          <p class="tiny vt-foot">Every crate's odds are posted on its shelf in the Crate Hall.</p>
         </div>
-      </div>
-      <div class="panel">
-        <div class="panel-head gold">Grades</div>
-        <div class="panel-body mk-grades">
+      </section>
+      <section class="panel vt-win">
+        <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-play"/></svg> How to unbox</h2>
+        <ol class="vt-win-body vt-steps">
+          <li><b>Get a key</b> — one key opens one crate of its series.</li>
+          <li><b>Get a crate</b> — <span class="coin"></span>500 Noogets.</li>
+          <li><b>Unbox</b> — tap Open on your Key Ring and watch the reel.</li>
+        </ol>
+      </section>
+      <section class="panel vt-win">
+        <h2 class="vt-titlebar"><svg class="vt-i" aria-hidden="true"><use href="#vt-i-star"/></svg> Grades</h2>
+        <div class="vt-win-body mk-grades">
           {% for gid in ['common', 'uncommon', 'rare', 'legendary', 'mythic'] %}
           <span style="--g:{{ grades[gid].color }}"><i></i>{{ grades[gid].label }}</span>
           {% endfor %}
-          <span class="unusual"><i></i>Unusual &mdash; any hat, plus a permanent effect</span>
+          <span class="unusual"><i></i>Unusual — any hat, plus a permanent effect</span>
         </div>
-      </div>
-      <div class="panel">
-        <div class="panel-head">Unusual effects</div>
-        <div class="panel-body tiny mk-fx-list">
-          {% for eid, e in effects.items() %}<span class="pill purple {{ 'event' if e.get('event') else '' }}">{{ e.name }}</span> {% endfor %}
-        </div>
-      </div>
+      </section>
+      <section class="panel vt-win">
+        <details class="vt-fx"><summary class="vt-titlebar">Unusual effects ({{ len(effects) }})</summary>
+          <div class="vt-win-body tiny mk-fx-list">
+            {% for eid, e in effects.items() %}<span class="pill purple {{ 'event' if e.get('event') else '' }}">{{ e.name }}</span> {% endfor %}
+          </div>
+        </details>
+      </section>
+    </div>
+  </div>
+
+  <!-- ========================================================== mobile buy bar
+       Shown by store.js only on a phone, once the console's own button has
+       scrolled away. -->
+  <div class="vt-buybar" id="vt-buybar" data-need="{{ cn.need if user else 'signin' }}" hidden>
+    <canvas class="item-thumb" width="56" height="56" data-item="{{ ss.crate }}"></canvas>
+    <span class="vt-bb-txt"><b>{{ ev.name if ev else ss.name }}</b><small>{% if cn.last_call %}Last call{% elif ev %}{{ cn.days_left }}d left{% else %}Always on{% endif %}</small></span>
+    <div class="vt-arcade-slot">
+      {% if user %}
+      {% if cn.pair %}<button class="mk-btn hot vt-arcade buy" data-offer="{{ cn.pair.id }}" data-name="{{ cn.pair.name }}" data-price="{{ cn.pair.price }}" data-series="{{ ss.id }}" data-preview="{{ ss.crate }}" data-then-open="{{ ss.id }}" aria-label="Buy the {{ cn.pair.name }} for {{ cn.pair.price }} Noogets and open it"><span>Unbox now</span><em><span class="coin"></span>{{ fmt_num(cn.pair.price) }}</em></button>
+      {% else %}<button class="mk-btn hot vt-arcade buy" data-buy="{{ ss.crate }}" data-name="{{ ss.crate_name }}" data-price="{{ ss.crate_price }}" data-slot="crate" data-stack="0"><span>Get a crate</span><em><span class="coin"></span>{{ fmt_num(ss.crate_price) }}</em></button>{% endif %}
+      <button class="mk-btn hot vt-arcade go" data-open-series="{{ ss.id }}"><span>▶ Unbox</span><em><b data-ready>{{ cn.ready }}</b> ready</em></button>
+      <button class="mk-btn hot vt-arcade needkey" data-buy="{{ ss.key }}" data-name="{{ ss.key_name }}" data-price="{{ ss.key_price }}" data-slot="key" data-stack="0" data-then-open="{{ ss.id }}"><span>Get key &amp; unbox</span><em><span class="coin"></span>{{ fmt_num(ss.key_price) }}</em></button>
+      <button class="mk-btn hot vt-arcade needcrate" data-buy="{{ ss.crate }}" data-name="{{ ss.crate_name }}" data-price="{{ ss.crate_price }}" data-slot="crate" data-stack="0" data-then-open="{{ ss.id }}"><span>Get crate &amp; unbox</span><em><span class="coin"></span>{{ fmt_num(ss.crate_price) }}</em></button>
+      {% else %}
+      <a class="mk-btn hot vt-arcade" href="/login?next=/market"><span>Sign in to unbox</span></a>
+      {% endif %}
     </div>
   </div>
 </div>
