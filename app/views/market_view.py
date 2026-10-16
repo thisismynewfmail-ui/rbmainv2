@@ -7,7 +7,7 @@ from .. import db
 from ..http import router as R
 from ..http.router import Request
 from ..models import (avatars, catalog, crates, economy, inventory, market,
-                      notifications, store)
+                      notifications, pets, store)
 from .base import api_error, api_ok, login_required, render, router
 
 # The market's aisles.  Hats are not one of them any more -- they come out of
@@ -21,7 +21,7 @@ MARKET_TABS = [("all", "Everything", "star"), ("stash", "Crates & Keys", "crate"
 INVENTORY_TABS = [("all", "Everything"), ("stash", "Crates & Keys"), ("hat", "Hats"),
                   ("hair", "Hair"), ("face", "Faces"), ("shirt", "Shirts"),
                   ("pants", "Pants"), ("belt", "Belts"), ("back", "Back"),
-                  ("usable", "Usables")]
+                  ("usable", "Usables"), ("pets", "Pets")]
 
 # kept for anything that still imports the old name
 SLOT_TABS = INVENTORY_TABS
@@ -123,6 +123,10 @@ def inventory_page(req: Request):
         items = []
     elif slot == "all":
         items = [i for i in owned if not i["stash"]]
+    elif slot == "pets":
+        # the pets and everything they wear, one tab
+        items = [i for i in owned if i["slot"] in pets.ALL_SLOTS]
+        stash_cards = []
     else:
         items = [i for i in owned if i["slot"] == slot]
         stash_cards = []

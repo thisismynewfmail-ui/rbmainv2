@@ -213,9 +213,11 @@
       '<span class="iname" title="' + esc(it.name) + '">' + esc(it.name) + '</span>' +
       '<span class="islot">' + esc(it.slot_label) + ' &bull; #' + it.serial + '</span>' +
       '<div class="spread" style="margin-top:5px">' +
-      (wearable
-        ? '<button class="btn small primary" data-equip-inv="' + it.inv_id + '" data-slot="' + esc(it.slot) + '">Wear</button>'
-        : '<a class="btn small" href="/avatar#hotbar">Hotbar</a>') +
+      (String(it.slot).indexOf('pet') === 0
+        ? '<a class="btn small primary" href="/pet">Edit Pet</a>'
+        : (wearable
+          ? '<button class="btn small primary" data-equip-inv="' + it.inv_id + '" data-slot="' + esc(it.slot) + '">Wear</button>'
+          : '<a class="btn small" href="/avatar#hotbar">Hotbar</a>')) +
       '<button class="btn small" data-sell="' + it.inv_id + '" data-name="' + esc(it.name) +
       '" data-item="' + esc(it.item_id) + '" data-refund="' + Math.floor((it.price || 0) * 0.4) +
       '" title="Sell back for 40%">Sell</button>' +

@@ -74,6 +74,8 @@
               <div class="spread" style="margin-top:5px">
                 {% if it.slot == 'usable' %}
                 <a class="btn small" href="/avatar#hotbar">Hotbar</a>
+                {% elif it.slot.startswith('pet') %}
+                <a class="btn small primary" href="/pet">Edit Pet</a>
                 {% else %}
                 <button class="btn small primary" data-equip-inv="{{ it.inv_id }}" data-slot="{{ it.slot }}">Wear</button>
                 {% endif %}
