@@ -2787,6 +2787,216 @@
                                     ink: 'rgba(154,255,106,0.95)', glow: '#4fc46e',
                                     font: 'Georgia, serif', frame: 'box', size: 17, size2: 14 }));
 
+  // -- 2026, the Leprechaun's Last Laugh: a joke shop's jack-in-the-boxes
+
+  // motley: gold diamonds over the part's own green, with a dark green
+  // diamond between each and a thin gold seam
+  painter('sp26_motley', function (ctx) {
+    var n = 4, w = CELL / n, h = CELL / n;
+    for (var r = -1; r <= n; r++) {
+      for (var c = -1; c <= n; c++) {
+        var x = c * w + (r % 2 ? w / 2 : 0), y = r * h / 1;
+        ctx.fillStyle = (r + c) % 2 ? 'rgba(232,192,64,0.95)' : 'rgba(10,40,20,0.32)';
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w, y + h / 2);
+        ctx.lineTo(x + w / 2, y + h); ctx.lineTo(x, y + h / 2); ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,226,120,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    }
+  });
+
+  // a jack-in-the-box's side panel: a gold frame, a cream field, a shamrock
+  // and "HA!" in red
+  painter('sp26_jackside', function (ctx) {
+    ctx.fillStyle = '#e8c040'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#f6efd8'; ctx.fillRect(10, 10, 108, 108);
+    ctx.strokeStyle = '#b8901c'; ctx.lineWidth = 3; ctx.strokeRect(16, 16, 96, 96);
+    spShamrock(ctx, 64, 54, 26, '#2a9a48', 0.15);
+    ctx.fillStyle = '#e0342a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 26px Georgia, serif'; ctx.fillText('HA!', 64, 96);
+  });
+
+  // the crate's front: Lep's portrait, winking, in an oval frame, over a
+  // banner that says what to do
+  painter('sp26_jackfront', function (ctx) {
+    ctx.fillStyle = '#15602c'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#e8c040';
+    ctx.beginPath(); ctx.ellipse(64, 54, 44, 48, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff3d6';
+    ctx.beginPath(); ctx.ellipse(64, 54, 38, 42, 0, 0, Math.PI * 2); ctx.fill();
+    // beard and face
+    ctx.fillStyle = '#e06a24';
+    ctx.beginPath(); ctx.ellipse(64, 70, 26, 22, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#f4c49c';
+    ctx.beginPath(); ctx.ellipse(64, 60, 20, 17, 0, 0, Math.PI * 2); ctx.fill();
+    // hat
+    ctx.fillStyle = '#1f7a3a'; ctx.fillRect(44, 22, 40, 24); ctx.fillRect(36, 42, 56, 6);
+    ctx.fillStyle = '#16171b'; ctx.fillRect(44, 38, 40, 5);
+    ctx.fillStyle = '#e8c040'; ctx.fillRect(60, 37, 8, 7);
+    // the wink, the grin
+    ctx.strokeStyle = '#16171b'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(51, 57); ctx.lineTo(59, 57); ctx.stroke();
+    ctx.fillStyle = '#16171b'; ctx.beginPath(); ctx.arc(71, 56, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(64, 64, 9, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.fillStyle = '#ffd34a'; ctx.fillRect(66, 66, 4, 4);
+    // the banner
+    ctx.fillStyle = '#e0342a'; ctx.fillRect(10, 100, 108, 22);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px Verdana, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('TURN ME!', 64, 112);
+  });
+
+  // the lid: a gold rosette that says, as clearly as it can, DO NOT OPEN
+  painter('sp26_lidtop', function (ctx) {
+    ctx.fillStyle = '#15602c'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 16; k++) {
+      ctx.fillStyle = k % 2 ? '#e8c040' : '#2a9a48';
+      ctx.beginPath(); ctx.moveTo(64, 64);
+      ctx.arc(64, 64, 60, k / 16 * Math.PI * 2, (k + 1) / 16 * Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#f6efd8'; ctx.beginPath(); ctx.arc(64, 64, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#e0342a'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = '#e0342a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px Verdana, sans-serif';
+    ctx.fillText('DO NOT', 64, 56); ctx.fillText('OPEN', 64, 74);
+  });
+
+  painter('stencil_sp26', stencil({ top: 'LAST', bottom: 'LAUGH 2026', icon: 'jackbox',
+                                    ink: 'rgba(58,216,106,0.95)', glow: '#e8c040',
+                                    font: 'Georgia, serif', frame: 'round', size: 18, size2: 14 }));
+
+  // a custard pie's top: custard yellow with swirls of cream and a crust lip
+  painter('sp26_custard', function (ctx) {
+    ctx.fillStyle = '#f4de7a'; ctx.fillRect(0, 0, CELL, CELL);
+    var rnd = scatter(2026);
+    for (var k = 0; k < 14; k++) {
+      var x = rnd() * CELL, y = rnd() * CELL, r = 6 + rnd() * 10;
+      ctx.fillStyle = 'rgba(255,252,236,0.9)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(230,200,120,0.8)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0.3, 4.6); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(200,140,60,0.55)'; ctx.fillRect(0, 118, CELL, 10);
+  });
+
+  // the boxing glove on the spring: laces, a seam, and POW
+  painter('sp26_glove', function (ctx) {
+    ctx.clearRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(64, 64, 48, 0.7 * Math.PI, 2.3 * Math.PI); ctx.stroke();
+    ctx.fillStyle = '#ffd34a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 30px Impact, Verdana, sans-serif';
+    ctx.strokeStyle = '#16171b'; ctx.lineWidth = 5;
+    ctx.strokeText('POW!', 64, 66); ctx.fillText('POW!', 64, 66);
+  });
+
+  // the whirligig beanie's gores: four colours round the crown
+  painter('sp26_gores', function (ctx) {
+    var cols = ['#e0342a', '#2a9a48', '#e8c040', '#f6efd8'];
+    for (var k = 0; k < 8; k++) {
+      ctx.fillStyle = cols[k % 4];
+      ctx.fillRect(k * 16, 0, 16, CELL);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (k = 0; k < 8; k++) ctx.fillRect(k * 16 + 14, 0, 2, CELL);
+  });
+
+  // a can of Mixed Nuts (it is not nuts)
+  painter('sp26_nutcan', function (ctx) {
+    ctx.fillStyle = '#d4d9e0'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#c0281e'; ctx.fillRect(0, 22, CELL, 84);
+    ctx.fillStyle = '#e8c040'; ctx.fillRect(0, 26, CELL, 4); ctx.fillRect(0, 98, CELL, 4);
+    ctx.fillStyle = '#ffe9a8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 18px Georgia, serif'; ctx.fillText('MIXED', 64, 46);
+    ctx.fillText('NUTS', 64, 66);
+    ctx.font = 'bold 10px Verdana, sans-serif'; ctx.fillText('DELUXE ★ FRESH', 64, 86);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(8, 0, 6, CELL);
+  });
+
+  // a fool's bob, quartered green and gold, with strands
+  painter('sp26_quarters', function (ctx) {
+    // quartered round the head, so every side of it shows both colours
+    for (var q = 0; q < 4; q++) {
+      ctx.fillStyle = q % 2 ? '#e8c040' : '#2a9a48';
+      ctx.fillRect(q * CELL / 4, 0, CELL / 4, CELL);
+    }
+    var rnd = scatter(26);
+    for (var k = 0; k < 40; k++) {
+      var x = rnd() * CELL;
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 1 + rnd() * 1.5;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + (rnd() - 0.5) * 6, CELL); ctx.stroke();
+    }
+  });
+
+  // the cloth on a spring snake: green with yellow zigzags
+  painter('sp26_snakeskin', function (ctx) {
+    ctx.fillStyle = '#2f9a3e'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+    for (var y = 12; y < CELL + 16; y += 32) {
+      ctx.beginPath();
+      for (var x = -16; x <= CELL + 16; x += 16) ctx.lineTo(x, y + ((x / 16) % 2 ? 10 : -10));
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    for (y = 0; y < CELL; y += 32) ctx.fillRect(0, y + 22, CELL, 3);
+  });
+
+  // the loud jacket's front: lapels, a white shirt, a red bow tie, the
+  // squirting shamrock in the buttonhole and the joy buzzer in the pocket
+  painter('sp26_tee_jacket', function (ctx) {
+    ctx.clearRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#f6f4ee';
+    ctx.beginPath(); ctx.moveTo(48, 0); ctx.lineTo(80, 0); ctx.lineTo(64, 70); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#15602c';
+    ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(48, 0); ctx.lineTo(64, 72); ctx.lineTo(44, 40);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(98, 0); ctx.lineTo(80, 0); ctx.lineTo(64, 72); ctx.lineTo(84, 40);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e0342a';
+    ctx.beginPath(); ctx.moveTo(52, 8); ctx.lineTo(64, 14); ctx.lineTo(76, 8); ctx.lineTo(76, 22);
+    ctx.lineTo(64, 16); ctx.lineTo(52, 22); ctx.closePath(); ctx.fill();
+    spShamrock(ctx, 36, 30, 10, '#9aff6a', -0.3);
+    ctx.fillStyle = '#e8c040';
+    [86, 96, 106].forEach(function (y) { ctx.beginPath(); ctx.arc(64, y, 3.5, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(84, 34, 22, 3);
+    ctx.fillStyle = '#c9d2dc'; ctx.beginPath(); ctx.arc(95, 31, 5, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // the belt: HA HA HA, stamped round it
+  painter('sp26_haha', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.clearRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#e8c040'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 30px Georgia, serif';
+    ctx.fillText('HA', 32, 64); ctx.fillText('HA', 96, 64);
+    ctx.fillStyle = 'rgba(232,192,64,0.6)'; ctx.fillRect(0, 26, CELL, 3); ctx.fillRect(0, 99, CELL, 3);
+  });
+
+  // a check you can hear across the room
+  painter('sp26_loudcheck', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.clearRect(0, 0, CELL, CELL);
+    for (var k = 0; k < 4; k++) {
+      ctx.fillStyle = 'rgba(232,192,64,0.55)';
+      ctx.fillRect(k * 32 + 4, 0, 12, CELL); ctx.fillRect(0, k * 32 + 4, CELL, 12);
+      ctx.fillStyle = 'rgba(224,52,42,0.7)';
+      ctx.fillRect(k * 32 + 22, 0, 3, CELL); ctx.fillRect(0, k * 32 + 22, CELL, 3);
+    }
+    ctx.fillStyle = 'rgba(255,240,160,0.75)';
+    for (var a = 0; a < 4; a++) for (var b = 0; b < 4; b++) ctx.fillRect(a * 32 + 4, b * 32 + 4, 12, 12);
+  });
+
+  // the sign the KICK ME slapstick leaves behind
+  painter('sp26_kickme', function (ctx) {
+    ctx.fillStyle = '#fbf7ea'; ctx.fillRect(6, 14, 116, 100);
+    ctx.fillStyle = 'rgba(220,210,170,0.8)';
+    ctx.fillRect(2, 8, 26, 12); ctx.fillRect(100, 8, 26, 12);
+    ctx.fillStyle = '#16171b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 34px Impact, Verdana, sans-serif';
+    ctx.fillText('KICK', 64, 50); ctx.fillText('ME', 64, 86);
+    spShamrock(ctx, 104, 100, 7, '#2a9a48', 0.2);
+  });
+
   // @@ sp26 painters go above this line @@
 
   // @@ stpatricks painters go above this line @@

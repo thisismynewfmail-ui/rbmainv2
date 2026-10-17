@@ -829,6 +829,23 @@
         c.stroke();
       }
     }],
+    ['sp26_haha', function (c) {
+      // HA!, in fat letters, tipped back as if it were laughing
+      c.save(); c.translate(64, 64); c.rotate(-0.18);
+      c.font = 'bold 58px Impact, Verdana, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 8; c.strokeStyle = '#8c8c8c'; c.strokeText('HA!', 0, 4);
+      c.fillText('HA!', 0, 4);
+      c.restore();
+    }],
+    ['sp26_spring', function (c) {
+      // a coiled spring, the kind a jack sits on
+      c.lineWidth = 9; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(34, 112);
+      for (var k = 0; k < 7; k++) c.lineTo(k % 2 ? 34 : 94, 100 - k * 14);
+      c.lineTo(64, 12); c.stroke();
+      c.beginPath(); c.arc(64, 14, 10, 0, Math.PI * 2); c.fill();
+    }],
     // @@ sp26 particles go above this line @@
 
     // @@ stpatricks particles go above this line @@
