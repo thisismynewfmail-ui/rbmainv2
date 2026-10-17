@@ -6,6 +6,12 @@
      node tools/petsheet.js --scale              (each pet beside an avatar)
      node tools/petsheet.js --wear pet_hat_beret,pet_neck_bell --species mochi
      node tools/petsheet.js --angles 0.5,2.6 --zoom head
+     node tools/petsheet.js --zoom face --angles 0,0.7,1.2 --pose eyes=wide,brows=up,lookX=1
+
+   --zoom face is a close-up of her face that follows her head as it turns,
+   for checking expressions; --pose sets any pose fields (eyes, mouth,
+   brows, lookX, lookY, blink, headYaw, headPitch, headRoll, ...) over
+   whatever the action makes of them.
 
    Needs the dev server (bash tools/devserver.sh start) for the engine
    scripts; the pets themselves are drawn from static/js/engine/pet.js and
@@ -55,8 +61,15 @@ function loadPlaywright() {
     zoom: arg('zoom', ''),
     wear: String(arg('wear', '') === true ? '' : arg('wear', '')).split(',').filter(Boolean),
     colors: arg('colors', '') === true ? '' : arg('colors', ''),
-    tags: String(arg('tags', '') === true ? '' : arg('tags', '')).split(',').filter(Boolean)
+    tags: String(arg('tags', '') === true ? '' : arg('tags', '')).split(',').filter(Boolean),
+    pose: {}
   };
+  String(arg('pose', '') === true ? '' : arg('pose', '')).split(',').forEach(function (kv) {
+    var bits = kv.split('=');
+    if (bits.length !== 2 || !bits[0]) return;
+    var n = Number(bits[1]);
+    req.pose[bits[0]] = bits[1] !== '' && !isNaN(n) ? n : bits[1];
+  });
   var info = await page.evaluate(function (req) {
     var catalogPromise = (window.Thumbs && Thumbs.loadCatalog) ? Thumbs.loadCatalog()
       : Promise.resolve({});
@@ -121,11 +134,21 @@ function loadPlaywright() {
           var s = Pet.species(pet);
           if (s.eyes && pose.eyes === 'open') pose.eyes = s.eyes;
           if (s.mouth && pose.mouth === 'smile') pose.mouth = s.mouth;
+          Object.keys(req.pose).forEach(function (key) { pose[key] = req.pose[key]; });
           req.angles.forEach(function (angle) {
             var parts = prep(Pet.build(pet, { position: req.scale ? [1.9, 0, 0.6] : [0, 0, 0],
                                               yaw: 0, pose: pose, time: req.t }));
             var focus = [0, 1.35, 0], size = 3.3;
             if (req.zoom === 'head') { focus = [0, 2.05, 0]; size = 1.7; }
+            if (req.zoom === 'face') {
+              // the middle of her face, wherever her head has turned it
+              var head = parts.filter(function (p) { return p.k === 'head'; })[0];
+              var r = head.r, out = Pet.B.faceZ * 0.94;
+              focus = [head.p[0] + Math.sin(r[1]) * Math.cos(r[0]) * out,
+                       head.p[1] - Math.sin(r[0]) * out - 0.06,
+                       head.p[2] + Math.cos(r[1]) * Math.cos(r[0]) * out];
+              size = 1.0;
+            }
             if (req.scale) {
               var av = Avatar.build({ body_type: 'female', colors: {}, items: {} },
                                     { position: [-1.0, 0, 0], yaw: 0,

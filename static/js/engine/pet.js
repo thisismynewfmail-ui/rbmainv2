@@ -119,6 +119,11 @@
   }
 
   // ----------------------------------------------------------- the meshes
+  /* The head: softer than a generic rounded box, like the avatar's.  The
+     face is laid on it to these same radii (skin() below), so they live in
+     one place. */
+  var HEAD_ROUND = [0.16, 0.17, 0.17];
+
   /* The skirt: a rounded box pinched toward one end.  It is baked narrow at
      the bottom (the same taper the female head's jaw uses) and drawn turned
      over, so it is narrow at the waist and flares out to the hem, with the
@@ -126,8 +131,7 @@
   if (global.Geometry && Geometry.roundedBox) {
     Geometry.register('petskirt', Geometry.roundedBox([0.14, 0.11, 0.14], 2,
                                                       { bottom: 0.62, from: 1.0 }));
-    // the head: softer than a generic rounded box, like the avatar's
-    Geometry.register('pethead', Geometry.roundedBox([0.16, 0.17, 0.17], 3));
+    Geometry.register('pethead', Geometry.roundedBox(HEAD_ROUND, 3));
   }
 
   // --------------------------------------------------------- measurements
@@ -207,38 +211,269 @@
 
   var EYE_PX = 0.058, MOUTH_PX = 0.04;
   var EYE_X = 0.235, EYE_Y = -0.12, MOUTH_Y = -0.33;
+  /* How far a full glance carries the iris, in pixels, across and up. */
+  var GLANCE = [0.9, 0.7];
+  /* Everything drawn on the face is a thin block laid on the skin: its front
+     FACE_LIFT proud of it -- enough to keep its own depth at any range a pet
+     is drawn at, little enough to read as printed on rather than stuck on
+     when she turns her head -- and its back FACE_BURY under it, so there is
+     never a gap behind it either. */
+  var FACE_LIFT = 0.01, FACE_BURY = 0.012;
 
-  /* Lay one bitmap on the face.  Runs of the same pixel along a row become
-     one block, so an eye is a handful of parts rather than twenty-five. */
-  function bitmap(emit, head, rows, cx, cy, px, colours, mirror, opts) {
-    opts = opts || {};
-    var h = rows.length;
-    var z = B.faceZ + (opts.z || 0.012);
-    for (var r = 0; r < h; r++) {
-      var row = rows[r];
-      var w = row.length;
-      var c = 0;
-      while (c < w) {
-        var ch = row.charAt(c);
-        if (ch === '.') { c++; continue; }
-        var start = c;
-        while (c < w && row.charAt(c) === ch) c++;
-        var colour = colours[ch];
-        if (!colour) continue;
-        var mid = (start + c) / 2 - w / 2;          // in pixels, from the centre
-        var x = cx + (mirror ? -mid : mid) * px;
-        // the iris slides with the look; the lash, the brows and the mouth
-        // stay where they are
-        var slides = opts.slide && ch !== 'K' && ch !== 'B';
-        if (slides) x += opts.slide[0] * px * 0.9;
-        var y = cy + (h / 2 - r - 0.5) * px + (slides ? opts.slide[1] * px * 0.7 : 0);
-        emit(head, [x, y, z], [(c - start) * px + 0.004, px + 0.004, 0.05], colour,
-             { t: 'box', m: opts.neon ? 'neon' : undefined });
+  /* The front of the head: how far forward of its centre the skin is at
+     (x, y) on the face.  The head is the 'pethead' rounded box -- a flat
+     face plate that rolls back over an ellipsoidal bevel into the cheeks,
+     the brow and the chin -- and this is that surface exactly (the mesh is a
+     polygon just inside it, never outside). */
+  var HEAD_IN = [0, 1, 2].map(function (a) { return B.head[a] * (0.5 - HEAD_ROUND[a]); });
+  var HEAD_R = [0, 1, 2].map(function (a) { return B.head[a] * HEAD_ROUND[a]; });
+
+  function skin(x, y) {
+    var dx = Math.max(0, Math.abs(x) - HEAD_IN[0]) / HEAD_R[0];
+    var dy = Math.max(0, Math.abs(y) - HEAD_IN[1]) / HEAD_R[1];
+    return HEAD_IN[2] + HEAD_R[2] * Math.sqrt(Math.max(0, 1 - dx * dx - dy * dy));
+  }
+
+  /* Where one rectangle of the face goes -- [x0, x1] x [y0, y1] as seen from
+     the front, in head units -- laid on the skin (or flat at ``level``, on
+     the hair) as a thin block: tilted to the surface's slope across it, its
+     front ``lift`` proud of the surface everywhere (the bulge of a patch that
+     runs onto the curve of a cheek or the chin included) and its back
+     ``bury`` under it.  Nothing on the face sinks into it where the head
+     rounds off, or stands off it like a visor.  [position, size, turn]. */
+  function facePatch(x0, x1, y0, y1, lift, bury, level) {
+    var w = x1 - x0, h = y1 - y0;
+    var xc = (x0 + x1) / 2, yc = (y0 + y1) / 2;
+    if (level !== undefined || (Math.max(-x0, x1) <= HEAD_IN[0] && Math.max(-y0, y1) <= HEAD_IN[1])) {
+      // on the flat of the face plate (or of a lock of hair): nothing to fit
+      var z = level === undefined ? HEAD_IN[2] + HEAD_R[2] : level;
+      return [[xc, yc, z + (lift - bury) / 2], [w, h, lift + bury], null];
+    }
+    var zc = skin(xc, yc);
+    var gx = (skin(x1, yc) - skin(x0, yc)) / w;
+    var gy = (skin(xc, y1) - skin(xc, y0)) / h;
+    // how far the surface strays from that plane across the patch
+    var hi = 0, lo = 0;
+    for (var i = 0; i <= 4; i++) {
+      for (var j = 0; j <= 2; j++) {
+        var x = x0 + w * i / 4, y = y0 + h * j / 2;
+        var d = skin(x, y) - (zc + gx * (x - xc) + gy * (y - yc));
+        if (d > hi) hi = d;
+        if (d < lo) lo = d;
       }
+    }
+    var yaw = Math.atan(-gx), pitch = Math.atan(gy * Math.cos(yaw));
+    var front = hi + lift, back = lo - bury, mid = (front + back) / 2;
+    // the block's centre, out along the surface's normal from the patch
+    var n = [Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)];
+    return [[xc + n[0] * mid, yc + n[1] * mid, zc + n[2] * mid],
+            [w / Math.cos(yaw), h / Math.cos(pitch), front - back], [pitch, yaw, 0]];
+  }
+
+  function onFace(emit, head, x0, x1, y0, y1, colour, opts) {
+    var at = facePatch(x0, x1, y0, y1, opts.lift === undefined ? FACE_LIFT : opts.lift,
+                       FACE_BURY, undefined);
+    return emit(head, at[0], at[1], colour, { t: 'box', r: at[2], m: opts.m, k: opts.k });
+  }
+
+  /* A bitmap as rectangles in pixel units -- u across from its left edge, v
+     down from its top -- [u0, u1, v0, v1, pixel].  Runs of the same pixel
+     along a row become one rectangle, and runs that line up down the rows
+     one taller one, so an eye is a handful of parts rather than twenty-five. */
+  function rowRuns(row, v0, v1, du, keep, out) {
+    var c = 0, w = row.length;
+    while (c < w) {
+      var ch = row.charAt(c);
+      if (!keep(ch)) { c++; continue; }
+      var start = c;
+      while (c < w && row.charAt(c) === ch) c++;
+      out.push([start + du, c + du, v0, v1, ch]);
+    }
+    return out;
+  }
+
+  function stack(rects) {
+    var EPS = 1e-6;
+    rects.sort(function (a, b) {
+      return a[4] < b[4] ? -1 : (a[4] > b[4] ? 1 : (a[0] - b[0] || a[1] - b[1] || a[2] - b[2]));
+    });
+    var out = [];
+    rects.forEach(function (q) {
+      var last = out[out.length - 1];
+      if (last && last[4] === q[4] && last[5] === q[5] && Math.abs(last[0] - q[0]) < EPS &&
+          Math.abs(last[1] - q[1]) < EPS && Math.abs(last[3] - q[2]) < EPS) {
+        last[3] = q[3];
+      } else {
+        out.push(q.slice());
+      }
+    });
+    return out;
+  }
+
+  function solid(ch) { return ch !== '.'; }
+
+  function bitmapRects(rows) {
+    var out = [];
+    rows.forEach(function (row, r) { rowRuns(row, r, r + 1, 0, solid, out); });
+    return stack(out);
+  }
+
+  /* An eye, with a glance: (du, dv) in pixels, across and down the bitmap.
+     The lash (K) stays where it is; everything inside it is the eye, and a
+     glance slides the iris across it -- but only within the eye.  What
+     slides past the rim goes under the lid, the white (S) shows where it
+     slid from, and looking down the iris stays tucked under the upper lid
+     the way a real lid follows the eye.  An eye with no lid to slide under
+     (the hearts) does not glance.
+
+     The pieces are cut to fit exactly against each other, so no two of them
+     ever cover the same patch of face: two blocks at one depth fighting over
+     which is in front is a shimmer at any distance, and was the iris
+     flickering through the lash whenever she looked up at her owner. */
+  function eyeRects(rows, du, dv) {
+    var h = rows.length, w = rows[0].length;
+    function cell(r, c) { return r >= 0 && r < h ? (rows[r].charAt(c) || '.') : '.'; }
+    function lid(ch) { return ch === 'K'; }
+    function inside(ch) { return ch !== '.' && ch !== 'K'; }
+    function iris(ch) { return inside(ch) && ch !== 'S'; }
+    if (rows.join('').indexOf('K') < 0 || (Math.abs(du) < 1e-4 && Math.abs(dv) < 1e-4)) {
+      return bitmapRects(rows);
+    }
+    var out = [];
+    for (var r = 0; r < h; r++) {
+      rowRuns(rows[r], r, r + 1, 0, lid, out);
+      // this row's stretches of eye, whatever is drawn in them
+      var spans = [];
+      for (var c = 0; c < w; c++) {
+        if (!inside(cell(r, c))) continue;
+        var last = spans[spans.length - 1];
+        if (last && last[1] === c) last[1] = c + 1; else spans.push([c, c + 1]);
+      }
+      if (!spans.length) continue;
+      // a vertical glance brings part of the row above or below into this one
+      var bands = dv > 0 ? [[r, r + dv, r - 1], [r + dv, r + 1, r]]
+        : (dv < 0 ? [[r, r + 1 + dv, r], [r + 1 + dv, r + 1, r + 1]] : [[r, r + 1, r]]);
+      bands.forEach(function (band) {
+        if (band[1] - band[0] < 1e-6) return;
+        var src = '';
+        for (var c = 0; c < w; c++) {
+          var ch = cell(band[2], c);
+          // under the upper lid the iris stays tucked in as she looks down
+          if (band[2] < r && lid(ch)) ch = cell(r, c);
+          src += iris(ch) ? ch : '.';
+        }
+        var pieces = rowRuns(src, band[0], band[1], du, iris, []);
+        spans.forEach(function (span) {
+          var at = span[0];
+          pieces.forEach(function (p) {
+            var a = Math.max(p[0], at), b = Math.min(p[1], span[1]);
+            if (b - a < 1e-6) return;
+            if (a - at > 1e-6) out.push([at, a, band[0], band[1], 'S']);
+            out.push([a, b, band[0], band[1], p[4]]);
+            at = b;
+          });
+          if (span[1] - at > 1e-6) out.push([at, span[1], band[0], band[1], 'S']);
+        });
+      });
+    }
+    return stack(out);
+  }
+
+  /* Where a bitmap's rectangle lands on the face, in head units, for a
+     bitmap of ``size`` [w, h] pixels centred on (cx, cy). */
+  function onHead(q, size, cx, cy, px, mirror) {
+    var a = (q[0] - size[0] / 2) * px, b = (q[1] - size[0] / 2) * px;
+    return [mirror ? cx - b : cx + a, mirror ? cx - a : cx + b,
+            cy + (size[1] / 2 - q[3]) * px, cy + (size[1] / 2 - q[2]) * px];
+  }
+
+  /* Where a bitmap's rectangles go on the face: [pixel, position, size,
+     turn] for each.  One that carries a level (a brow pixel over the fringe)
+     lies on the hair at that level instead of on the skin. */
+  function layout(rows, rects, cx, cy, px, mirror) {
+    var size = [rows[0].length, rows.length];
+    return rects.map(function (q) {
+      var at = onHead(q, size, cx, cy, px, mirror);
+      var bury = FACE_BURY;
+      if (q[5] !== undefined) {
+        // reaching back to the skin, so a pixel only partly over a lock has
+        // no air behind the rest of it
+        bury += q[5] - Math.min(skin(at[0], at[2]), skin(at[0], at[3]), skin(at[1], at[2]),
+                                skin(at[1], at[3]));
+      }
+      var patch = facePatch(at[0], at[1], at[2], at[3], FACE_LIFT, bury, q[5]);
+      return [q[4], patch[0], patch[1], patch[2]];
+    });
+  }
+
+  /* Laying out an expression is the same sums every frame she wears it, so
+     the layouts are kept -- a glance to a sixteenth of a pixel, finer than
+     can be seen -- and all thrown away together if they ever pile up. */
+  var LAID = {}, LAID_COUNT = 0;
+  function laid(key, make) {
+    var hit = LAID[key];
+    if (hit) return hit;
+    if (++LAID_COUNT > 800) { LAID = {}; LAID_COUNT = 1; }
+    return (LAID[key] = make());
+  }
+
+  function stamp(emit, head, pieces, colours, m, k) {
+    for (var i = 0; i < pieces.length; i++) {
+      var q = pieces[i], colour = colours[q[0]];
+      if (colour) emit(head, q[1], q[2], colour, { t: 'box', r: q[3], m: m, k: k });
     }
   }
 
-  function buildFace(emit, head, col, pose, species) {
+  /* What hangs in front of the face is the hair's blocks on the head itself
+     whose fronts stand forward of it -- the fringe, the cheek locks, a
+     hood's rim -- each a footprint seen from the front (a rectangle turned
+     about the face's normal) and how far forward it stands.  This is the
+     frontmost of them that overlaps a rectangle of the face, or -Infinity:
+     the separating-axis test, exact for any turn, with a block that only
+     touches the rectangle's edge not counted. */
+  function fringeOver(fringe, x0, x1, y0, y1) {
+    var EPS = 1e-3;
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hx = (x1 - x0) / 2, hy = (y1 - y0) / 2;
+    var z = -Infinity;
+    fringe.forEach(function (f) {
+      var c = Math.cos(f.a), s = Math.sin(f.a), ac = Math.abs(c), as = Math.abs(s);
+      var dx = f.x - cx, dy = f.y - cy;
+      if (Math.abs(dx) > hx + f.w * ac + f.h * as - EPS) return;
+      if (Math.abs(dy) > hy + f.w * as + f.h * ac - EPS) return;
+      if (Math.abs(c * dx + s * dy) > f.w + hx * ac + hy * as - EPS) return;
+      if (Math.abs(c * dy - s * dx) > f.h + hx * as + hy * ac - EPS) return;
+      if (f.z > z) z = f.z;
+    });
+    return z;
+  }
+
+  /* The brows, drawn over the fringe (see BROWS) without standing off her
+     head to do it: each pixel lies on whatever is frontmost where it falls,
+     the hair or the skin, so from the front a brow reads on top of the hair
+     and from the side it is on her, rather than hovering in front of her. */
+  function browRects(rows, cx, cy, mirror, fringe) {
+    var size = [rows[0].length, rows.length];
+    var out = [];
+    rows.forEach(function (row, r) {
+      var prev = null;
+      for (var c = 0; c < row.length; c++) {
+        var ch = row.charAt(c);
+        if (ch === '.') { prev = null; continue; }
+        var at = onHead([c, c + 1, r, r + 1], size, cx, cy, EYE_PX, mirror);
+        var z = fringeOver(fringe, at[0], at[1], at[2], at[3]);
+        var level = z > -Infinity ? z : undefined;
+        if (prev && prev[4] === ch && prev[5] === level) {
+          prev[1] = c + 1;
+        } else {
+          prev = [c, c + 1, r, r + 1, ch, level];
+          out.push(prev);
+        }
+      }
+    });
+    return stack(out);
+  }
+
+  function buildFace(emit, head, col, pose, species, fringe) {
     var eyes = pose.eyes || 'open';
     if (pose.blink > 0.5 && eyes !== 'joy' && eyes !== 'closed' && eyes !== 'dizzy') {
       eyes = 'closed';
@@ -246,6 +481,7 @@
     var pair = EYE_PAIRS[eyes] || [eyes, eyes];
     if (pose.blink > 0.5 && EYE_PAIRS[pose.eyes]) pair = ['closed', 'closed'];
     var led = species.led;
+    var neon = led ? 'neon' : undefined;
     var iris = col.eyes;
     var colours = led ? {
       K: shade(iris, -0.15), D: iris, I: shade(iris, 0.25), L: shade(iris, 0.45),
@@ -254,47 +490,59 @@
       K: mix(iris, '#120b16', 0.8), D: shade(iris, -0.38), I: iris, L: shade(iris, 0.38),
       W: '#ffffff', S: '#f7f7fa', H: '#ff4f86'
     };
-    var slide = [clamp(pose.lookX || 0, -1, 1), clamp(pose.lookY || 0, -1, 1)];
+    var du = Math.round(clamp(pose.lookX || 0, -1, 1) * GLANCE[0] * 16) / 16;
+    var dv = -Math.round(clamp(pose.lookY || 0, -1, 1) * GLANCE[1] * 16) / 16;
     var ey = EYE_Y + (species.eyeLift || 0);
-    // viewer's left eye is the pet's right, at -X
-    bitmap(emit, head, EYES[pair[0]] || EYES.open, -EYE_X, ey, EYE_PX, colours, false,
-           { slide: slide, neon: led });
-    bitmap(emit, head, EYES[pair[1]] || EYES.open, EYE_X, ey, EYE_PX, colours, true,
-           { slide: slide, neon: led });
+    // viewer's left eye is the pet's right, at -X; both glance the same way
+    var names = [EYES[pair[0]] ? pair[0] : 'open', EYES[pair[1]] ? pair[1] : 'open'];
+    [[names[0], -EYE_X, false, du], [names[1], EYE_X, true, -du]].forEach(function (E) {
+      var rows = EYES[E[0]];
+      stamp(emit, head, laid(['eye', E[0], E[2], E[3], dv, ey].join(), function () {
+        return layout(rows, eyeRects(rows, E[3], dv), E[1], ey, EYE_PX, E[2]);
+      }), colours, neon, 'eye');
+    });
     var brows = BROWS[pose.brows];
     if (brows) {
       var browColour = { B: led ? shade(iris, -0.1) : shade(col.hair, -0.42) };
       var by = ey + 2.5 * EYE_PX + 1.5 * EYE_PX;
-      // in front of the fringe
-      bitmap(emit, head, brows, -EYE_X, by, EYE_PX, browColour, false,
-             { z: 0.10, neon: led });
-      bitmap(emit, head, brows, EYE_X, by, EYE_PX, browColour, true,
-             { z: 0.10, neon: led });
-    }
-    if (pose.tears > 0.05) {
-      var drop = ((pose.time || 0) * 1.6) % 1;
-      [-1, 1].forEach(function (side) {
-        emit(head, [side * (EYE_X - 0.02), ey - 0.17 - drop * 0.12, B.faceZ + 0.02],
-             [0.05, 0.08, 0.05], '#9fdcff', { t: 'box', m: 'neon' });
+      // the fringe is the hair style's, the same whatever she is doing
+      var hair = fringe.map(function (f) { return [f.x, f.y, f.w, f.h, f.a, f.z].join(' '); });
+      [[-EYE_X, false], [EYE_X, true]].forEach(function (E) {
+        stamp(emit, head, laid(['brow', pose.brows, E[1], by, hair.join()].join(), function () {
+          return layout(brows, browRects(brows, E[0], by, E[1], fringe), E[0], by, EYE_PX, E[1]);
+        }), browColour, neon, 'brow');
       });
     }
-    var mouth = MOUTHS[pose.mouth] || MOUTHS.smile;
-    bitmap(emit, head, mouth, 0, MOUTH_Y, MOUTH_PX, {
+    if (pose.tears > 0.05) {
+      // a bead of water running down each cheek
+      var drop = ((pose.time || 0) * 1.6) % 1;
+      [-1, 1].forEach(function (side) {
+        var tx = side * (EYE_X - 0.02), ty = ey - 0.17 - drop * 0.12;
+        onFace(emit, head, tx - 0.025, tx + 0.025, ty - 0.04, ty + 0.04, '#9fdcff',
+               { m: 'neon', k: 'face', lift: 0.03 });
+      });
+    }
+    var mouth = MOUTHS[pose.mouth] ? pose.mouth : 'smile';
+    stamp(emit, head, laid('mouth,' + mouth, function () {
+      return layout(MOUTHS[mouth], bitmapRects(MOUTHS[mouth]), 0, MOUTH_Y, MOUTH_PX, false);
+    }), {
       K: led ? shade(iris, -0.1) : '#4a2230', R: '#c33a57', P: '#ff7d9b', W: '#ffffff'
-    }, false, { neon: led });
+    }, neon, 'face');
     var blush = clamp(pose.blush || 0, 0, 1);
     if (blush > 0.12 && !led) {
       var cheek = mix(col.skin, '#ff5d86', 0.25 + 0.4 * blush);
       var bx = species.blushX || 0.36;
       [-1, 1].forEach(function (side) {
-        emit(head, [side * bx, ey - 0.2, B.faceZ + 0.006], [0.13, 0.05, 0.04], cheek,
-             { t: 'box' });
+        // painted on: half as proud as the eyes
+        onFace(emit, head, side * bx - 0.065, side * bx + 0.065, ey - 0.225, ey - 0.175, cheek,
+               { k: 'face', lift: FACE_LIFT / 2 });
       });
     }
     if (species.nose) {
+      // a little button of a nose, standing well out from her face
       var twitch = Math.sin((pose.time || 0) * 22) * 0.008 * (pose.sniff || 0);
-      emit(head, [0, -0.255 + twitch, B.faceZ + 0.012], [0.05, 0.035, 0.05],
-           species.nose === true ? '#ff8fb0' : species.nose, { t: 'box' });
+      onFace(emit, head, -0.025, 0.025, -0.2725 + twitch, -0.2375 + twitch,
+             species.nose === true ? '#ff8fb0' : species.nose, { k: 'face', lift: 0.035 });
     }
   }
 
@@ -423,12 +671,20 @@
     var pos = opts.position || [0, 0, 0];
     var yaw = (opts.yaw || 0) + (pose.spin || 0);
     var squash = pose.squash || 1;
+    var bulge = 1 + (1 - squash) * 0.5;    // she spreads as she squashes
     var alpha = opts.alpha;
 
     function emit(f, p, s, c, x) {
       x = x || {};
-      var o = apply(f.m, p);
+      // squash and stretch about the feet: close enough on a body this
+      // small, and it never has to undo a turn.  A part's offset from its
+      // bone squashes with the part itself, so whatever is laid on a surface
+      // -- an eye on the face, a fringe on the forehead -- stays on it rather
+      // than sinking into a head that bulges round it or floating off one
+      // that narrows.
+      var o = apply(f.m, squash === 1 ? p : [p[0] * bulge, p[1] * squash, p[2] * bulge]);
       var world = [f.t[0] + o[0], f.t[1] + o[1], f.t[2] + o[2]];
+      if (squash !== 1) world[1] = pos[1] + (f.t[1] - pos[1]) * squash + o[1];
       var r;
       if (x.r && (x.r[0] || x.r[1] || x.r[2])) {
         r = matrixEuler(mul(f.m, eulerMatrix(x.r)));
@@ -437,11 +693,7 @@
       }
       var size = [s[0], s[1], s[2]];
       if (squash !== 1) {
-        // squash and stretch about the feet: close enough on a body this
-        // small, and it never has to undo a turn
-        world[1] = pos[1] + (world[1] - pos[1]) * squash;
         size[1] *= squash;
-        var bulge = 1 + (1 - squash) * 0.5;
         size[0] *= bulge; size[2] *= bulge;
       }
       var part = { t: x.t || 'rbox', p: world, s: size, c: c, r: [r[0], r[1], r[2]] };
@@ -687,15 +939,28 @@
     // ------------------------------------------------------------- head
     emit(neck, [0, 0.03, 0], [0.24, 0.12, 0.22], col.skin, { t: 'cyl' });
     emit(head, [0, 0, 0], B.head, col.skin, { t: 'pethead', k: 'head' });
-    buildFace(emit, head, col, pose, species);
 
+    // the hair goes on before the face, noting as it does what hangs in
+    // front of the face, so the brows can be drawn over the fringe
+    var fringe = [];
+    function hairEmit(f, p, s, c, x) {
+      var r = (x && x.r) || [0, 0, 0];
+      var t = (x && x.t) || 'rbox';
+      if (f === head && !r[0] && !r[1] && (t === 'rbox' || t === 'box') &&
+          p[2] + s[2] / 2 > B.faceZ) {
+        fringe.push({ x: p[0], y: p[1], w: s[0] / 2, h: s[1] / 2, a: r[2] || 0,
+                      z: p[2] + s[2] / 2 });
+      }
+      return emit(f, p, s, c, x);
+    }
     var hat = itemOf(pet, 'hat');
     var hatted = !!(hat && hat.data && hat.data.parts && hat.data.parts.length);
-    var ctx = { emit: emit, root: root, hips: hips, torso: torso, neck: neck, head: head,
+    var ctx = { emit: hairEmit, root: root, hips: hips, torso: torso, neck: neck, head: head,
                 hands: hands, col: col, pose: pose, time: time, hat: hatted,
                 species: species };
     HAIR[species.hair](ctx);
     if (SIG[species.sig]) SIG[species.sig](ctx);
+    buildFace(emit, head, col, pose, species, fringe);
 
     // ------------------------------------------------------- cosmetics
     function wear(item, f, origin) {
@@ -772,7 +1037,8 @@
       var e = ctx.emit, h = ctx.head, c = ctx.col.hair, p = ctx.pose;
       var dark = shade(c, -0.15);
       shell(ctx, c, { low: -0.38 });
-      [[-0.37, 0.27, -0.35, 0.38], [-0.02, 0.25, 0.1, 0.44], [0.35, 0.28, 0.38, 0.36]]
+      // the middle lock is the longest, but stops short of her eyes
+      [[-0.37, 0.27, -0.35, 0.38], [-0.02, 0.27, 0.1, 0.40], [0.35, 0.28, 0.38, 0.36]]
         .forEach(function (b, i) {
           e(h, [b[0], b[1], 0.5], [0.3, b[3], 0.1], i === 1 ? dark : c,
             { r: [0, 0, b[2]] });
@@ -1535,6 +1801,110 @@
     return 'walk';
   };
 
+  // ================================================ follower acts (on the move)
+  /* Added for the follower's following (static/js/game/pets.js): a skid
+     when her owner stops dead, a spin as they set off at a run, a sniff at
+     something by the wayside, waiting on her toes for them to catch up, a
+     pat on the head, and lying about on her tummy -- awake, and dozing.
+     Self-contained: nothing above depends on them. */
+  ACT.skid = function (p, t) {
+    var u = smooth01(t / 0.12);
+    var judder = Math.sin(t * 38) * 0.018 * (1 - smooth01(t / 0.5));
+    p.lean -= 0.36 * u;
+    p.legL = -0.6 * u; p.legR = -0.22 * u;
+    p.legLZ += 0.1 * u; p.legRZ += 0.1 * u;
+    p.armL = p.armR = -0.8 * u; p.armLZ += 1.05 * u; p.armRZ += 0.9 * u;
+    p.squash = 1 - 0.07 * u + judder;
+    p.skirt += 0.55 * u;
+    p.swayX += 0.6 * u;
+    p.headPitch -= 0.1 * u;
+    p.eyes = 'wide'; p.mouth = 'o';
+  };
+
+  ACT.zoom_spin = function (p, t) {
+    var v = clamp(t / 0.6, 0, 1), u = smooth01(v);
+    p.spin = u * PI * 2;
+    p.bob += Math.sin(v * PI) * 0.28;
+    p.armLZ += 1.45; p.armRZ += 1.45;
+    p.legL = -0.45 * Math.sin(v * PI); p.legR = 0.2 * Math.sin(v * PI);
+    p.skirt += 0.95 * Math.sin(v * PI) + 0.3;
+    p.swayZ += Math.sin(v * PI) * 0.6;
+    p.eyes = 'joy'; p.mouth = 'grin';
+  };
+
+  ACT.sniff = function (p, t) {
+    var u = smooth01(t / 0.35);
+    p.lean += 0.3 * u;
+    p.squash = 1 - 0.05 * u;
+    p.legL = -0.12 * u; p.legR = 0.18 * u;
+    p.armL = p.armR = -0.35 * u; p.armLZ += 0.12 * u; p.armRZ += 0.12 * u;
+    p.headPitch += 0.36 * u + Math.max(0, Math.sin(t * 13)) * 0.06 * u;
+    p.headYaw += Math.sin(t * 2.6) * 0.32 * u;
+    p.sniff = 1;
+    p.eyes = (t % 1.6) < 1.1 ? 'half' : 'open'; p.mouth = 'cat';
+  };
+
+  // waiting for her owner to catch up, up on her toes
+  ACT.tiptoe = function (p, t) {
+    var b = Math.abs(Math.sin(t * 7));
+    p.bob += b * 0.12;
+    p.squash = 1 + b * 0.03;
+    p.legL = p.legR = -0.06;
+    p.armL = p.armR = -0.45 - b * 0.3; p.armLZ += 0.3; p.armRZ += 0.3;
+    p.headRoll += Math.sin(t * 3.5) * 0.12;
+    p.skirt += b * 0.3;
+    p.eyes = 'joy'; p.mouth = 'grin';
+  };
+
+  // a pat on the head: she leans up into the hand and squeezes her eyes shut
+  ACT.patted = function (p, t) {
+    breathe(p, t);
+    var pat = Math.max(0, Math.sin(t * 7));
+    var u = smooth01(t / 0.3);
+    p.squash = 1 - pat * 0.045 * u;
+    p.headPitch -= (0.22 - pat * 0.1) * u;
+    p.headRoll += 0.18 * u;
+    p.armL = p.armR = -0.3 * u; p.armLZ = p.armRZ = -0.35 * u;
+    p.hipTwist += Math.sin(t * 2.4) * 0.1;
+    p.eyes = 'joy'; p.mouth = 'cat';
+    p.blush += 0.8;
+    p.earL = p.earR = 0.2; p.perk = 1.1;
+  };
+
+  // lying on her tummy, chin in her hands, kicking her feet
+  ACT.lounge = function (p, t) {
+    p.lie = 1;
+    p.headPitch -= 1.6 + Math.sin(t * 0.7) * 0.05;
+    p.headRoll += Math.sin(t * 0.55) * 0.12;
+    p.armL = p.armR = -2.35; p.armLZ = p.armRZ = -0.32;
+    var kick = Math.sin(t * 2.6);
+    p.legL = 1.1 + kick * 0.45; p.legR = 1.1 - kick * 0.45;
+    p.skirt += 0.1;
+    p.bob += Math.sin(t * 1.6) * 0.008;
+  };
+
+  // and dozing off like that, cheek on her arms
+  ACT.snooze = function (p, t) {
+    p.lie = 1;
+    p.headPitch -= 1.25 + Math.sin(t * 0.9) * 0.03;
+    p.headYaw += 0.75;
+    p.armL = p.armR = -2.6; p.armLZ = p.armRZ = -0.2;
+    p.legL = 0.2 + Math.sin(t * 0.6) * 0.04; p.legR = 0.12;
+    p.bob += Math.sin(t * 1.3) * 0.008;
+    p.eyes = 'closed'; p.mouth = 'tiny';
+    p.perk = 0.1; p.earL = p.earR = 0.05; p.glow = 0.9; p.flame = 0.15;
+    p.blush += 0.25;
+  };
+
+  Pet.DURATION.skid = 0.6;
+  Pet.DURATION.zoom_spin = 0.6;
+  Pet.DURATION.sniff = 1.6;
+  Pet.DURATION.tiptoe = 1.4;
+  Pet.DURATION.patted = 2.0;
+  Pet.DURATION.lounge = 0;
+  Pet.DURATION.snooze = 0;
+  // ============================================ end of follower acts
+
   // ------------------------------------------------------------ showcase
   /* A pet that entertains herself, for the market, the editor and the
      profile: idles, glances about, blinks, and every few seconds does
@@ -1570,6 +1940,7 @@
     this.pose = restPose();
     this.t = 0;
     this.action = 'idle';
+    this.last = null;
     this.actT = 0;
     this.next = 1.2 + Math.random() * 1.5;
     this.blinkAt = 1 + Math.random() * 2;
@@ -1604,8 +1975,11 @@
       if (this.action !== this.only) this.play(this.only);
     } else if (this.actT >= this.next && !this.calm) {
       if (this.action === 'idle') {
-        var pool = this.repertoire();
-        this.play(pool[(Math.random() * pool.length) | 0]);
+        // (not the same thing twice running, if she has anything else)
+        var pool = this.repertoire(), pick = this.last;
+        for (var n = 0; n < 8 && pick === this.last; n++) pick = pool[(Math.random() * pool.length) | 0];
+        this.last = pick;
+        this.play(pick);
       } else {
         this.action = 'idle';
         this.actT = 0;
@@ -1661,6 +2035,10 @@
   Pet.B = B;
   Pet.EYES = EYES;
   Pet.MOUTHS = MOUTHS;
+  Pet.BROWS = BROWS;
+  /* The face's layout, for the checks in tools/pettests.js. */
+  Pet.HEAD_ROUND = HEAD_ROUND;
+  Pet.FACE = { eyeX: EYE_X, eyeY: EYE_Y, eyePx: EYE_PX, lift: FACE_LIFT, glance: GLANCE };
   Pet.mix = mix;
   Pet.shade = shade;
   /* Where a pet's crown is in the world, for emotes over her head. */
