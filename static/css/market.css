@@ -758,6 +758,21 @@ body.cs-open { overflow: hidden; }
 .theme-jl_liberty .cs-stars { opacity: .9; }
 .theme-jl_liberty .cs-title b { color: #ffe9a8; text-shadow: 0 0 22px rgba(255, 201, 74, .6), 0 3px 0 rgba(0,0,0,.5); }
 
+/* Rocket's Red Glare (2025): the harbour at night -- the star fort low on the
+   water with its great flag, red rocket trails climbing, a shell bursting */
+.theme-jl25_ramparts .cs-bg { background: radial-gradient(circle at 50% 70%, #5a2030, #1e1838 45%, #05060e 100%); }
+.theme-jl25_ramparts .cs-art { display: block !important; }
+.theme-jl25_ramparts .cs-art.a { left: 0; right: 0; bottom: 0; height: 42%; opacity: .96;
+  background: no-repeat center bottom/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120' preserveAspectRatio='none'%3E %3Crect x='0' y='88' width='400' height='32' fill='%230e1a36'/%3E %3Cg stroke='%23ff7a4a' stroke-width='1' opacity='.5'%3E%3Cpath d='M30 98h30M120 104h40M240 96h26M320 108h38M80 112h20'/%3E%3C/g%3E %3Cpath d='M150 88l12-14h18l6-6 6 6h18l12 14z' fill='%231a1418'/%3E %3Cpath d='M140 88l10-6 20 0 10-8 10 8 20 0 10 6z' fill='%232a1e22'/%3E %3Crect x='196' y='30' width='2' height='46' fill='%23d9d2c0'/%3E %3Cg%3E%3Crect x='198' y='30' width='34' height='22' fill='%23c8202f'/%3E %3Crect x='198' y='33' width='34' height='3' fill='%23f4f6f8'/%3E%3Crect x='198' y='39' width='34' height='3' fill='%23f4f6f8'/%3E %3Crect x='198' y='45' width='34' height='3' fill='%23f4f6f8'/%3E%3Crect x='198' y='30' width='14' height='12' fill='%2322306e'/%3E%3C/g%3E %3Cpath d='M0 88q40-6 80-2t70 2' fill='none' stroke='%232a3a5a' stroke-width='2'/%3E %3Cpath d='M260 88q40-8 80-3t60 3' fill='none' stroke='%232a3a5a' stroke-width='2'/%3E %3C/svg%3E"); }
+.theme-jl25_ramparts .cs-art.b { inset: 0; opacity: .75; animation: jl25-rise 6s linear infinite;
+  background: repeat-x left bottom/300px 320px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='320'%3E %3Cg fill='none' stroke-linecap='round'%3E %3Cpath d='M40 320q30-140 90-230' stroke='%23ff3a2a' stroke-width='3' opacity='.8'/%3E %3Cpath d='M230 320q-10-160 -60-260' stroke='%23ff6a2a' stroke-width='2' opacity='.6'/%3E%3C/g%3E %3Cg fill='%23fff3b0'%3E%3Ccircle cx='130' cy='90' r='4'/%3E%3Ccircle cx='170' cy='60' r='3'/%3E%3C/g%3E%3C/svg%3E"); }
+.theme-jl25_ramparts .cs-moon { right: 8%; top: 6%; width: 200px; height: 200px; opacity: .75;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E %3Cg stroke-linecap='round' stroke-width='4'%3E %3Cg stroke='%23ff3a2a'%3E%3Cpath d='M100 100L100 20M100 100L156 44M100 100L180 100M100 100L156 156'/%3E%3C/g%3E %3Cg stroke='%23f4f6f8'%3E%3Cpath d='M100 100L100 180M100 100L44 156M100 100L20 100M100 100L44 44'/%3E%3C/g%3E %3Cg stroke='%234a7ae8' stroke-width='3'%3E%3Cpath d='M100 100L130 26M100 100L174 70M100 100L174 130M100 100L130 174M100 100L70 174M100 100L26 130M100 100L26 70M100 100L70 26'/%3E%3C/g%3E%3C/g%3E %3Ccircle cx='100' cy='100' r='10' fill='%23fff3b0'/%3E%3C/svg%3E"); animation: jl25-burst 3.2s ease-out infinite; }
+@keyframes jl25-rise { from { background-position: 0 40px; } to { background-position: 0 -320px; } }
+@keyframes jl25-burst { 0% { transform: scale(.2); opacity: 0; } 15% { opacity: .85; }
+  70% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.08); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .theme-jl25_ramparts .cs-art.b, .theme-jl25_ramparts .cs-moon { animation: none; } }
+.theme-jl25_ramparts .cs-title b { color: #ffd0b0; text-shadow: 0 0 22px rgba(255,58,42,.6), 0 3px 0 rgba(0,0,0,.5); }
 /* @@ jl25 backdrops go above this line @@ */
 
 /* @@ jl26 backdrops go above this line @@ */
