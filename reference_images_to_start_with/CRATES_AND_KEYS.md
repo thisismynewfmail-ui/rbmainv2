@@ -329,7 +329,7 @@ crate, key, cosmetics, weapons, Unusual effects, opening show and badge:
 |---|---|---|---|---|---|
 | New Year (`newyear.py`) | First Light | Glitterfall Gala | Rocket Rally | Neon Midnight | Crystal Countdown |
 | St. Patrick's (`stpatricks.py`) | Lucky Lep's Lockbox | Rainbow's End | Blarney Hoard | Emerald Jamboree | Leprechaun's Last Laugh |
-| Easter (`easter.py`) | Eggstravaganza | Bunny Burrow | The Great Hatch | Choc-o-Lock | Faberge Gala |
+| Easter (`easter.py`) | Eggstravaganza | Bunny Burrow | The Great Hatch | Choc-o-Lock | Gilded Egg Gala |
 | Fourth of July (`july4.py`) | Star-Spangled Blast | Backyard Cookout | Liberty Lights | Rocket's Red Glare | America 250 |
 | Halloween (`halloween.py`) | Graveyard Shift | Witching Hour | Manor of Whispers | Big Top Terror | Hallowed Harvest |
 | Christmas (`christmas.py`) | Frostfall | Gingerbread Junction | North Pole Express | Krampusnacht | Aurora Winterlight |

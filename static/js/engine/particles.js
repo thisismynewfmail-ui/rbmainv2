@@ -925,6 +925,36 @@
     }],
     // @@ ea25 particles go above this line @@
 
+    ['ea26_gem', function (c) {
+      // a cut stone: the table on top and the facets running down to the point
+      poly(c, [[34, 30], [94, 30], [118, 54], [64, 120], [10, 54]]);
+      c.fillStyle = '#e8e8e8'; poly(c, [[46, 30], [82, 30], [94, 54], [34, 54]]);
+      c.fillStyle = '#b8b8b8'; poly(c, [[10, 54], [34, 54], [64, 120]]);
+      c.fillStyle = '#d0d0d0'; poly(c, [[94, 54], [118, 54], [64, 120]]);
+      c.fillStyle = '#ffffff'; poly(c, [[50, 34], [64, 34], [54, 48]]);
+    }],
+    ['ea26_pearl', function (c) {
+      // a pearl, with its soft sheen
+      dot(c, 64, 64, 44);
+      c.fillStyle = '#c8c8c8'; c.beginPath(); c.arc(70, 72, 34, 0.2, 2.6); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(48, 46, 12, 8, -0.6, 0, Math.PI * 2); c.fill();
+    }],
+    ['ea26_gear', function (c) {
+      // a clock wheel: teeth round the rim, four spokes, the arbor in the middle
+      c.save(); c.translate(64, 64);
+      for (var k = 0; k < 14; k++) {
+        c.rotate(Math.PI * 2 / 14); c.fillRect(-7, -56, 14, 16);
+      }
+      c.beginPath(); c.arc(0, 0, 44, 0, Math.PI * 2); c.fill();
+      c.globalCompositeOperation = 'destination-out';
+      for (k = 0; k < 4; k++) {
+        c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 34, k * Math.PI / 2 + 0.28, (k + 1) * Math.PI / 2 - 0.28);
+        c.closePath(); c.fill();
+      }
+      c.globalCompositeOperation = 'source-over';
+      c.beginPath(); c.arc(0, 0, 10, 0, Math.PI * 2); c.fill();
+      c.restore();
+    }],
     // @@ ea26 particles go above this line @@
 
     // @@ easter particles go above this line @@

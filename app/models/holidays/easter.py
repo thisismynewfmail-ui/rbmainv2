@@ -6,7 +6,7 @@ Nine days either side of Easter Sunday, every spring since the first:
   2023  Bunny Burrow      the warren under the hill, its round door and its carrots
   2024  The Great Hatch   the incubator in the barn, and everything that hatched
   2025  Choc-o-Lock       the chocolatier's vault, foil, fondue and a hollow bunny
-  2026  Faberge Gala      the jewelled egg at the imperial ball, and its surprise
+  2026  Gilded Egg Gala   the jewelled egg at the Grand Duchess's ball, and its surprise
 
 Every egg in here is the one egg mesh (``egg``) or the two halves of a broken
 one (``crackedshell`` and ``ea_eggtop``, which share an anchor and a scale and
@@ -3050,7 +3050,844 @@ EA25.bundle("selection", "The Selection Box", 3, 3000, "Three Choc-o-Locks, thre
 
 # @@ EA25 Choc-o-Lock goes above this line @@
 
-# @@ EA26 Faberge Gala goes above this line @@
+# ============================================================ 2026
+EA26_ENAMEL = "#2a4ab8"      # royal blue enamel over engine-turned gold
+EA26_RED = "#b8203a"         # imperial red enamel
+EA26_PINK = "#e88aa8"        # rose enamel
+EA26_GOLD = "#e8b830"
+EA26_PEARL = "#f4efe6"
+EA26_DIAMOND = "#e8f4ff"
+EA26_EMERALD = "#1f9a6a"
+EA26_RUBY = "#d01840"
+EA26_SAPPHIRE = "#2a5ad8"
+EA26_AMETHYST = "#8a4ad0"
+EA26_VELVET = "#7a1028"
+EA26_IVORY = "#f6f0e2"
+EA26_NIGHT = "#141a3a"
+EA26_FUR = "#3a2a22"
+EA26_GEMS = (EA26_RUBY, EA26_EMERALD, EA26_SAPPHIRE, EA26_AMETHYST)
+
+
+def _ea26_gem(at, w, c, r=None, **kw):
+    """A cabochon ``w`` across: a domed stone in a gold collet, its face
+    along the turn ``r``'s +Z."""
+    x, y, z = at
+    face = rotate([0, 0, 1], r) if r else [0, 0, 1]
+    return [part("cyl", [x, y, z], [w * 1.25, w * 0.30, w * 1.25], EA26_GOLD,
+                 [PI / 2 + (r[0] if r else 0), r[1] if r else 0, 0], m="metal", **kw),
+            part("sph", [x + face[0] * w * 0.12, y + face[1] * w * 0.12, z + face[2] * w * 0.12],
+                 [w, w, w * 0.55], c, list(r) if r else None, m="glass", **kw)]
+
+
+def _ea26_ring(y, r, w, c, n=16, zs=1.0, **kw):
+    """A thin hoop of rod round the upright, ``r`` out at height ``y``."""
+    out = []
+    for k in range(n):
+        a0, a1 = TAU * k / n, TAU * (k + 1) / n
+        out.append(rod([math.sin(a0) * r, y, math.cos(a0) * r * zs],
+                       [math.sin(a1) * r, y, math.cos(a1) * r * zs], w, c, m="metal", **kw))
+    return out
+
+
+def _ea26_bird(at=(0, 0, 0), k=1.0, yaw=0.0, singing=True, **kw):
+    """The clockwork songbird: a gold body enamelled blue on the wings, a
+    fanned tail, a ruby eye, a beak open to sing and the winding key in
+    its back -- stood on ``at``, about 0.5 ``k`` tall, looking along
+    ``yaw``."""
+    g, m = EA26_GOLD, "metal"
+    parts = [
+        part("sph", [0, 0.20, 0], [0.24, 0.22, 0.34], g, [-0.25, 0, 0], m=m, decal="ea26_feathers",
+             wrap=True),
+        part("sph", [0, 0.34, 0.12], [0.18, 0.18, 0.18], g, m=m, decal="ea26_feathers", wrap=True),
+        part("sph", [0, 0.28, 0.12], [0.13, 0.08, 0.10], EA26_IVORY, m="glass"),
+        part("sph", [0.075, 0.37, 0.17], [0.04, 0.04, 0.03], EA26_RUBY, m="glass"),
+        part("sph", [-0.075, 0.37, 0.17], [0.04, 0.04, 0.03], EA26_RUBY, m="glass"),
+        place("cone", [0, 0.355, 0.25], [0.05, 0.09, 0.04], EA26_GOLD, r=[PI / 2 - 0.25, 0, 0], m=m),
+        place("cone", [0, 0.33, 0.24], [0.045, 0.08, 0.035], shade(EA26_GOLD, 0.8),
+              r=[PI / 2 + (0.45 if singing else 0.1), 0, 0], m=m),
+        # the wings, folded, enamelled blue with gold edges
+        place("wing", [0.11, 0.24, 0.10], [0.32, 0.22, 0.5], EA26_ENAMEL, anchor=[-0.5, 0, 0],
+              r=[0, PI / 2 - 0.12, -0.25], m="glass"),
+        place("wing", [-0.11, 0.24, 0.10], [0.32, 0.22, 0.5], EA26_ENAMEL, anchor=[-0.5, 0, 0],
+              r=[0, PI / 2 + 0.12, -0.25], m="glass"),
+        # the tail, fanned
+        place("fan", [0, 0.16, -0.14], [0.36, 0.40, 1.0], EA26_ENAMEL, anchor=[0, 0, 0],
+              r=[-PI / 2 - 0.5, 0, 0], m="glass"),
+        # its feet, gripping
+        rod([0.05, 0.10, 0.02], [0.05, 0.0, 0.03], 0.02, g, m=m),
+        rod([-0.05, 0.10, 0.02], [-0.05, 0.0, 0.03], 0.02, g, m=m),
+        # the winding key in its back
+        rod([0, 0.27, -0.10], [0, 0.36, -0.16], 0.025, SILVER, m=m),
+        part("torus", [0.04, 0.39, -0.18], [0.08, 0.10, 0.08], SILVER, [0, 0, PI / 2], m=m),
+        part("torus", [-0.04, 0.39, -0.18], [0.08, 0.10, 0.08], SILVER, [0, 0, PI / 2], m=m),
+    ]
+    return _ea24_turn(parts, at, yaw, k, **kw)
+
+
+def _ea26_egg(at, w, c, r=None, bands=EA26_GOLD, pearls=True, **kw):
+    """A jewelled enamel egg ``w`` wide standing on ``at``: engine-turned
+    under the enamel, banded in gold, pearls round its waist, a diamond on
+    top."""
+    k = w / EGG_W
+    h = EGG_H * k
+    parts = [place("egg", [0, 0, 0], [k, k, k], c, anchor=[0, 0, 0], m="glass", decal="ea26_guilloche",
+                   wrap=True)]
+    for f in (0.30, 0.70):
+        rr = _egg_r(f, k)
+        parts.append(part("torus", [0, h * f, 0], [rr * 2 + 0.02 * k, 0.35, rr * 2 + 0.02 * k], bands,
+                          m="metal"))
+    if pearls:
+        rr = _egg_r(0.45, k) + 0.012 * k
+        for n in range(12):
+            a = n * TAU / 12
+            parts.append(part("sph", [math.sin(a) * rr, h * 0.45, math.cos(a) * rr],
+                              [0.05 * k, 0.05 * k, 0.05 * k], EA26_PEARL, m="glass"))
+    parts.append(part("sph", [0, h + 0.02 * k, 0], [0.09 * k, 0.09 * k, 0.09 * k], EA26_DIAMOND, m="glass"))
+    out = at_frame(parts, at, r)
+    for p in out:
+        p.update(kw)
+    return out
+
+
+def _ea26_plume(base, yaw, c="#f6f4f0", k=1.0, **kw):
+    """An ostrich plume rising from ``base`` and curling over and away
+    along ``yaw``: four lengths of feather laid end to end, each bent over
+    further than the last."""
+    out = []
+    at = list(base)
+    for n, (bend, w) in enumerate(((0.30, 1.75), (0.75, 1.60), (1.20, 1.40), (1.65, 1.10))):
+        ln = 0.36 * k
+        out.append(place("feather", at, [w * k, ln / 1.03, 1.0], c, anchor=[0, -0.5, 0], r=[bend, yaw, 0],
+                         **kw))
+        d = rotate([0, 1, 0], [bend, yaw, 0])
+        at = [at[0] + d[0] * ln * 0.9, at[1] + d[1] * ln * 0.9, at[2] + d[2] * ln * 0.9]
+    return out
+
+
+EA26 = Event(
+    "easter_2026", "easter", 2026, "ea26",
+    name="Gilded Egg Gala", title="The Gilded Egg Gala",
+    blurb="Every Easter the court jeweller makes the Grand Duchess of Blockhaven one egg, "
+          "and every egg has a surprise inside it. In 2026 the egg was the size of a "
+          "carriage and the surprise was that it was one. It drove itself into the "
+          "ballroom at the stroke of midnight, the door opened, and out flew a clockwork "
+          "songbird that is still somewhere up in the chandeliers, singing. The band "
+          "played on. Nobody has gone home.",
+    tagline="Gowns, gold, and a little bird that will not come down.",
+    starts="2026-03-27", ends="2026-04-14",
+    colors={"accent": "#e8b830", "deep": "#141a3a", "glow": "#9fc8ff"},
+    family_effects=["starstruck", "candlelight_vigil", "sunbeam"],
+    hero_effect="crown_jewels", stencil="stencil_ea26")
+
+
+@EA26.crate_model("Gala Coach",
+                  "The Grand Duchess's Easter egg: a coach of royal blue enamel over "
+                  "engine-turned gold, laid on its side on four gilded wheels, with a "
+                  "crown on its roof, lanterns lit, a velvet box for the coachman and a "
+                  "door with her crest on it. The roof lifts. Holds the Gilded Egg Gala "
+                  "set. Needs a Coachman's Key.",
+                  hinge=[0, 0.11, -0.45], keyhole=[0.29, -0.05, 0.38])
+def _():
+    k = 0.86
+    g, m = EA26_GOLD, "metal"
+    L, H, D, yc = 1.50, 1.00, 1.04, 0.13
+    parts = [
+        # the body: two halves of an egg laid on its side, the roof lifting off
+        place("hemi", [0, yc, 0], [L, H, D], EA26_ENAMEL, anchor=[0, 0, 0], r=[PI, 0, 0], m="glass",
+              decal="ea26_guilloche", wrap=True),
+        place("hemi", [0, yc, 0], [L, H, D], EA26_ENAMEL, anchor=[0, 0, 0], m="glass",
+              decal="ea26_guilloche", wrap=True, lid=1),
+        part("torus", [0, yc, 0], [L + 0.05, 0.55, D + 0.05], g, m=m),
+        part("torus", [0, yc + 0.035, 0], [L + 0.04, 0.35, D + 0.04], g, m=m, lid=1),
+        # the light inside, at the seam
+        part("box", [0, yc, 0], [L - 0.30, 0.03, D - 0.30], "#ffe9a0", m="neon"),
+        # the window in the roof, its gold frame and the curtained glass
+        part("disc", [0, yc + 0.25, 0.47], [0.52, 0.40, 0.06], g, [-0.52, 0, 0], m=m, lid=1),
+        part("disc", [0, yc + 0.255, 0.485], [0.42, 0.31, 0.04], "#9fc8ff", [-0.52, 0, 0], m="glass",
+             decal="ea26_window", lid=1),
+        # the door, with the crest, and the lock beside it
+        part("disc", [0, yc - 0.20, 0.485], [0.50, 0.40, 0.05], g, [0.43, 0, 0], m=m),
+        part("disc", [0, yc - 0.205, 0.50], [0.42, 0.33, 0.04], EA26_RED, [0.43, 0, 0], m="glass",
+             decal="ea26_crest"),
+        part("rbox", [0.34, yc - 0.19, 0.435], [0.10, 0.14, 0.04], g, [0.42, 0.37, 0], m=m, decal="keyhole",
+             lock=1),
+        # the stencil, on a medallion on the far side
+        part("disc", [0, yc - 0.20, -0.485], [0.50, 0.40, 0.05], g, [0.43, PI, 0], m=m),
+        part("box", [0, yc - 0.21, -0.51], [0.40, 0.32, 0.01], "#000000", [0.43, PI, 0],
+             decal="stencil_ea26", a=-1),
+        # the point of the egg, out in front, and a sunburst at the back
+        place("teardrop", [0.72, yc, 0], [0.16, 0.22, 0.16], g, anchor=[0, 0, 0], r=[0, 0, -PI / 2],
+              m=m),
+        part("sph", [0.95, yc, 0], [0.08, 0.08, 0.08], EA26_DIAMOND, m="glass"),
+        place("star", [-0.76, yc, 0], [0.30, 0.30, 0.20], g, r=[0, -PI / 2, 0], m=m),
+        # the crown on the roof, a pearl on every point, and two white plumes
+        place("spikecrown", [0, yc + 0.48, 0], [0.40, 0.24, 0.40], g, anchor=[0, 0, 0], m=m, lid=1),
+        part("cyl", [0, yc + 0.50, 0], [0.38, 0.06, 0.38], EA26_VELVET, lid=1),
+        part("sph", [0, yc + 0.66, 0], [0.12, 0.12, 0.12], EA26_RUBY, m="glass", lid=1),
+        # the perch under it, front axle to back
+        rod([-0.50, -0.46, 0], [0.50, -0.50, 0], 0.07, g, m=m),
+        # the coachman's box, velvet, on its bracket, and the footboard
+        rod([0.60, yc - 0.30, 0], [0.86, -0.06, 0], 0.08, g, m=m),
+        part("rbox", [0.88, 0.02, 0], [0.24, 0.10, 0.50], EA26_VELVET),
+        part("rbox", [0.78, 0.14, 0], [0.05, 0.22, 0.50], EA26_VELVET),
+        part("rbox", [1.02, -0.18, 0], [0.16, 0.03, 0.44], g, m=m),
+        rod([0.92, -0.04, 0], [1.02, -0.17, 0], 0.04, g, m=m),
+    ]
+    # the wheels: gold rims, red spokes, gold hubs on their axles
+    for x, r_, y in ((-0.50, 0.40, -0.50), (0.50, 0.33, -0.57)):
+        parts.append(rod([x, y, -0.66], [x, y, 0.66], 0.06, g, m=m))
+        for s in (1, -1):
+            z = 0.66 * s
+            parts += [part("torus", [x, y, z], [2 * r_, 0.9, 2 * r_], g, [PI / 2, 0, 0], m=m),
+                      part("torus", [x, y, z], [2 * r_ + 0.03, 0.5, 2 * r_ + 0.03], shade(g, 0.7),
+                           [PI / 2, 0, 0], m=m),
+                      part("cyl", [x, y, z], [0.15, 0.12, 0.15], g, [PI / 2, 0, 0], m=m),
+                      part("sph", [x, y, z + 0.07 * s], [0.07, 0.07, 0.05], EA26_RUBY, m="glass")]
+            for n in range(8):
+                a = n * TAU / 8
+                parts.append(rod([x + math.cos(a) * 0.07, y + math.sin(a) * 0.07, z],
+                                 [x + math.cos(a) * (r_ - 0.04), y + math.sin(a) * (r_ - 0.04), z],
+                                 0.03, EA26_RED))
+    # lanterns either side of the coachman, lit
+    for s in (1, -1):
+        at = [0.64, yc + 0.12, 0.44 * s]
+        parts += [rod([0.58, yc + 0.02, 0.38 * s], at, 0.03, g, m=m),
+                  part("cyl", [at[0], at[1] + 0.06, at[2]], [0.12, 0.14, 0.12], "#fff2c0", m="neon"),
+                  part("cyl", [at[0], at[1] - 0.02, at[2]], [0.15, 0.03, 0.15], g, m=m),
+                  place("cone", [at[0], at[1] + 0.17, at[2]], [0.16, 0.10, 0.16], g, m=m)]
+    # cabochons round the roof, pearls along its edge
+    for a, c in ((0.95, EA26_RUBY), (1.6, EA26_EMERALD), (2.3, EA26_SAPPHIRE), (PI, EA26_RUBY),
+                 (-0.95, EA26_EMERALD), (-1.6, EA26_SAPPHIRE), (-2.3, EA26_AMETHYST)):
+        y = 0.28
+        f = math.sqrt(1 - (y / (H / 2)) ** 2)
+        x, z = math.sin(a) * L / 2 * f, math.cos(a) * D / 2 * f
+        parts += _ea26_gem([x, yc + y, z], 0.09, c, r=[-0.5, a, 0], lid=1)
+    for n in range(24):
+        a = n * TAU / 24
+        parts.append(part("sph", [math.sin(a) * (L / 2 + 0.03), yc - 0.045, math.cos(a) * (D / 2 + 0.03)],
+                          [0.05, 0.05, 0.05], EA26_PEARL, m="glass"))
+    return at_frame(parts, [0, 0, 0], k=k)
+
+
+@EA26.key_model("Coachman's Key",
+                "A gold key with a red enamel egg for its bow, ringed in gold and crowned, "
+                "a string of pearls at its collar and a sapphire set in its bit. Opens "
+                "one Gala Coach. The coachman has not been seen since midnight either.",
+                shoulder=-0.34)
+def _():
+    g, m = EA26_GOLD, "metal"
+    x0 = -0.62
+    parts = _ea26_egg([x0, -0.24, 0], 0.34, EA26_RED, pearls=True)
+    parts += [
+        part("torus", [x0, 0.0, 0], [0.62, 0.55, 0.62], g, [PI / 2, 0, 0], m=m),
+        place("spikecrown", [x0, 0.27, 0], [0.18, 0.12, 0.10], g, anchor=[0, 0, 0], m=m),
+        part("sph", [x0, 0.41, 0], [0.06, 0.06, 0.06], EA26_PEARL, m="glass"),
+        # the collar, pearls, and the shaft
+        part("cyl", [-0.32, 0, 0], [0.12, 0.06, 0.12], g, [0, 0, PI / 2], m=m),
+        part("sph", [-0.27, 0, 0], [0.07, 0.07, 0.07], EA26_PEARL, m="glass"),
+        part("sph", [-0.21, 0, 0], [0.07, 0.07, 0.07], EA26_PEARL, m="glass"),
+        part("cyl", [0.12, 0, 0], [0.08, 0.68, 0.08], g, [0, 0, PI / 2], m=m, decal="filigree",
+             wrap=True),
+        part("sph", [0.47, 0, 0], [0.10, 0.10, 0.10], g, m=m),
+        # the bit, and the sapphire in it
+        part("rbox", [0.38, -0.11, 0], [0.12, 0.18, 0.06], g, m=m),
+        part("rbox", [0.24, -0.08, 0], [0.08, 0.12, 0.06], g, m=m),
+    ]
+    parts += _ea26_gem([0.38, -0.12, 0.035], 0.07, EA26_SAPPHIRE)
+    return parts
+
+
+# ================================================================== hats
+@EA26.hat("gilded_cage", "The Gilded Cage",
+          "A gilded birdcage worn as a hat, its door left open, and inside on the perch "
+          "the clockwork songbird that came out of this year's egg -- or one just like "
+          "it. Wind the key and it sings a waltz. It will sing it again. And again.",
+          "legendary")
+def _():
+    g, m = EA26_GOLD, "metal"
+    prof = [(-0.08, 0.93), (0.30, 0.95), (0.62, 0.82), (0.88, 0.52), (1.04, 0.14)]
+    parts = [
+        ringband(-0.12, 0.14, g, margin=0.05, m=m, decal="ea26_filigree", wrap=True),
+        ringband(-0.02, 0.05, shade(g, 0.8), margin=0.07, m=m),
+        part("sph", [0, 1.07, 0], [0.22, 0.14, 0.22], g, m=m),
+        part("torus", [0, 1.22, 0], [0.18, 0.20, 0.18], g, [PI / 2, 0, 0], m=m),
+        # the perch, and the bird on it
+        rod([-0.70, 0.36, 0.0], [0.70, 0.36, 0.0], 0.05, g, m=m),
+        part("cyl", [0, 0.20, 0], [0.30, 0.04, 0.30], EA26_IVORY, m="glass"),
+    ]
+    for n in range(14):
+        a = n * TAU / 14
+        if abs(a - 0.25) < 0.2:
+            continue          # the doorway
+        pts = [[math.sin(a) * r, y, math.cos(a) * r * 0.97] for y, r in prof]
+        parts += [rod(p, q, 0.035, g, m=m) for p, q in zip(pts, pts[1:])]
+    parts += _ea26_ring(0.30, 0.95, 0.035, g, n=18, zs=0.97)
+    parts += _ea26_ring(0.62, 0.82, 0.035, g, n=18, zs=0.97)
+    # the door, swung open on its hinge
+    hinge = [math.sin(0.40) * 0.95, 0.0, math.cos(0.40) * 0.95 * 0.97]
+    for y0, y1 in ((-0.02, 0.56),):
+        parts += [rod([hinge[0], y0, hinge[2]], [hinge[0], y1, hinge[2]], 0.035, g, m=m),
+                  rod([hinge[0] + 0.30, y0, hinge[2] + 0.22], [hinge[0] + 0.30, y1, hinge[2] + 0.22], 0.035,
+                      g, m=m),
+                  rod([hinge[0] + 0.15, y0, hinge[2] + 0.11], [hinge[0] + 0.15, y1, hinge[2] + 0.11], 0.035,
+                      g, m=m),
+                  rod([hinge[0], y1, hinge[2]], [hinge[0] + 0.30, y1, hinge[2] + 0.22], 0.035, g, m=m),
+                  rod([hinge[0], y0, hinge[2]], [hinge[0] + 0.30, y0, hinge[2] + 0.22], 0.035, g, m=m)]
+    parts += _ea26_bird([0, 0.385, 0.02], 1.25, 0.0)
+    return parts
+
+
+@EA26.hat("chandelier", "The Ballroom Chandelier",
+          "The smallest chandelier from the ballroom, candles lit and every crystal "
+          "drop swinging, its chain going up to a ceiling nobody else can see. Dance "
+          "carefully. Dance very carefully.", "legendary")
+def _():
+    g, m = EA26_GOLD, "metal"
+    crystal = "#dff0ff"
+    parts = [
+        cap(-0.20, 0.06, g, m=m, decal="ea26_filigree", wrap=True),
+        band(-0.16, 0.08, shade(g, 0.8), grow=0.04, m=m),
+        # the column: a vase, a knop, the finial and the chain up into nothing
+        part("cyl", [0, 0.14, 0], [0.22, 0.16, 0.22], g, m=m),
+        part("sph", [0, 0.32, 0], [0.34, 0.30, 0.34], g, m=m, decal="ea26_filigree", wrap=True),
+        part("cyl", [0, 0.52, 0], [0.12, 0.16, 0.12], g, m=m),
+        part("sph", [0, 0.64, 0], [0.18, 0.14, 0.18], g, m=m),
+        place("teardrop", [0, 0.70, 0], [0.12, 0.30, 0.12], g, anchor=[0, 0, 0], m=m),
+        part("sph", [0, 0.24, 0], [0.16, 0.12, 0.16], crystal, m="glass", a=0.8),
+    ]
+    for n in range(4):
+        parts.append(part("torus", [0, 1.06 + n * 0.11, 0], [0.10, 0.12, 0.14], g,
+                          [PI / 2, (n % 2) * PI / 2, 0], m=m))
+    parts.append(part("cyl", [0, 1.52, 0], [0.30, 0.04, 0.30], g, m=m))
+    # six scrolling arms out to their candles, drops hanging under each
+    for n in range(6):
+        a = n * TAU / 6 + PI / 6
+        s, c = math.sin(a), math.cos(a)
+        p0, p1, p2 = [s * 0.12, 0.30, c * 0.12], [s * 0.60, 0.18, c * 0.60], [s * 1.02, 0.34, c * 1.02]
+        cup = [s * 1.04, 0.40, c * 1.04]
+        parts += [
+            rod(p0, p1, 0.05, g, m=m), rod(p1, p2, 0.05, g, m=m),
+            part("sph", p1, [0.07, 0.07, 0.07], g, m=m),
+            part("cyl", cup, [0.17, 0.06, 0.17], g, m=m),
+            part("cyl", [cup[0], 0.52, cup[2]], [0.09, 0.22, 0.09], EA26_IVORY),
+            place("teardrop", [cup[0], 0.63, cup[2]], [0.07, 0.13, 0.07], "#ffb03a", anchor=[0, 0, 0],
+                  m="neon"),
+            place("teardrop", [p1[0], p1[1] - 0.04, p1[2]], [0.08, 0.20, 0.08], crystal,
+                  anchor=[0, 1.0, 0], m="glass", a=0.85),
+            place("teardrop", [s * 1.0, 0.30, c * 1.0], [0.10, 0.26, 0.10], crystal, anchor=[0, 1.0, 0],
+                  m="glass", a=0.85),
+        ]
+    # swags of crystal beads from arm to arm
+    for n in range(6):
+        a0 = n * TAU / 6 + PI / 6
+        for t in (0.2, 0.4, 0.6, 0.8):
+            a = a0 + TAU / 6 * t
+            sag = math.sin(t * PI) * 0.14
+            parts.append(part("sph", [math.sin(a) * 0.86, 0.22 - sag, math.cos(a) * 0.86], [0.06, 0.06, 0.06],
+                              crystal, m="glass", a=0.85))
+    return parts
+
+
+@EA26.hat("kalpak", "Grand Duke's Kalpak",
+          "A tall hat of dark sable with a crimson velvet crown braided in gold, and "
+          "at the front an aigrette: a jewelled enamel egg holding up a plume of heron "
+          "feathers the height of a footman. You will have to duck through doors. "
+          "Ducking is beneath you.", "rare")
+def _():
+    g, m = EA26_GOLD, "metal"
+    parts = [
+        place("flare", [0, -0.42, 0], [2.08, 1.00, 2.02], EA26_FUR, anchor=[0, 0, 0], decal="fur",
+              wrap=True),
+        part("cyl", [0, 0.57, 0], [1.98, 0.08, 1.92], EA26_VELVET, decal="ea26_braid"),
+        part("sph", [0, 0.63, 0], [0.16, 0.10, 0.16], g, m=m),
+        # a gold cord across the front
+        rod([-0.62, 0.10, 0.84], [0.0, -0.05, 0.98], 0.05, g, m=m),
+        rod([0.0, -0.05, 0.98], [0.62, 0.10, 0.84], 0.05, g, m=m),
+    ]
+    # the aigrette: a sunburst of diamonds round a blue egg, and the plume
+    parts += _ea26_egg([0, 0.02, 1.02], 0.22, EA26_ENAMEL, r=[0.1, 0, 0])
+    parts += around(10, 0.0, 0.0, lambda a, x, z: part(
+        "sph", [math.sin(a) * 0.20, 0.18 + math.cos(a) * 0.22, 1.00], [0.06, 0.06, 0.04], EA26_DIAMOND,
+        m="glass"))
+    for n, (dx, tilt, ln) in enumerate(((0.0, 0.0, 1.0), (0.05, -0.12, 0.90), (-0.05, 0.12, 0.90),
+                                        (0.08, -0.22, 0.75))):
+        parts.append(place("feather", [dx, 0.28, 0.99 - 0.02 * n], [0.75, ln * 1.55, 1.0],
+                           "#f6f4f0" if n % 2 == 0 else "#e8e4dc", anchor=[0, -0.5, 0],
+                           r=[-0.30, 0, tilt], decal="ea24_down", wrap=True))
+    return parts
+
+
+@EA26.hat("kokoshnik", "Pearl Kokoshnik",
+          "The court headdress: a tall halo of crimson velvet sewn all over with river "
+          "pearls and gold thread, a cabochon in every arch, and a fringe of pearls "
+          "hanging down over the brow. Tip your head and it rains pearls. Do not "
+          "tip your head.", "rare", hair="show")
+def _():
+    g, m = EA26_GOLD, "metal"
+    parts = [
+        band(-0.10, 0.10, g, grow=0.06, m=m, decal="ea26_filigree", wrap=True),
+        place("fan", [0, -0.12, 0.40], [2.10, 2.30, 1.6], EA26_VELVET, anchor=[0, 0, 0], r=[-0.18, 0, 0],
+              decal="ea26_pearlwork", wrap=True),
+        place("fan", [0, -0.11, 0.37], [2.18, 2.38, 1.2], g, anchor=[0, 0, 0], r=[-0.18, 0, 0], m=m),
+    ]
+    # cabochons round the halo, a big one in the middle
+    for n, a in enumerate((-0.9, -0.45, 0.0, 0.45, 0.9)):
+        r = 0.86
+        x, y = math.sin(a) * r, -0.12 + math.cos(a) * r * 1.0
+        z = 0.45 - 0.179 * (y + 0.12)
+        parts += _ea26_gem([x, y, z], 0.14 if n == 2 else 0.10, EA26_GEMS[n % 4], r=[-0.18, 0, 0])
+    parts += _ea26_gem([0, 0.40, 0.36], 0.22, EA26_EMERALD, r=[-0.18, 0, 0])
+    # the fringe of pearls over the brow
+    for n in range(13):
+        x = -0.60 + n * 0.10
+        drop = 0.10 + 0.10 * math.cos(x * 2.2)
+        for k in range(3):
+            y = -0.17 - k * 0.07
+            if k * 0.07 > drop:
+                break
+            parts.append(part("sph", [x, y, 0.80], [0.055, 0.055, 0.055], EA26_PEARL, m="glass"))
+    return parts
+
+
+@EA26.hat("swan_lake", "Swan Surprise",
+          "A clockwork swan in white enamel and gold, gliding round and round a little "
+          "lake of aquamarine on the top of your head, wings half raised, among gold "
+          "reeds. It came out of an egg once. It would rather not talk about it.",
+          "rare")
+def _():
+    g, m = EA26_GOLD, "metal"
+    white = "#fbf8f2"
+    parts = [
+        cap(-0.18, 0.05, g, m=m, decal="ea26_filigree", wrap=True),
+        part("cyl", [0, 0.075, 0], [1.50, 0.05, 1.42], "#5ac8c8", m="glass", decal="ea26_water"),
+        part("torus", [0, 0.07, 0], [1.56, 0.4, 1.48], g, m=m),
+        # the swan: its body, the neck in an S, the head and its black-and-gold beak
+        part("sph", [0, 0.22, -0.05], [0.42, 0.28, 0.62], white, m="glass", decal="ea26_feathers",
+             wrap=True),
+        place("teardrop", [0, 0.24, -0.34], [0.22, 0.28, 0.16], white, anchor=[0, 0, 0], r=[-1.2, 0, 0],
+              m="glass"),
+    ]
+    neck = [[0, 0.28, 0.16], [0, 0.46, 0.28], [0, 0.66, 0.24], [0, 0.80, 0.12], [0, 0.88, 0.16]]
+    for a, b in zip(neck, neck[1:]):
+        parts.append(rod(a, b, 0.10, white, t="capsule", m="glass"))
+    parts += [part("sph", p, [0.10, 0.10, 0.10], white, m="glass") for p in neck[1:-1]]
+    parts += [part("sph", [0, 0.90, 0.20], [0.14, 0.13, 0.20], white, m="glass"),
+              place("cone", [0, 0.88, 0.34], [0.06, 0.14, 0.05], "#e8902a", r=[PI / 2 + 0.3, 0, 0]),
+              part("sph", [0, 0.885, 0.28], [0.07, 0.06, 0.05], BLACK),
+              part("sph", [0.06, 0.92, 0.22], [0.03, 0.03, 0.03], EA26_RUBY, m="glass"),
+              part("sph", [-0.06, 0.92, 0.22], [0.03, 0.03, 0.03], EA26_RUBY, m="glass"),
+              part("torus", [0, 0.40, 0.24], [0.16, 0.16, 0.16], g, [0.6, 0, 0], m=m)]
+    # the wings, half raised, gold-edged
+    for s in (1, -1):
+        parts += [place("wing", [0.17 * s, 0.30, 0.10], [0.56, 0.44, 1.0], white, anchor=[-0.5, 0, 0],
+                        r=[0, PI / 2 - 0.25 * s, 0.6], m="glass", decal="ea26_feathers"),
+                  place("wing", [0.16 * s, 0.29, 0.10], [0.60, 0.48, 0.5], g, anchor=[-0.5, 0, 0],
+                        r=[0, PI / 2 - 0.25 * s, 0.6], m=m)]
+    # gold reeds round the shore, a lily pad
+    parts += around(9, 0.0, 0.0, lambda a, x, z: None if math.cos(a) > 0.7 else rod(
+        [math.sin(a) * 0.66, 0.08, math.cos(a) * 0.62],
+        [math.sin(a) * 0.70, 0.36 + 0.08 * math.sin(a * 3), math.cos(a) * 0.66], 0.035, g, m=m),
+        start=0.3)
+    parts += [part("cyl", [0.42, 0.105, 0.30], [0.22, 0.02, 0.20], "#3f9a5a"),
+              part("sph", [0.44, 0.13, 0.30], [0.08, 0.06, 0.08], EA26_PINK, m="glass")]
+    return parts
+
+
+@EA26.hat("plume_fascinator", "Plume Fascinator",
+          "A pillbox of violet velvet the size of a teacup, set at an angle that "
+          "means business, with three ostrich plumes curling back off it and an "
+          "enamel egg for a brooch. You did not come to dance. You came to be seen "
+          "not dancing.", "uncommon", hair="show")
+def _():
+    v = "#5a2a8a"
+    parts = [
+        part("cyl", [0.30, 0.17, 0.08], [0.80, 0.24, 0.76], v, [0.10, 0, -0.25], decal="felt", wrap=True),
+        part("torus", [0.30, 0.10, 0.08], [0.82, 0.4, 0.78], EA26_GOLD, [0.10, 0, -0.25], m="metal"),
+        part("cyl", [0.33, 0.30, 0.09], [0.70, 0.02, 0.66], shade(v, 1.15), [0.10, 0, -0.25]),
+    ]
+    # the plumes: soft curls of ostrich down rising off the back of the
+    # pillbox and falling away behind
+    for n, (yaw, c) in enumerate(((-0.35, "#f6f4f0"), (-0.90, "#e8d8f0"), (0.25, "#f6f4f0"))):
+        parts += _ea26_plume([0.38 + 0.03 * n, 0.26, 0.02 - 0.05 * n], yaw + PI, c)
+    parts += _ea26_egg([0.06, 0.10, 0.42], 0.18, EA26_PINK, r=[0.6, 0, 0.2])
+    return parts
+
+
+@EA26.hat("wind_up_key", "Wind-Up Key",
+          "A great gold winding key stuck in the top of your head, slowly turning. "
+          "Every clockwork thing at the Gala had one. Somebody put one in you while "
+          "you were not looking, and now you only stop dancing when it runs down.",
+          "uncommon", hair="show")
+def _():
+    g, m = EA26_GOLD, "metal"
+    return [
+        part("cyl", [0, 0.03, 0], [0.30, 0.06, 0.30], shade(g, 0.8), m=m),
+        part("cyl", [0, 0.20, 0], [0.12, 0.34, 0.12], g, m=m),
+        part("cyl", [0, 0.38, 0], [0.22, 0.06, 0.22], g, m=m),
+        # the bow: two big loops, a jewel in the middle
+        part("torus", [0.28, 0.60, 0], [0.52, 0.9, 0.52], g, [PI / 2, 0, 0], m=m),
+        part("torus", [-0.28, 0.60, 0], [0.52, 0.9, 0.52], g, [PI / 2, 0, 0], m=m),
+        part("sph", [0, 0.56, 0], [0.20, 0.20, 0.16], g, m=m),
+        part("sph", [0, 0.56, 0.08], [0.10, 0.10, 0.06], EA26_RUBY, m="glass"),
+        part("sph", [0, 0.56, -0.08], [0.10, 0.10, 0.06], EA26_RUBY, m="glass"),
+    ]
+
+
+# ================================================================= backs
+@EA26.back("clockwork_wings", "Clockwork Wings",
+           "A pair of wings made feather by feather in gold and blue enamel, each one "
+           "on its own little hinge, and between your shoulders the brass movement "
+           "that works them, wheels turning, a winding key the size of your hand. "
+           "They flap at the top of every hour. Mostly in the right order.",
+           "legendary")
+def _():
+    g, m = EA26_GOLD, "metal"
+    parts = straps("#5a3a1a") + [
+        part("rbox", [0, 0.56, -0.26], [0.64, 0.74, 0.46], g, m=m, decal="ea26_filigree", wrap=True),
+        place("cog", [0.10, 0.66, -0.50], [0.40, 0.40, 0.5], BRASS, r=[0, 0, 0.2], m=m),
+        place("cog", [-0.12, 0.44, -0.50], [0.30, 0.30, 0.5], shade(BRASS, 0.85), r=[0, 0, 0.6], m=m),
+        part("cyl", [0, 0.56, -0.56], [0.10, 0.12, 0.10], g, [PI / 2, 0, 0], m=m),
+        part("torus", [0.12, 0.56, -0.66], [0.22, 0.26, 0.22], g, [0, PI / 2, 0], m=m),
+        part("torus", [-0.12, 0.56, -0.66], [0.22, 0.26, 0.22], g, [0, PI / 2, 0], m=m),
+        part("cyl", [0, 0.56, -0.62], [0.06, 0.10, 0.06], g, [PI / 2, 0, 0], m=m),
+    ]
+    # each wing: three tiers of feathers fanning out and up from a shoulder
+    for s in (1, -1):
+        root = [0.26 * s, 0.84, -0.56]
+        parts.append(part("sph", root, [0.20, 0.20, 0.20], g, m=m))
+        for tier, (count, ln, c, z) in enumerate(((8, 1.70, "#5a86e8", -0.62),
+                                                   (7, 1.20, "#8ab0f0", -0.59),
+                                                   (6, 0.74, g, -0.56))):
+            for n in range(count):
+                t = n / max(1, count - 1)
+                ang = 0.30 + t * 1.45           # from up-and-out to out-and-down
+                d = [math.sin(ang) * s, math.cos(ang), 0.0]
+                base = [root[0] + d[0] * 0.10, root[1] + d[1] * 0.10, z - 0.02 * n]
+                mid = [base[0] + d[0] * ln * 0.5, base[1] + d[1] * ln * 0.5, base[2]]
+                parts.append(place("feather", mid, [1.5, ln, 1.4], c, r=[0, 0, -ang * s],
+                                   m="glass" if c != g else m, decal="ea26_quill" if c != g else None))
+    return parts
+
+
+@EA26.back("music_box", "The Music Box",
+           "A jewel-box music box of rose enamel on your back, lid up, mirror in the lid, "
+           "and on top a little dancer turning on her spindle to a waltz you can just "
+           "hear. Wind the key at the side for one more dance. It is always one more "
+           "dance.", "rare")
+def _():
+    g, m = EA26_GOLD, "metal"
+    lid_r = -2.05
+    hinge = [0, 1.08, -0.95]
+    lid = rotate([0, 0.03, 0.40], [lid_r, 0, 0])
+    mirror = rotate([0, -0.008, 0.40], [lid_r, 0, 0])
+    parts = straps("#7a3a5a") + [
+        part("rbox", [0, 0.62, -0.55], [1.10, 0.90, 0.80], EA26_PINK, m="glass", decal="ea26_guilloche",
+             wrap=True),
+        part("rbox", [0, 1.07, -0.55], [1.14, 0.06, 0.84], g, m=m),
+        part("rbox", [0, 0.18, -0.55], [1.16, 0.06, 0.86], g, m=m),
+        *[part("sph", [0.50 * sx, 0.12, -0.55 + 0.36 * sz], [0.14, 0.10, 0.14], g, m=m)
+          for sx in (1, -1) for sz in (1, -1)],
+        # the inside: velvet, the comb and the pinned drum behind glass
+        part("rbox", [0, 1.10, -0.55], [1.00, 0.02, 0.70], EA26_VELVET),
+        part("cyl", [0.10, 1.13, -0.38], [0.10, 0.60, 0.10], BRASS, [0, 0, PI / 2], m=m),
+        part("rbox", [0.10, 1.12, -0.30], [0.56, 0.02, 0.08], SILVER, m=m),
+        part("rbox", [0, 1.15, -0.32], [0.90, 0.01, 0.30], "#cfe8ff", m="glass", a=0.35),
+        # the lid, thrown back, and its mirror
+        part("rbox", [hinge[0] + lid[0], hinge[1] + lid[1], hinge[2] + lid[2]], [1.12, 0.06, 0.82],
+             EA26_PINK, [lid_r, 0, 0], m="glass", decal="ea26_guilloche", wrap=True),
+        part("box", [hinge[0] + mirror[0], hinge[1] + mirror[1], hinge[2] + mirror[2]], [0.92, 0.64, 0.01],
+             "#e8f0ff", [lid_r + PI / 2, 0, 0], m="metal"),
+        # the winding key at its side
+        part("cyl", [0.58, 0.62, -0.55], [0.08, 0.10, 0.08], g, [0, 0, PI / 2], m=m),
+        part("torus", [0.66, 0.70, -0.55], [0.20, 0.24, 0.20], g, [0, 0, PI / 2], m=m),
+        part("torus", [0.66, 0.54, -0.55], [0.20, 0.24, 0.20], g, [0, 0, PI / 2], m=m),
+        # the dancer on her spindle
+        part("cyl", [-0.24, 1.18, -0.60], [0.04, 0.14, 0.04], g, m=m),
+        part("cyl", [-0.24, 1.255, -0.60], [0.04, 0.02, 0.04], g, m=m),
+        rod([-0.24, 1.26, -0.60], [-0.22, 1.42, -0.60], 0.035, "#f6d8d0"),
+        place("ruffle", [-0.24, 1.44, -0.60], [0.40, 1.6, 0.40], "#ffd8e8", anchor=[0, 0, 0]),
+        part("capsule", [-0.24, 1.53, -0.60], [0.09, 0.16, 0.07], "#ffd8e8"),
+        part("sph", [-0.24, 1.66, -0.60], [0.09, 0.10, 0.09], "#f6d8d0"),
+        part("sph", [-0.24, 1.71, -0.62], [0.08, 0.05, 0.08], "#3a2418"),
+        rod([-0.24, 1.58, -0.60], [-0.12, 1.70, -0.60], 0.025, "#f6d8d0"),
+        rod([-0.24, 1.58, -0.60], [-0.36, 1.70, -0.60], 0.025, "#f6d8d0"),
+    ]
+    parts += _ea26_egg([0.24, 1.12, -0.70], 0.18, EA26_ENAMEL)
+    return parts
+
+
+# ================================================================== hair
+@EA26.hairdo("pompadour", "The Duchess's Pompadour",
+             "Powdered, pinned, padded and piled a foot high: rolls at the sides, curls "
+             "down the back, strings of pearls wound through it and a tiny jewelled egg "
+             "nested on top. It took four maids and a ladder. It will not be coming "
+             "down until Tuesday.", "rare")
+def _():
+    c = "#f2efe8"
+    sh = shade(c, 0.92)
+    parts = [
+        place("hairmid", [0, 0, 0], [1.05, 1.05, 1.05], c, anchor=[0, 0, 0], decal="strands", wrap=True),
+        # the tower
+        part("sph", [0, 0.78, -0.04], [0.92, 0.70, 0.84], c, decal="felt", wrap=True),
+        part("sph", [0, 1.12, -0.06], [0.70, 0.52, 0.64], sh, decal="felt", wrap=True),
+        part("sph", [0, 1.36, -0.06], [0.44, 0.34, 0.42], c, decal="felt", wrap=True),
+    ]
+    # the side rolls, stacked above each ear
+    for s in (1, -1):
+        for n, y in enumerate((0.02, 0.22)):
+            parts.append(part("capsule", [0.62 * s, y, 0.0], [0.20, 0.62, 0.20],
+                              c if n % 2 == 0 else sh, [PI / 2, 0, 0], decal="felt", wrap=True))
+    # curls down the back
+    for x in (-0.22, 0.0, 0.22):
+        parts.append(place("teardrop", [x, -0.24, -0.62], [0.22, 0.38, 0.20], sh, anchor=[0, 1.0, 0],
+                           r=[0.15, 0, 0], decal="strands", wrap=True))
+    # pearls wound round the tower, and the little egg on top
+    for n in range(16):
+        a = n * TAU / 16
+        y = 0.80 + 0.30 * (n / 16)
+        rr = 0.47 - 0.10 * (n / 16)
+        parts.append(part("sph", [math.sin(a) * rr, y, math.cos(a) * rr * 0.92 - 0.04], [0.06, 0.06, 0.06],
+                          EA26_PEARL, m="glass"))
+    parts += _ea26_egg([0.0, 1.50, -0.04], 0.16, EA26_ENAMEL)
+    parts += gift_bow([0.30, 1.02, 0.22], 0.26, "#8ab8e8", yaw=0.6, tails=False)
+    return parts
+
+
+@EA26.hairdo("chignon", "Ballroom Chignon",
+             "Sleek, dark and swept back into a low knot at the nape, held with a "
+             "jewelled comb and three pearl pins. Not one hair out of place. Not one. "
+             "Look again. Not one.", "uncommon")
+def _():
+    c = "#2a1c18"
+    return [
+        place("hairshort", [0, 0, 0], [1.05, 1.03, 1.05], c, anchor=[0, 0, 0], decal="strands", wrap=True),
+        part("sph", [0, 0.02, -0.68], [0.50, 0.40, 0.30], c, decal="strands", wrap=True),
+        part("torus", [0, 0.02, -0.73], [0.40, 0.55, 0.34], shade(c, 1.2), [PI / 2, 0, 0.3]),
+        # the comb, gold, set with stones, above the knot
+        place("fan", [0, 0.14, -0.78], [0.62, 0.50, 1.0], EA26_GOLD, anchor=[0, 0, 0], r=[0.3, PI, 0],
+              m="metal"),
+        part("sph", [0, 0.28, -0.82], [0.07, 0.07, 0.05], EA26_SAPPHIRE, m="glass"),
+        part("sph", [0.12, 0.25, -0.81], [0.05, 0.05, 0.04], EA26_RUBY, m="glass"),
+        part("sph", [-0.12, 0.25, -0.81], [0.05, 0.05, 0.04], EA26_RUBY, m="glass"),
+        # the pearl pins
+        part("sph", [0.22, -0.06, -0.76], [0.07, 0.07, 0.07], EA26_PEARL, m="glass"),
+        part("sph", [-0.24, 0.02, -0.74], [0.07, 0.07, 0.07], EA26_PEARL, m="glass"),
+        part("sph", [0.06, -0.14, -0.82], [0.07, 0.07, 0.07], EA26_PEARL, m="glass"),
+    ]
+
+
+# ================================================================= faces
+EA26.face("quite_extraordinary", "Quite Extraordinary",
+          "One eyebrow up to the hairline, the monocle popped clean out of the other "
+          "eye and swinging on its chain, the mouth a perfect little O. A carriage, "
+          "in the ballroom. Whatever next.", [
+              {"k": "arc", "x": -0.19, "y": -0.24, "r": 0.10, "a0": 0.58, "a1": 0.92, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.10, "y1": -0.22, "x2": 0.30, "y2": -0.20, "w": 0.03, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.19, "y": -0.11, "w": 0.09, "h": 0.12, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.20, "y": -0.10, "w": 0.10, "h": 0.10, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.215, "y": -0.14, "w": 0.03, "h": 0.035, "c": "#ffffff"},
+              {"k": "arc", "x": 0.26, "y": 0.10, "r": 0.075, "a0": 0.0, "a1": 1.0, "w": 0.025,
+               "c": "#c89a2a"},
+              {"k": "ellipse", "x": 0.25, "y": 0.09, "w": 0.10, "h": 0.10, "c": "#cfe8ff"},
+              {"k": "line", "x1": 0.29, "y1": 0.03, "x2": 0.27, "y2": -0.04, "w": 0.012, "c": "#c89a2a"},
+              {"k": "line", "x1": 0.27, "y1": -0.04, "x2": 0.30, "y2": -0.08, "w": 0.012, "c": "#c89a2a"},
+              {"k": "ellipse", "x": 0.0, "y": 0.18, "w": 0.09, "h": 0.11, "c": "#3a1414"},
+              {"k": "arc", "x": 0.0, "y": 0.18, "r": 0.05, "a0": 0.0, "a1": 1.0, "w": 0.015,
+               "c": "#16171b"},
+          ], "rare")
+EA26.face("belle_of_the_ball", "Belle of the Ball",
+          "Eyes closed in a waltz, long lashes, rosy cheeks, a beauty spot placed with "
+          "great care and the smile of somebody who has not stopped dancing since "
+          "nine o'clock.", [
+              {"k": "arc", "x": -0.19, "y": -0.13, "r": 0.08, "a0": 0.05, "a1": 0.45, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.19, "y": -0.13, "r": 0.08, "a0": 0.05, "a1": 0.45, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "line", "x1": -0.26, "y1": -0.10, "x2": -0.31, "y2": -0.14, "w": 0.018, "c": "#16171b"},
+              {"k": "line", "x1": -0.23, "y1": -0.07, "x2": -0.26, "y2": -0.12, "w": 0.018, "c": "#16171b"},
+              {"k": "line", "x1": 0.26, "y1": -0.10, "x2": 0.31, "y2": -0.14, "w": 0.018, "c": "#16171b"},
+              {"k": "line", "x1": 0.23, "y1": -0.07, "x2": 0.26, "y2": -0.12, "w": 0.018, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.30, "y": 0.06, "w": 0.13, "h": 0.07, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.30, "y": 0.06, "w": 0.13, "h": 0.07, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.25, "y": 0.13, "w": 0.025, "h": 0.025, "c": "#2a1a18"},
+              {"k": "arc", "x": 0.0, "y": 0.10, "r": 0.10, "a0": 0.10, "a1": 0.40, "w": 0.04,
+               "c": "#c8203a"},
+          ])
+
+# =============================================================== clothes
+EA26.shirt("order_of_the_egg", "Order of the Golden Egg",
+           "A midnight-blue court tunic with gold buttons, a pale blue sash from shoulder "
+           "to hip and on the breast the star of the Order of the Golden Egg -- given "
+           "for services to Easter, and to anyone who finds the songbird.",
+           {"torso": "#1e2a5a", "arms": "#1e2a5a", "decal": "ea26_tunic"}, "rare")
+EA26.pants("court_breeches", "Court Breeches",
+           "White satin breeches with a gold stripe down each leg, and black riding boots "
+           "polished until the chandeliers show in them.",
+           {"legs": "#f4f0e6", "stripe": EA26_GOLD, "cuff": "#16171b"})
+EA26.belt("jewelled_belt", "Jewelled Sword Belt",
+          "Crimson velvet set with a row of cabochons, a gold buckle, and on a chain at the "
+          "hip a pocket watch in an enamel egg that runs exactly seven minutes fast, so "
+          "you are never late for the next waltz.",
+          {"band": EA26_VELVET, "buckle": EA26_GOLD, "width": 0.22, "metal": True,
+           "weave": "ea26_jewels", "chain": EA26_GOLD})
+
+
+# ================================================================ weapons
+@EA26.weapon("duchess_fan", "The Duchess's Fan",
+             "An ivory fan painted with the Gala, ribs of gold and a tassel on the end. "
+             "Snap it open at someone and a cloud of the Duchess's face powder goes up "
+             "their nose and in their eyes. Two flutters and they are thoroughly "
+             "dazzled -- the whole ballroom's eyes are on them.",
+             {"kind": "cone", "damage": 10, "rpm": 60, "mag": 6, "reload": 2.2, "range": 13.0,
+              "auto": False, "sound": "whoosh", "recoil": 0.4, "reserve": 36,
+              "cone": {"angle": 0.55, "push": 8, "color": "#f6f0e2"},
+              "on_hit": {"blind": [1.2, "light"], "dazzle": [2, 4.0, 0.25, 5.0]}},
+             [["+", "A puff of face powder: everyone in it is blinded for 1.2 seconds"],
+              ["+", "Two flutters within 4 seconds Dazzle them: 25% more damage from "
+                    "everyone for 5 seconds"],
+              ["-", "10 damage a flutter"],
+              ["-", "13 studs: you have to be close enough to curtsey"]], rarity="legendary")
+def _():
+    g, m = EA26_GOLD, "metal"
+    # the leaf stands up on edge, open from overhead round to straight ahead,
+    # its painted face turned out to the side for everyone else to admire
+    leaf = [0, PI / 2, PI / 2 - 0.78]
+    edge = [rotate([sx * math.sin(1.1) * 0.70, math.cos(1.1) * 0.75, 0], leaf) for sx in (1, -1)]
+    return [
+        # the guard sticks and the rivet, the fan open and tipped up
+        part("rbox", [0, -0.02, -0.04], [0.10, 0.06, 0.34], g, [0.2, 0, 0], m=m),
+        part("cyl", [0, 0.0, 0.10], [0.10, 0.08, 0.10], g, m=m),
+        part("sph", [0, 0.05, 0.10], [0.06, 0.06, 0.06], EA26_RUBY, m="glass"),
+        place("fan", [0, 0.02, 0.10], [1.40, 1.50, 1.0], EA26_IVORY, anchor=[0, 0, 0], r=leaf,
+              decal="ea26_fanleaf"),
+        rod([0.0, 0.02, 0.10], [edge[0][0], 0.02 + edge[0][1], 0.10 + edge[0][2]], 0.03, g, m=m),
+        rod([0.0, 0.02, 0.10], [edge[1][0], 0.02 + edge[1][1], 0.10 + edge[1][2]], 0.03, g, m=m),
+        # the tassel
+        rod([0, -0.04, -0.20], [0, -0.20, -0.24], 0.02, EA26_RED),
+        place("teardrop", [0, -0.20, -0.24], [0.08, 0.18, 0.08], EA26_RED, anchor=[0, 1.0, 0]),
+    ]
+
+
+EA26_BIRD_MINION = {
+    "name": "Clockwork Songbird", "model": "parts", "count": 3, "hp": 15, "speed": 16, "damage": 0,
+    "reach": 3.0, "rate": 1.0, "secs": 16, "sight": 60, "scale": 0.6,
+    "ranged": {"range": 26, "rpm": 50, "damage": 5, "color": "#ffd96b"},
+    "on_hit": {"reveal": 6.0},
+    "parts": _ea26_bird([0, 0, 0], 3.2, 0.0),
+}
+
+
+@EA26.weapon("songbirds", "Clockwork Songbirds",
+             "A little gilded cage of wind-up birds, the very same as the one that got "
+             "away. Open the door and three of them hop out after the nearest enemy and "
+             "sing at them from a safe distance, so piercingly that everybody on your "
+             "side knows exactly where they are.",
+             {"kind": "summon", "cooldown": 22, "sound": "whistle"},
+             [["+", "Three songbirds hop after the nearest enemy and sing at them from up to "
+                    "26 studs away: 5 a note, nearly a note a second each"],
+              ["+", "Sung at is revealed: shown to your whole side through walls for 6 seconds"],
+              ["-", "15 health apiece, and they run down after 16 seconds"],
+              ["-", "22 second cooldown"]], rarity="legendary", minion=EA26_BIRD_MINION)
+def _():
+    g, m = EA26_GOLD, "metal"
+    parts = [
+        part("cyl", [0, -0.06, 0.24], [0.46, 0.06, 0.46], g, m=m, decal="ea26_filigree", wrap=True),
+        part("sph", [0, 0.50, 0.24], [0.12, 0.10, 0.12], g, m=m),
+        part("torus", [0, 0.60, 0.24], [0.12, 0.14, 0.12], g, [PI / 2, 0, 0], m=m),
+    ]
+    for n in range(10):
+        a = n * TAU / 10
+        pts = [[math.sin(a) * r, y, 0.24 + math.cos(a) * r] for y, r in ((-0.04, 0.22), (0.24, 0.23),
+                                                                             (0.40, 0.17), (0.48, 0.06))]
+        parts += [rod(p, q, 0.02, g, m=m) for p, q in zip(pts, pts[1:])]
+    parts += _ea26_bird([0, -0.03, 0.24], 0.80, 0.0)
+    return parts
+
+
+@EA26.weapon("court_rapier", "The Court Rapier",
+             "A dress rapier with a swept gold hilt, a blade like a needle and a jewelled "
+             "egg for a pommel. A gentleman's weapon: it barely scratches anyone who can "
+             "see it coming, and is merciless to anyone who cannot.",
+             {"kind": "melee", "damage": 24, "headshot": 1.0, "rpm": 110, "range": 11.0,
+              "arc": 0.40, "sound": "sword", "knockback": 3, "crit_chance": 0.15,
+              "vs_status": {"blind": 1.75, "reveal": 1.3}},
+             [["+", "75% more damage against anyone blinded"],
+              ["+", "30% more against anyone revealed"],
+              ["+", "15% chance of a critical thrust"],
+              ["-", "24 damage against anyone who can see you"]], rarity="legendary")
+def _():
+    g, m = EA26_GOLD, "metal"
+    parts = [
+        # the grip, wire-bound, and the egg pommel
+        part("cyl", [0, 0, -0.02], [0.09, 0.32, 0.09], "#2a1a18", [PI / 2, 0, 0], decal="leather",
+             wrap=True),
+        part("rbox", [0, 0, 0.17], [0.40, 0.06, 0.06], g, m=m),
+        part("sph", [0.21, 0, 0.17], [0.07, 0.07, 0.07], g, m=m),
+        part("sph", [-0.21, 0, 0.17], [0.07, 0.07, 0.07], g, m=m),
+        # the swept hilt: loops round the hand
+        part("torus", [0, -0.06, 0.06], [0.30, 0.25, 0.36], g, [0, 0, PI / 2], m=m),
+        part("torus", [0.05, -0.04, 0.10], [0.24, 0.25, 0.30], g, [0.4, 0, PI / 2 - 0.3], m=m),
+        place("bowl", [0, 0, 0.22], [0.26, 0.10, 0.26], g, anchor=[0, 0.3, 0], r=[-PI / 2, 0, 0], m=m),
+        # the blade
+        part("rbox", [0, 0, 1.00], [0.05, 0.03, 1.50], SILVER, m=m),
+        place("cone", [0, 0, 1.80], [0.05, 0.10, 0.03], SILVER, r=[PI / 2, 0, 0], m=m),
+        part("rbox", [0, 0, 0.36], [0.07, 0.05, 0.22], g, m=m),
+    ]
+    parts += _ea26_egg([0, 0, -0.16], 0.14, EA26_ENAMEL, r=[-PI / 2, 0, 0], pearls=False)
+    return parts
+
+
+@EA26.gear("smelling_salts", "Smelling Salts",
+           "A vinaigrette: a tiny jewelled egg on a chain, and inside it a sponge of "
+           "salts strong enough to wake the dead -- or at least anyone who swooned at "
+           "the Gala. One sniff and you are wide awake and twice as quick.",
+           {"kind": "consume", "cooldown": 24, "sound": "drink",
+            "consume": {"cleanse": True, "speed": [0.30, 5.0], "crit": [0.20, 5.0]}},
+           [["+", "Shakes off everything holding you back: burning, slowed, blinded, rooted"],
+            ["+", "30% faster and a 20% chance of a critical hit for 5 seconds"],
+            ["-", "No healing at all"],
+            ["-", "24 second cooldown"]], rarity="rare")
+def _():
+    g, m = EA26_GOLD, "metal"
+    parts = _ea26_egg([0, -0.10, 0.16], 0.26, EA26_PINK)
+    parts += [part("torus", [0, 0.30, 0.16], [0.10, 0.12, 0.10], g, [PI / 2, 0, 0], m=m)]
+    for n in range(5):
+        t = (n + 1) / 5
+        parts.append(part("torus", [-0.07 * t - 0.03, 0.32 - 0.30 * t * t, 0.16 - 0.06 * t],
+                          [0.05, 0.06, 0.07], g, [PI / 2, (n % 2) * PI / 2, 0.5], m=m))
+    return parts
+
+
+# =============================================================== effects
+EA26.effect("crown_jewels", name="Crown Jewels", rate=2.4, life=[2.2, 3.0],
+            size=[0.24, 0.36], grow=0.0, gravity=0.0, spread=0.10, rise=[0.10, 0.25],
+            blend="normal", spin=1.2, colors=["#d01840", "#2a5ad8", "#1f9a6a", "#e8f4ff"],
+            shapes=["ea26_gem", "ea26_gem", "ea26_pearl"], radius=0.85, orbit=1.4, upright=True,
+            wobble=0.3)
+EA26.effect("clockwork_waltz", name="Clockwork Waltz", rate=3.0, life=[1.8, 2.6],
+            size=[0.20, 0.34], grow=0.05, gravity=0.3, spread=0.35, rise=[0.4, 0.8],
+            blend="normal", spin=2.0, colors=["#e8b830", "#f6d870", "#c89a2a"],
+            shapes=["ea26_gear", "ea26_gear", "note"], radius=0.7, orbit=0.9, wobble=0.5)
+EA26.opening(
+    sky={"top": "#141a3a", "horizon": "#5a6ac8", "sun": [0.2, 0.25, 0.7], "clouds": 0.0,
+         "tint": "#e8ecff"},
+    ambient="#ffe8c0", beam="#ffd96b", seep="clockwork_waltz", after="crown_jewels",
+    burst=["#e8b830", "#2a4ab8", "#d01840", "#f4efe6"],
+    pieces=[{"shape": "ea26_gem", "colors": ["#d01840", "#2a5ad8", "#1f9a6a", "#8a4ad0"], "blend": "normal"},
+            {"shape": "egg", "colors": ["#2a4ab8", "#b8203a", "#e88aa8"], "blend": "normal"},
+            {"shape": "ea26_pearl", "colors": ["#f4efe6", "#fff8ee"], "blend": "normal"},
+            {"shape": "ea26_gear", "colors": ["#e8b830", "#c89a2a"], "blend": "normal"}],
+    backdrop="ea26_ballroom", title_wait="The coach is pulling up at the door...",
+    title_shake="Midnight!")
+EA26.award("The Gilded Egg Gala", ["Wallflower", "Debutante", "Courtier", "Countess",
+                                   "Grand Duchess", "Keeper of the Surprise"],
+           "Opened Gala Coaches during the Gilded Egg Gala, Easter 2026.", "em_faberge", "egg")
+EA26.bundle("pair", "Coach and Key", 1, 1050, "One Gala Coach, one Coachman's Key.")
+EA26.bundle("procession", "The Procession", 3, 3000, "Three coaches, three keys. Saves 300.")
+
+
+# @@ EA26 Gilded Egg Gala goes above this line @@
 
 
 EVENTS = [EA22, EA23]
@@ -3062,4 +3899,4 @@ EVENTS += [EA24]  # @@ EA24 @@
 EVENTS += [EA25]  # @@ EA25 @@
 
 # (EA26 adds itself to the list here)
-EVENTS += []  # @@ EA26 @@
+EVENTS += [EA26]  # @@ EA26 @@

@@ -3879,6 +3879,235 @@
 
   // @@ ea25 painters go above this line @@
 
+  // -- 2026, the Gilded Egg Gala: enamel, gold, pearls and the ballroom
+
+  // guilloche under enamel: engine-turned waves catching the light through
+  // the colour, and a gold trellis over it with a diamond at every crossing
+  painter('ea26_guilloche', function (ctx) {
+    for (var y = -8; y < CELL + 8; y += 4) {
+      ctx.strokeStyle = (y / 4) % 2 ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,40,0.12)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (var x = 0; x <= CELL; x += 4) ctx.lineTo(x, y + Math.sin(x / 128 * Math.PI * 4) * 4);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(240,200,80,0.85)'; ctx.lineWidth = 2;
+    for (var k = -CELL; k < CELL * 2; k += 32) {
+      ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k + CELL, CELL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(k + CELL, 0); ctx.lineTo(k, CELL); ctx.stroke();
+    }
+    for (var gy = 0; gy <= CELL; gy += 32) {
+      for (var gx = 0; gx <= CELL; gx += 32) {
+        ctx.fillStyle = '#f0c850'; ctx.beginPath(); ctx.arc(gx, gy, 3.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(gx - 0.8, gy - 0.8, 1.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(gx + 16, gy + 16, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  });
+
+  // the coach window: the curtains drawn back, candlelight and a chandelier
+  // inside
+  painter('ea26_window', function (ctx) {
+    var g = ctx.createRadialGradient(64, 60, 6, 64, 64, 70);
+    g.addColorStop(0, '#fff2c0'); g.addColorStop(1, '#c88a3a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#ffffff';
+    for (var k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(40 + k * 12, 50, 3, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = '#a87a2a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(64, 20); ctx.lineTo(64, 40); ctx.moveTo(40, 52); ctx.quadraticCurveTo(64, 70, 88, 52); ctx.stroke();
+    ctx.fillStyle = '#7a1028';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(40, 0); ctx.quadraticCurveTo(26, 64, 34, 128); ctx.lineTo(0, 128); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(128, 0); ctx.lineTo(88, 0); ctx.quadraticCurveTo(102, 64, 94, 128); ctx.lineTo(128, 128); ctx.fill();
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(22, 70, 18, 6); ctx.fillRect(88, 70, 18, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.moveTo(44, 8); ctx.lineTo(60, 8); ctx.lineTo(44, 40); ctx.closePath(); ctx.fill();
+  });
+
+  // the Grand Duchess's crest on the coach door: a crowned egg in a laurel
+  painter('ea26_crest', function (ctx) {
+    ctx.translate(64, 66);
+    ctx.strokeStyle = '#f0c850'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 4, 40, Math.PI * 0.62, Math.PI * 1.38 + Math.PI * 0.0, false); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 4, 40, -Math.PI * 0.38, Math.PI * 0.38); ctx.stroke();
+    ctx.fillStyle = '#f0c850';
+    for (var k = 0; k < 7; k++) {
+      [-1, 1].forEach(function (s) {
+        var a = Math.PI / 2 + s * (0.3 + k * 0.17);
+        ctx.save(); ctx.translate(Math.cos(a) * 40, 4 + Math.sin(a) * 40); ctx.rotate(a + s * 0.9);
+        ctx.beginPath(); ctx.ellipse(0, 0, 8, 3.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      });
+    }
+    ctx.fillStyle = '#2a4ab8';
+    ctx.beginPath(); ctx.ellipse(0, 8, 18, 24, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#f0c850'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-17, 2); ctx.lineTo(17, 2); ctx.moveTo(-16, 16); ctx.lineTo(16, 16); ctx.stroke();
+    ctx.fillStyle = '#f0c850';
+    ctx.beginPath(); ctx.moveTo(-16, -18); ctx.lineTo(-16, -32); ctx.lineTo(-8, -24); ctx.lineTo(0, -36);
+    ctx.lineTo(8, -24); ctx.lineTo(16, -32); ctx.lineTo(16, -18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d01840'; ctx.beginPath(); ctx.arc(0, -26, 3, 0, Math.PI * 2); ctx.fill();
+  });
+
+  painter('stencil_ea26', stencil({ top: 'GILDED EGG', bottom: 'GALA  2026', icon: 'faberge',
+                                    ink: 'rgba(40,30,70,0.85)', font: 'Georgia, serif',
+                                    frame: 'round' }));
+
+  // gold filigree: scrolls of wire, curling off one another, with beads
+  painter('ea26_filigree', function (ctx) {
+    ctx.strokeStyle = 'rgba(90,50,0,0.45)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (var x = 0; x < CELL; x += 32) {
+      for (var y = 0; y < CELL; y += 32) {
+        var s = ((x + y) / 32) % 2 ? 1 : -1;
+        ctx.beginPath();
+        for (var t = 0; t <= 1.0001; t += 0.05) {
+          var a = t * Math.PI * 3.2, r = 2 + t * 11;
+          ctx[t ? 'lineTo' : 'moveTo'](x + 16 + Math.cos(a) * r * s, y + 16 + Math.sin(a) * r);
+        }
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,250,220,0.75)';
+        ctx.beginPath(); ctx.arc(x + 2, y + 2, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.strokeStyle = 'rgba(255,250,220,0.35)'; ctx.lineWidth = 1;
+    for (x = 0; x < CELL; x += 32) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CELL); ctx.stroke();
+    }
+  });
+
+  // enamelled feathers: scales of colour, each with a gold quill line
+  painter('ea26_feathers', function (ctx) {
+    for (var row = 0; row < 11; row++) {
+      for (var x = -10; x < CELL + 10; x += 20) {
+        var cx = x + (row % 2 ? 10 : 0), cy = row * 12 + 4;
+        ctx.fillStyle = row % 3 ? 'rgba(255,255,255,0.18)' : 'rgba(0,20,60,0.14)';
+        ctx.beginPath(); ctx.ellipse(cx, cy, 10, 12, 0, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = 'rgba(240,200,80,0.8)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.ellipse(cx, cy, 10, 12, 0, 0, Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + 10); ctx.stroke();
+      }
+    }
+  });
+
+  // a velvet crown braided in gold: a cross of braid, a rosette
+  painter('ea26_braid', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (var k = 0; k < CELL; k += 3) ctx.fillRect(0, k, CELL, 1);
+    ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(64, 0); ctx.lineTo(64, 128); ctx.moveTo(0, 64); ctx.lineTo(128, 64); ctx.stroke();
+    ctx.strokeStyle = 'rgba(90,50,0,0.6)'; ctx.lineWidth = 1;
+    for (var t = 2; t < 128; t += 5) {
+      ctx.beginPath(); ctx.moveTo(61, t); ctx.lineTo(67, t + 3); ctx.moveTo(t, 61); ctx.lineTo(t + 3, 67); ctx.stroke();
+    }
+    ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(64, 64, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d01840'; ctx.beginPath(); ctx.arc(64, 64, 4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // pearlwork on velvet: rows of seed pearls in arches, gold thread between
+  painter('ea26_pearlwork', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.10)';
+    for (var k = 0; k < CELL; k += 3) ctx.fillRect(0, k, CELL, 1);
+    ctx.strokeStyle = 'rgba(232,184,48,0.85)'; ctx.lineWidth = 1.6;
+    for (var x = 0; x < CELL; x += 32) {
+      ctx.beginPath(); ctx.arc(x + 16, 40, 14, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + 16, 100, 14, Math.PI, 0); ctx.stroke();
+    }
+    for (x = 0; x < CELL; x += 32) {
+      [40, 100].forEach(function (cy) {
+        for (var a = 0; a <= 8; a++) {
+          var t = Math.PI + a * Math.PI / 8;
+          ctx.fillStyle = '#f8f4ea';
+          ctx.beginPath(); ctx.arc(x + 16 + Math.cos(t) * 18, cy + Math.sin(t) * 18, 2.4, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = '#f8f4ea'; ctx.beginPath(); ctx.arc(x + 16, cy - 2, 4, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+    for (x = 0; x < CELL; x += 6) {
+      ctx.fillStyle = '#f8f4ea';
+      ctx.beginPath(); ctx.arc(x + 3, 62, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 3, 122, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // a little lake of aquamarine: ripples and a glint of the chandelier
+  painter('ea26_water', function (ctx) {
+    ctx.translate(64, 64);
+    for (var r = 8; r < 64; r += 8) {
+      ctx.strokeStyle = r % 16 ? 'rgba(255,255,255,0.30)' : 'rgba(0,60,80,0.20)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.9, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.ellipse(-24, -20, 10, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // a single enamelled quill feather: the vane in shades, a gold shaft
+  painter('ea26_quill', function (ctx) {
+    for (var y = 0; y < CELL; y += 6) {
+      ctx.strokeStyle = (y / 6) % 2 ? 'rgba(255,255,255,0.22)' : 'rgba(0,10,40,0.18)';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(64, y + 6); ctx.lineTo(0, y - 8); ctx.moveTo(64, y + 6); ctx.lineTo(128, y - 8); ctx.stroke();
+    }
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(61, 0, 6, CELL);
+    ctx.fillStyle = 'rgba(232,184,48,0.6)'; ctx.fillRect(0, 0, 4, CELL); ctx.fillRect(124, 0, 4, CELL);
+  });
+
+  // the court tunic's front: gold buttons, the pale blue sash shoulder to
+  // hip, and the star of the Order of the Golden Egg
+  painter('ea26_tunic', function (ctx) {
+    ctx.strokeStyle = 'rgba(232,184,48,0.9)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(40, 4); ctx.quadraticCurveTo(64, 16, 88, 4); ctx.stroke();
+    for (var y = 22; y < CELL; y += 18) {
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(64, y, 3.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(63, y - 1, 1.3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.save(); ctx.translate(64, 64); ctx.rotate(-0.72);
+    ctx.fillStyle = '#9fc8f0'; ctx.fillRect(-100, -11, 200, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-100, -11, 200, 4);
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(-100, -13, 200, 2); ctx.fillRect(-100, 11, 200, 2);
+    ctx.restore();
+    // the star of the order, an egg in its heart
+    ctx.save(); ctx.translate(30, 46);
+    ctx.fillStyle = '#f0f0f8';
+    for (var k = 0; k < 8; k++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath(); ctx.moveTo(0, -16); ctx.lineTo(4, 0); ctx.lineTo(-4, 0); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#b8203a'; ctx.beginPath(); ctx.ellipse(0, 0, 4, 5.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+
+  // a velvet belt set with cabochons in gold collets
+  painter('ea26_jewels', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (var k = 0; k < CELL; k += 3) ctx.fillRect(0, k, CELL, 1);
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(0, 8, CELL, 6); ctx.fillRect(0, CELL - 14, CELL, 6);
+    var stones = ['#d01840', '#1f9a6a', '#2a5ad8', '#8a4ad0'];
+    for (var x = 16, n = 0; x < CELL; x += 32, n++) {
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.ellipse(x, 64, 13, 17, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = stones[n % 4]; ctx.beginPath(); ctx.ellipse(x, 64, 9, 13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse(x - 3, 58, 3, 4, -0.4, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // the fan's leaf: a ballroom scene in a cartouche, flowers either side
+  painter('ea26_fanleaf', function (ctx) {
+    ctx.fillStyle = 'rgba(232,184,48,0.85)'; ctx.fillRect(0, 0, CELL, 6); ctx.fillRect(0, CELL - 6, CELL, 6);
+    ctx.fillStyle = '#9fc8f0'; ctx.beginPath(); ctx.ellipse(64, 64, 34, 40, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#2a4ab8'; ctx.beginPath(); ctx.ellipse(56, 82, 10, 20, -0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e88aa8'; ctx.beginPath(); ctx.ellipse(72, 84, 12, 18, 0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f6d8c0'; ctx.beginPath(); ctx.arc(57, 58, 5, 0, Math.PI * 2); ctx.arc(71, 62, 5, 0, Math.PI * 2); ctx.fill();
+    [[18, 30, '#d01840'], [110, 30, '#d01840'], [22, 96, '#8a4ad0'], [106, 96, '#8a4ad0']].forEach(function (f) {
+      ctx.fillStyle = f[2];
+      for (var p = 0; p < 5; p++) {
+        var a = p * Math.PI * 2 / 5;
+        ctx.beginPath(); ctx.arc(f[0] + Math.cos(a) * 6, f[1] + Math.sin(a) * 6, 4.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(f[0], f[1], 3, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
   // @@ ea26 painters go above this line @@
 
   // @@ easter painters go above this line @@
