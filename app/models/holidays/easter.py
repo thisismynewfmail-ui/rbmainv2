@@ -2106,6 +2106,948 @@ EA24.bundle("brood", "A Whole Brood", 3, 3000, "Three incubators, three keys. Sa
 
 # @@ EA24 The Great Hatch goes above this line @@
 
+# ============================================================ 2025
+EA25_DARK = "#3c2014"        # dark chocolate
+EA25_MILK = "#7a4626"        # milk chocolate
+EA25_CREAM = "#f4e6c6"       # white chocolate
+EA25_FOIL = "#f0be2c"        # gold foil
+EA25_RUBY = "#c8202e"        # the bunny's ribbon, red foil
+EA25_BLUE = "#3a72d0"        # blue foil
+EA25_GREEN = "#2f9e5c"       # green foil
+EA25_COPPER = "#c46a34"
+EA25_PAPER = "#5a3420"       # brown paper cases
+EA25_BERRY = "#e0303a"
+EA25_LEAF = "#3f9a3a"
+EA25_CHEF = "#f6f4ee"        # chef's whites
+EA25_NAVY = "#26305c"
+EA25_WOOD = "#5a3420"
+
+
+def _ea25_bunny(at=(0, 0, 0), k=1.0, yaw=0.0, foil=EA25_FOIL, bitten=True, **kw):
+    """The chocolatier's hollow bunny, stood on ``at`` looking along
+    ``yaw``, about 1.15 ``k`` to the tips of its ears: a pear of chocolate
+    in crinkled gold foil, a painted face, a red ribbon with a bow and a
+    bell at its throat -- and, ``bitten``, its left ear bitten off down to
+    the chocolate."""
+    m = "metal"
+    lo = shade(foil, 0.80)
+    parts = [
+        # the body, its paws held up in front, its feet and its tail
+        place("egg", [0, 0.0, -0.02], [0.66, 0.44, 0.58], foil, anchor=[0, 0, 0], m=m,
+              decal="ea25_foil", wrap=True),
+        part("sph", [0.12, 0.36, 0.21], [0.12, 0.15, 0.12], foil, m=m),
+        part("sph", [-0.12, 0.36, 0.21], [0.12, 0.15, 0.12], foil, m=m),
+        part("sph", [0.13, 0.04, 0.15], [0.16, 0.08, 0.24], foil, m=m),
+        part("sph", [-0.13, 0.04, 0.15], [0.16, 0.08, 0.24], foil, m=m),
+        part("sph", [0, 0.16, -0.28], [0.13, 0.13, 0.11], foil, m=m),
+        # the head: round cheeks, a red nose and two painted eyes
+        part("sph", [0, 0.70, 0.02], [0.38, 0.36, 0.34], foil, m=m, decal="ea25_foil", wrap=True),
+        part("sph", [0.07, 0.64, 0.15], [0.14, 0.12, 0.12], foil, m=m),
+        part("sph", [-0.07, 0.64, 0.15], [0.14, 0.12, 0.12], foil, m=m),
+        part("sph", [0, 0.675, 0.20], [0.06, 0.05, 0.04], EA25_RUBY),
+        part("sph", [0.075, 0.745, 0.165], [0.05, 0.07, 0.03], EA25_DARK, [-0.2, 0.4, 0]),
+        part("sph", [-0.075, 0.745, 0.165], [0.05, 0.07, 0.03], EA25_DARK, [-0.2, -0.4, 0]),
+        # the ribbon round its neck, the bow and the bell
+        part("torus", [0, 0.55, 0.0], [0.34, 0.5, 0.32], EA25_RUBY),
+        part("sph", [0, 0.47, 0.175], [0.09, 0.09, 0.09], GOLD, m=m),
+        part("rbox", [0, 0.448, 0.21], [0.05, 0.012, 0.012], "#5a3a10"),
+        # the right ear, whole
+        place("bunnyear", [0.075, 0.83, -0.01], [0.42, 0.32, 1.0], foil, anchor=[0, -0.5, 0],
+              r=[-0.15, 0, -0.14], m=m, decal="ea25_foil"),
+        place("bunnyear", [0.075, 0.83, 0.012], [0.24, 0.24, 0.6], lo, anchor=[0, -0.5, 0],
+              r=[-0.15, 0, -0.14], m=m),
+    ]
+    parts += gift_bow([0, 0.55, 0.16], 0.16, EA25_RUBY, knot=shade(EA25_RUBY, 0.8), yaw=PI / 2,
+                      tails=False)
+    ear = [-0.15, 0, 0.14]
+    if bitten:
+        # bitten off half way: the foil torn, the chocolate showing, teeth marks
+        top = rotate([0, 0.16, 0], ear)
+        tip = [-0.075 + top[0], 0.83 + top[1], -0.01 + top[2]]
+        parts += [
+            place("bunnyear", [-0.075, 0.83, -0.01], [0.42, 0.16, 1.0], foil, anchor=[0, -0.5, 0],
+                  r=ear, m=m, decal="ea25_foil"),
+            part("sph", tip, [0.15, 0.07, 0.085], EA25_MILK, ear),
+            part("sph", [tip[0] - 0.035, tip[1] + 0.022, tip[2] + 0.02], [0.04, 0.03, 0.05],
+                 shade(EA25_MILK, 0.7)),
+            part("sph", [tip[0] + 0.03, tip[1] + 0.03, tip[2] + 0.02], [0.04, 0.03, 0.05],
+                 shade(EA25_MILK, 0.7)),
+        ]
+    else:
+        parts += [place("bunnyear", [-0.075, 0.83, -0.01], [0.42, 0.32, 1.0], foil,
+                        anchor=[0, -0.5, 0], r=ear, m=m, decal="ea25_foil"),
+                  place("bunnyear", [-0.075, 0.83, 0.012], [0.24, 0.24, 0.6], lo,
+                        anchor=[0, -0.5, 0], r=ear, m=m)]
+    return _ea24_turn(parts, at, yaw, k, **kw)
+
+
+def _ea25_foil_egg(at, w, c, r=None, **kw):
+    """A little egg wrapped in coloured foil, ``w`` wide, its bottom on
+    ``at`` (turned as a whole by ``r``)."""
+    k = w / EGG_W
+    out = at_frame([place("egg", [0, 0, 0], [k, k, k], c, anchor=[0, 0, 0], m="metal",
+                          decal="ea25_foil", wrap=True)], at, r)
+    for p in out:
+        p.update(kw)
+    return out
+
+
+def _ea25_drip(top, length, w, c=EA25_MILK, **kw):
+    """A drip of chocolate running down from ``top``: a run, and the drop
+    gathering at its foot."""
+    x, y, z = top
+    return [part("capsule", [x, y - length / 2, z], [w, length + w, w * 0.8], c, m="glass", **kw),
+            part("sph", [x, y - length - w * 0.25, z], [w * 1.35, w * 1.45, w * 1.1], c,
+                 m="glass", **kw)]
+
+
+def _ea25_truffle(at, d, c=EA25_DARK, kind="cocoa", drizzle=EA25_CREAM, **kw):
+    """A truffle ``d`` across centred on ``at``: dusted in cocoa, rolled in
+    gold, left plain and glossy, or drizzled (in white, unless ``drizzle``
+    says otherwise)."""
+    x, y, z = at
+    if kind == "gold":
+        return [part("sph", [x, y, z], [d, d * 0.95, d], EA25_FOIL, m="metal", decal="ea25_foil",
+                     wrap=True, **kw)]
+    if kind == "cocoa":
+        return [part("sph", [x, y, z], [d, d * 0.92, d], c, decal="ea25_cocoa", wrap=True, **kw)]
+    out = [part("sph", [x, y, z], [d, d * 0.92, d], c, m="glass", **kw)]
+    if kind == "drizzle":
+        for n in range(3):
+            out.append(part("torus", [x, y + d * (0.12 - 0.12 * n), z],
+                            [d * (0.98 - 0.12 * n), 0.18, d * (0.98 - 0.12 * n)],
+                            drizzle, [0.35 - 0.3 * n, 0.6 * n, 0.25], **kw))
+    return out
+
+
+EA25 = Event(
+    "easter_2025", "easter", 2025, "ea25",
+    name="Choc-o-Lock", title="The Choc-o-Lock",
+    blurb="Easter 2025 the chocolatier on the high street locked his whole Easter stock "
+          "in the vault overnight -- the foil eggs, the truffles, the fondue and the "
+          "hollow bunnies -- spun the dial and went home. In the morning the vault was "
+          "still locked, the dial still said the right number, and every bunny on the "
+          "top shelf was missing one ear. Nobody has owned up. Everybody has chocolate "
+          "on their face.",
+    tagline="Four turns left, two turns right, and no nibbling.",
+    starts="2025-04-11", ends="2025-04-29",
+    colors={"accent": "#e8a83a", "deep": "#24120a", "glow": "#ffd36a"},
+    family_effects=["starstruck", "bubbly", "candlelight_vigil"],
+    hero_effect="melting_point", stencil="stencil_ea25")
+
+
+@EA25.crate_model("Choc-o-Lock",
+                  "The chocolatier's safe: dark chocolate a hand thick, a gold-foiled vault "
+                  "door with a combination dial and a wheel, a lid of milk chocolate "
+                  "drizzled in white, and the shop's hollow bunny stood on top on guard. "
+                  "Somebody has been at the guard. Holds the Choc-o-Lock set. Needs a "
+                  "Bitten Bunny Key.",
+                  hinge=[0, 0.20, -0.60], keyhole=[0.64, -0.30, 0.62])
+def _():
+    gold, m = EA25_FOIL, "metal"
+    door_y, front = -0.30, 0.555
+    parts = [
+        # the safe: a block of dark chocolate moulded in squares, a gold trim
+        # round its shoulders, a skirting of milk chocolate, four gold feet
+        part("rbox", [0, -0.30, 0], [1.56, 1.00, 1.10], EA25_DARK, decal="ea25_chocbar", wrap=True,
+             m="glass"),
+        part("rbox", [0, 0.155, 0], [1.60, 0.07, 1.14], gold, m=m),
+        part("rbox", [0, -0.76, 0], [1.62, 0.09, 1.16], EA25_MILK, m="glass"),
+        *[part("sph", [0.66 * sx, -0.85, 0.42 * sz], [0.20, 0.13, 0.20], gold, m=m)
+          for sx in (1, -1) for sz in (1, -1)],
+        # the vault door: a milk-chocolate frame, the foiled door, a ring of
+        # rivets, the dial in the middle and the wheel round it
+        part("torus", [0, door_y, front + 0.01], [1.00, 0.9, 1.00], EA25_MILK, [PI / 2, 0, 0],
+             m="glass"),
+        part("disc", [0, door_y, front + 0.03], [0.86, 0.86, 0.10], gold, m=m, decal="ea25_vaultdoor"),
+        part("disc", [0, door_y, front + 0.085], [0.30, 0.30, 0.05], "#f6efdc", decal="ea25_dial"),
+        part("torus", [0, door_y, front + 0.09], [0.40, 0.5, 0.40], shade(gold, 0.85), [PI / 2, 0, 0],
+             m=m),
+        part("cyl", [0, door_y, front + 0.13], [0.10, 0.08, 0.10], EA25_DARK, [PI / 2, 0, 0]),
+        part("cyl", [0, door_y, front + 0.17], [0.06, 0.03, 0.06], gold, [PI / 2, 0, 0], m=m),
+        # the hinges down its left-hand side
+        part("cyl", [-0.53, door_y + 0.22, front + 0.03], [0.10, 0.18, 0.10], gold, m=m),
+        part("cyl", [-0.53, door_y - 0.22, front + 0.03], [0.10, 0.18, 0.10], gold, m=m),
+        # the lock: a gold plate beside the door, right-hand side
+        part("rbox", [0.64, door_y, front + 0.02], [0.20, 0.30, 0.06], gold, m=m, decal="keyhole",
+             lock=1),
+        # the stencil, sprayed on the back
+        part("box", [0, -0.30, -0.56], [0.88, 0.64, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_ea25", a=-1),
+        # the light inside, at the seam
+        part("box", [0, 0.20, 0], [1.44, 0.03, 0.98], "#ffd36a", m="neon"),
+        # the lid: a slab of milk chocolate, a gold edge, the maker's plate, the
+        # back hinges
+        part("rbox", [0, 0.31, 0], [1.64, 0.22, 1.18], EA25_MILK, m="glass", lid=1),
+        part("rbox", [0, 0.215, 0], [1.68, 0.04, 1.22], gold, m=m, lid=1),
+        part("box", [0, 0.31, 0.594], [0.74, 0.13, 0.02], "#000000", decal="ea25_plate", a=-1, lid=1),
+        part("cyl", [0.46, 0.20, -0.60], [0.08, 0.30, 0.08], gold, [0, 0, PI / 2], m=m),
+        part("cyl", [-0.46, 0.20, -0.60], [0.08, 0.30, 0.08], gold, [0, 0, PI / 2], m=m),
+        # a layer of dark chocolate poured over the top of it
+        part("rbox", [0, 0.425, -0.02], [1.46, 0.03, 1.00], EA25_DARK, m="glass", lid=1),
+    ]
+    # the spokes of the wheel, each with a knob
+    for a in (PI / 2, PI / 2 + TAU / 3, PI / 2 + 2 * TAU / 3):
+        c, s = math.cos(a), math.sin(a)
+        parts += [rod([c * 0.19, door_y + s * 0.19, front + 0.10], [c * 0.37, door_y + s * 0.37, front + 0.12],
+                      0.05, gold, m=m),
+                  part("sph", [c * 0.39, door_y + s * 0.39, front + 0.12], [0.08, 0.08, 0.08], gold, m=m)]
+    # rivets round the door
+    for n in range(12):
+        a = n * TAU / 12 + PI / 12
+        parts.append(part("sph", [math.cos(a) * 0.36, door_y + math.sin(a) * 0.36, front + 0.085],
+                          [0.05, 0.05, 0.03], shade(gold, 0.8), m=m))
+    # the dark chocolate running over the lid's edge at the front and sides
+    for x, z, length in ((-0.70, 0.60, 0.14), (-0.50, 0.60, 0.08), (0.50, 0.60, 0.12),
+                         (0.71, 0.60, 0.06)):
+        parts += _ea25_drip([x, 0.42, z], length, 0.06, EA25_DARK, lid=1)
+    for z, length in ((0.30, 0.12), (-0.25, 0.07)):
+        parts += _ea25_drip([0.83, 0.42, z], length, 0.06, EA25_DARK, lid=1)
+        parts += _ea25_drip([-0.83, 0.42, -z], length * 0.8, 0.06, EA25_DARK, lid=1)
+    # white chocolate drizzled back and forth across the top
+    pts = [[-0.66 + n * 0.22, 0.447, 0.38 if n % 2 else -0.40] for n in range(7)]
+    for a, b in zip(pts, pts[1:]):
+        parts.append(dict(rod(a, b, 0.035, EA25_CREAM), lid=1))
+    # foil eggs and truffles on the lid, and the guard
+    parts += _ea25_foil_egg([-0.50, 0.44, 0.24], 0.24, EA25_RUBY, r=[PI / 2 - 0.2, 0.5, 0], lid=1)
+    parts += _ea25_foil_egg([0.54, 0.44, 0.20], 0.22, EA25_BLUE, r=[PI / 2 - 0.2, -0.6, 0], lid=1)
+    parts += _ea25_truffle([0.30, 0.50, 0.36], 0.14, kind="cocoa", lid=1)
+    parts += _ea25_truffle([-0.28, 0.50, 0.36], 0.14, kind="gold", lid=1)
+    parts += _ea25_bunny([0.04, 0.44, -0.18], 0.70, 0.0, lid=1)
+    return parts
+
+
+@EA25.key_model("Bitten Bunny Key",
+                "A key of chocolate in gold foil, its bow a hollow bunny's head with one "
+                "ear bitten off, a red ribbon and a bell at its neck, and its teeth three "
+                "squares of chocolate. Opens one Choc-o-Lock. Do not lick it. It has "
+                "been licked.", shoulder=-0.40)
+def _():
+    foil, m = EA25_FOIL, "metal"
+    x0 = -0.66
+    ear_r, ear_l = [0, 0, -0.20], [0, 0, 0.20]
+    top = rotate([0, 0.18, 0], ear_l)
+    tip = [x0 - 0.08 + top[0], 0.15 + top[1], top[2]]
+    return [
+        # the bunny's head
+        part("sph", [x0, 0.0, 0], [0.42, 0.40, 0.32], foil, m=m, decal="ea25_foil", wrap=True),
+        part("sph", [x0 + 0.08, -0.08, 0.12], [0.16, 0.13, 0.10], foil, m=m),
+        part("sph", [x0 - 0.08, -0.08, 0.12], [0.16, 0.13, 0.10], foil, m=m),
+        part("sph", [x0, -0.035, 0.165], [0.07, 0.055, 0.04], EA25_RUBY),
+        part("sph", [x0 + 0.085, 0.05, 0.135], [0.05, 0.075, 0.03], EA25_DARK),
+        part("sph", [x0 - 0.085, 0.05, 0.135], [0.05, 0.075, 0.03], EA25_DARK),
+        place("bunnyear", [x0 + 0.08, 0.15, 0], [0.55, 0.40, 1.2], foil, anchor=[0, -0.5, 0],
+              r=ear_r, m=m, decal="ea25_foil"),
+        place("bunnyear", [x0 + 0.08, 0.15, 0.02], [0.30, 0.30, 0.8], shade(foil, 0.8),
+              anchor=[0, -0.5, 0], r=ear_r, m=m),
+        place("bunnyear", [x0 - 0.08, 0.15, 0], [0.55, 0.18, 1.2], foil, anchor=[0, -0.5, 0],
+              r=ear_l, m=m, decal="ea25_foil"),
+        part("sph", tip, [0.20, 0.09, 0.11], EA25_MILK, ear_l),
+        part("sph", [tip[0] - 0.05, tip[1] + 0.03, tip[2] + 0.03], [0.05, 0.04, 0.06],
+             shade(EA25_MILK, 0.7)),
+        part("sph", [tip[0] + 0.04, tip[1] + 0.035, tip[2] + 0.03], [0.05, 0.04, 0.06],
+             shade(EA25_MILK, 0.7)),
+        # the ribbon and the bell where the head meets the blade
+        part("torus", [-0.42, 0, 0], [0.22, 0.6, 0.22], EA25_RUBY, [0, 0, PI / 2]),
+        part("sph", [-0.43, -0.12, 0.05], [0.09, 0.09, 0.09], GOLD, m=m),
+        # the blade: a stick of chocolate in foil
+        part("cyl", [0.05, 0, 0], [0.09, 0.88, 0.09], foil, [0, 0, PI / 2], m=m, decal="ea25_foil",
+             wrap=True),
+        part("sph", [0.49, 0, 0], [0.11, 0.11, 0.11], foil, m=m),
+        # the bit: three squares of chocolate
+        part("rbox", [0.28, -0.10, 0], [0.10, 0.13, 0.07], EA25_MILK, m="glass"),
+        part("rbox", [0.40, -0.13, 0], [0.10, 0.19, 0.07], EA25_DARK, m="glass"),
+        part("rbox", [0.52, -0.10, 0], [0.10, 0.13, 0.07], EA25_MILK, m="glass"),
+    ] + gift_bow([-0.42, 0.0, 0.10], 0.18, EA25_RUBY, knot=shade(EA25_RUBY, 0.8), yaw=PI / 2,
+                 tails=False)
+
+
+# ------------------------------------------------------------- the shop's bits
+def _ea25_berry(at, k=1.0, axis="down", dipped=True, **kw):
+    """A strawberry, its leaves at ``at`` and its point hanging ``axis``
+    ("down", or "fwd" along +Z), about 0.32 ``k`` long -- ``dipped`` in
+    chocolate over its point."""
+    x, y, z = at
+    L, W = 0.32 * k, 0.25 * k
+    out = []
+    if axis == "down":
+        out.append(place("teardrop", [x, y, z], [W, L, W], EA25_BERRY, anchor=[0, 0, 0],
+                         r=[PI, 0, 0], decal="ea25_seeds", wrap=True, **kw))
+        if dipped:
+            out.append(part("sph", [x, y - L * 0.70, z], [W * 0.80, L * 0.62, W * 0.80], EA25_DARK,
+                            m="glass", **kw))
+        for n in range(5):
+            a = n * TAU / 5
+            out.append(place("leaf", [x + math.sin(a) * 0.07 * k, y + 0.005, z + math.cos(a) * 0.07 * k],
+                             [0.30 * k, 0.15 * k, 0.4], EA25_LEAF, r=[PI / 2 + 0.35, a, 0], **kw))
+        out.append(part("cyl", [x, y + 0.03 * k, z], [0.025 * k, 0.07 * k, 0.025 * k], EA25_LEAF, **kw))
+    else:
+        out.append(place("teardrop", [x, y, z], [W, L, W], EA25_BERRY, anchor=[0, 0, 0],
+                         r=[PI / 2, 0, 0], decal="ea25_seeds", wrap=True, **kw))
+        if dipped:
+            out.append(part("sph", [x, y, z + L * 0.70], [W * 0.80, W * 0.80, L * 0.62], EA25_DARK,
+                            m="glass", **kw))
+        for n in range(5):
+            b = n * TAU / 5 + 0.3
+            out.append(place("leaf", [x + math.cos(b) * 0.07 * k, y + math.sin(b) * 0.07 * k, z - 0.005],
+                             [0.30 * k, 0.15 * k, 0.4], EA25_LEAF, r=[0, 0, b - PI / 2], **kw))
+    return out
+
+
+def _ea25_bonbon(at, k=1.0, c="#e8389a", yaw=0.0, **kw):
+    """A twist-wrapped bonbon centred on ``at``, lying along X (turned by
+    ``yaw`` about the upright), about 1.5 ``k`` from frill to frill: a shiny
+    body, a twist each side and the crinkled ends fanned out."""
+    x, y, z = at
+    cy, sy = math.cos(yaw), math.sin(yaw)
+
+    def along(d):
+        return [x + d * cy, y, z - d * sy]
+
+    out = [part("sph", [x, y, z], [0.80 * k, 0.48 * k, 0.48 * k], c, [0, yaw, 0], m="metal",
+                decal="ea25_foil", wrap=True, **kw)]
+    for s in (1, -1):
+        out += [
+            part("cone", along(0.44 * k * s), [0.22 * k, 0.20 * k, 0.22 * k], shade(c, 0.85),
+                 [0, yaw, -PI / 2 * s], m="metal", **kw),
+            place("petalcup", along(0.52 * k * s), [0.42 * k, 0.26 * k, 0.42 * k], c,
+                  anchor=[0, 0, 0], r=[0, yaw, -PI / 2 * s], m="metal", decal="ea25_foil", **kw),
+        ]
+    return out
+
+
+def _ea25_fork(tip, end, knob, **kw):
+    """A fondue fork from the ``tip`` of its prongs to the ``end`` of its
+    handle: a long thin steel shaft, two prongs and a coloured knob."""
+    d = [end[i] - tip[i] for i in range(3)]
+    n = math.sqrt(sum(v * v for v in d)) or 1.0
+    u = [v / n for v in d]
+    neck = [tip[i] + u[i] * 0.14 for i in range(3)]
+    grip = [tip[i] + u[i] * (n - 0.20) for i in range(3)]
+    side = [u[2], 0.0, -u[0]]
+    sl = math.hypot(side[0], side[2]) or 1.0
+    side = [side[0] / sl * 0.03, 0.0, side[2] / sl * 0.03]
+    out = [rod(neck, grip, 0.03, SILVER, m="metal", **kw),
+           rod(grip, end, 0.07, knob, **kw),
+           part("sph", list(end), [0.09, 0.09, 0.09], knob, **kw)]
+    for s in (1, -1):
+        out.append(rod([tip[0] + side[0] * s, tip[1], tip[2] + side[2] * s], neck, 0.018, SILVER,
+                       m="metal", **kw))
+    return out
+
+
+# ================================================================== hats
+@EA25.hat("fondue_pot", "Fondue for One",
+          "A copper fondue pot on its brass stand, the tea light lit underneath and a "
+          "pint of molten chocolate inside, with the forks still in it and a strawberry "
+          "half way out. The warmth comes down as much as it goes up. You have never "
+          "had such shiny hair.", "legendary")
+def _():
+    k, base = 1.30, 0.13
+    copper, m = EA25_COPPER, "metal"
+    parts = [
+        # the stand: a brass ring round the crown, four struts up and four
+        # arms in to the ring the pot sits in
+        band(-0.07, 0.10, BRASS, grow=0.06, m=m),
+        place("ring", [0, base - 0.03, 0], [0.86, 0.30, 0.86], BRASS, anchor=[0, 0, 0], m=m),
+        # the tea light in its foil cup, and its flame
+        part("cyl", [0, 0.025, 0], [0.30, 0.05, 0.30], SILVER, m=m),
+        part("cyl", [0, 0.048, 0], [0.26, 0.012, 0.26], WHITE),
+        place("teardrop", [0, 0.05, 0], [0.08, 0.15, 0.08], "#ffb03a", anchor=[0, 0, 0], m="neon"),
+        part("sph", [0, 0.08, 0], [0.04, 0.06, 0.04], "#fff2c0", m="neon"),
+        # the pot, its rolled rim and the chocolate in it
+        place("bowl", [0, base, 0], [k, 1.0, k], copper, anchor=[0, 0, 0], m=m,
+              decal="ea25_hammered", wrap=True),
+        part("torus", [0, base + 0.59, 0], [k * 0.985, 0.55, k * 0.985], shade(copper, 1.12), m=m),
+        part("cyl", [0, base + 0.53, 0], [1.13, 0.03, 1.13], EA25_MILK, m="glass"),
+        part("torus", [0, base + 0.545, 0], [0.70, 0.18, 0.70], shade(EA25_MILK, 1.15), m="glass"),
+        # the long handle, out to the right, turned wood
+        rod([0.58, base + 0.40, 0.0], [1.02, base + 0.50, 0.0], 0.10, copper, m=m),
+        rod([1.02, base + 0.50, 0.0], [1.38, base + 0.58, 0.0], 0.13, EA25_WOOD, decal="planks"),
+        part("sph", [1.40, base + 0.585, 0.0], [0.15, 0.15, 0.15], EA25_WOOD),
+    ]
+    for sx, sz in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        parts += [rod([sx * 0.70, -0.03, sz * 0.67], [sx * 0.50, base - 0.02, sz * 0.48], 0.05, BRASS,
+                      m=m),
+                  rod([sx * 0.50, base - 0.02, sz * 0.48], [sx * 0.29, base - 0.02, sz * 0.28], 0.05, BRASS,
+                      m=m)]
+    # three forks: two left standing in the chocolate, one lifted out with a
+    # strawberry on it, dripping
+    top = base + 0.55
+    parts += _ea25_fork([0.22, top - 0.10, 0.18], [0.66, top + 0.78, 0.46], EA25_RUBY)
+    parts += _ea25_fork([-0.26, top - 0.10, -0.06], [-0.80, top + 0.70, -0.30], EA25_BLUE)
+    parts += _ea25_fork([0.04, top + 0.22, -0.22], [0.28, top + 0.98, -0.66], EA25_GREEN)
+    parts += _ea25_berry([0.03, top + 0.20, -0.20], 1.0, "down")
+    parts += _ea25_drip([0.03, top + 0.04, -0.20], 0.03, 0.035, EA25_DARK)
+    return parts
+
+
+@EA25.hat("truffle_box", "Box of Truffles",
+          "The shop's best box, lid up and on your head: nine truffles in their little "
+          "brown paper cases, a satin ribbon, and the guide inside the lid telling you "
+          "which is which. The guide is wrong. Somebody has had the coffee cream and "
+          "put the empty case back.", "rare")
+def _():
+    gold, m = EA25_FOIL, "metal"
+    lid_r = -1.92
+    hinge = [0, 0.245, -0.78]
+    lid_at = rotate([0, 0.03, 0.80], [lid_r, 0, 0])
+    card_at = rotate([0, -0.006, 0.80], [lid_r, 0, 0])
+    parts = [
+        # the box, over the crown like a hatbox, and its satin ribbon
+        cap(-0.26, 0.24, gold, grow=0.04, m=m, decal="ea25_foil", wrap=True),
+        band(-0.02, 0.13, EA25_RUBY, grow=0.08, decal="ea25_satin", wrap=True),
+        part("rbox", [0, -0.01, 0.80], [0.15, 0.48, 0.03], EA25_RUBY, decal="ea25_satin"),
+        # the brown insert the truffles sit in, and the rim round it
+        part("rbox", [0, 0.248, 0], [1.50, 0.02, 1.44], EA25_PAPER),
+        part("rbox", [0, 0.27, 0.775], [1.64, 0.07, 0.06], gold, m=m),
+        part("rbox", [0, 0.27, -0.775], [1.64, 0.07, 0.06], gold, m=m),
+        part("rbox", [0.80, 0.27, 0], [0.06, 0.07, 1.54], gold, m=m),
+        part("rbox", [-0.80, 0.27, 0], [0.06, 0.07, 1.54], gold, m=m),
+        # the lid, hinged back, and the guide printed inside it
+        part("rbox", [hinge[0] + lid_at[0], hinge[1] + lid_at[1], hinge[2] + lid_at[2]],
+             [1.66, 0.06, 1.60], gold, [lid_r, 0, 0], m=m, decal="ea25_foil", wrap=True),
+        part("box", [hinge[0] + card_at[0], hinge[1] + card_at[1], hinge[2] + card_at[2]],
+             [1.36, 1.30, 0.01], "#000000", [lid_r + PI / 2, 0, 0], decal="ea25_menu", a=-1),
+    ]
+    parts += gift_bow([0.0, 0.17, 0.83], 0.36, EA25_RUBY, knot=shade(EA25_RUBY, 0.8), yaw=PI / 2)
+    # nine cases, eight truffles
+    kinds = [("cocoa", EA25_DARK), ("drizzle", EA25_MILK), ("gold", None),
+             ("nut", EA25_MILK), ("heart", None), ("drizzle", EA25_DARK),
+             ("white", EA25_CREAM), ("empty", None), ("cocoa", EA25_MILK)]
+    n = 0
+    for z in (-0.46, 0.0, 0.46):
+        for x in (-0.48, 0.0, 0.48):
+            kind, c = kinds[n]
+            n += 1
+            parts.append(part("cyl", [x, 0.30, z], [0.38, 0.12, 0.38], EA25_PAPER, decal="ea25_case",
+                              wrap=True))
+            at = [x, 0.40, z]
+            if kind == "empty":
+                parts += [part("cyl", [x, 0.362, z], [0.30, 0.01, 0.30], shade(EA25_PAPER, 0.7)),
+                          part("sph", [x + 0.05, 0.37, z - 0.03], [0.04, 0.03, 0.04], EA25_DARK)]
+            elif kind == "heart":
+                parts.append(place("heart", [x, 0.43, z], [0.32, 0.30, 0.9], EA25_RUBY,
+                                   r=[-0.55, 0, 0], m="glass"))
+            elif kind == "nut":
+                parts += _ea25_truffle(at, 0.30, c, "plain")
+                parts.append(part("sph", [x, 0.54, z], [0.13, 0.08, 0.10], "#c08a4a"))
+            elif kind == "white":
+                parts += _ea25_truffle(at, 0.30, c, "drizzle", drizzle=EA25_DARK)
+            else:
+                parts += _ea25_truffle(at, 0.30, c or EA25_DARK, kind)
+    return parts
+
+
+@EA25.hat("safecracker", "Safecracker's Beanie",
+          "Black wool, a headlamp on an elastic strap, a jeweller's loupe on a hinge, "
+          "and the combination written on a slip of paper tucked in the turn-up in "
+          "case you forget it. Nobody broke into the vault. It just happens that you "
+          "own one of these.", "rare")
+def _():
+    knit = "#25272d"
+    parts = [
+        dome(-0.42, 0.86, knit, decal="knit", wrap=True),
+        ringband(-0.30, 0.24, shade(knit, 1.18), margin=0.06, decal="knit", wrap=True),
+        # the headlamp: its strap over the turn-up, the lamp on the front
+        ringband(-0.27, 0.09, "#3a3d44", margin=0.095),
+        part("rbox", [0, -0.30, 1.00], [0.34, 0.24, 0.14], "#1c1d22"),
+        part("cyl", [0, -0.30, 1.075], [0.20, 0.04, 0.20], SILVER, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, -0.30, 1.09], [0.15, 0.02, 0.15], "#fff6d8", [PI / 2, 0, 0], m="neon"),
+        part("sph", [0.12, -0.20, 1.075], [0.04, 0.04, 0.03], "#ff3a2a", m="neon"),
+        part("rbox", [-0.12, -0.20, 1.075], [0.06, 0.03, 0.02], SILVER, m="metal"),
+        # the loupe, flipped up on its hinge at the right temple
+        part("cyl", [0.97, -0.29, 0.28], [0.08, 0.06, 0.08], SILVER, [0, 0, PI / 2], m="metal"),
+        rod([0.97, -0.29, 0.30], [0.74, -0.04, 0.74], 0.035, SILVER, m="metal"),
+        part("cyl", [0.70, 0.00, 0.80], [0.20, 0.18, 0.20], "#1c1d22", [0.9, 0.7, 0]),
+        part("cyl", [0.72, 0.035, 0.84], [0.15, 0.10, 0.15], "#9fd8ff", [0.9, 0.7, 0], m="glass", a=0.7),
+        # the combination, on a slip tucked in the turn-up
+        part("rbox", [-0.56, -0.18, 0.80], [0.24, 0.32, 0.012], "#f6efdc", [0, -0.6, 0.14]),
+        part("box", [-0.565, -0.18, 0.808], [0.22, 0.30, 0.004], "#000000", [0, -0.6, 0.14],
+             decal="ea25_combo", a=-1),
+    ]
+    return parts
+
+
+@EA25.hat("melting_crown", "The Melting Crown",
+          "A crown of dark chocolate with a foil truffle on every point and a band of "
+          "white chocolate studded with wrapped sweets for jewels. It was made for "
+          "the King of Easter. It was made in April. It was left on the radiator.",
+          "legendary")
+def _():
+    sx, sz, h, y0 = 1.84, 1.78, 0.66, -0.30
+    parts = [
+        place("spikecrown", [0, y0, 0], [sx, h, sz], EA25_DARK, anchor=[0, 0, 0], m="glass",
+              decal="ea25_gloss", wrap=True),
+        ringband(-0.19, 0.14, EA25_CREAM, margin=0.06, m="glass"),
+        ringband(-0.27, 0.07, EA25_MILK, margin=0.09, m="glass"),
+    ]
+    lengths = [0.34, 0.20, 0.42, 0.24, 0.36, 0.18, 0.28]
+    for n in range(7):
+        th = TAU * (n + 0.5) / 7
+        cx, cz = math.cos(th), math.sin(th)
+        tip = [cx * sx / 2, y0 + h, cz * sz / 2]
+        parts += _ea25_truffle([tip[0], tip[1] + 0.05, tip[2]], 0.15, kind="gold")
+        # each point sagging: a run down its face, and a fatter one in the
+        # valley beside it
+        parts += _ea25_drip([cx * (sx / 2 + 0.02), y0 + h - 0.12, cz * (sz / 2 + 0.02)], lengths[n],
+                            0.07, EA25_DARK)
+        tv = TAU * n / 7
+        vx, vz = math.cos(tv), math.sin(tv)
+        parts += _ea25_drip([vx * (sx / 2 + 0.025), y0 + h * 0.40, vz * (sz / 2 + 0.025)],
+                            0.08 + 0.04 * (n % 3), 0.09, EA25_DARK)
+        # a wrapped sweet for a jewel on the white band below each point
+        a = PI / 2 - th
+        parts.append(part("sph", [math.sin(a) * 0.985, -0.20, math.cos(a) * 0.955], [0.14, 0.12, 0.08],
+                          [EA25_RUBY, EA25_BLUE, EA25_GREEN][n % 3], [0, a, 0], m="metal"))
+    # gold leaf, laid on here and there
+    for n, (a, y) in enumerate(((0.3, 0.10), (1.4, 0.02), (2.3, 0.16), (3.3, 0.06), (4.2, 0.12),
+                                (5.2, 0.0), (5.9, 0.18))):
+        parts.append(part("box", [math.sin(a) * 0.935, y, math.cos(a) * 0.905], [0.10, 0.08, 0.008],
+                          EA25_FOIL, [0, a, 0.5 * n], m="metal"))
+    return parts
+
+
+@EA25.hat("cacao_pod", "Cacao Pod",
+          "Where it all starts: a ripe cacao pod off the tree, split round the middle "
+          "and worn as a helmet, the white pulp and the beans in it showing all round "
+          "the seam and the stalk and two leaves still on at the back. Tastes nothing "
+          "like chocolate. Tastes of lychees, mostly.", "uncommon")
+def _():
+    pod = "#dc8a2a"
+    crown = dome(-0.40, 0.88, pod, aspect=1.0, decal="ea25_pod", wrap=True)
+    parts = [
+        crown,
+        # the pod's point, out in front and curling up a little
+        place("teardrop", [0, -0.02, 0.76], [0.56, 0.62, 0.44], pod, anchor=[0, 0.30, 0],
+              r=[PI / 2 - 0.45, 0, 0], decal="ea25_pod", wrap=True),
+        # the seam: white pulp, and the beans packed in it
+        ringband(-0.36, 0.10, "#f6efe0", margin=0.05),
+        # the stalk at the back, woody, and its two leaves
+        rod([0, -0.04, -0.86], [0, 0.06, -1.10], 0.12, "#6a4a2a"),
+        part("sph", [0, 0.07, -1.12], [0.14, 0.12, 0.14], "#5a3a20"),
+        place("leaf", [0.26, 0.20, -1.16], [1.4, 0.80, 1.0], "#2f7a2e", r=[0.4, 0.3, -1.0]),
+        place("leaf", [-0.22, 0.26, -1.20], [1.2, 0.70, 1.0], "#3f9a3a", r=[0.5, -0.3, 0.9]),
+    ]
+    parts += around(16, 0.0, -0.39, lambda a, x, z: part(
+        "sph", [math.sin(a) * 0.985, -0.39, math.cos(a) * 0.955], [0.17, 0.10, 0.09],
+        "#7a3a3e" if int(round(a * 16 / TAU)) % 3 else "#8a4a3a", [0, a + PI / 2, 0.2],
+        decal="ea25_bean"), start=0.1)
+    return parts
+
+
+@EA25.hat("wrapper_bonnet", "Wrapper Bonnet",
+          "An Easter bonnet made entirely of the foil off every egg you have eaten "
+          "since breakfast, smoothed flat with a thumbnail and pasted on. A purple "
+          "satin band, a nest of paper grass and the last egg nobody has opened yet. "
+          "Yet.", "rare")
+def _():
+    gold, m = EA25_FOIL, "metal"
+    parts = [
+        place("brim", [0, -0.10, 0], [2.90, 1.3, 2.80], gold, anchor=[0, 0, 0], m=m,
+              decal="ea25_wrappers", wrap=True),
+        dome(-0.32, 0.80, gold, t="capcrown", m=m, decal="ea25_wrappers", wrap=True),
+        ringband(-0.21, 0.20, "#7a3ab8", margin=0.05, decal="ea25_satin", wrap=True),
+    ]
+    parts += gift_bow([-0.70, -0.14, 0.62], 0.34, "#7a3ab8", knot=shade("#7a3ab8", 0.8), yaw=-0.85)
+    # paper grass round the foot of the crown
+    parts += around(22, 1.04, -0.08, lambda a, x, z: rod(
+        [x, -0.09, z], [x * 1.08 + 0.03 * math.sin(a * 5), 0.06 + 0.04 * math.cos(a * 3), z * 1.08],
+        0.025, ["#7ad85a", "#5ac84a", "#9ae86a"][int(round(a * 22 / TAU)) % 3]), start=0.05)
+    # on the brim: foil eggs in the grass, a truffle, and a small foil bunny
+    for a, c in ((0.6, EA25_RUBY), (1.9, EA25_BLUE), (3.0, EA25_GREEN), (4.3, EA25_RUBY),
+                 (5.3, EA25_BLUE)):
+        s, cz = math.sin(a), math.cos(a)
+        parts += _ea25_foil_egg([s * 1.16 - cz * 0.0, -0.035, cz * 1.12], 0.18, c,
+                                r=[PI / 2 - 0.15, a + PI / 2, 0])
+    parts += _ea25_truffle([-1.10, 0.03, -0.30], 0.16, kind="gold")
+    parts += _ea25_bunny([0.62, -0.02, 0.86], 0.34, 0.35)
+    return parts
+
+
+@EA25.hat("big_bonbon", "The Big Bonbon",
+          "One enormous twist-wrapped sweet in pink foil, sat on an Alice band like a "
+          "bow. There is nothing inside it. There used to be a strawberry cream inside "
+          "it. You were hungry and nobody was looking.", "uncommon", hair="show")
+def _():
+    band_c = EA25_RUBY
+    parts = [
+        part("rbox", [0, 0.035, 0], [1.00, 0.07, 0.16], band_c, decal="ea25_satin"),
+        *sides(lambda s: [
+            part("rbox", [0.62 * s, -0.035, 0], [0.34, 0.07, 0.16], band_c, [0, 0, 0.55 * s]),
+            part("rbox", [0.775 * s, -0.42, 0], [0.07, 0.62, 0.16], band_c),
+            part("sph", [0.79 * s, -0.74, 0], [0.10, 0.10, 0.18], band_c),
+        ]),
+    ]
+    parts += _ea25_bonbon([0, 0.30, -0.02], 0.92, "#ec4aa0")
+    # the paper it came in, still tucked under it
+    parts.append(part("rbox", [0.06, 0.08, 0.10], [0.36, 0.02, 0.26], "#f6efdc", [0, 0.4, 0.1]))
+    return parts
+
+
+# ================================================================= backs
+@EA25.back("choc_fountain", "Chocolate Fountain",
+           "The shop's chocolate fountain in a backpack, plugged into you: three tiers, "
+           "a curtain of milk chocolate pouring down every one, a basin at the bottom "
+           "and skewers of strawberries and marshmallows parked round the rim. It "
+           "hums. Everyone follows you. Everyone.", "legendary")
+def _():
+    steel, m = SILVER, "metal"
+    cz = -0.96
+    parts = straps("#5a3420") + [
+        # the motor in its steel case, its switch and its brand plate
+        part("rbox", [0, 0.48, -0.56], [1.04, 0.86, 1.02], steel, m=m, decal="rivets", wrap=True),
+        part("rbox", [0, 0.06, -0.56], [1.08, 0.06, 1.06], shade(steel, 0.8), m=m),
+        part("cyl", [0.54, 0.62, -0.76], [0.12, 0.05, 0.12], "#c8202e", [0, 0, PI / 2]),
+        part("box", [0, 0.50, -1.075], [0.70, 0.40, 0.02], "#000000", [0, PI, 0], decal="ea25_fountain",
+             a=-1),
+        # the basin and the chocolate in it
+        place("bowl", [0, 0.92, cz], [1.36, 0.62, 1.36], steel, anchor=[0, 0, 0], m=m),
+        part("cyl", [0, 1.21, cz], [1.18, 0.03, 1.18], EA25_MILK, m="glass"),
+        part("torus", [0, 1.215, cz], [0.74, 0.12, 0.74], shade(EA25_MILK, 1.15), m="glass"),
+        # the auger tube up the middle
+        part("cyl", [0, 2.30, cz], [0.13, 2.18, 0.13], steel, m=m),
+    ]
+    # the tiers, each with its curtain falling to the next
+    tiers = [(1.76, 0.54), (2.36, 0.40), (2.90, 0.27)]
+    below = [1.22, 1.76, 2.36]
+    for (y, r), floor in zip(tiers, below):
+        parts += [
+            place("hemi", [0, y, cz], [2 * r, 0.26, 2 * r], EA25_MILK, anchor=[0, 0, 0], m="glass"),
+            part("torus", [0, y + 0.005, cz], [2 * r + 0.03, 0.30, 2 * r + 0.03], steel, m=m),
+            part("cyl", [0, (y + floor) / 2, cz], [2 * r - 0.02, y - floor, 2 * r - 0.02], EA25_MILK,
+                 m="glass", a=0.82),
+        ]
+    # the crown at the top where it wells out
+    parts += [part("sph", [0, 3.36, cz], [0.24, 0.18, 0.24], EA25_MILK, m="glass"),
+              part("cyl", [0, 3.29, cz], [0.17, 0.06, 0.17], steel, m=m)]
+    # skewers parked round the rim, their ends in the chocolate
+    for a, kind in ((0.9, "berry"), (2.5, "mallow"), (3.9, "berry"), (5.4, "mallow")):
+        s, c = math.sin(a), math.cos(a)
+        inner = [s * 0.36, 1.22, cz + c * 0.36]
+        outer = [s * 0.98, 1.66, cz + c * 0.98]
+        if outer[2] > -0.30:
+            outer[2] = -0.30
+        parts.append(rod(inner, outer, 0.025, "#e8d8b0"))
+        mid = [inner[i] + (outer[i] - inner[i]) * 0.62 for i in range(3)]
+        if kind == "berry":
+            parts += _ea25_berry([mid[0], mid[1] + 0.12, mid[2]], 0.9, "down")
+        else:
+            parts += [part("cyl", mid, [0.16, 0.16, 0.16], "#fff4f0", [0.6, a, 0]),
+                      part("cyl", [mid[0], mid[1] + 0.13, mid[2]], [0.15, 0.12, 0.15], "#ffd0e0",
+                           [0.6, a, 0])]
+    return parts
+
+
+@EA25.back("piggyback_bunny", "Piggyback Bunny",
+           "The big hollow bunny from the shop window, tied on your back with red "
+           "ribbon, riding backwards so it can keep an eye on whoever is behind you. "
+           "One ear is bitten off. You do not know who did that. Its eyes say it "
+           "knows.", "rare")
+def _():
+    parts = straps(EA25_RUBY, decal="ea25_satin")
+    parts += _ea25_bunny([0, -0.22, -0.98], 2.6, PI)
+    for s in (1, -1):
+        parts.append(rod([0.36 * s, 1.03, -0.14], [0.34 * s, 1.08, -0.52], 0.12, EA25_RUBY))
+        parts.append(rod([0.36 * s, 0.98, -0.14], [0.36 * s, 0.30, -0.20], 0.12, EA25_RUBY))
+    parts.append(part("rbox", [0, 0.40, -0.19], [0.84, 0.12, 0.10], EA25_RUBY, decal="ea25_satin"))
+    return parts
+
+
+# ================================================================== hair
+@EA25.hairdo("ganache_swirl", "Ganache Swirl",
+             "Short at the sides and piped up on top into a whippy swirl of dark "
+             "ganache, glossy as the day it set, with a chocolate flake stuck in it "
+             "and a scatter of sprinkles. Do not stand near a radiator.", "rare")
+def _():
+    c = "#4a2416"
+    parts = [
+        place("hairshort", [0, 0, 0], [1.04, 1.04, 1.04], c, anchor=[0, 0, 0], decal="strands",
+              wrap=True),
+        part("sph", [0, 0.62, 0.0], [0.80, 0.30, 0.78], c, m="glass"),
+        part("torus", [0, 0.64, 0.0], [0.92, 1.55, 0.90], c, m="glass"),
+        part("sph", [0, 0.77, 0.0], [0.62, 0.30, 0.60], c, m="glass"),
+        part("torus", [0, 0.80, 0.0], [0.70, 1.45, 0.68], shade(c, 1.08), m="glass"),
+        part("torus", [0, 0.94, 0.0], [0.48, 1.30, 0.46], c, m="glass"),
+        place("teardrop", [0.02, 0.96, 0.0], [0.26, 0.26, 0.26], shade(c, 1.08), anchor=[0, 0, 0],
+              r=[0, 0, -0.5], m="glass"),
+        # the flake
+        part("rbox", [0.20, 0.96, -0.08], [0.11, 0.48, 0.11], "#8a5430", [0.15, 0, -0.40],
+             decal="ea25_flake", wrap=True),
+    ]
+    for n, (a, col) in enumerate(((0.3, "#ff4a8a"), (1.1, "#ffd23a"), (1.9, "#3ac8ff"),
+                                  (2.6, "#7ad85a"), (3.4, "#ffffff"), (4.1, "#ff8a2a"),
+                                  (4.9, "#ff4a8a"), (5.6, "#3ac8ff"))):
+        parts.append(part("rbox", [math.sin(a) * 0.40, 0.69, math.cos(a) * 0.39], [0.06, 0.022, 0.022],
+                          col, [0, a + n, 0.3]))
+    return parts
+
+
+@EA25.hairdo("caramel_waves", "Salted Caramel Waves",
+             "Long and golden-brown and set in soft waves, the ends curling up in "
+             "ringlets the colour of the caramel that comes out of the middle when "
+             "you bite, held back on one side with a bonbon clip.", "uncommon")
+def _():
+    c = "#c47a30"
+    hi = shade(c, 1.12)
+    parts = [place("hairlong", [0, 0, 0], [1.05, 1.05, 1.05], c, anchor=[0, 0, 0], decal="strands",
+                   wrap=True)]
+    # the ringlets at the ends, two each side and two at the back
+    for x, y, z, col in ((0.50, -0.36, 0.10, c), (0.52, -0.34, -0.18, hi), (-0.50, -0.36, 0.10, hi),
+                         (-0.52, -0.34, -0.18, c), (0.20, -0.36, -0.52, c), (-0.20, -0.36, -0.52, hi)):
+        out = 1 if x > 0 else -1
+        parts.append(place("teardrop", [x, y + 0.08, z], [0.24, 0.42, 0.22], col, anchor=[0, 1.0, 0],
+                           r=[0.10, 0, 0.12 * out], decal="strands", wrap=True))
+    # the wave over the brow
+    parts.append(part("sph", [-0.16, 0.42, 0.40], [0.56, 0.22, 0.30], hi, [0.4, 0, 0.25],
+                      decal="strands", wrap=True))
+    parts += _ea25_bonbon([0.60, 0.16, 0.06], 0.30, EA25_FOIL, yaw=PI / 2)
+    return parts
+
+
+# ================================================================= faces
+EA25.face("caught_brown_handed", "Caught Brown-Handed",
+          "Eyes to one side, eyebrows up, the smallest, most innocent smile in the "
+          "world, and chocolate all round the corner of the mouth. Who ate the "
+          "bunny's ear? Not you. Never you.", [
+              {"k": "ellipse", "x": -0.19, "y": -0.11, "w": 0.17, "h": 0.15, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.19, "y": -0.11, "w": 0.17, "h": 0.15, "c": "#ffffff"},
+              {"k": "arc", "x": -0.19, "y": -0.11, "r": 0.085, "a0": 0.0, "a1": 1.0, "w": 0.02,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.19, "y": -0.11, "r": 0.085, "a0": 0.0, "a1": 1.0, "w": 0.02,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.24, "y": -0.10, "w": 0.07, "h": 0.09, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.14, "y": -0.10, "w": 0.07, "h": 0.09, "c": "#16171b"},
+              {"k": "arc", "x": -0.19, "y": -0.20, "r": 0.10, "a0": 0.60, "a1": 0.90, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.19, "y": -0.22, "r": 0.10, "a0": 0.60, "a1": 0.90, "w": 0.03,
+               "c": "#16171b"},
+              {"k": "arc", "x": -0.02, "y": 0.10, "r": 0.06, "a0": 0.08, "a1": 0.42, "w": 0.025,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": 0.08, "y": 0.15, "w": 0.15, "h": 0.07, "c": "#5a3018"},
+              {"k": "ellipse", "x": 0.15, "y": 0.12, "w": 0.07, "h": 0.05, "c": "#5a3018"},
+              {"k": "ellipse", "x": 0.02, "y": 0.19, "w": 0.06, "h": 0.04, "c": "#7a4626"},
+              {"k": "ellipse", "x": 0.22, "y": 0.24, "w": 0.025, "h": 0.02, "c": "#3c2014"},
+              {"k": "ellipse", "x": -0.30, "y": 0.10, "w": 0.06, "h": 0.04, "c": "#7a4626"},
+          ])
+EA25.face("sugar_rush", "Sugar Rush",
+          "Fourteen eggs since breakfast. Eyes like dinner plates and pupils like "
+          "pinpricks, one of them twitching, a grin with every tooth in it and "
+          "chocolate on most of the teeth. This will end in a nap. Not yet, though.",
+          [
+              {"k": "ellipse", "x": -0.19, "y": -0.12, "w": 0.22, "h": 0.24, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.20, "y": -0.13, "w": 0.25, "h": 0.27, "c": "#ffffff"},
+              {"k": "arc", "x": -0.19, "y": -0.12, "r": 0.115, "a0": 0.0, "a1": 1.0, "w": 0.022,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.13, "r": 0.13, "a0": 0.0, "a1": 1.0, "w": 0.022,
+               "c": "#16171b"},
+              {"k": "ellipse", "x": -0.18, "y": -0.11, "w": 0.04, "h": 0.04, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.21, "y": -0.12, "w": 0.035, "h": 0.035, "c": "#16171b"},
+              {"k": "line", "x1": -0.26, "y1": -0.06, "x2": -0.21, "y2": -0.09, "w": 0.01,
+               "c": "#e0505a"},
+              {"k": "line", "x1": 0.29, "y1": -0.20, "x2": 0.25, "y2": -0.16, "w": 0.01,
+               "c": "#e0505a"},
+              {"k": "line", "x1": 0.37, "y1": -0.24, "x2": 0.42, "y2": -0.28, "w": 0.02, "c": "#16171b"},
+              {"k": "line", "x1": 0.38, "y1": -0.13, "x2": 0.45, "y2": -0.13, "w": 0.02, "c": "#16171b"},
+              {"k": "line", "x1": 0.37, "y1": -0.02, "x2": 0.42, "y2": 0.02, "w": 0.02, "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.26, 0.10], [0.26, 0.10], [0.20, 0.24], [0.0, 0.29],
+                                    [-0.20, 0.24]], "c": "#3a1414"},
+              {"k": "poly", "pts": [[-0.24, 0.11], [0.24, 0.11], [0.21, 0.17], [-0.21, 0.17]],
+               "c": "#ffffff"},
+              {"k": "line", "x1": -0.12, "y1": 0.11, "x2": -0.12, "y2": 0.17, "w": 0.012, "c": "#c8b8a8"},
+              {"k": "line", "x1": 0.0, "y1": 0.11, "x2": 0.0, "y2": 0.17, "w": 0.012, "c": "#c8b8a8"},
+              {"k": "line", "x1": 0.12, "y1": 0.11, "x2": 0.12, "y2": 0.17, "w": 0.012, "c": "#c8b8a8"},
+              {"k": "ellipse", "x": -0.06, "y": 0.14, "w": 0.07, "h": 0.04, "c": "#5a3018"},
+              {"k": "ellipse", "x": 0.17, "y": 0.13, "w": 0.05, "h": 0.03, "c": "#5a3018"},
+              {"k": "poly", "pts": [[-0.40, -0.30], [-0.36, -0.20], [-0.40, -0.16], [-0.44, -0.20]],
+               "c": "#7ac8ff"},
+          ], "rare")
+
+# =============================================================== clothes
+EA25.shirt("chocolatiers_whites", "Chocolatier's Whites",
+           "A double-breasted chef's coat, starched white, with knotted cloth buttons, a "
+           "thermometer in the breast pocket, the shop's name stitched in brown, and "
+           "one perfect chocolate handprint on the side where somebody leant on you "
+           "to taste the ganache.",
+           {"torso": EA25_CHEF, "arms": EA25_CHEF, "decal": "ea25_chefcoat"},
+           "rare")
+EA25.pants("houndstooth", "Houndstooth Kitchen Trousers",
+           "Baggy black-and-white houndstooth, the chef's own, with an elasticated "
+           "waist for the tasting and clogs underneath for the hot chocolate on the "
+           "floor.",
+           {"legs": "#efece4", "weave": "ea25_houndstooth", "cuff": "#2a2420"})
+EA25.belt("cocoa_bean_belt", "Cocoa-Bean Belt",
+          "Milk-chocolate leather tooled all the way round with cocoa beans, a gold-foil "
+          "buckle you could unwrap, and two pouches for the samples you are definitely "
+          "taking home to try later.",
+          {"band": EA25_MILK, "buckle": EA25_FOIL, "width": 0.21, "metal": True,
+           "weave": "ea25_cocoabean", "pouch": True})
+
+
+# ================================================================ weapons
+@EA25.weapon("fondue_fork", "The Fondue Fork",
+             "A fondue fork long enough to reach the pot from the next room. Every jab "
+             "dips whoever is on the end of it in chocolate, which sets, and you get "
+             "the strawberry. Two can play at fondue. Only one of you has the fork.",
+             {"kind": "melee", "damage": 26, "headshot": 1.0, "rpm": 90, "range": 11.0,
+              "arc": 0.40, "sound": "sword", "knockback": 3, "lifesteal": 0.40,
+              "on_hit": {"slow": [0.25, 2.0]}},
+             [["+", "Every jab coats them in chocolate that sets: 25% slower for 2 seconds"],
+              ["+", "You eat what you dip: heals you for 40% of the damage it does"],
+              ["-", "26 damage a jab"],
+              ["-", "A narrow stab, not a swing: easy to miss"]], rarity="legendary")
+def _():
+    parts = [
+        # the handle: turned wood with a red knob, a brass ferrule
+        part("cyl", [0, 0, 0.02], [0.13, 0.46, 0.13], EA25_WOOD, [PI / 2, 0, 0], decal="planks",
+             wrap=True),
+        part("sph", [0, 0, -0.24], [0.18, 0.18, 0.18], EA25_RUBY, m="glass"),
+        part("cyl", [0, 0, 0.27], [0.16, 0.06, 0.16], BRASS, [PI / 2, 0, 0], m="metal"),
+        # the long steel shaft and its three barbed prongs
+        part("cyl", [0, 0, 0.86], [0.05, 1.16, 0.05], SILVER, [PI / 2, 0, 0], m="metal"),
+        rod([0, 0, 1.42], [0, 0, 1.92], 0.025, SILVER, m="metal"),
+        rod([0.01, 0, 1.42], [0.08, 0, 1.88], 0.025, SILVER, m="metal"),
+        rod([-0.01, 0, 1.42], [-0.08, 0, 1.88], 0.025, SILVER, m="metal"),
+        # a marshmallow, and a strawberry on the end, both dipped
+        part("cyl", [0, 0, 1.30], [0.20, 0.20, 0.20], "#fff4f0", [PI / 2, 0, 0]),
+        part("cyl", [0, 0, 1.36], [0.205, 0.08, 0.205], EA25_MILK, [PI / 2, 0, 0], m="glass"),
+    ]
+    parts += _ea25_berry([0, 0, 1.52], 1.25, "fwd")
+    parts += _ea25_drip([0, -0.10, 1.80], 0.10, 0.04, EA25_DARK)
+    return parts
+
+
+@EA25.weapon("truffle_lobber", "Truffle Lobber",
+             "A copper truffle scoop on a spring, the sort the chocolatier rolls them "
+             "with. Thumb the lever and it flings one -- and a moment out the cocoa "
+             "shell cracks and three molten-centred truffles fly on, hot enough to "
+             "burn.",
+             {"kind": "projectile", "projectile": "truffle", "damage": 18, "splash": 3.0,
+              "splash_damage": 16, "rpm": 50, "mag": 2, "reload": 2.4, "speed": 56,
+              "range": 220, "auto": False, "sound": "throw", "recoil": 0.9, "reserve": 20,
+              "gravity_scale": 1.05, "self_damage": 0.0, "knockback": 5,
+              "split": {"after": 0.32, "count": 3, "spread": 8, "damage": 12, "splash_damage": 12},
+              "on_hit": {"burn": [5, 3.0]},
+              "trail_colors": ["#7a4626", "#f0be2c"]},
+             [["+", "A moment out of the scoop it cracks into three truffles that fan out"],
+              ["+", "Molten centres: everyone they splash burns, 5 a second for 3 seconds"],
+              ["-", "Each truffle is small: 12, in a 3 stud splash"],
+              ["-", "Two in the scoop, then a slow reload"]], rarity="legendary",
+             proj=lambda: _ea25_truffle([0, 0, 0], 0.46, EA25_DARK, "cocoa"))
+def _():
+    copper, m = EA25_COPPER, "metal"
+    parts = [
+        # the grip and the spring lever on top of it
+        part("cyl", [0, -0.04, 0.0], [0.16, 0.48, 0.16], copper, [PI / 2 - 0.2, 0, 0], m=m,
+             decal="ea25_hammered", wrap=True),
+        part("sph", [0, -0.09, -0.24], [0.18, 0.18, 0.18], shade(copper, 0.85), m=m),
+        place("spiral", [0, 0.11, 0.06], [0.11, 0.16, 0.11], SILVER, r=[PI / 2, 0, 0], m=m),
+        rod([0, 0.10, -0.08], [0, 0.20, 0.40], 0.04, SILVER, m=m),
+        part("rbox", [0, 0.22, 0.42], [0.10, 0.04, 0.10], SILVER, m=m),
+        # the neck up to the scoop, and the scoop itself, open forward
+        rod([0, 0.0, 0.22], [0, 0.10, 0.62], 0.08, copper, m=m),
+        place("bowl", [0, 0.12, 0.80], [0.56, 0.62, 0.56], copper, anchor=[0, 0.3, 0], r=[0.95, 0, 0],
+              m=m, decal="ea25_hammered", wrap=True),
+        part("rbox", [0, 0.16, 0.79], [0.48, 0.02, 0.04], SILVER, [0.95, 0, 0], m=m),
+        # two more truffles, in the clip down its side
+        part("rbox", [0.13, -0.04, 0.20], [0.04, 0.14, 0.42], copper, m=m),
+    ]
+    parts += _ea25_truffle([0, 0.20, 0.86], 0.34, EA25_DARK, "cocoa")
+    parts += _ea25_truffle([0.21, -0.04, 0.10], 0.17, EA25_MILK, "cocoa")
+    parts += _ea25_truffle([0.21, -0.04, 0.30], 0.17, EA25_DARK, "cocoa")
+    return parts
+
+
+@EA25.weapon("piping_bag", "The Piping Bag",
+             "A canvas piping bag of warm ganache with a star nozzle on the end. One good "
+             "squeeze pipes a great wide rosette of it over everybody in front of you, "
+             "and it sets the moment it hits: on their boots, on the floor, on their "
+             "plans to jump out of the way.",
+             {"kind": "cone", "damage": 10, "rpm": 50, "mag": 5, "reload": 2.6, "range": 14.0,
+              "auto": False, "sound": "splat", "recoil": 0.5, "reserve": 30,
+              "cone": {"angle": 0.52, "color": "#5a3420"},
+              "on_hit": {"jumpless": 3.0, "slow": [0.35, 3.0]}},
+             [["+", "A wide squirt: everyone in it is stuck to the floor and cannot jump "
+                    "for 3 seconds"],
+              ["+", "...and wades through it: 35% slower for 3 seconds"],
+              ["-", "10 damage a squeeze"],
+              ["-", "14 studs, and five squeezes to a bag"]], rarity="legendary")
+def _():
+    canvas = "#f2ece0"
+    parts = [
+        # the bag, fat at the back where your hand is and tapering forward
+        place("teardrop", [0, 0.02, -0.30], [0.56, 1.16, 0.50], canvas, anchor=[0, 0, 0],
+              r=[PI / 2, 0, 0], decal="canvas", wrap=True),
+        # the twist where it is closed at the back, and its tail
+        part("torus", [0, 0.02, -0.30], [0.30, 0.6, 0.30], shade(canvas, 0.9), [PI / 2, 0, 0]),
+        part("torus", [0, 0.02, -0.36], [0.22, 0.6, 0.22], shade(canvas, 0.85), [PI / 2, 0.4, 0]),
+        place("teardrop", [0, 0.02, -0.38], [0.18, 0.24, 0.16], shade(canvas, 0.92), anchor=[0, 0, 0],
+              r=[-PI / 2, 0, 0.3]),
+        # chocolate showing through near the front, the steel nozzle
+        part("sph", [0, 0.02, 0.62], [0.20, 0.20, 0.30], EA25_MILK, a=0.55),
+        place("cone", [0, 0.02, 0.88], [0.17, 0.22, 0.17], SILVER, r=[PI / 2, 0, 0], m="metal"),
+        place("star", [0, 0.02, 0.99], [0.12, 0.12, 0.30], SILVER, m="metal"),
+        # the ganache coming out of it, curling down
+        part("capsule", [0, -0.02, 1.06], [0.07, 0.12, 0.07], EA25_DARK, [PI / 2 + 0.6, 0, 0], m="glass"),
+    ]
+    parts += _ea25_drip([0, -0.06, 1.10], 0.06, 0.05, EA25_DARK)
+    return parts
+
+
+@EA25.gear("sharing_bar", "The Sharing Bar",
+           "A family-size bar of milk chocolate, peeled out of its foil and snapped into "
+           "squares to pass round. Everyone near gets a square. You get the big bit, "
+           "with the sugar rush in it.",
+           {"kind": "consume", "cooldown": 22, "sound": "eat",
+            "consume": {"heal": 30, "share": 12, "might": [0.15, 6.0]}},
+           [["+", "Heals you 30 at once, and everyone on your side within 12 studs 15"],
+            ["+", "The sugar rush: you hit 15% harder for 6 seconds"],
+            ["-", "Only you get the rush"],
+            ["-", "22 second cooldown"]], rarity="rare")
+def _():
+    return [
+        # the bar, squares moulded on it, two squares snapped off the front
+        part("rbox", [0, 0.06, 0.34], [0.46, 0.08, 0.70], EA25_MILK, decal="ea25_chocbar", wrap=True,
+             m="glass"),
+        part("rbox", [0.115, 0.06, 0.76], [0.23, 0.08, 0.15], EA25_MILK, decal="ea25_chocbar", m="glass"),
+        # its paper sleeve and the gold foil peeled back out of it
+        part("rbox", [0, 0.06, 0.06], [0.50, 0.11, 0.52], "#3a62b0", decal="ea25_barlabel", wrap=True),
+        part("rbox", [0, 0.115, 0.36], [0.47, 0.012, 0.12], EA25_FOIL, [0.35, 0, 0.04], m="metal",
+             decal="ea25_foil"),
+        part("rbox", [0, 0.005, 0.38], [0.47, 0.012, 0.14], EA25_FOIL, [-0.40, 0, -0.05], m="metal",
+             decal="ea25_foil"),
+        part("rbox", [0.24, 0.06, 0.36], [0.012, 0.10, 0.12], EA25_FOIL, [0, 0.3, 0], m="metal"),
+    ]
+
+
+# =============================================================== effects
+EA25.effect("melting_point", name="Melting Point", rate=2.6, life=[1.2, 1.7],
+            size=[0.22, 0.36], grow=-0.05, gravity=-1.6, spread=0.20, rise=[-0.25, 0.05],
+            blend="normal", spin=0.0, colors=["#7a4626", "#5a3018", "#3c2014"],
+            shapes=["ea25_drip", "ea25_drip", "ea25_drop"], radius=0.75, upright=True,
+            wobble=0.1)
+EA25.effect("gold_leaf", name="Gold Leaf", rate=2.6, life=[2.2, 3.2],
+            size=[0.16, 0.28], grow=0.0, gravity=-0.12, spread=0.65, rise=[0.35, 0.65],
+            blend="normal", spin=2.4, colors=["#ffd36a", "#f0be2c", "#fff1b0"],
+            shapes=["ea25_leaf", "ea25_leaf", "sequin"], radius=0.8, wobble=0.9)
+EA25.opening(
+    sky={"top": "#24120a", "horizon": "#c8823a", "sun": [0.2, 0.25, 0.7], "clouds": 0.0,
+         "tint": "#ffe0b0"},
+    ambient="#ffcf9a", beam="#ffd36a", seep="gold_leaf", after="melting_point",
+    burst=["#f0be2c", "#7a4626", "#f4e6c6", "#c8202e"],
+    pieces=[{"shape": "ea25_square", "colors": ["#7a4626", "#3c2014", "#f4e6c6"], "blend": "normal"},
+            {"shape": "egg", "colors": ["#f0be2c", "#c8202e", "#3a72d0", "#2f9e5c"], "blend": "normal"},
+            {"shape": "ea25_truffle", "colors": ["#5a3018", "#3c2014", "#f4e6c6"], "blend": "normal"},
+            {"shape": "ea25_leaf", "colors": ["#ffd36a", "#f0be2c"], "blend": "normal"}],
+    backdrop="ea25_vault", title_wait="Four turns left, two turns right...",
+    title_shake="Click!")
+EA25.award("Choc-o-Lock", ["Nibbler", "Foil Peeler", "Truffle Hunter", "Safecracker",
+                           "Master Chocolatier", "Keeper of the Combination"],
+           "Opened Choc-o-Locks during the Choc-o-Lock, Easter 2025.", "em_chocolate", "egg")
+EA25.bundle("pair", "Choc-o-Lock and Key", 1, 1050, "One Choc-o-Lock, one Bitten Bunny Key.")
+EA25.bundle("selection", "The Selection Box", 3, 3000, "Three Choc-o-Locks, three keys. Saves 300.")
+
+
 # @@ EA25 Choc-o-Lock goes above this line @@
 
 # @@ EA26 Faberge Gala goes above this line @@
@@ -2117,7 +3059,7 @@ EVENTS = [EA22, EA23]
 EVENTS += [EA24]  # @@ EA24 @@
 
 # (EA25 adds itself to the list here)
-EVENTS += []  # @@ EA25 @@
+EVENTS += [EA25]  # @@ EA25 @@
 
 # (EA26 adds itself to the list here)
 EVENTS += []  # @@ EA26 @@

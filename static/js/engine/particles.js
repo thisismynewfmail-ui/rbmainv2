@@ -885,6 +885,44 @@
     }],
     // @@ ea24 particles go above this line @@
 
+    ['ea25_drip', function (c) {
+      // a run of melted chocolate, gathering into a drop at its foot
+      c.beginPath(); c.moveTo(48, 6); c.lineTo(80, 6);
+      c.bezierCurveTo(78, 40, 74, 62, 76, 84); c.bezierCurveTo(80, 104, 74, 120, 64, 120);
+      c.bezierCurveTo(54, 120, 48, 104, 52, 84); c.bezierCurveTo(54, 62, 50, 40, 48, 6); c.fill();
+      c.fillStyle = '#c8c8c8'; c.beginPath(); c.ellipse(58, 92, 4, 12, 0.1, 0, Math.PI * 2); c.fill();
+    }],
+    ['ea25_drop', function (c) {
+      // a falling drop, round at the bottom, a glint on it
+      c.beginPath(); c.moveTo(64, 14);
+      c.bezierCurveTo(72, 44, 94, 64, 94, 86); c.bezierCurveTo(94, 106, 80, 118, 64, 118);
+      c.bezierCurveTo(48, 118, 34, 106, 34, 86); c.bezierCurveTo(34, 64, 56, 44, 64, 14); c.fill();
+      c.fillStyle = '#d0d0d0'; c.beginPath(); c.ellipse(52, 86, 5, 11, 0.3, 0, Math.PI * 2); c.fill();
+    }],
+    ['ea25_leaf', function (c) {
+      // a flake of gold leaf: torn edges, a crease across it
+      poly(c, [[22, 30], [50, 18], [70, 26], [98, 16], [110, 44], [102, 70], [112, 98], [80, 110],
+               [56, 102], [30, 112], [20, 84], [28, 60]]);
+      c.fillStyle = '#b8b8b8';
+      poly(c, [[50, 18], [70, 26], [64, 60], [80, 110], [56, 102], [58, 64]]);
+    }],
+    ['ea25_square', function (c) {
+      // one square snapped off the bar, bevelled
+      c.fillRect(18, 18, 92, 92);
+      c.fillStyle = '#e0e0e0';
+      poly(c, [[18, 18], [110, 18], [94, 34], [34, 34], [34, 94], [18, 110]]);
+      c.fillStyle = '#9a9a9a';
+      poly(c, [[110, 18], [110, 110], [18, 110], [34, 94], [94, 94], [94, 34]]);
+    }],
+    ['ea25_truffle', function (c) {
+      // a truffle in its little fluted paper case
+      dot(c, 64, 54, 34);
+      c.fillStyle = '#a0a0a0';
+      poly(c, [[24, 70], [104, 70], [96, 112], [32, 112]]);
+      c.fillStyle = '#808080';
+      for (var x = 34; x < 100; x += 10) c.fillRect(x, 74, 3, 36);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(50, 40, 8, 5, -0.6, 0, Math.PI * 2); c.fill();
+    }],
     // @@ ea25 particles go above this line @@
 
     // @@ ea26 particles go above this line @@
