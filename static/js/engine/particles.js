@@ -829,6 +829,23 @@
         c.stroke();
       }
     }],
+    ['sp26_haha', function (c) {
+      // HA!, in fat letters, tipped back as if it were laughing
+      c.save(); c.translate(64, 64); c.rotate(-0.18);
+      c.font = 'bold 58px Impact, Verdana, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 8; c.strokeStyle = '#8c8c8c'; c.strokeText('HA!', 0, 4);
+      c.fillText('HA!', 0, 4);
+      c.restore();
+    }],
+    ['sp26_spring', function (c) {
+      // a coiled spring, the kind a jack sits on
+      c.lineWidth = 9; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(34, 112);
+      for (var k = 0; k < 7; k++) c.lineTo(k % 2 ? 34 : 94, 100 - k * 14);
+      c.lineTo(64, 12); c.stroke();
+      c.beginPath(); c.arc(64, 14, 10, 0, Math.PI * 2); c.fill();
+    }],
     // @@ sp26 particles go above this line @@
 
     // @@ stpatricks particles go above this line @@
@@ -868,8 +885,76 @@
     }],
     // @@ ea24 particles go above this line @@
 
+    ['ea25_drip', function (c) {
+      // a run of melted chocolate, gathering into a drop at its foot
+      c.beginPath(); c.moveTo(48, 6); c.lineTo(80, 6);
+      c.bezierCurveTo(78, 40, 74, 62, 76, 84); c.bezierCurveTo(80, 104, 74, 120, 64, 120);
+      c.bezierCurveTo(54, 120, 48, 104, 52, 84); c.bezierCurveTo(54, 62, 50, 40, 48, 6); c.fill();
+      c.fillStyle = '#c8c8c8'; c.beginPath(); c.ellipse(58, 92, 4, 12, 0.1, 0, Math.PI * 2); c.fill();
+    }],
+    ['ea25_drop', function (c) {
+      // a falling drop, round at the bottom, a glint on it
+      c.beginPath(); c.moveTo(64, 14);
+      c.bezierCurveTo(72, 44, 94, 64, 94, 86); c.bezierCurveTo(94, 106, 80, 118, 64, 118);
+      c.bezierCurveTo(48, 118, 34, 106, 34, 86); c.bezierCurveTo(34, 64, 56, 44, 64, 14); c.fill();
+      c.fillStyle = '#d0d0d0'; c.beginPath(); c.ellipse(52, 86, 5, 11, 0.3, 0, Math.PI * 2); c.fill();
+    }],
+    ['ea25_leaf', function (c) {
+      // a flake of gold leaf: torn edges, a crease across it
+      poly(c, [[22, 30], [50, 18], [70, 26], [98, 16], [110, 44], [102, 70], [112, 98], [80, 110],
+               [56, 102], [30, 112], [20, 84], [28, 60]]);
+      c.fillStyle = '#b8b8b8';
+      poly(c, [[50, 18], [70, 26], [64, 60], [80, 110], [56, 102], [58, 64]]);
+    }],
+    ['ea25_square', function (c) {
+      // one square snapped off the bar, bevelled
+      c.fillRect(18, 18, 92, 92);
+      c.fillStyle = '#e0e0e0';
+      poly(c, [[18, 18], [110, 18], [94, 34], [34, 34], [34, 94], [18, 110]]);
+      c.fillStyle = '#9a9a9a';
+      poly(c, [[110, 18], [110, 110], [18, 110], [34, 94], [94, 94], [94, 34]]);
+    }],
+    ['ea25_truffle', function (c) {
+      // a truffle in its little fluted paper case
+      dot(c, 64, 54, 34);
+      c.fillStyle = '#a0a0a0';
+      poly(c, [[24, 70], [104, 70], [96, 112], [32, 112]]);
+      c.fillStyle = '#808080';
+      for (var x = 34; x < 100; x += 10) c.fillRect(x, 74, 3, 36);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(50, 40, 8, 5, -0.6, 0, Math.PI * 2); c.fill();
+    }],
     // @@ ea25 particles go above this line @@
 
+    ['ea26_gem', function (c) {
+      // a cut stone: the table on top and the facets running down to the point
+      poly(c, [[34, 30], [94, 30], [118, 54], [64, 120], [10, 54]]);
+      c.fillStyle = '#e8e8e8'; poly(c, [[46, 30], [82, 30], [94, 54], [34, 54]]);
+      c.fillStyle = '#b8b8b8'; poly(c, [[10, 54], [34, 54], [64, 120]]);
+      c.fillStyle = '#d0d0d0'; poly(c, [[94, 54], [118, 54], [64, 120]]);
+      c.fillStyle = '#ffffff'; poly(c, [[50, 34], [64, 34], [54, 48]]);
+    }],
+    ['ea26_pearl', function (c) {
+      // a pearl, with its soft sheen
+      dot(c, 64, 64, 44);
+      c.fillStyle = '#c8c8c8'; c.beginPath(); c.arc(70, 72, 34, 0.2, 2.6); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.ellipse(48, 46, 12, 8, -0.6, 0, Math.PI * 2); c.fill();
+    }],
+    ['ea26_gear', function (c) {
+      // a clock wheel: teeth round the rim, four spokes, the arbor in the middle
+      c.save(); c.translate(64, 64);
+      for (var k = 0; k < 14; k++) {
+        c.rotate(Math.PI * 2 / 14); c.fillRect(-7, -56, 14, 16);
+      }
+      c.beginPath(); c.arc(0, 0, 44, 0, Math.PI * 2); c.fill();
+      c.globalCompositeOperation = 'destination-out';
+      for (k = 0; k < 4; k++) {
+        c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 34, k * Math.PI / 2 + 0.28, (k + 1) * Math.PI / 2 - 0.28);
+        c.closePath(); c.fill();
+      }
+      c.globalCompositeOperation = 'source-over';
+      c.beginPath(); c.arc(0, 0, 10, 0, Math.PI * 2); c.fill();
+      c.restore();
+    }],
     // @@ ea26 particles go above this line @@
 
     // @@ easter particles go above this line @@
@@ -942,6 +1027,55 @@
     }],
     // @@ christmas particles go above this line @@
 
+    // pets (static/js/game/pets.js): what floats up over a pet's head
+    ['pet_heart', function (c) {
+      // a pixel heart, in the same blocks as her face
+      var px = 14, rows = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
+      rows.forEach(function (row, r) {
+        for (var k = 0; k < row.length; k++) {
+          if (row.charAt(k) === 'X') c.fillRect(15 + k * px, 22 + r * px, px, px);
+        }
+      });
+    }],
+    ['pet_zzz', function (c) {
+      poly(c, [[24, 22], [104, 22], [104, 40], [52, 88], [104, 88], [104, 106], [24, 106],
+               [24, 88], [76, 40], [24, 40]]);
+    }],
+    ['pet_bang', function (c) {
+      poly(c, [[50, 10], [78, 10], [72, 80], [56, 80]]);
+      c.fillRect(52, 94, 24, 24);
+    }],
+    ['pet_quest', function (c) {
+      c.lineWidth = 18; c.lineCap = 'butt'; c.strokeStyle = '#fff';
+      c.beginPath(); c.arc(64, 42, 26, Math.PI * 1.05, Math.PI * 2.35); c.stroke();
+      c.fillRect(55, 62, 18, 24);
+      c.fillRect(55, 96, 18, 18);
+    }],
+    ['pet_sweat', function (c) {
+      c.beginPath(); c.moveTo(64, 12);
+      c.bezierCurveTo(96, 60, 100, 112, 64, 112);
+      c.bezierCurveTo(28, 112, 32, 60, 64, 12); c.fill();
+    }],
+    ['pet_anger', function (c) {
+      // the anime cross vein: four bent strokes round a gap
+      c.lineWidth = 14; c.lineCap = 'round'; c.strokeStyle = '#fff';
+      [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (q) {
+        var sx = q[0] ? 1 : -1, sy = q[1] ? 1 : -1;
+        c.beginPath();
+        c.moveTo(64 + sx * 14, 64 + sy * 44);
+        c.quadraticCurveTo(64 + sx * 14, 64 + sy * 14, 64 + sx * 44, 64 + sy * 14);
+        c.stroke();
+      });
+    }],
+    ['pet_dots', function (c) {
+      // a speech bubble with three dots in it
+      c.beginPath(); c.ellipse(64, 56, 54, 38, 0, 0, Math.PI * 2); c.fill();
+      poly(c, [[40, 84], [30, 116], [62, 90]]);
+      punch(c, function () {
+        [36, 64, 92].forEach(function (x) { c.beginPath(); c.arc(x, 56, 9, 0, Math.PI * 2); c.fill(); });
+      });
+    }],
+    ['pet_pixel', function (c) { c.fillRect(34, 34, 60, 60); }],
     ['_end', function () {}]
   ];
 

@@ -649,7 +649,6 @@ dl.stats dd {
   font-variant-numeric: tabular-nums;
 }
 dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.p-horde { margin: 6px 0 0; text-align: center; }
 
 /* ------------------------------------------------------------- online dots */
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgba(0,0,0,.3); }
@@ -743,6 +742,9 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   0%        { transform: translateX(-180%) skewX(-10deg); }
   55%, 100% { transform: translateX(400%) skewX(-10deg); }
 }
+/* Pinned items sit still: the pin row (on the profile and in the pin editor)
+   shows the tier by its border and plate, not the sweep. */
+.pinrow .item::after { content: none; animation: none; }
 .item .thumb { width: 92%; height: auto; aspect-ratio: 1 / 1; display: block; image-rendering: auto; }
 .item .meta { padding: 6px 7px; min-width: 0; }
 .item .iname { font-weight: bold; font-size: 11px; display: block; margin-bottom: 2px;

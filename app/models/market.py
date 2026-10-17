@@ -18,7 +18,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .. import db
-from . import catalog, crates, inventory
+from . import catalog, crates, inventory, pets
 
 # Things you can hold several of and buy several of at once.
 STACKABLE = set(catalog.STASH_SLOTS)
@@ -55,7 +55,10 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
     def age(it: Dict[str, Any]) -> str:
         return crates.event_state(it.get("event", ""), now)
 
-    items = [it for it in catalog.ALL_ITEMS if crates.for_sale(it, now)]
+    # pets and their wardrobe have a shelf of their own (pets.shelf), so the
+    # everyday aisles leave them out -- unless a search goes looking
+    items = [it for it in catalog.ALL_ITEMS if crates.for_sale(it, now)
+             and (not it.get("pet") or term)]
     if not archive:
         items = [it for it in items if age(it) != "past"]
     if slot and slot not in ("all", "featured"):
@@ -149,6 +152,10 @@ def purchase(user_id: int, item_id: str, qty: int = 1) -> Dict[str, Any]:
         raise MarketError("That item is not for sale.")
     if price == 0 and inventory.owns_item(user_id, item_id):
         raise MarketError("You already own %s." % item["name"])
+    # one of each pet, and one of each thing a pet wears (every pet you own
+    # can wear it)
+    if item.get("pet") and inventory.owns_item(user_id, item_id):
+        raise MarketError("You already have %s." % item["name"])
     try:
         qty = int(qty or 1)
     except (TypeError, ValueError):
@@ -188,6 +195,8 @@ def purchase(user_id: int, item_id: str, qty: int = 1) -> Dict[str, Any]:
 
     db.audit(user_id, "market.purchase", item_id,
              {"price": price, "qty": qty, "inv_ids": inv_ids})
+    if item["slot"] == pets.PET_SLOT:
+        pets.adopted(user_id, inv_ids[-1])
     return {
         "inv_id": inv_ids[-1], "inv_ids": inv_ids, "item_id": item_id,
         "name": item["name"], "slot": item["slot"], "price": price, "qty": qty,

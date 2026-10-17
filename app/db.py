@@ -311,6 +311,19 @@ CREATE TABLE IF NOT EXISTS meta (
 -- Synthetic players.  The account itself is an ordinary ``users`` row (so a
 -- bot has a profile, an inventory, friends and a wall like anybody else) and
 -- carries ``users.is_bot = 1``; everything that only a bot has lives here.
+-- A pet's name, look, persona tags and outfit, keyed on the inventory row
+-- that is the pet (app/models/pets.py).
+CREATE TABLE IF NOT EXISTS pets (
+    inv_id      INTEGER PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL DEFAULT '',
+    colors      TEXT NOT NULL DEFAULT '{}',
+    tags        TEXT NOT NULL DEFAULT '[]',
+    equipped    TEXT NOT NULL DEFAULT '{}',
+    updated_at  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_pets_user ON pets(user_id);
+
 CREATE TABLE IF NOT EXISTS bot_profiles (
     user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     tags        TEXT NOT NULL DEFAULT '',
@@ -384,6 +397,8 @@ MIGRATIONS = [
     # The profile's Kills are other players; the infected cut down in Last
     # Light are counted on their own (see AFTER_ADDING below).
     ("game_stats", "zkills", "INTEGER NOT NULL DEFAULT 0"),
+    # The pet who follows the player about: an inventory row, 0 for none.
+    ("avatars", "pet", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 # Data to move when a column first appears.  Until zkills existed every

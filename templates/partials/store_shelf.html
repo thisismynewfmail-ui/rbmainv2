@@ -13,7 +13,7 @@
 {% else %}
 <article class="vt-shelf theme-{{ sh.theme }}" id="ed-{{ sh.id }}" data-series="{{ sh.id }}" data-state="{{ sh.state }}" data-title="{{ sh.title }}{{ (' · ' + sh.holiday_name + ' ' + str(sh.year)) if sh.event else '' }}" style="--accent:{{ sh.colors.accent }};--glow:{{ sh.colors.glow }};--acc-ink:{{ sh.ink }}">
   <div class="vt-plaque"><b>{{ (sh.ordinal + ' · ' + str(sh.year)) if sh.event else 'ALWAYS' }}</b>{% if sh.state == 'live' %}<i class="vt-chip live">{{ 'LAST CALL' if sh.last_call else 'LIVE · ' + str(sh.days_left) + 'd left' }}</i>{% elif sh.state == 'past' %}<i class="vt-chip arc">ARCHIVE</i>{% else %}<i class="vt-chip always">ALWAYS ON</i>{% endif %}</div>
-  <div class="mk-show-art" data-tilt="1"><canvas class="item-thumb" width="200" height="200" data-item="{{ sh.crate }}"></canvas><span class="mk-shine"></span>{% if owned.get(sh.crate) %}<i class="mk-owned" data-owned="{{ sh.crate }}">x{{ owned.get(sh.crate) }}</i>{% endif %}</div>
+  <div class="mk-show-art" data-tilt="1"><canvas class="item-thumb" width="200" height="200" data-item="{{ sh.crate }}"></canvas>{% if owned.get(sh.crate) %}<i class="mk-owned" data-owned="{{ sh.crate }}">x{{ owned.get(sh.crate) }}</i>{% endif %}</div>
   <div class="vt-hook"><canvas class="item-thumb" width="90" height="90" data-item="{{ sh.key }}"></canvas>{% if owned.get(sh.key) %}<i class="mk-owned" data-owned="{{ sh.key }}">x{{ owned.get(sh.key) }}</i>{% endif %}</div>
   <div class="vt-info">
     <b class="vt-shelf-title">{{ sh.title }}</b><small class="vt-shelf-sub">{{ sh.crate_name }} · {{ sh.tagline }}</small>

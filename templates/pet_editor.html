@@ -1,0 +1,139 @@
+{% include "partials/head.html" %}
+{#  EDIT PET -- which of your pets follows you, and what she is like: her
+    name, her persona tags (which decide how she behaves in a world), her
+    six colours and her outfit.  Everything saves as you change it
+    (pet_editor.js -> /api/pets/save).  The page is drawn for the chosen
+    pet; switching pets happens in place, from the boot payload below.
+    Loop names: pp, tg, ck, sw, sl, it -- never a context name. #}
+<div class="row pet-row pe" id="pet-editor">
+  <div class="col-side">
+    <div class="panel pe-preview">
+      <div class="panel-head">Pet preview</div>
+      <div class="panel-body">
+        <div class="pe-stage" style="--pc:{{ current.colors.hair }};--po:{{ current.colors.outfit }};--pa:{{ current.colors.accent }}">
+          <canvas class="pt-live" id="pe-stage" width="420" height="490" data-dist="7.2" data-focus="1.5"
+                  data-pet="{{ to_json(current_pet) }}" aria-label="Your pet, animated"></canvas>
+          <span class="hint">drag to turn her</span>
+          <span class="pe-active-badge{{ '' if active == chosen else ' hidden' }}" id="pe-active-badge"><span class="pet-paw" aria-hidden="true"></span> Active pet</span>
+        </div>
+        <div class="pe-acts" role="group" aria-label="Make her do something">
+          {% for tg in [['wave', 'Wave'], ['twirl', 'Twirl'], ['cheer', 'Cheer'], ['dance', 'Dance'], ['pose', 'Pose'], ['heart', 'Heart'], ['sit', 'Sit'], ['sleep', 'Nap']] %}
+          <button type="button" class="btn small" data-act="{{ tg[0] }}">{{ tg[1] }}</button>
+          {% endfor %}
+        </div>
+        <button type="button" class="btn primary big block" id="pe-activate"
+                {{ 'disabled' if active == chosen else '' }}>{{ 'Following you' if active == chosen else 'Set as Active Pet' }}</button>
+        <p class="tiny muted center" id="pe-status" aria-live="polite" style="margin-top:6px">Changes save as you make them.</p>
+        <a class="btn small block" href="/profile/{{ user.username }}" style="margin-top:4px">View profile</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel pe-mine">
+      <div class="panel-head">
+        <span>My pets</span>
+        <span class="head-links"><a href="/market/pets">Visit the Pet Shop</a></span>
+      </div>
+      <div class="panel-body">
+        <div class="pe-pets" role="listbox" aria-label="Choose a pet to edit">
+          {% for pp in boot.pets %}
+          <button type="button" role="option" class="pe-pet{{ ' on' if pp.inv_id == chosen else '' }}" data-pet-id="{{ pp.inv_id }}"
+                  aria-selected="{{ 'true' if pp.inv_id == chosen else 'false' }}">
+            <canvas class="pe-pet-thumb" width="120" height="140" data-pet-thumb="{{ pp.inv_id }}"></canvas>
+            <b data-pet-name="{{ pp.inv_id }}">{{ pp.name }}</b>
+            <small>{{ pp.species_name }}</small>
+            <span class="pe-pet-active{{ '' if pp.inv_id == active else ' hidden' }}" data-pet-active="{{ pp.inv_id }}">Active</span>
+          </button>
+          {% endfor %}
+          <button type="button" class="pe-pet pe-none{{ ' on-none' if not active else '' }}" id="pe-unset"
+                  title="Nobody follows you around">
+            <span class="pe-none-art" aria-hidden="true">&#8856;</span>
+            <b>No pet</b><small>{{ 'nobody follows you' if not active else 'leave her at home' }}</small>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel pe-who">
+      <div class="panel-head green">Name &amp; persona</div>
+      <div class="panel-body">
+        <div class="field">
+          <label for="pe-name">Her name</label>
+          <input type="text" id="pe-name" maxlength="{{ name_max }}" value="{{ current.name }}" autocomplete="off"
+                 spellcheck="false" placeholder="{{ current.species_name }}">
+        </div>
+        <div class="spread">
+          <label style="margin:0">Persona tags</label>
+          <span class="pill" id="pe-tag-count">{{ len(current.tags) }}/{{ max_tags }}</span>
+        </div>
+        <p class="tiny muted" style="margin:4px 0 8px">Pick up to {{ max_tags }}. They decide how she behaves when she
+          follows you &mdash; hover (or tap) one to see what it does.</p>
+        <div class="pe-tags" role="group" aria-label="Persona tags">
+          {% for tg in tag_options %}
+          <button type="button" class="ptag ptag-{{ tg.id }} pe-tag{{ ' on' if tg.id in current.tags else '' }}" data-tag="{{ tg.id }}"
+                  data-tip="{{ tg.blurb }}" aria-pressed="{{ 'true' if tg.id in current.tags else 'false' }}">{{ tg.name }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel pe-colors">
+      <div class="panel-head gold">
+        <span>Colours</span>
+        <span class="head-links"><a href="#" id="pe-reset">Reset to her own colours</a></span>
+      </div>
+      <div class="panel-body" id="pe-color-grid">
+        {% for ck in color_keys %}
+        <div class="field pe-color" data-color-key="{{ ck }}">
+          <div class="spread">
+            <label style="margin:0" for="pe-pick-{{ ck }}">{{ color_labels[ck] }}</label>
+            <span class="pe-pickwrap"><input type="color" id="pe-pick-{{ ck }}" value="{{ current.colors[ck] }}" data-pick="{{ ck }}">
+              <span class="pill" data-hex="{{ ck }}">{{ current.colors[ck] }}</span></span>
+          </div>
+          <div class="swatches" data-part="{{ ck }}">
+            {% for sw in palette %}<span class="swatch{{ ' on' if current.colors[ck] == sw.hex else '' }}" style="background:{{ sw.hex }}"
+              title="{{ sw.name }}" data-color="{{ sw.hex }}" role="button" tabindex="0"></span>{% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="panel pe-ward">
+      <div class="panel-head">
+        <span>Wardrobe</span>
+        <span class="head-links"><a href="/market/pets#wardrobe">Get more for her</a></span>
+      </div>
+      <div class="panel-body">
+        <div class="tabs" id="pe-slot-tabs">
+          {% for sl in slots %}
+          <a data-slot-tab="{{ sl }}" class="{{ 'on' if loop.first else '' }}" href="#" role="tab">{{ slot_labels[sl] }}</a>
+          {% endfor %}
+        </div>
+        {% for sl in slots %}
+        <div class="slotpanel {{ '' if loop.first else 'hidden' }}" data-slot-panel="{{ sl }}">
+          <div class="slotpick">
+            <div class="pick {{ 'on' if not current.equipped.get(sl) else '' }}" data-wear="0" data-slot="{{ sl }}" tabindex="0" role="button">
+              <canvas width="128" height="128"></canvas><span>None</span>
+            </div>
+            {% for it in by_slot.get(sl, []) %}
+            <div class="pick {{ 'on' if current.equipped.get(sl) == it.inv_id else '' }}" data-wear="{{ it.inv_id }}" data-slot="{{ sl }}"
+                 data-item-id="{{ it.item_id }}" title="{{ it.name }}" tabindex="0" role="button">
+              <canvas width="128" height="128" class="item-thumb" data-item="{{ it.item_id }}"></canvas>
+              <span>{{ it.name }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% if not by_slot.get(sl, []) %}
+          <p class="muted" style="margin-top:8px">Nothing for this yet &mdash;
+             <a href="/market/pets?slot={{ sl }}#wardrobe">see what the Pet Shop has</a>.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+<script type="application/json" id="pe-boot">{{& to_json(boot) }}</script>
+{% include "partials/foot.html" %}

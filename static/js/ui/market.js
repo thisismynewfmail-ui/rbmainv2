@@ -172,8 +172,8 @@
     });
   }
 
-  // --------------------------------------------------------- tilt + shine
-  /* Cards lean towards the pointer and a sheen follows it across, so the
+  // ---------------------------------------------------------------- tilt
+  /* Cards lean towards the pointer, so the
      shelf feels like it has things on it rather than pictures of things. */
   function bindTilt() {
     if (reduced() || !window.matchMedia('(hover: hover)').matches) return;

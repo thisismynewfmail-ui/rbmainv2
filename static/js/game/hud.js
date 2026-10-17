@@ -611,7 +611,7 @@
     el('btn-defaults').addEventListener('click', function () {
       // display and audio only: somebody straightening out their render scale
       // should not lose the bindings they spent ten minutes on
-      ['renderScale', 'viewDistance', 'particles', 'showNames', 'volume']
+      ['renderScale', 'viewDistance', 'particles', 'showNames', 'showPets', 'volume']
         .forEach(function (key) { Settings[key] = Settings.DEFAULTS[key]; });
       Settings.save({ account: false });
       self.syncSettings();
@@ -644,6 +644,7 @@
     bindCheck('set-raw', 'rawMouse');
     bindCheck('set-particles', 'particles');
     bindCheck('set-names', 'showNames');
+    bindCheck('set-pets', 'showPets');
 
     // Aim settings ride up to the account; the display and audio ones are
     // this machine's business and stay out of the network entirely.
@@ -699,6 +700,7 @@
     check('set-raw', Settings.rawMouse !== false);
     check('set-particles', Settings.particles);
     check('set-names', Settings.showNames);
+    check('set-pets', Settings.showPets);
 
     function setValue(id, value, labelId, label) {
       var input = el(id);

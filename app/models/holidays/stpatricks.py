@@ -1780,8 +1780,8 @@ def _():
         part("rbox", [-0.50, 0, -0.10], [0.04, 0.04, 0.16], EBONY),
         part("sph", [-0.58, 0, 0.19], [0.08, 0.08, 0.04], EBONY),
         part("sph", [-0.50, 0, -0.19], [0.08, 0.08, 0.04], EBONY),
-        part("cyl", [0.08, 0, 0], [0.09, 0.84, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
-        part("torus", [-0.34, 0, 0], [0.18, 0.05, 0.18], GOLD, [0, 0, PI / 2], m="metal"),
+        part("cyl", [0.03, 0, 0], [0.09, 0.94, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.40, 0, 0], [0.18, 0.05, 0.18], GOLD, [0, 0, PI / 2], m="metal"),
         part("rbox", [0.38, -0.12, 0], [0.08, 0.20, 0.08], BRASS, m="metal"),
         part("rbox", [0.50, -0.10, 0], [0.08, 0.16, 0.08], BRASS, m="metal"),
     ]
@@ -2152,10 +2152,765 @@ SP25.award("Emerald Jamboree", ["Wallflower", "Toe Tapper", "Set Dancer", "Reel 
 SP25.bundle("pair", "Case and Key", 1, 1050, "One Fiddle Case, one Tuning Key.")
 SP25.bundle("set", "A Set of Three", 3, 3000, "Three cases, three keys. Saves 300.")
 
+# ============================================================ 2026
+SP26_GREEN = "#2a9a48"
+SP26_DEEP = "#15602c"
+SP26_COAT = "#2a8a3e"
+SP26_RED = "#e0342a"
+SP26_CREAM = "#f6efd8"
+SP26_ORANGE = "#ff8a2a"
+SP26_STEEL = "#d4d9e0"
+SP26_WOOD = "#5a3a22"
+SP26_CUSTARD = "#f2d66a"
+# the crate's lid turns about this point, and stands open at this angle
+SP26_HINGE = [0, 0.46, -0.60]
+SP26_OPEN = 1.95
+
+
+def _sp26_mat(r):
+    """An euler turn as a 3x3 matrix (rows), composed the renderer's way."""
+    cols = [rotate(e, r) for e in ([1, 0, 0], [0, 1, 0], [0, 0, 1])]
+    return [[cols[j][i] for j in range(3)] for i in range(3)]
+
+
+def _sp26_euler(m):
+    """...and back again."""
+    rx = math.asin(max(-1.0, min(1.0, -m[1][2])))
+    return [rx, math.atan2(m[0][2], m[2][2]), math.atan2(m[1][0], m[1][1])]
+
+
+def _sp26_swing(parts, hinge, angle, **kw):
+    """Turn a sub-model as a whole about the X axis through ``hinge``,
+    composing every part's own turn (``at_frame`` cannot, for parts that
+    have one).  It is how the jack gets into his box: he is built standing
+    up in the open box, then swung shut with the lid -- and the lid's own
+    hinge stands him back up when it opens."""
+    turn = _sp26_mat([angle, 0, 0])
+    out = []
+    for p in parts:
+        rel = [p["p"][i] - hinge[i] for i in range(3)]
+        moved = rotate(rel, [angle, 0, 0])
+        own = _sp26_mat(p.get("r"))
+        m = [[sum(turn[i][k] * own[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+        q = dict(p)
+        q["p"] = [round(hinge[i] + moved[i], 4) for i in range(3)]
+        q["r"] = [round(v, 4) for v in _sp26_euler(m)]
+        q.update(kw)
+        out.append(q)
+    return out
+
+
+def _sp26_jack(k=1.0):
+    """Lucky Lep as the jack in his own box: no legs, a ruff, arms flung up,
+    laughing his head off under his tall hat.  Upright, facing +Z, the
+    bottom of his coat (where the spring takes hold) at the origin; about
+    1.05 tall at k=1."""
+    parts = [
+        # the coat, buttoned to a frilled ruff, and the cap the spring holds
+        part("sph", [0, 0.15, 0], [0.38, 0.34, 0.32], SP26_COAT, decal="felt", wrap=True),
+        part("cyl", [0, 0.02, 0], [0.24, 0.05, 0.24], BLACK),
+        part("sph", [0, 0.10, 0.155], [0.05, 0.05, 0.03], LEP_GOLD, m="metal"),
+        part("sph", [0, 0.20, 0.155], [0.05, 0.05, 0.03], LEP_GOLD, m="metal"),
+        place("ruffle", [0, 0.31, 0.01], [0.50, 1.3, 0.46], SP26_CREAM),
+        # the head, the pointed ears, the ginger fringe of beard
+        part("sph", [0, 0.50, 0.02], [0.40, 0.38, 0.38], SKIN),
+        place("cone", [0.215, 0.54, 0.0], [0.07, 0.14, 0.05], SKIN, r=[0, 0, -1.1]),
+        place("cone", [-0.215, 0.54, 0.0], [0.07, 0.14, 0.05], SKIN, r=[0, 0, 1.1]),
+        part("sph", [0, 0.355, 0.05], [0.38, 0.15, 0.28], GINGER),
+        part("sph", [0.17, 0.43, 0.05], [0.08, 0.16, 0.16], GINGER),
+        part("sph", [-0.17, 0.43, 0.05], [0.08, 0.16, 0.16], GINGER),
+        # laughing: eyes screwed shut, cheeks up, mouth wide, one gold tooth
+        part("rbox", [0.075, 0.56, 0.195], [0.09, 0.024, 0.02], BLACK, [0, 0, -0.40]),
+        part("rbox", [-0.075, 0.56, 0.195], [0.09, 0.024, 0.02], BLACK, [0, 0, 0.40]),
+        part("sph", [0.12, 0.485, 0.17], [0.08, 0.05, 0.04], "#f29a8a"),
+        part("sph", [-0.12, 0.485, 0.17], [0.08, 0.05, 0.04], "#f29a8a"),
+        part("sph", [0, 0.51, 0.215], [0.08, 0.07, 0.07], "#f0a080"),
+        part("sph", [0, 0.425, 0.175], [0.17, 0.10, 0.08], "#5a1418"),
+        part("rbox", [0, 0.455, 0.208], [0.12, 0.024, 0.02], WHITE),
+        part("rbox", [0.03, 0.455, 0.212], [0.03, 0.026, 0.02], LEP_GOLD, m="metal"),
+        # the hat
+        part("cyl", [0, 0.685, 0], [0.48, 0.03, 0.46], BOTTLE),
+        place("sp_taper", [0, 0.69, 0], [0.30, 0.34, 0.29], BOTTLE, anchor=[0, 0, 0], decal="felt",
+              wrap=True),
+        part("cyl", [0, 0.735, 0], [0.31, 0.06, 0.30], BLACK),
+        part("rbox", [0, 0.735, 0.152], [0.08, 0.06, 0.02], LEP_GOLD, m="metal"),
+        # arms flung up, white gloves wide open: ta-da
+        rod([0.16, 0.24, 0.02], [0.38, 0.50, 0.08], 0.08, SP26_COAT),
+        rod([-0.16, 0.24, 0.02], [-0.38, 0.50, 0.08], 0.08, SP26_COAT),
+        part("sph", [0.41, 0.54, 0.09], [0.11, 0.11, 0.10], WHITE),
+        part("sph", [-0.41, 0.54, 0.09], [0.11, 0.11, 0.10], WHITE),
+    ]
+    return at_frame(parts, [0, 0, 0], None, k)
+
+
+def _sp26_box(at, w, h, d, k_lid=0.0, crank=True):
+    """A little jack-in-the-box, for the trap and the hand: motley sides,
+    gilt corners, a crank on the right.  ``at`` is the middle of its foot;
+    ``k_lid`` props the lid open at the front by that many radians."""
+    x, y, z = at
+    t = min(w, d) * 0.09
+    parts = [
+        part("rbox", [x, y + h / 2, z], [w, h, d], SP26_GREEN, decal="sp26_motley", wrap=True),
+        part("box", [x, y + h * 0.48, z + d / 2 + 0.006], [w * 0.74, h * 0.64, 0.01], "#000000",
+             decal="sp26_jackside", a=-1),
+    ]
+    parts += [part("rbox", [x + (w / 2) * sx, y + h / 2, z + (d / 2) * sz], [t, h * 1.02, t], GOLD,
+                   m="metal") for sx in (1, -1) for sz in (1, -1)]
+    # the lid, hinged at the back
+    lid = [part("rbox", [0, t * 0.6, d / 2], [w * 1.06, t * 1.2, d * 1.06], SP26_GREEN,
+                decal="sp26_motley", wrap=True),
+           part("rbox", [0, t * 0.15, d / 2], [w * 1.08, t * 0.4, d * 1.08], GOLD, m="metal")]
+    parts += at_frame(lid, [x, y + h, z - d / 2], [-k_lid, 0, 0] if k_lid else None)
+    if crank:
+        cy = y + h * 0.45
+        parts += [
+            part("cyl", [x + w / 2 + 0.02, cy, z], [w * 0.22, 0.05, w * 0.22], GOLD, [0, 0, PI / 2],
+                 m="metal"),
+            part("cyl", [x + w / 2 + 0.07, cy, z], [0.04, 0.12, 0.04], BRASS, [0, 0, PI / 2], m="metal"),
+            rod([x + w / 2 + 0.12, cy, z], [x + w / 2 + 0.12, cy + h * 0.24, z + d * 0.16], 0.04, BRASS,
+                t="rbox", m="metal"),
+            part("cyl", [x + w / 2 + 0.17, cy + h * 0.24, z + d * 0.16], [0.07, 0.12, 0.07], SP26_RED,
+                 [0, 0, PI / 2]),
+        ]
+    return parts
+
+
+SP26 = Event(
+    "stpatricks_2026", "stpatricks", 2026, "sp26",
+    name="Leprechaun's Last Laugh", title="The Leprechaun's Last Laugh",
+    blurb="St. Patrick's 2026 Lucky Lep came back. Four years after he left a shoe full of "
+          "gold under the spawn bridge he wanted it back -- every coin, with interest -- "
+          "and he opened a joke shop in the old cobbler's to get it. Everything he sold "
+          "came in a jack-in-the-box. Wind it up and it plays 'All around the cobbler's "
+          "bench'. Everybody knows how that song ends.",
+    tagline="Wind it up. Wait for it...",
+    starts="2026-03-10", ends="2026-03-24",
+    colors={"accent": "#3ad86a", "deep": "#140c1e", "glow": LEP_GOLD},
+    family_effects=["starstruck", "static_charge", "bubbly"],
+    hero_effect="last_laugh", stencil="stencil_sp26")
+
+
+@SP26.crate_model("Lep-in-the-Box",
+                  "A jack-in-the-box the size of a tea chest: green and gold motley, gilt "
+                  "corners, a picture of Lep on the front and a crank on the side that "
+                  "plays 'All around the cobbler's bench' when you wind it. On 'pop', "
+                  "guess who. Holds the Leprechaun's Last Laugh set. Needs a Crank Key.",
+                  hinge=SP26_HINGE, keyhole=[0, 0.30, 0.655])
+def _():
+    parts = [
+        # the box: motley all round, gilt corner posts, gold bands top and foot
+        part("rbox", [0, -0.06, 0], [1.24, 1.04, 1.20], SP26_GREEN, decal="sp26_motley", wrap=True),
+        part("rbox", [0, 0.415, 0], [1.28, 0.09, 1.24], GOLD_DARK, m="metal"),
+        part("rbox", [0, -0.535, 0], [1.28, 0.09, 1.24], GOLD_DARK, m="metal"),
+        # the plinth on four gold ball feet
+        part("rbox", [0, -0.63, 0], [1.40, 0.10, 1.36], SP26_WOOD, decal="planks", wrap=True),
+        # the front: Lep's picture, the latch (the lock), and the sides' panels
+        part("box", [0, -0.10, 0.605], [0.94, 0.78, 0.02], "#000000", decal="sp26_jackfront", a=-1),
+        part("rbox", [0, 0.30, 0.625], [0.28, 0.22, 0.06], GOLD, m="metal", decal="keyhole", lock=1),
+        part("box", [-0.605, -0.10, 0], [0.94, 0.78, 0.02], "#000000", [0, -PI / 2, 0],
+             decal="sp26_jackside", a=-1),
+        part("box", [0.605, -0.10, 0], [0.94, 0.78, 0.02], "#000000", [0, PI / 2, 0],
+             decal="sp26_jackside", a=-1),
+        part("box", [0, -0.10, -0.605], [0.94, 0.78, 0.02], "#000000", [0, PI, 0],
+             decal="stencil_sp26", a=-1),
+        # the light inside, and the bottom of Lep's spring standing in it
+        part("rbox", [0, 0.44, 0], [1.08, 0.04, 1.04], LEP_GOLD, m="neon"),
+        place("spiral", [0, 0.10, -0.24], [0.30, 0.52, 0.30], SP26_STEEL, anchor=[0, 0, 0],
+              m="metal"),
+        # the crank: a gold boss, the axle, the arm and a red knob to turn
+        part("cyl", [0.66, -0.04, 0], [0.26, 0.08, 0.26], GOLD, [0, 0, PI / 2], m="metal"),
+        part("cyl", [0.76, -0.04, 0], [0.07, 0.16, 0.07], BRASS, [0, 0, PI / 2], m="metal"),
+        rod([0.84, -0.04, 0], [0.84, 0.20, 0.20], 0.07, BRASS, t="rbox", m="metal"),
+        part("cyl", [0.92, 0.20, 0.20], [0.11, 0.18, 0.11], SP26_RED, [0, 0, PI / 2]),
+        part("sph", [1.02, 0.20, 0.20], [0.12, 0.12, 0.12], SP26_RED),
+        # the lid: motley, a gold rim, a raised top with its warning on it,
+        # and the hasp that drops over the latch
+        part("rbox", [0, 0.53, 0], [1.32, 0.14, 1.28], SP26_GREEN, decal="sp26_motley", wrap=True,
+             lid=1),
+        part("rbox", [0, 0.475, 0], [1.36, 0.05, 1.32], GOLD, m="metal", lid=1),
+        part("rbox", [0, 0.65, 0], [1.08, 0.10, 1.04], SP26_DEEP, lid=1),
+        part("box", [0, 0.705, 0], [0.92, 0.88, 0.02], "#000000", [-PI / 2, 0, 0], decal="sp26_lidtop",
+             a=-1, lid=1),
+        part("rbox", [0, 0.47, 0.665], [0.16, 0.12, 0.04], GOLD_DARK, m="metal", lid=1),
+    ]
+    parts += [part("rbox", [0.62 * sx, -0.06, 0.60 * sz], [0.12, 1.06, 0.12], GOLD, m="metal")
+              for sx in (1, -1) for sz in (1, -1)]
+    parts += [part("sph", [0.56 * sx, -0.72, 0.54 * sz], [0.16, 0.14, 0.16], GOLD, m="metal")
+              for sx in (1, -1) for sz in (1, -1)]
+    # the jack: the top of his spring and Lep on it, built standing up in
+    # the open box and folded away inside the shut one -- the lid's own
+    # swing brings him up out of it
+    jack = [place("spiral", [0, 0.70, -0.24], [0.30, 0.26, 0.30], SP26_STEEL, anchor=[0, 0, 0],
+                  m="metal")]
+    jack += at_frame(_sp26_jack(), [0, 0.99, -0.24], None, 0.86)
+    parts += _sp26_swing(jack, SP26_HINGE, SP26_OPEN, lid=1)
+    return parts
+
+
+@SP26.key_model("Crank Key",
+                "A brass key with a crank for a bow -- the arm, the boss and a red knob to "
+                "turn it by -- and the music box's own cog for a bit. Opens one "
+                "Lep-in-the-Box. Turn it slowly. All around the cobbler's bench...",
+                shoulder=-0.24)
+def _():
+    return [
+        # the crank: a boss with a shamrock on it, the arm, the red knob
+        part("cyl", [-0.36, 0, 0], [0.28, 0.10, 0.28], BRASS, [PI / 2, 0, 0], m="metal"),
+        _shamrock([-0.36, 0.01, 0.06], 0.16, SHAMROCK),
+        rod([-0.36, 0, -0.01], [-0.80, 0.30, -0.01], 0.10, BRASS, t="rbox", m="metal"),
+        part("sph", [-0.80, 0.30, -0.01], [0.13, 0.13, 0.11], BRASS, m="metal"),
+        part("cyl", [-0.80, 0.30, 0.13], [0.13, 0.22, 0.13], SP26_RED, [PI / 2, 0, 0]),
+        part("sph", [-0.80, 0.30, 0.26], [0.17, 0.17, 0.15], SP26_RED),
+        # the blade and a collar where it meets the bow
+        part("cyl", [0.12, 0, 0], [0.09, 0.84, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [-0.21, 0, 0], [0.18, 0.06, 0.18], GOLD_DARK, [0, 0, PI / 2], m="metal"),
+        # the bit: a ward and the music box's cog
+        part("rbox", [0.36, -0.11, 0], [0.07, 0.18, 0.08], BRASS, m="metal"),
+        place("cog", [0.54, -0.04, 0], [0.30, 0.30, 0.6], GOLD, m="metal"),
+    ]
+
+
+@SP26.hat("sprung_topper", "Sprung Topper",
+          "Lep's own tall buckled hat, on a spring a foot long, on a green skullcap. It "
+          "boings when you walk, boings when you nod, and goes on boinging for a good "
+          "while after you have stopped. The buckle is real gold. The spring is not "
+          "covered by the guarantee.", "legendary")
+def _():
+    hat = [
+        place("brim", [0, 0, 0], [1.86, 1.1, 1.78], BOTTLE, anchor=[0, 0, 0], decal="felt", wrap=True),
+        place("sp_taper", [0, 0.02, 0], [1.08, 1.12, 1.04], SP26_COAT, anchor=[0, 0, 0], decal="felt",
+              wrap=True),
+        part("cyl", [0, 0.20, 0], [1.09, 0.24, 1.05], BLACK),
+        part("torus", [0, 1.13, 0], [0.92, 0.05, 0.88], BOTTLE),
+        *buckle([0, 0.20, 0.53], 0.36, 0.28, LEP_GOLD, plate=BLACK),
+        _shamrock([0.50, 0.42, 0.24], 0.30, SHAMROCK, r=[0, 1.1, 0.25]),
+    ]
+    parts = [
+        cap(-0.30, 0.04, SP26_COAT, grow=0.04, decal="felt", wrap=True),
+        ringband(-0.22, 0.12, BLACK, margin=0.06),
+        part("cyl", [0, 0.07, 0], [0.30, 0.06, 0.30], GOLD, m="metal"),
+        place("spiral", [0, 0.08, 0], [0.40, 0.66, 0.40], SP26_STEEL, anchor=[0, 0, 0], m="metal"),
+        part("cyl", [0.02, 0.83, 0], [0.30, 0.06, 0.30], GOLD, [0, 0, -0.10], m="metal"),
+        # boing: two comic motion marks either side of the spring
+        place("crescent", [0.40, 0.42, 0.10], [0.30, 0.30, 0.4], WHITE, r=[0, 0, 0]),
+        place("crescent", [-0.40, 0.42, 0.10], [0.30, 0.30, 0.4], WHITE, r=[0, PI, 0]),
+    ]
+    return parts + at_frame(hat, [0.04, 0.85, 0], [0, 0, -0.10])
+
+
+def _sp26_snake(base, r, length, c, hat=False):
+    """A spring snake bursting out of a can: a coil from ``base`` along the
+    turn ``r``, its head on the end with googly eyes and a forked tongue."""
+    tip = rotate([0, length, 0], r)
+    head = [base[0] + tip[0], base[1] + tip[1], base[2] + tip[2]]
+    out = [place("spiral", base, [0.30, length / 1.12, 0.30], c, anchor=[0, 0, 0], r=r,
+                 decal="sp26_snakeskin", wrap=True)]
+    piece = [
+        part("sph", [0, 0.06, 0.02], [0.26, 0.20, 0.30], c, decal="sp26_snakeskin", wrap=True),
+        part("sph", [0.07, 0.16, 0.06], [0.12, 0.12, 0.10], WHITE),
+        part("sph", [-0.07, 0.16, 0.06], [0.12, 0.12, 0.10], WHITE),
+        part("sph", [0.08, 0.16, 0.11], [0.06, 0.06, 0.03], BLACK),
+        part("sph", [-0.06, 0.15, 0.11], [0.06, 0.06, 0.03], BLACK),
+        part("rbox", [0, 0.02, 0.22], [0.03, 0.02, 0.14], SP26_RED),
+        part("rbox", [0.025, 0.02, 0.30], [0.025, 0.02, 0.06], SP26_RED),
+        part("rbox", [-0.025, 0.02, 0.30], [0.025, 0.02, 0.06], SP26_RED),
+    ]
+    if hat:
+        piece += [part("cyl", [0, 0.17, -0.02], [0.24, 0.02, 0.24], BOTTLE),
+                  place("sp_taper", [0, 0.17, -0.02], [0.14, 0.18, 0.14], BOTTLE, anchor=[0, 0, 0]),
+                  part("cyl", [0, 0.20, -0.02], [0.15, 0.03, 0.15], BLACK)]
+    return out + at_frame(piece, head, None, 1.0)
+
+
+@SP26.hat("snake_can", "Snakes in a Can",
+          "Saint Patrick drove every snake out of Ireland. Lep caught three of them on the "
+          "way out, wound them into springs and has been selling them in tins of mixed "
+          "nuts ever since. The middle one has started wearing a hat.", "legendary",
+          hair="show")
+def _():
+    parts = [
+        part("cyl", [0, 0.30, 0], [0.86, 0.60, 0.86], SILVER, m="metal", decal="sp26_nutcan", wrap=True),
+        part("torus", [0, 0.60, 0], [0.88, 0.05, 0.88], SILVER, m="metal"),
+        part("torus", [0, 0.01, 0], [0.88, 0.05, 0.88], SILVER, m="metal"),
+        part("cyl", [0, 0.58, 0], [0.78, 0.02, 0.78], "#2a1a12"),
+    ]
+    parts += _sp26_snake([0, 0.56, 0.02], [0.10, 0, 0], 1.05, SHAMROCK, hat=True)
+    parts += _sp26_snake([0.18, 0.56, -0.04], [0.15, 0, -0.62], 0.80, "#7ad04a")
+    parts += _sp26_snake([-0.18, 0.56, -0.06], [-0.10, 0, 0.66], 0.72, "#1f8a3a")
+    # the lid, sent flying and still turning
+    parts += [part("cyl", [0.62, 1.30, -0.18], [0.80, 0.04, 0.80], SILVER, [0.5, 0, -0.9],
+                   m="metal")]
+    return parts
+
+
+@SP26.hat("fools_cap", "Fool's Gold Cap",
+          "Three points of green and gold motley and a bell on the end of every one, and "
+          "every bell is a gold sovereign, hollowed out. Fool's gold, of course. So is the "
+          "fool. Jingles like a pocketful of change, which is how Lep always finds it.",
+          "rare")
+def _():
+    parts = [
+        cap(-0.30, 0.12, SP26_GREEN, grow=0.04, decal="sp26_motley", wrap=True),
+        ringband(-0.26, 0.14, LEP_GOLD, margin=0.06, m="metal"),
+    ]
+    for yaw, c, k, droop in ((0.0, SP26_GREEN, 1.9, -1.30), (PI, LEP_GOLD, 1.9, -1.30),
+                              (-PI / 2, SP26_DEEP, 1.6, -1.05)):
+        r = [0, yaw, droop]
+        root = rotate([0.36, 0.0, 0], [0, yaw, 0])
+        at = [root[0], 0.04, root[2]]
+        tip = rotate([0.376 * k, 0.581 * k, 0], r)
+        end = [at[0] + tip[0], at[1] + tip[1], at[2] + tip[2]]
+        parts += [place("horn", at, [k, k, k * 1.4], c, anchor=[0, 0, 0], r=r,
+                        decal="sp26_motley", wrap=True),
+                  part("sph", [end[0], end[1] - 0.10, end[2]], [0.22, 0.22, 0.22], GOLD, m="metal"),
+                  part("rbox", [end[0], end[1] - 0.15, end[2]], [0.16, 0.025, 0.24], BLACK)]
+    # a dagged edge of points round the brow, gold and green in turn
+    parts += around(14, 0.93, -0.30, lambda a, x, z: place(
+        "tri", [x, -0.34, z * 0.98], [0.20, 0.20, 0.4],
+        LEP_GOLD if int(round(a * 14 / TAU)) % 2 else SP26_DEEP, r=[0, a, PI]))
+    return parts
+
+
+@SP26.hat("spring_specs", "Boing-Boing Specs",
+          "Thick green joke-shop frames, a pair of bushy ginger eyebrows, and two eyeballs "
+          "on springs that shoot out at the mere mention of gold. Lep mentions gold "
+          "constantly.", "uncommon", hair="show")
+def _():
+    frame = SP26_DEEP
+    parts = [
+        part("rbox", [0, -0.47, 0.77], [0.18, 0.06, 0.05], frame),
+        *sides(lambda s: [
+            part("torus", [0.27 * s, -0.47, 0.77], [0.36, 0.08, 0.36], frame, [PI / 2, 0, 0]),
+            part("cyl", [0.27 * s, -0.47, 0.765], [0.30, 0.02, 0.30], "#dff6ff", [PI / 2, 0, 0],
+                 m="glass", a=0.4),
+            part("rbox", [0.76 * s, -0.45, 0.30], [0.05, 0.06, 0.90], frame),
+            part("rbox", [0.27 * s, -0.27, 0.80], [0.32, 0.09, 0.10], GINGER, [0, 0, -0.18 * s],
+                 decal="fur", wrap=True),
+            # the eye on its spring
+            place("spiral", [0.27 * s, -0.47, 0.78], [0.14, 0.32, 0.14], SP26_STEEL,
+                  anchor=[0, 0, 0], r=[PI / 2, 0, 0], m="metal"),
+            part("sph", [0.27 * s, -0.47, 1.26], [0.30, 0.30, 0.28], WHITE, m="glass"),
+            part("sph", [0.27 * s - 0.02 * s, -0.46, 1.39], [0.16, 0.16, 0.05], "#2f8a3a"),
+            part("sph", [0.27 * s - 0.02 * s, -0.46, 1.41], [0.09, 0.09, 0.03], BLACK),
+            part("sph", [0.27 * s + 0.01, -0.43, 1.42], [0.03, 0.03, 0.01], WHITE, m="neon"),
+        ]),
+    ]
+    return parts
+
+
+@SP26.hat("whirligig_beanie", "Whirligig Beanie",
+          "A knitted beanie in the colours of the parade with a propeller on top. It has "
+          "never once lifted anybody off the ground. Lep says that is because you are not "
+          "running fast enough.", "uncommon")
+def _():
+    parts = [
+        dome(-0.34, 0.94, WHITE, decal="sp26_gores", wrap=True),
+        ringband(-0.28, 0.14, SP26_GREEN, margin=0.05, decal="knit", wrap=True),
+        part("cyl", [0, 0.64, 0], [0.08, 0.16, 0.08], GOLD, m="metal"),
+        part("sph", [0, 0.60, 0], [0.18, 0.08, 0.18], SP26_GREEN),
+        place("prop", [0, 0.73, 0], [1.40, 0.9, 6.0], LEP_GOLD, r=[PI / 2, 0, 0], m="metal",
+              spin=7.0),
+        part("sph", [0, 0.74, 0], [0.12, 0.10, 0.12], SP26_RED, spin=7.0),
+        _shamrock([0.0, -0.08, 0.92], 0.28, SHAMROCK, r=[-0.25, 0, 0]),
+    ]
+    return parts
+
+
+@SP26.hat("custard_pie", "Custard Pie",
+          "Lep's last laugh, your first pie: a shamrock-green custard pie, delivered at "
+          "speed, tin and all, and still sliding off. There is a cherry on top. There is "
+          "always a cherry on top.", "rare")
+def _():
+    parts = [
+        # the custard squashed flat under the tin, and the tin on top of it
+        part("cyl", [0, 0.06, 0], [1.42, 0.12, 1.38], SP26_CUSTARD, decal="sp26_custard", wrap=True),
+        part("cyl", [0, 0.19, 0], [1.24, 0.14, 1.22], SILVER, m="metal"),
+        part("torus", [0, 0.13, 0], [1.34, 0.08, 1.32], shade(SILVER, 0.9), m="metal"),
+        # whipped cream on the tin's bottom, and the cherry
+        part("sph", [0, 0.30, 0], [0.56, 0.16, 0.54], SP26_CREAM),
+        place("cone", [0, 0.40, 0], [0.32, 0.22, 0.32], SP26_CREAM),
+        part("sph", [0.02, 0.56, 0.02], [0.16, 0.16, 0.16], SP26_RED, m="glass"),
+        rod([0.02, 0.62, 0.02], [0.10, 0.74, -0.04], 0.025, "#3a5a1e"),
+    ]
+    # custard squelching out all round and dripping down the sides
+    for k in range(11):
+        a = TAU * k / 11 + 0.2
+        s, c = math.sin(a), math.cos(a)
+        parts.append(part("sph", [s * 0.80, 0.0, c * 0.78], [0.34, 0.20, 0.32], SP26_CUSTARD,
+                          decal="sp26_custard", wrap=True))
+        front = c > 0.6
+        drop = 0.18 if front else 0.30 + 0.14 * (k % 3)
+        parts.append(rod([s * 0.95, -0.02, c * 0.93], [s * 0.96, -0.02 - drop, c * 0.94], 0.09,
+                         SP26_CUSTARD))
+        parts.append(part("sph", [s * 0.96, -0.04 - drop, c * 0.94], [0.12, 0.13, 0.12],
+                          SP26_CUSTARD))
+    return parts
+
+
+@SP26.hat("gag_arrow", "Gag Arrow",
+          "A joke-shop arrow on a wire band, so it looks as if it went in one ear and out "
+          "the other, and an apple on top without a mark on it. Lep says he was aiming "
+          "for the apple. Lep says a lot of things.", "uncommon", hair="show")
+def _():
+    wire = "#2a2a30"
+    wood = "#c08a4a"
+    parts = [
+        # the wire band over the top, ear to ear
+        rod([0.80, -0.62, 0], [0.80, -0.22, 0], 0.06, wire, m="metal"),
+        rod([0.80, -0.22, 0], [0.56, 0.05, 0], 0.06, wire, m="metal"),
+        rod([0.56, 0.05, 0], [-0.56, 0.05, 0], 0.06, wire, m="metal"),
+        rod([-0.56, 0.05, 0], [-0.80, -0.22, 0], 0.06, wire, m="metal"),
+        rod([-0.80, -0.22, 0], [-0.80, -0.62, 0], 0.06, wire, m="metal"),
+        # the point end out of the right ear
+        rod([0.78, -0.60, 0.02], [1.38, -0.52, 0.10], 0.07, wood),
+        place("cone", [1.48, -0.51, 0.11], [0.16, 0.26, 0.06], LEP_GOLD, r=[0, 0, -PI / 2 - 0.13],
+              m="metal"),
+        part("cyl", [0.82, -0.595, 0.025], [0.12, 0.05, 0.12], wire, [0, 0, PI / 2]),
+        # the feathered end out of the left
+        rod([-0.78, -0.60, 0.02], [-1.46, -0.70, -0.08], 0.07, wood),
+        part("cyl", [-0.82, -0.605, 0.02], [0.12, 0.05, 0.12], wire, [0, 0, PI / 2]),
+        part("rbox", [-1.47, -0.71, -0.08], [0.06, 0.08, 0.08], SP26_RED),
+        # the apple, untouched
+        part("sph", [0, 0.27, 0], [0.42, 0.40, 0.42], "#d8281c", m="glass"),
+        part("sph", [0.08, 0.36, 0.10], [0.10, 0.08, 0.06], "#ff8a7a", m="neon", a=0.5),
+        rod([0, 0.44, 0], [0.03, 0.56, -0.02], 0.035, "#5a3a1e"),
+        place("leaf", [0.12, 0.53, 0.0], [0.6, 0.18, 1.0], "#3a9a2a", r=[0, 0.4, -1.1]),
+    ]
+    for k, (c, roll) in enumerate(((SP26_GREEN, 0.0), (LEP_GOLD, 2.1), (WHITE, -2.1))):
+        off = rotate([0, 0.10, 0], [roll, 0, 0])
+        parts.append(place("tri", [-1.30 + off[0], -0.68 + off[1], -0.064 + off[2]],
+                           [0.30, 0.18, 0.4], c, r=[roll, 0.12, PI / 2 + 0.14]))
+    return parts
+
+
+def _sp26_tongs(a, b, n, w, c):
+    """Lazy tongs from ``a`` to ``b`` (both behind the back): ``n`` diamonds
+    of crossed slats, riveted at every crossing."""
+    d = [b[i] - a[i] for i in range(3)]
+    length = math.sqrt(sum(v * v for v in d))
+    u = [v / length for v in d]
+    perp = [-u[1], u[0], 0.0]
+    pl = math.sqrt(perp[0] ** 2 + perp[1] ** 2) or 1.0
+    perp = [perp[0] / pl, perp[1] / pl, 0.0]
+    out = []
+    for i in range(n):
+        p0 = [a[j] + d[j] * i / n for j in range(3)]
+        p1 = [a[j] + d[j] * (i + 1) / n for j in range(3)]
+        lo = [p0[j] + perp[j] * w for j in range(3)]
+        lo2 = [p0[j] - perp[j] * w for j in range(3)]
+        hi = [p1[j] + perp[j] * w for j in range(3)]
+        hi2 = [p1[j] - perp[j] * w for j in range(3)]
+        out += [rod(lo, [hi2[0], hi2[1], hi2[2] - 0.05], 0.06, c, t="rbox", m="metal"),
+                rod([lo2[0], lo2[1], lo2[2] - 0.05], hi, 0.06, c, t="rbox", m="metal")]
+        mid = [(p0[j] + p1[j]) / 2 for j in range(3)]
+        out.append(part("sph", [mid[0], mid[1], mid[2] - 0.03], [0.07, 0.07, 0.07], GOLD, m="metal"))
+        for q in (hi, hi2):
+            out.append(part("sph", [q[0], q[1], q[2] - 0.03], [0.07, 0.07, 0.07], GOLD, m="metal"))
+    return out
+
+
+@SP26.back("punchline", "The Punchline",
+           "A green boxing glove on a set of lazy tongs, strapped to your back and cocked "
+           "over your right shoulder, ready. Lep calls it the punchline, because it always "
+           "comes at the end, and nobody ever sees it coming.", "legendary")
+def _():
+    leather = "#4a2e1a"
+    parts = straps(leather) + [
+        part("rbox", [0.10, 0.44, -0.14], [0.74, 0.62, 0.14], leather, decal="leather", wrap=True),
+        part("rbox", [0.30, 0.56, -0.24], [0.26, 0.26, 0.08], BRASS, m="metal", decal="rivets"),
+        place("spiral", [0.34, 0.56, -0.24], [0.22, 0.24, 0.22], SP26_STEEL, anchor=[0, 0, 0],
+              r=[-PI / 2, 0, 0], m="metal"),
+    ]
+    a, b = [0.42, 0.64, -0.52], [1.02, 2.30, -0.52]
+    parts += _sp26_tongs(a, b, 4, 0.16, BRASS)
+    # the glove on the end, knuckles forward over the shoulder
+    g = [1.08, 2.50, -0.30]
+    parts += [
+        part("cyl", [g[0], g[1] - 0.10, g[2] - 0.22], [0.30, 0.20, 0.30], WHITE, [PI / 2 - 0.4, 0, 0],
+             decal="stitches", wrap=True),
+        part("sph", [g[0], g[1], g[2]], [0.46, 0.44, 0.56], SP26_GREEN, m="glass",
+             decal="sp26_glove"),
+        part("sph", [g[0] - 0.20, g[1] - 0.06, g[2] + 0.04], [0.16, 0.24, 0.30], SP26_GREEN, m="glass"),
+        part("sph", [g[0], g[1] + 0.02, g[2] + 0.22], [0.36, 0.30, 0.16], shade(SP26_GREEN, 1.15),
+             m="glass"),
+    ]
+    return parts
+
+
+@SP26.back("wound_up", "Wound Up",
+           "A great brass wind-up key in the middle of your back, like a clockwork toy's. "
+           "Everybody who walks past gives it a turn. Lep gives it two, and stands back to "
+           "watch.", "rare")
+def _():
+    parts = [
+        part("cyl", [0, 0.30, -0.11], [0.46, 0.10, 0.46], BRASS, [PI / 2, 0, 0], m="metal",
+             decal="rivets"),
+        part("torus", [0, 0.30, -0.15], [0.48, 0.07, 0.48], GOLD_DARK, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.30, -0.40], [0.15, 0.50, 0.15], BRASS, [PI / 2, 0, 0], m="metal"),
+        part("torus", [0, 0.30, -0.55], [0.22, 0.08, 0.22], GOLD_DARK, [PI / 2, 0, 0], m="metal"),
+        part("sph", [0, 0.30, -0.78], [0.26, 0.26, 0.26], GOLD, m="metal"),
+    ]
+    # the butterfly bow, turned a little so it reads from behind as well
+    bow = [
+        part("torus", [0, 0.36, 0], [0.62, 0.14, 0.66], BRASS, [0, 0, PI / 2], m="metal"),
+        part("torus", [0, -0.36, 0], [0.62, 0.14, 0.66], BRASS, [0, 0, PI / 2], m="metal"),
+        part("rbox", [0, 0, 0], [0.10, 0.20, 0.30], BRASS, m="metal"),
+    ]
+    parts += _sp26_swing(at_frame(bow, [0, 0, 0]), [0, 0, 0], 0.0)
+    parts = parts[:5] + [dict(p, p=[round(p["p"][0] + rotate(p["p"], [0, 0.5, 0])[0] - p["p"][0], 4),
+                                    round(0.30 + p["p"][1], 4),
+                                    round(-0.98 + rotate(p["p"], [0, 0.5, 0])[2], 4)],
+                              r=[round(v, 4) for v in _sp26_euler(
+                                  [[sum(_sp26_mat([0, 0.5, 0])[i][k] * _sp26_mat(p.get("r"))[k][j]
+                                        for k in range(3)) for j in range(3)] for i in range(3)])])
+                         for p in parts[5:]]
+    return parts
+
+
+@SP26.hairdo("shocking_ginger", "Shocking Ginger",
+             "Shook hands with Lep. Lep had a joy buzzer. It has not lain down since, and "
+             "it still crackles when you take your hat off.", "rare")
+def _():
+    c, hi = "#d0661e", "#f0943a"
+    parts = [place("hairmid", [0, 0, 0], [1.05, 1.05, 1.05], c, anchor=[0, 0, 0], decal="strands",
+                   wrap=True)]
+    # spikes standing out on end, all round but the face
+    spikes = []
+    for k in range(9):
+        a = k * TAU / 9
+        spikes.append(([math.sin(a) * 0.20, 0.52, math.cos(a) * 0.20 - 0.04],
+                       [math.sin(a) * 0.62, 1.00, math.cos(a) * 0.54 - 0.06]))
+    for s in (1, -1):
+        for y, z in ((0.25, 0.15), (0.20, -0.20), (-0.10, -0.05), (-0.05, -0.38), (0.30, -0.42)):
+            spikes.append(([0.50 * s, y, z], [1.02 * s, y + 0.26, z * 1.25]))
+    for x, y in ((0.0, 0.20), (0.28, -0.05), (-0.28, -0.05), (0.15, 0.35), (-0.15, 0.35)):
+        spikes.append(([x, y, -0.50], [x * 1.6, y + 0.22, -1.02]))
+    spikes.append(([0, 0.50, 0.30], [0.02, 0.92, 0.62]))
+    for n, (p0, p1) in enumerate(spikes):
+        parts.append(rod(p0, p1, 0.22, hi if n % 2 else c, t="cone"))
+    # and the sparks still going off in it
+    for at, roll in (([0.74, 0.88, 0.10], 0.4), ([-0.80, 0.70, -0.20], -0.5),
+                     ([0.10, 1.20, -0.30], 0.1)):
+        parts.append(place("bolt", at, [0.20, 0.24, 0.6], "#fff36a", r=[0, 0, roll], m="neon"))
+    return parts
+
+
+@SP26.hairdo("motley_bob", "Motley Bob",
+             "Cut by Lep with the kitchen scissors and dyed in two colours, so that nobody "
+             "would notice the fringe was crooked. Everybody noticed the fringe was "
+             "crooked.", "uncommon")
+def _():
+    return [
+        place("hairbob", [0, 0, 0], [1.05, 1.05, 1.05], WHITE, anchor=[0, 0, 0],
+              decal="sp26_quarters", wrap=True),
+        part("rbox", [0.0, 0.33, 0.55], [0.98, 0.20, 0.10], SP26_GREEN, [0, 0, 0.14]),
+        part("rbox", [0.24, 0.30, 0.565], [0.46, 0.20, 0.08], LEP_GOLD, [0, 0, 0.14]),
+        part("sph", [-0.42, 0.24, 0.57], [0.10, 0.10, 0.10], GOLD, m="metal"),
+        part("rbox", [-0.42, 0.21, 0.62], [0.08, 0.015, 0.02], BLACK),
+    ]
+
+
+SP26.face("last_laugh", "The Last Laugh",
+          "Eyes screwed shut, tears running, mouth wide open and a gold tooth catching the "
+          "light. Somebody has just opened their box.", [
+              {"k": "line", "x1": -0.30, "y1": -0.20, "x2": -0.15, "y2": -0.14, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "line", "x1": -0.15, "y1": -0.14, "x2": -0.30, "y2": -0.08, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.30, "y1": -0.20, "x2": 0.15, "y2": -0.14, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.15, "y1": -0.14, "x2": 0.30, "y2": -0.08, "w": 0.04,
+               "c": "#16171b"},
+              {"k": "poly", "pts": [[-0.36, -0.10], [-0.33, -0.02], [-0.36, 0.01], [-0.39, -0.02]],
+               "c": "#7fc8ff"},
+              {"k": "poly", "pts": [[0.36, -0.10], [0.39, -0.02], [0.36, 0.01], [0.33, -0.02]],
+               "c": "#7fc8ff"},
+              {"k": "ellipse", "x": -0.32, "y": 0.06, "w": 0.12, "h": 0.07, "c": "#f29a8a"},
+              {"k": "ellipse", "x": 0.32, "y": 0.06, "w": 0.12, "h": 0.07, "c": "#f29a8a"},
+              {"k": "poly", "pts": [[-0.20, 0.04], [0.20, 0.04], [0.16, 0.18], [0.0, 0.25],
+                                    [-0.16, 0.18]], "c": "#4a0f14"},
+              {"k": "poly", "pts": [[-0.17, 0.05], [0.17, 0.05], [0.15, 0.09], [-0.15, 0.09]],
+               "c": "#ffffff"},
+              {"k": "poly", "pts": [[0.04, 0.05], [0.09, 0.05], [0.09, 0.095], [0.04, 0.095]],
+               "c": "#ffd34a"},
+              {"k": "ellipse", "x": 0.0, "y": 0.19, "w": 0.16, "h": 0.07, "c": "#e05a6a"},
+          ], "rare")
+SP26.face("wait_for_it", "Wait For It...",
+          "Eyes sliding sideways, one eyebrow up, a smirk tucked into one corner. Lep has "
+          "just handed somebody a box and asked them to turn the handle.", [
+              {"k": "ellipse", "x": -0.20, "y": -0.12, "w": 0.15, "h": 0.10, "c": "#ffffff"},
+              {"k": "ellipse", "x": 0.20, "y": -0.12, "w": 0.15, "h": 0.10, "c": "#ffffff"},
+              {"k": "ellipse", "x": -0.155, "y": -0.11, "w": 0.07, "h": 0.08, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.245, "y": -0.11, "w": 0.07, "h": 0.08, "c": "#16171b"},
+              {"k": "line", "x1": -0.29, "y1": -0.155, "x2": -0.11, "y2": -0.155, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.11, "y1": -0.155, "x2": 0.29, "y2": -0.155, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "line", "x1": -0.30, "y1": -0.26, "x2": -0.10, "y2": -0.25, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.20, "y": -0.20, "r": 0.10, "a0": 0.58, "a1": 0.92, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "arc", "x": 0.10, "y": 0.02, "r": 0.14, "a0": 0.06, "a1": 0.30, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "line", "x1": -0.08, "y1": 0.13, "x2": 0.10, "y2": 0.16, "w": 0.035,
+               "c": "#16171b"},
+              {"k": "line", "x1": 0.24, "y1": 0.06, "x2": 0.27, "y2": 0.11, "w": 0.02,
+               "c": "#16171b"},
+          ], "uncommon")
+SP26.shirt("loud_jacket", "Lep's Loud Jacket",
+           "A comedian's sports jacket in a green-and-gold check you can hear from across the "
+           "room, a squirting shamrock in the buttonhole and a joy buzzer in the top pocket. "
+           "Lep wears it to tell the joke and to take the money.",
+           {"torso": SP26_GREEN, "arms": SP26_GREEN, "decal": "sp26_tee_jacket",
+            "weave": "sp26_loudcheck", "stripe": SP26_DEEP}, "rare")
+SP26.pants("motley_hose", "Motley Hose",
+           "Diamonds of green and gold all the way down, as worn by every fool at every "
+           "court since there were courts, and gold slippers with the toes turned up.",
+           {"legs": SP26_GREEN, "weave": "sp26_motley", "cuff": LEP_GOLD})
+SP26.belt("trick_belt", "Coin-on-a-String Belt",
+          "Green leather stamped HA HA HA all the way round, a gold sovereign for a buckle, "
+          "two pouches of tricks and a coin on a string. Drop the coin in the street. Wait. "
+          "Pull.",
+          {"band": SP26_DEEP, "buckle": GOLD, "width": 0.22, "metal": True, "weave": "sp26_haha",
+           "pouch": "#7a4a22", "chain": LEP_GOLD})
+
+@SP26.weapon("coin_string", "Coin on a String",
+             "The oldest trick in Lep's shop. Throw the gold coin; it flies out on its "
+             "string, catches whoever it meets, and when the string runs out it comes "
+             "back -- bringing them with it, whether they like it or not.",
+             {"kind": "projectile", "projectile": "sp26_coin", "damage": 18, "splash": 0,
+              "splash_damage": 0, "rpm": 70, "mag": 1, "reload": 0.1, "speed": 58,
+              "range": 30, "auto": False, "sound": "coin", "recoil": 0.5, "reserve": 99,
+              "gravity_scale": 0.0, "self_damage": 0.0, "knockback": 2,
+              "boomerang": {"out": 30, "pierce": True}, "on_hit": {"pull": 26}},
+             [["+", "Whoever the coin catches is yanked towards you, going and coming back"],
+              ["+", "Passes through everyone on its string, out and back"],
+              ["-", "18 damage a pass"],
+              ["-", "30 studs of string, and nothing more until it is back in your hand"]],
+             rarity="rare",
+             proj=lambda: [
+                 part("disc", [0, 0, 0], [0.62, 0.62, 0.08], LEP_GOLD, m="metal", decal="sp_coin",
+                      spin=16),
+                 rod([0, 0, -0.04], [0, 0, -1.4], 0.03, SP26_CREAM)])
+def _():
+    return [
+        # the spool in the hand
+        part("cyl", [0, 0, 0.02], [0.18, 0.14, 0.18], "#a8743a", [0, 0, PI / 2]),
+        part("cyl", [0, 0, 0.02], [0.15, 0.15, 0.15], SP26_CREAM, [0, 0, PI / 2]),
+        part("cyl", [0.08, 0, 0.02], [0.22, 0.025, 0.22], "#a8743a", [0, 0, PI / 2]),
+        part("cyl", [-0.08, 0, 0.02], [0.22, 0.025, 0.22], "#a8743a", [0, 0, PI / 2]),
+        # the string down to the coin, which swings a little ahead of the hand
+        rod([0, -0.08, 0.06], [0, -0.40, 0.50], 0.022, SP26_CREAM),
+        part("disc", [0, -0.58, 0.58], [0.38, 0.38, 0.06], LEP_GOLD, [0, 0.5, 0], m="metal",
+             decal="sp_coin"),
+        part("torus", [0, -0.41, 0.52], [0.06, 0.03, 0.06], LEP_GOLD, m="metal"),
+    ]
+
+
+@SP26.weapon("kick_me", "KICK ME Slapstick",
+             "A fool's slapstick: two slats that clap like a gunshot and do about as much "
+             "harm as a sneeze -- from the front.  From behind, Lep's paste-pot slaps a "
+             "KICK ME sign on their back, and everybody else obliges.",
+             {"kind": "melee", "damage": 20, "headshot": 1.0, "rpm": 96, "range": 9.0,
+              "arc": 0.62, "sound": "swing", "knockback": 4, "backstab": 3.0,
+              "on_hit": {"mark": [0.35, 6.0]}},
+             [["+", "Three times the damage from behind: 60 a slap"],
+              ["+", "Every slap sticks a KICK ME sign on them: 35% more damage from everyone "
+                    "for 6 seconds"],
+              ["-", "Only 20 damage from the front"],
+              ["-", "Close in only"]], rarity="legendary")
+def _():
+    return [
+        # the handle, wound with green ribbon
+        rod([0, 0, -0.28], [0, 0, 0.26], 0.12, SP26_DEEP, decal="leather"),
+        part("sph", [0, 0, -0.30], [0.14, 0.14, 0.14], LEP_GOLD, m="metal"),
+        part("rbox", [0, 0, 0.27], [0.24, 0.20, 0.06], LEP_GOLD, m="metal"),
+        # the two slats, a breath apart, red and gold
+        part("rbox", [0.04, 0, 0.86], [0.05, 0.18, 1.14], SP26_RED),
+        part("rbox", [-0.04, 0, 0.86], [0.05, 0.18, 1.14], LEP_GOLD),
+        part("rbox", [0, 0, 0.42], [0.16, 0.22, 0.10], SP26_WOOD),
+        part("rbox", [0, 0, 1.40], [0.14, 0.20, 0.06], SP26_WOOD),
+        # the sign, ready to be slapped on somebody, and the paste
+        part("box", [0.09, 0.02, 0.96], [0.44, 0.38, 0.02], "#000000", [0, PI / 2, 0],
+             decal="sp26_kickme", a=-1),
+        part("rbox", [0.075, 0.02, 0.96], [0.012, 0.36, 0.42], "#fbf7ea", [0, 0, 0]),
+    ]
+
+
+@SP26.weapon("surprise_package", "Surprise Package",
+             "A jack-in-the-box, wrapped and left lying about with a bow on top. The "
+             "first enemy to pick it up turns the handle -- they always turn the handle "
+             "-- and comes out of it a toad.",
+             {"kind": "deploy", "cooldown": 18, "sound": "throw",
+              "deploy": {"type": "trap", "thrown": True, "throw": 20, "radius": 3.4,
+                         "secs": 30.0, "limit": 1, "damage": 0, "scale": 1.0,
+                         "enemy": {"polymorph": 3.0}, "name": "Surprise Package",
+                         "color": "#3ad86a"}},
+             [["+", "Leaves a jack-in-the-box for 30 seconds; the first enemy within 3.4 "
+                    "studs is turned into a toad for 3 seconds"],
+              ["+", "A toad cannot shoot, jump or use anything"],
+              ["-", "No damage at all"],
+              ["-", "One at a time, and an 18 second cooldown"]], rarity="legendary",
+             deploy=lambda: _sp26_box([0, 0, 0], 0.80, 0.72, 0.80) + gift_bow(
+                 [0, 0.84, 0.05], 0.55, SP26_RED, knot=LEP_GOLD))
+def _():
+    return _sp26_box([0, -0.22, 0.34], 0.42, 0.38, 0.42) + gift_bow(
+        [0, 0.20, 0.36], 0.30, SP26_RED, knot=LEP_GOLD, tails=False)
+
+
+@SP26.gear("now_you_see_him", "Now You See Him",
+           "Lep's wand, with the green silk still up its sleeve. A flick, a puff of "
+           "smoke, and he is sixteen studs away and nowhere to be seen -- until he does "
+           "something.",
+           {"kind": "ability", "cooldown": 16, "sound": "whoosh",
+            "ability": {"blink": {"dist": 16}, "cloak": {"secs": 4}}},
+           [["+", "Steps you up to 16 studs the way you are looking"],
+            ["+", "...and you vanish for 4 seconds, to anybody more than 12 studs away"],
+            ["-", "Attacking or using anything brings you back into view"],
+            ["-", "16 second cooldown, and no damage at all"]], rarity="rare")
+def _():
+    return [
+        rod([0, 0, -0.12], [0, 0.08, 0.86], 0.07, BLACK),
+        rod([0, 0, -0.12], [0, 0.0, 0.02], 0.075, WHITE),
+        rod([0, 0.07, 0.74], [0, 0.08, 0.88], 0.075, WHITE),
+        # the silk, pulled half out of the tip, and a spark of the trick
+        place("cape", [0, 0.10, 0.88], [0.22, 0.30, 0.20], SP26_GREEN, anchor=[0, 0, 0],
+              r=[-0.9, 0.4, 0.2]),
+        part("sparkle", [0.08, 0.20, 0.98], [0.18, 0.18, 0.05], LEP_GOLD, m="neon"),
+    ]
+
+
+SP26.effect("last_laugh", name="The Last Laugh", rate=2.4, life=[1.4, 2.0],
+            size=[0.40, 0.58], grow=0.1, gravity=-0.5, spread=0.5, rise=[0.4, 0.8],
+            blend="normal", spin=0.6, colors=["#3ad86a", "#ffd34a", "#ffffff"],
+            shape="sp26_haha", radius=0.7, orbit=0.8, wobble=0.7)
+SP26.effect("pop_goes", name="Pop Goes the Lep", rate=3.6, life=[1.0, 1.5],
+            size=[0.24, 0.34], grow=0.0, gravity=3.0, spread=0.6, rise=[2.6, 3.6],
+            blend="normal", spin=3.0, colors=["#e8c040", "#e0342a", "#3ad86a", "#ffffff"],
+            shapes=["sp26_spring", "confetti", "confetti"], radius=0.5, orbit=0.0, wobble=0.4)
+SP26.opening(
+    sky={"top": "#140c1e", "horizon": "#2a1a3a", "sun": [0.2, 0.6, 0.5], "clouds": 0.2,
+         "tint": "#fff0c8"},
+    ambient="#6a5a7a", beam=LEP_GOLD, seep="pop_goes", after="last_laugh",
+    burst=["#3ad86a", "#ffd34a", "#e0342a", "#ffffff"],
+    pieces=[{"shape": "sp26_haha", "colors": ["#3ad86a", "#ffffff"], "blend": "normal"},
+            {"shape": "sp26_spring", "colors": ["#e8c040", "#ffd34a"], "blend": "normal"},
+            {"shape": "confetti", "colors": ["#e0342a", "#3ad86a", "#ffd34a"], "blend": "normal"},
+            {"shape": "sp_coin", "colors": ["#ffd34a"], "blend": "normal"}],
+    backdrop="sp26_jokeshop", title_wait="Turn the handle...",
+    title_shake="Wait for it...")
+SP26.award("Leprechaun's Last Laugh", ["The Mark", "Good Sport", "Prankster",
+                                       "Wind-Up Merchant", "Jester Royal", "The Last Laugh"],
+           "Opened Lep-in-the-Boxes at the Leprechaun's Last Laugh, St. Patrick's 2026.",
+           "em_jackbox", "clover")
+SP26.bundle("pair", "Box and Crank", 1, 1050, "One Lep-in-the-Box, one Crank Key.")
+SP26.bundle("set", "A Barrel of Laughs", 3, 3000, "Three boxes, three keys. Saves 300.")
+
+
 # @@ SP26 Leprechaun's Last Laugh goes above this line @@
 
 
 EVENTS = [SP22, SP23, SP24, SP25]
 
 # (SP26 adds itself to the list here)
-EVENTS += []  # @@ SP26 @@
+EVENTS += [SP26]  # @@ SP26 @@
