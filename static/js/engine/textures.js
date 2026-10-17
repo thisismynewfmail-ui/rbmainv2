@@ -4709,6 +4709,174 @@
 
   // @@ jl25 painters go above this line @@
 
+  // -- 2026, America 250: the bell, the cake, the parade and the pen
+
+  // a birthday candle's twist
+  painter('jl26_candle', function (ctx) {
+    for (var y = -CELL; y < CELL * 2; y += 24) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CELL, y + 60); ctx.lineTo(CELL, y + 72); ctx.lineTo(0, y + 12);
+      ctx.closePath(); ctx.fill();
+    }
+  });
+
+  // 250, in brass numerals on a dark plate
+  painter('jl26_250', function (ctx) {
+    ctx.fillStyle = '#2a1e16'; ctx.fillRect(0, 24, CELL, 80);
+    ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 3; ctx.strokeRect(4, 28, 120, 72);
+    ctx.fillStyle = '#f2c84a'; ctx.font = 'bold 58px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('250', 64, 66);
+    jlStar(ctx, 14, 64, 6, '#f2c84a'); jlStar(ctx, 114, 64, 6, '#f2c84a');
+  });
+
+  painter('stencil_jl26', stencil({ top: 'AMERICA', bottom: '250  1776-2026', icon: 'libertybell',
+                                    ink: 'rgba(255,211,106,0.95)', glow: '#ffd36a',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
+  // the bell: a lettered band round its shoulder, a patina, and the crack
+  painter('jl26_bell', function (ctx) {
+    var rnd = scatter(733);
+    for (var i = 0; i < 60; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(120,150,110,0.14)' : 'rgba(30,20,10,0.14)';
+      ctx.beginPath(); ctx.ellipse(rnd() * CELL, rnd() * CELL, 3 + rnd() * 8, 2 + rnd() * 5, rnd() * 3, 0,
+                                   Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,230,180,0.18)'; ctx.fillRect(0, 22, CELL, 2); ctx.fillRect(0, 40, CELL, 2);
+    ctx.fillStyle = 'rgba(30,20,10,0.75)'; ctx.font = 'bold 9px Georgia, serif'; ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle'; ctx.fillText('PROCLAIM LIBERTY THROUGHOUT', 2, 31);
+    ctx.fillStyle = 'rgba(255,230,180,0.18)'; ctx.fillRect(0, 108, CELL, 3);
+    // the crack: a jagged dark line up from the lip
+    ctx.strokeStyle = 'rgba(10,6,4,0.9)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(60, 128); ctx.lineTo(63, 116); ctx.lineTo(58, 106); ctx.lineTo(62, 96);
+    ctx.lineTo(57, 84); ctx.lineTo(61, 72); ctx.lineTo(58, 62); ctx.lineTo(60, 52); ctx.stroke();
+    ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(58, 106); ctx.lineTo(52, 100); ctx.stroke();
+  });
+
+  // the old circle flag: thirteen stars in a ring on blue, thirteen stripes
+  painter('jl26_betsy', function (ctx) {
+    for (var k = 0; k < 13; k++) {
+      ctx.fillStyle = k % 2 ? '#f4f6f8' : '#c8202f';
+      ctx.fillRect(0, k * CELL / 13, CELL, CELL / 13 + 0.5);
+    }
+    ctx.fillStyle = '#22306e'; ctx.fillRect(0, 0, 60, 69);
+    for (var s = 0; s < 13; s++) {
+      var a = s * Math.PI * 2 / 13 - Math.PI / 2;
+      jlStar(ctx, 30 + Math.cos(a) * 21, 34.5 + Math.sin(a) * 21, 3.2, '#ffffff');
+    }
+  });
+
+  // frosting: piped swags in red and blue, rosettes between
+  painter('jl26_frosting', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(0, 0, CELL, 8);
+    for (var x = 0; x < CELL; x += 32) {
+      ctx.strokeStyle = '#c8202f'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(x + 16, 30, 16, 0.1, Math.PI - 0.1); ctx.stroke();
+      ctx.strokeStyle = '#2a5ad8'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x + 16, 46, 14, 0.15, Math.PI - 0.15); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, 34, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.arc(x + 1, 35, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    for (var k = 0; k < 4; k++) {
+      ctx.fillStyle = 'rgba(200,190,170,0.25)'; ctx.fillRect(0, 70 + k * 14, CELL, 2);
+    }
+  });
+
+  // white clapboard: lapped boards, a shadow under each
+  painter('jl26_clapboard', function (ctx) {
+    for (var y = 0; y < CELL; y += 16) {
+      ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(0, y + 13, CELL, 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(0, y, CELL, 2);
+    }
+  });
+
+  // the mitre cap's front: thirteen embroidered stars round XIII
+  painter('jl26_mitre', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.08)'; for (var k = 0; k < CELL; k += 3) ctx.fillRect(0, k, CELL, 1);
+    for (var s = 0; s < 13; s++) {
+      var a = s * Math.PI * 2 / 13 - Math.PI / 2;
+      jlStar(ctx, 64 + Math.cos(a) * 34, 60 + Math.sin(a) * 34, 5, '#f4f6f8');
+    }
+    ctx.fillStyle = '#f2c84a'; ctx.font = 'bold 24px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('XIII', 64, 62);
+    ctx.strokeStyle = '#f2c84a'; ctx.lineWidth = 3; ctx.strokeRect(14, 104, 100, 14);
+  });
+
+  // a woven ring of thirteen stars, over and over: the sash, the cap band
+  painter('jl26_stars13', function (ctx) {
+    for (var x = 32; x < CELL; x += 64) {
+      for (var s = 0; s < 13; s++) {
+        var a = s * Math.PI * 2 / 13 - Math.PI / 2;
+        jlStar(ctx, x + Math.cos(a) * 22, 64 + Math.sin(a) * 22, 3.4, '#f4f6f8');
+      }
+    }
+  });
+
+  // the Declaration: a heading, lines of copperplate, and a crowd of big
+  // signatures at the bottom
+  painter('jl26_declaration', function (ctx) {
+    ctx.fillStyle = 'rgba(160,120,60,0.18)'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#2a1e16'; ctx.font = 'italic bold 11px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillText('In Party, July 4, 2026.', 64, 12);
+    ctx.font = 'bold 9px Georgia, serif';
+    ctx.fillText('The unanimous Declaration', 64, 24);
+    ctx.fillText('of the Guests of Blockhaven', 64, 34);
+    var rnd = scatter(739);
+    ctx.strokeStyle = 'rgba(42,30,22,0.55)'; ctx.lineWidth = 1;
+    for (var y = 44; y < 84; y += 4) {
+      ctx.beginPath(); ctx.moveTo(10, y);
+      for (var x = 10; x < 118; x += 4) ctx.lineTo(x, y + (rnd() - 0.5) * 1.6);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(30,24,60,0.8)';
+    for (var n = 0; n < 9; n++) {
+      var sx = 10 + (n % 3) * 38 + rnd() * 6, sy = 92 + Math.floor(n / 3) * 12;
+      ctx.beginPath(); ctx.moveTo(sx, sy);
+      for (var t = 0; t < 8; t++) ctx.quadraticCurveTo(sx + t * 4 + 2, sy - 6 + rnd() * 10, sx + t * 4 + 4, sy);
+      ctx.stroke();
+    }
+  });
+
+  // the parade drum's shell: an eagle under thirteen stars
+  painter('jl26_drum', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, 0, CELL, 20);
+    for (var s = 0; s < 13; s++) {
+      jlStar(ctx, 6 + s * 9.5, 20, 3.4, '#f4f6f8');
+    }
+    ctx.fillStyle = '#f2c84a';
+    ctx.beginPath(); ctx.moveTo(64, 46); ctx.quadraticCurveTo(30, 40, 16, 66); ctx.quadraticCurveTo(40, 60, 54, 70);
+    ctx.lineTo(64, 96); ctx.lineTo(74, 70); ctx.quadraticCurveTo(88, 60, 112, 66); ctx.quadraticCurveTo(98, 40, 64, 46);
+    ctx.fill();
+    ctx.fillStyle = '#f4f6f8'; ctx.beginPath(); ctx.arc(64, 48, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c8202f'; ctx.fillRect(58, 72, 12, 14);
+  });
+
+  // the Continental coat's front: buff facings and waistcoat, gold buttons,
+  // lace at the throat
+  painter('jl26_continental', function (ctx) {
+    ctx.fillStyle = '#d8c8a0'; ctx.fillRect(40, 0, 48, CELL);
+    ctx.fillStyle = '#e4d6b0'; ctx.fillRect(28, 0, 12, CELL); ctx.fillRect(88, 0, 12, CELL);
+    ctx.fillStyle = '#e8b830';
+    for (var y = 24; y < CELL; y += 14) {
+      ctx.beginPath(); ctx.arc(64, y, 2.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(34, y + 6, 2.6, 0, Math.PI * 2); ctx.arc(94, y + 6, 2.6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#ffffff';
+    for (var k = 0; k < 4; k++) {
+      ctx.beginPath(); ctx.ellipse(64, 6 + k * 6, 12 - k * 2, 5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
+    for (k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(64, 6 + k * 6, 12 - k * 2, 5, 0, 0, Math.PI); ctx.stroke(); }
+  });
+
+  // buff breeches above, white stockings below, a buckle at the knee
+  painter('jl26_breeches', function (ctx) {
+    ctx.fillStyle = '#f4f2ea'; ctx.fillRect(0, 70, CELL, 58);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)'; for (var y = 74; y < CELL; y += 4) ctx.fillRect(0, y, CELL, 1);
+    ctx.fillStyle = '#c8b888'; ctx.fillRect(0, 62, CELL, 8);
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(56, 60, 16, 12);
+    ctx.fillStyle = '#c8b888'; ctx.fillRect(60, 63, 8, 6);
+  });
+
   // @@ jl26 painters go above this line @@
 
   // @@ july4 painters go above this line @@

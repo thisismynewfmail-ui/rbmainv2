@@ -1014,6 +1014,16 @@
     }],
     // @@ jl25 particles go above this line @@
 
+    ['jl26_bell', function (c) {
+      // a bell with a crack up its side, and the yoke it hangs from
+      c.fillRect(30, 14, 68, 10);
+      c.beginPath(); c.moveTo(48, 26); c.quadraticCurveTo(46, 52, 40, 78); c.quadraticCurveTo(26, 98, 20, 106);
+      c.lineTo(108, 106); c.quadraticCurveTo(102, 98, 88, 78); c.quadraticCurveTo(82, 52, 80, 26); c.closePath(); c.fill();
+      dot(c, 64, 112, 8);
+      c.strokeStyle = '#6a6a6a'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(60, 104); c.lineTo(64, 90); c.lineTo(59, 78); c.lineTo(63, 66); c.stroke();
+      c.fillStyle = '#d0d0d0'; c.fillRect(46, 34, 36, 4);
+    }],
     // @@ jl26 particles go above this line @@
 
     // @@ july4 particles go above this line @@
