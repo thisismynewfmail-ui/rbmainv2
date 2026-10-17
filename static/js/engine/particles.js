@@ -991,8 +991,39 @@
       for (var x = 16; x <= 112; x += 12) c.lineTo(x, (x / 12) % 2 ? 52 : 64);
       c.stroke();
     }],
+    ['jl25_rocket', function (c) {
+      // a skyrocket going up: the case, its nose and a flare of fire below
+      poly(c, [[54, 30], [74, 30], [74, 78], [54, 78]]);
+      poly(c, [[54, 30], [64, 10], [74, 30]]);
+      c.fillStyle = '#c8c8c8'; c.fillRect(54, 46, 20, 6);
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.moveTo(56, 80); c.quadraticCurveTo(64, 126, 72, 80); c.fill();
+      c.fillStyle = '#e0e0e0'; c.beginPath(); c.moveTo(60, 80); c.quadraticCurveTo(64, 104, 68, 80); c.fill();
+    }],
+    ['jl25_bomb', function (c) {
+      // a round bomb with its fuse lit
+      dot(c, 60, 72, 38);
+      c.fillStyle = '#d0d0d0'; c.beginPath(); c.ellipse(46, 58, 10, 7, -0.6, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff'; c.fillRect(74, 26, 12, 14);
+      c.strokeStyle = '#ffffff'; c.lineWidth = 5; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(80, 26); c.quadraticCurveTo(88, 10, 100, 14); c.stroke();
+      for (var k = 0; k < 6; k++) {
+        var a = k * Math.PI / 3;
+        bar(c, 102 + Math.cos(a) * 4, 12 + Math.sin(a) * 4, 102 + Math.cos(a) * 14, 12 + Math.sin(a) * 14, 3);
+      }
+    }],
     // @@ jl25 particles go above this line @@
 
+    ['jl26_bell', function (c) {
+      // a bell with a crack up its side, and the yoke it hangs from
+      c.fillRect(30, 14, 68, 10);
+      c.beginPath(); c.moveTo(48, 26); c.quadraticCurveTo(46, 52, 40, 78); c.quadraticCurveTo(26, 98, 20, 106);
+      c.lineTo(108, 106); c.quadraticCurveTo(102, 98, 88, 78); c.quadraticCurveTo(82, 52, 80, 26); c.closePath(); c.fill();
+      dot(c, 64, 112, 8);
+      c.strokeStyle = '#6a6a6a'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(60, 104); c.lineTo(64, 90); c.lineTo(59, 78); c.lineTo(63, 66); c.stroke();
+      c.fillStyle = '#d0d0d0'; c.fillRect(46, 34, 36, 4);
+    }],
     // @@ jl26 particles go above this line @@
 
     // @@ july4 particles go above this line @@

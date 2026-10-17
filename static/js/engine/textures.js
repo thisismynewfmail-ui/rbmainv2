@@ -4544,7 +4544,338 @@
                                     ink: 'rgba(255,201,74,0.95)', glow: '#ffc94a',
                                     font: 'Georgia, serif', frame: 'round' }));
 
+  // -- 2025, Rocket's Red Glare: the star fort, the crew and the barrage
+
+  // harbour water at night: long ripples catching the glare
+  painter('jl25_water', function (ctx) {
+    var rnd = scatter(701);
+    for (var i = 0; i < 70; i++) {
+      var x = rnd() * CELL, y = rnd() * CELL, l = 8 + rnd() * 22;
+      ctx.strokeStyle = rnd() > 0.7 ? 'rgba(255,140,90,0.45)' : 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 1 + rnd() * 1.5;
+      around(ctx, x, y, function (g) { g.beginPath(); g.moveTo(-l / 2, 0); g.quadraticCurveTo(0, -2, l / 2, 0); g.stroke(); });
+    }
+  });
+
+  // the plaque over the gate
+  painter('jl25_plaque', function (ctx) {
+    ctx.fillStyle = '#e8dcc0'; ctx.fillRect(0, 30, CELL, 68);
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 4; ctx.strokeRect(4, 34, 120, 60);
+    ctx.fillStyle = '#3a2410'; ctx.font = 'bold 26px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var w = ctx.measureText('FORT BLOCK').width;
+    ctx.save(); ctx.translate(64, 64); ctx.scale(Math.min(1, 112 / w), 1); ctx.fillText('FORT BLOCK', 0, 0); ctx.restore();
+  });
+
+  // the magazine door: POWDER, and a no-flames sign nobody read
+  painter('jl25_powder', function (ctx) {
+    ctx.fillStyle = '#5a3a20'; ctx.fillRect(0, 0, CELL, CELL);
+    for (var x = 0; x < CELL; x += 21) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x, 0, 2, CELL); }
+    ctx.fillStyle = '#f2d23a'; ctx.fillRect(10, 18, 108, 34);
+    ctx.fillStyle = '#16171b'; ctx.font = 'bold 26px Impact, Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('POWDER', 64, 36);
+    ctx.strokeStyle = '#d8282a'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.arc(64, 92, 24, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffb03a';
+    ctx.beginPath(); ctx.moveTo(64, 76); ctx.quadraticCurveTo(76, 92, 64, 106); ctx.quadraticCurveTo(52, 92, 64, 76); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(47, 75); ctx.lineTo(81, 109); ctx.stroke();
+  });
+
+  painter('stencil_jl25', stencil({ top: "ROCKET'S RED", bottom: 'GLARE  2025', icon: 'firework',
+                                    ink: 'rgba(255,90,58,0.95)', glow: '#ff5a3a',
+                                    font: 'Georgia, serif', frame: 'box' }));
+
+  // the crew's hard hat: PYRO CREW, a flame triangle, and a lot of stickers
+  painter('jl25_hardhat', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(0, 0, CELL, 40);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(30, 58, 68, 20);
+    ctx.fillStyle = '#16171b'; ctx.font = 'bold 15px Impact, Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('PYRO CREW', 64, 68);
+    ctx.fillStyle = '#f2d23a';
+    ctx.beginPath(); ctx.moveTo(10, 100); ctx.lineTo(24, 76); ctx.lineTo(38, 100); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#16171b'; ctx.beginPath(); ctx.moveTo(24, 82); ctx.quadraticCurveTo(30, 92, 24, 98);
+    ctx.quadraticCurveTo(18, 92, 24, 82); ctx.fill();
+    ctx.fillStyle = '#22306e'; ctx.beginPath(); ctx.arc(104, 92, 12, 0, Math.PI * 2); ctx.fill();
+    jlStar(ctx, 104, 92, 7, '#ffffff');
+    ctx.fillStyle = 'rgba(40,30,20,0.35)';
+    ctx.beginPath(); ctx.ellipse(86, 30, 14, 6, 0.4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // the shako plate: an eagle over a shield, in brass relief
+  painter('jl25_shakoplate', function (ctx) {
+    ctx.fillStyle = 'rgba(255,240,180,0.25)'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.strokeStyle = 'rgba(90,60,10,0.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(64, 30); ctx.quadraticCurveTo(30, 18, 14, 44); ctx.quadraticCurveTo(36, 40, 50, 50);
+    ctx.moveTo(64, 30); ctx.quadraticCurveTo(98, 18, 114, 44); ctx.quadraticCurveTo(92, 40, 78, 50); ctx.stroke();
+    ctx.fillStyle = 'rgba(90,60,10,0.55)';
+    ctx.beginPath(); ctx.arc(64, 34, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(46, 52); ctx.lineTo(82, 52); ctx.lineTo(82, 80); ctx.quadraticCurveTo(64, 100, 46, 80);
+    ctx.closePath(); ctx.stroke();
+    for (var k = 0; k < 4; k++) ctx.fillRect(50 + k * 8, 62, 4, 22);
+    ctx.font = 'bold 14px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillText('1812', 64, 112);
+  });
+
+  // a firework mortar tube: cardboard rings and a warning band
+  painter('jl25_tube', function (ctx) {
+    for (var y = 0; y < CELL; y += 10) { ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(0, y, CELL, 2); }
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(0, 50, CELL, 26);
+    ctx.fillStyle = '#d8282a'; ctx.font = 'bold 15px Impact, Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('DANGER', 32, 63); ctx.fillText('DANGER', 96, 63);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, CELL, 6);
+  });
+
+  // the great garrison flag: fifteen stripes and fifteen stars, scorched at
+  // the fly and holed by the night's work
+  painter('jl25_garrison', function (ctx) {
+    for (var k = 0; k < 15; k++) {
+      ctx.fillStyle = k % 2 ? '#f4f6f8' : '#c8202f';
+      ctx.fillRect(0, k * CELL / 15, CELL, CELL / 15 + 0.5);
+    }
+    ctx.fillStyle = '#22306e'; ctx.fillRect(0, 0, 58, 68);
+    for (var row = 0; row < 5; row++) {
+      for (var col = 0; col < 3; col++) {
+        jlStar(ctx, 10 + col * 19 + (row % 2 ? 9 : 0), 8 + row * 13, 4.2, '#ffffff');
+      }
+    }
+    var g = ctx.createLinearGradient(80, 0, CELL, 0);
+    g.addColorStop(0, 'rgba(40,20,10,0)'); g.addColorStop(1, 'rgba(40,20,10,0.6)');
+    ctx.fillStyle = g; ctx.fillRect(80, 0, 48, CELL);
+    [[92, 34, 6], [70, 92, 5], [110, 70, 7]].forEach(function (h) {
+      ctx.fillStyle = 'rgba(60,30,10,0.75)'; ctx.beginPath(); ctx.arc(h[0], h[1], h[2] + 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16171b'; ctx.beginPath(); ctx.arc(h[0], h[1], h[2], 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = '#16171b';
+    ctx.beginPath(); ctx.moveTo(128, 0); ctx.lineTo(120, 12); ctx.lineTo(128, 22); ctx.lineTo(118, 40); ctx.lineTo(128, 52);
+    ctx.lineTo(121, 74); ctx.lineTo(128, 90); ctx.lineTo(119, 108); ctx.lineTo(128, 128); ctx.closePath(); ctx.fill();
+  });
+
+  // the garrison coatee's front: red facings, white cross-belts and their
+  // brass plate, two rows of buttons
+  painter('jl25_coatee', function (ctx) {
+    ctx.fillStyle = '#c8202f'; ctx.fillRect(44, 0, 40, 14);
+    ctx.fillRect(40, 14, 14, CELL - 14); ctx.fillRect(74, 14, 14, CELL - 14);
+    ctx.fillStyle = '#e8b830';
+    for (var y = 22; y < CELL; y += 16) {
+      ctx.beginPath(); ctx.arc(47, y, 3, 0, Math.PI * 2); ctx.arc(81, y, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.save(); ctx.translate(64, 64);
+    [-0.78, 0.78].forEach(function (a) {
+      ctx.save(); ctx.rotate(a); ctx.fillStyle = '#f4f2ea'; ctx.fillRect(-100, -7, 200, 14);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(-100, 5, 200, 2); ctx.restore();
+    });
+    ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(90,60,10,0.7)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+  });
+
+  // a bandolier of little firework shells in canvas loops
+  painter('jl25_shells', function (ctx) {
+    ctx.fillStyle = '#6a5a3a'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; for (var k = 0; k < CELL; k += 4) ctx.fillRect(0, k, CELL, 1);
+    var cols = ['#c8202f', '#22306e', '#f4f6f8', '#e8b830'];
+    for (var x = 8, n = 0; x < CELL; x += 20, n++) {
+      ctx.fillStyle = cols[n % 4]; ctx.fillRect(x, 30, 12, 56);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x + 2, 30, 3, 56);
+      ctx.fillStyle = '#3a3226'; ctx.fillRect(x + 5, 20, 2, 12);
+      ctx.fillStyle = '#5a4a2e'; ctx.fillRect(x - 2, 48, 16, 12);
+    }
+  });
+
+  // a parachute canopy: red and white gores
+  painter('jl25_chute', function (ctx) {
+    for (var x = 0; x < CELL; x += 16) {
+      ctx.fillStyle = (x / 16) % 2 ? '#f4f6f8' : '#d8282a'; ctx.fillRect(x, 0, 16, CELL);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x, 0, 1, CELL);
+    }
+  });
+
+  // a star shell's paper case: its stars stencilled on and a warning
+  painter('jl25_shell', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(0, 0, CELL, 30);
+    for (var x = 16; x < CELL; x += 32) jlStar(ctx, x, 40, 9, '#f4f6f8');
+    ctx.fillStyle = '#f4f6f8'; ctx.fillRect(0, 64, CELL, 22);
+    ctx.fillStyle = '#16171b'; ctx.font = 'bold 13px Impact, Verdana, sans-serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('ILLUMINATING', 64, 75);
+  });
+
+  // black-powder fuse: a tight twist of cord
+  painter('jl25_fuse', function (ctx) {
+    for (var y = -CELL; y < CELL * 2; y += 10) {
+      ctx.strokeStyle = (y / 10) % 2 ? 'rgba(255,230,190,0.25)' : 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CELL, y + 40); ctx.stroke();
+    }
+  });
+
   // @@ jl25 painters go above this line @@
+
+  // -- 2026, America 250: the bell, the cake, the parade and the pen
+
+  // a birthday candle's twist
+  painter('jl26_candle', function (ctx) {
+    for (var y = -CELL; y < CELL * 2; y += 24) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CELL, y + 60); ctx.lineTo(CELL, y + 72); ctx.lineTo(0, y + 12);
+      ctx.closePath(); ctx.fill();
+    }
+  });
+
+  // 250, in brass numerals on a dark plate
+  painter('jl26_250', function (ctx) {
+    ctx.fillStyle = '#2a1e16'; ctx.fillRect(0, 24, CELL, 80);
+    ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 3; ctx.strokeRect(4, 28, 120, 72);
+    ctx.fillStyle = '#f2c84a'; ctx.font = 'bold 58px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('250', 64, 66);
+    jlStar(ctx, 14, 64, 6, '#f2c84a'); jlStar(ctx, 114, 64, 6, '#f2c84a');
+  });
+
+  painter('stencil_jl26', stencil({ top: 'AMERICA', bottom: '250  1776-2026', icon: 'libertybell',
+                                    ink: 'rgba(255,211,106,0.95)', glow: '#ffd36a',
+                                    font: 'Georgia, serif', frame: 'round' }));
+
+  // the bell: a lettered band round its shoulder, a patina, and the crack
+  painter('jl26_bell', function (ctx) {
+    var rnd = scatter(733);
+    for (var i = 0; i < 60; i++) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(120,150,110,0.14)' : 'rgba(30,20,10,0.14)';
+      ctx.beginPath(); ctx.ellipse(rnd() * CELL, rnd() * CELL, 3 + rnd() * 8, 2 + rnd() * 5, rnd() * 3, 0,
+                                   Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,230,180,0.18)'; ctx.fillRect(0, 22, CELL, 2); ctx.fillRect(0, 40, CELL, 2);
+    ctx.fillStyle = 'rgba(30,20,10,0.75)'; ctx.font = 'bold 9px Georgia, serif'; ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle'; ctx.fillText('PROCLAIM LIBERTY THROUGHOUT', 2, 31);
+    ctx.fillStyle = 'rgba(255,230,180,0.18)'; ctx.fillRect(0, 108, CELL, 3);
+    // the crack: a jagged dark line up from the lip
+    ctx.strokeStyle = 'rgba(10,6,4,0.9)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(60, 128); ctx.lineTo(63, 116); ctx.lineTo(58, 106); ctx.lineTo(62, 96);
+    ctx.lineTo(57, 84); ctx.lineTo(61, 72); ctx.lineTo(58, 62); ctx.lineTo(60, 52); ctx.stroke();
+    ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(58, 106); ctx.lineTo(52, 100); ctx.stroke();
+  });
+
+  // the old circle flag: thirteen stars in a ring on blue, thirteen stripes
+  painter('jl26_betsy', function (ctx) {
+    for (var k = 0; k < 13; k++) {
+      ctx.fillStyle = k % 2 ? '#f4f6f8' : '#c8202f';
+      ctx.fillRect(0, k * CELL / 13, CELL, CELL / 13 + 0.5);
+    }
+    ctx.fillStyle = '#22306e'; ctx.fillRect(0, 0, 60, 69);
+    for (var s = 0; s < 13; s++) {
+      var a = s * Math.PI * 2 / 13 - Math.PI / 2;
+      jlStar(ctx, 30 + Math.cos(a) * 21, 34.5 + Math.sin(a) * 21, 3.2, '#ffffff');
+    }
+  });
+
+  // frosting: piped swags in red and blue, rosettes between
+  painter('jl26_frosting', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(0, 0, CELL, 8);
+    for (var x = 0; x < CELL; x += 32) {
+      ctx.strokeStyle = '#c8202f'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(x + 16, 30, 16, 0.1, Math.PI - 0.1); ctx.stroke();
+      ctx.strokeStyle = '#2a5ad8'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x + 16, 46, 14, 0.15, Math.PI - 0.15); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, 34, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.arc(x + 1, 35, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    for (var k = 0; k < 4; k++) {
+      ctx.fillStyle = 'rgba(200,190,170,0.25)'; ctx.fillRect(0, 70 + k * 14, CELL, 2);
+    }
+  });
+
+  // white clapboard: lapped boards, a shadow under each
+  painter('jl26_clapboard', function (ctx) {
+    for (var y = 0; y < CELL; y += 16) {
+      ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(0, y + 13, CELL, 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(0, y, CELL, 2);
+    }
+  });
+
+  // the mitre cap's front: thirteen embroidered stars round XIII
+  painter('jl26_mitre', function (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.08)'; for (var k = 0; k < CELL; k += 3) ctx.fillRect(0, k, CELL, 1);
+    for (var s = 0; s < 13; s++) {
+      var a = s * Math.PI * 2 / 13 - Math.PI / 2;
+      jlStar(ctx, 64 + Math.cos(a) * 34, 60 + Math.sin(a) * 34, 5, '#f4f6f8');
+    }
+    ctx.fillStyle = '#f2c84a'; ctx.font = 'bold 24px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; ctx.fillText('XIII', 64, 62);
+    ctx.strokeStyle = '#f2c84a'; ctx.lineWidth = 3; ctx.strokeRect(14, 104, 100, 14);
+  });
+
+  // a woven ring of thirteen stars, over and over: the sash, the cap band
+  painter('jl26_stars13', function (ctx) {
+    for (var x = 32; x < CELL; x += 64) {
+      for (var s = 0; s < 13; s++) {
+        var a = s * Math.PI * 2 / 13 - Math.PI / 2;
+        jlStar(ctx, x + Math.cos(a) * 22, 64 + Math.sin(a) * 22, 3.4, '#f4f6f8');
+      }
+    }
+  });
+
+  // the Declaration: a heading, lines of copperplate, and a crowd of big
+  // signatures at the bottom
+  painter('jl26_declaration', function (ctx) {
+    ctx.fillStyle = 'rgba(160,120,60,0.18)'; ctx.fillRect(0, 0, CELL, CELL);
+    ctx.fillStyle = '#2a1e16'; ctx.font = 'italic bold 11px Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillText('In Party, July 4, 2026.', 64, 12);
+    ctx.font = 'bold 9px Georgia, serif';
+    ctx.fillText('The unanimous Declaration', 64, 24);
+    ctx.fillText('of the Guests of Blockhaven', 64, 34);
+    var rnd = scatter(739);
+    ctx.strokeStyle = 'rgba(42,30,22,0.55)'; ctx.lineWidth = 1;
+    for (var y = 44; y < 84; y += 4) {
+      ctx.beginPath(); ctx.moveTo(10, y);
+      for (var x = 10; x < 118; x += 4) ctx.lineTo(x, y + (rnd() - 0.5) * 1.6);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(30,24,60,0.8)';
+    for (var n = 0; n < 9; n++) {
+      var sx = 10 + (n % 3) * 38 + rnd() * 6, sy = 92 + Math.floor(n / 3) * 12;
+      ctx.beginPath(); ctx.moveTo(sx, sy);
+      for (var t = 0; t < 8; t++) ctx.quadraticCurveTo(sx + t * 4 + 2, sy - 6 + rnd() * 10, sx + t * 4 + 4, sy);
+      ctx.stroke();
+    }
+  });
+
+  // the parade drum's shell: an eagle under thirteen stars
+  painter('jl26_drum', function (ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, 0, CELL, 20);
+    for (var s = 0; s < 13; s++) {
+      jlStar(ctx, 6 + s * 9.5, 20, 3.4, '#f4f6f8');
+    }
+    ctx.fillStyle = '#f2c84a';
+    ctx.beginPath(); ctx.moveTo(64, 46); ctx.quadraticCurveTo(30, 40, 16, 66); ctx.quadraticCurveTo(40, 60, 54, 70);
+    ctx.lineTo(64, 96); ctx.lineTo(74, 70); ctx.quadraticCurveTo(88, 60, 112, 66); ctx.quadraticCurveTo(98, 40, 64, 46);
+    ctx.fill();
+    ctx.fillStyle = '#f4f6f8'; ctx.beginPath(); ctx.arc(64, 48, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c8202f'; ctx.fillRect(58, 72, 12, 14);
+  });
+
+  // the Continental coat's front: buff facings and waistcoat, gold buttons,
+  // lace at the throat
+  painter('jl26_continental', function (ctx) {
+    ctx.fillStyle = '#d8c8a0'; ctx.fillRect(40, 0, 48, CELL);
+    ctx.fillStyle = '#e4d6b0'; ctx.fillRect(28, 0, 12, CELL); ctx.fillRect(88, 0, 12, CELL);
+    ctx.fillStyle = '#e8b830';
+    for (var y = 24; y < CELL; y += 14) {
+      ctx.beginPath(); ctx.arc(64, y, 2.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(34, y + 6, 2.6, 0, Math.PI * 2); ctx.arc(94, y + 6, 2.6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#ffffff';
+    for (var k = 0; k < 4; k++) {
+      ctx.beginPath(); ctx.ellipse(64, 6 + k * 6, 12 - k * 2, 5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
+    for (k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(64, 6 + k * 6, 12 - k * 2, 5, 0, 0, Math.PI); ctx.stroke(); }
+  });
+
+  // buff breeches above, white stockings below, a buckle at the knee
+  painter('jl26_breeches', function (ctx) {
+    ctx.fillStyle = '#f4f2ea'; ctx.fillRect(0, 70, CELL, 58);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)'; for (var y = 74; y < CELL; y += 4) ctx.fillRect(0, y, CELL, 1);
+    ctx.fillStyle = '#c8b888'; ctx.fillRect(0, 62, CELL, 8);
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(56, 60, 16, 12);
+    ctx.fillStyle = '#c8b888'; ctx.fillRect(60, 63, 8, 6);
+  });
 
   // @@ jl26 painters go above this line @@
 

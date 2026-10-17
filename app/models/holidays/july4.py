@@ -1647,7 +1647,1221 @@ JL24.award("Liberty Lights", ["Lantern Bearer", "Firefly Catcher", "Lamplighter"
 JL24.bundle("pair", "Lantern and Torch", 1, 1050, "One Tin Lantern Crate, one Torch Key.")
 JL24.bundle("parade", "Lantern Parade", 3, 3000, "Three lanterns, three keys. Saves 300.")
 
+# ============================================================ 2025
+JL25_BRICK = "#c0644a"
+JL25_STONE = "#cfc6b0"
+JL25_GRASS = "#4f8a3a"
+JL25_SAND = "#d8c890"
+JL25_SEA = "#2a5a8a"
+JL25_IRON = "#2e3034"
+JL25_HIVIS = "#f2d23a"
+JL25_HAT = "#d8282a"
+JL25_FUSE = "#3a3226"
+JL25_EMBER = "#ff6a2a"
+JL25_SPARK = "#fff3b0"
+JL25_NIGHT = "#0e1430"
+JL25_WOOD = "#7a5230"
+JL25_SLATE = "#4a5060"
+# the star fort: five bastions, their points R_OUT out, the re-entrant
+# angles between them R_IN in
+JL25_OUT, JL25_IN = 0.80, 0.50
+
+
+def _jl25_star(n):
+    """The ten corners of the fort's outline, point and re-entrant angle in
+    turn, its first point at the back (-Z)."""
+    a = PI + n * PI / 5
+    r = JL25_OUT if n % 2 == 0 else JL25_IN
+    return [math.sin(a) * r, math.cos(a) * r]
+
+
+def _jl25_fort(h=0.60, brick=JL25_BRICK, **kw):
+    """A five-bastioned star fort, its foot on the origin and its walls
+    ``h`` high: a round keep of brick, a triangular bastion on every side,
+    and a stone parapet along the top of the whole outline."""
+    base = JL25_IN * math.cos(PI / 5)
+    width = 2 * JL25_IN * math.sin(PI / 5)
+    parts = [part("cyl", [0, h / 2, 0], [2 * JL25_IN, h, 2 * JL25_IN], brick, decal="bricks", wrap=True,
+                  **kw)]
+    for n in range(5):
+        a = PI + n * TAU / 5
+        mid = (base + JL25_OUT) / 2
+        parts.append(part("tri", [math.sin(a) * mid, h / 2, math.cos(a) * mid], [width, JL25_OUT - base, h],
+                          brick, [PI / 2, a, 0], decal="bricks", wrap=True, **kw))
+    for n in range(10):
+        p, q = _jl25_star(n), _jl25_star(n + 1)
+        mx, mz = (p[0] + q[0]) / 2, (p[1] + q[1]) / 2
+        ml = math.hypot(mx, mz)
+        mx, mz = mx * (1 - 0.035 / ml), mz * (1 - 0.035 / ml)
+        length = math.hypot(q[0] - p[0], q[1] - p[1])
+        parts.append(part("rbox", [mx, h + 0.035, mz], [0.07, 0.07, length + 0.04], JL25_STONE,
+                          [0, math.atan2(q[0] - p[0], q[1] - p[1]), 0], **kw))
+    return parts
+
+
+def _jl25_cannon(at, a, k=1.0, **kw):
+    """A cannon on its carriage at ``at``, its muzzle out along the angle
+    ``a`` (0 is +Z), cocked up a little."""
+    x, y, z = at
+    s, c = math.sin(a), math.cos(a)
+    out = [
+        part("rbox", [x, y + 0.04 * k, z], [0.16 * k, 0.08 * k, 0.24 * k], JL25_WOOD, [0, a, 0], **kw),
+        part("cyl", [x + s * 0.07 * k, y + 0.12 * k, z + c * 0.07 * k], [0.09 * k, 0.36 * k, 0.09 * k],
+             JL25_IRON, [PI / 2 - 0.18, a, 0], m="metal", **kw),
+        part("sph", [x - s * 0.10 * k, y + 0.09 * k, z - c * 0.10 * k], [0.10 * k, 0.10 * k, 0.10 * k],
+             JL25_IRON, m="metal", **kw),
+    ]
+    for side in (1, -1):
+        out.append(part("cyl", [x + c * 0.09 * k * side, y + 0.04 * k, z - s * 0.09 * k * side],
+                        [0.12 * k, 0.03 * k, 0.12 * k], JL25_WOOD, [0, a, PI / 2], **kw))
+    return out
+
+
+def _jl25_mortars(at, a, k=1.0, launch=False, **kw):
+    """A rack of four firework mortars on a board at ``at``, splayed out
+    along the angle ``a``, their fuses joined -- and, ``launch``, a shell
+    just leaving one of them in a streak of sparks."""
+    x, y, z = at
+    s, c = math.sin(a), math.cos(a)
+    out = [part("rbox", [x, y + 0.025 * k, z], [0.26 * k, 0.05 * k, 0.26 * k], JL25_WOOD, [0, a, 0],
+                decal="planks", **kw)]
+    tubes = []
+    for i, (u, v) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
+        px = x + (u * c + v * s) * 0.065 * k
+        pz = z + (-u * s + v * c) * 0.065 * k
+        tubes.append([px, y + 0.05 * k, pz])
+        out += [part("cyl", [px, y + 0.15 * k, pz], [0.10 * k, 0.20 * k, 0.10 * k],
+                     [NAVY, RED, RED, NAVY][i], [0.12 * v, a, 0.12 * u], decal="jl25_tube", wrap=True, **kw),
+                part("cyl", [px, y + 0.255 * k, pz], [0.075 * k, 0.012 * k, 0.075 * k], "#1a1a1a", **kw)]
+    for p, q in zip(tubes, tubes[1:]):
+        out.append(rod(p, q, 0.018 * k, JL25_FUSE, **kw))
+    if launch:
+        t = tubes[3]
+        out += [rod([t[0], t[1] + 0.30 * k, t[2]], [t[0], t[1] + 0.95 * k, t[2]], 0.035 * k, JL25_EMBER,
+                    m="neon", a=0.7, **kw),
+                part("sph", [t[0], t[1] + 1.02 * k, t[2]], [0.11 * k, 0.11 * k, 0.11 * k], JL25_SPARK, m="neon",
+                     **kw),
+                place("sparkle", [t[0], t[1] + 1.02 * k, t[2]], 0.26 * k, JL25_SPARK, m="neon", spin=6.0, **kw)]
+    return out
+
+
+JL25 = Event(
+    "july4_2025", "july4", 2025, "jl25",
+    name="Rocket's Red Glare", title="Rocket's Red Glare",
+    blurb="Blockhaven fires its Fourth of July show from the old star fort out in the "
+          "harbour, and in 2025 the pyro crew had a plan: load the whole season's stock "
+          "into the fort's powder magazine and light everything at once. The barrage "
+          "went on all night. Nobody on the shore slept. At dawn the smoke cleared, the "
+          "crew climbed out of the moat one by one, and the great flag was still there.",
+    tagline="Light the fuse. Walk -- do not run -- away.",
+    starts="2025-06-27", ends="2025-07-11",
+    colors={"accent": "#ff3a2a", "deep": JL25_NIGHT, "glow": "#ffb04a"},
+    family_effects=["ember_storm", "scorching", "starstruck"],
+    hero_effect="rockets_red_glare", stencil="stencil_jl25")
+
+JL25_K = 0.88          # the crate's island, scaled to the stage
+
+
+@JL25.crate_model("Star Fort",
+                  "The old star fort in the harbour on its little island: five brick "
+                  "bastions, cannons on the seaward ones and firework mortars on the "
+                  "others, a gatehouse with the lock in it, and the parade ground lifting "
+                  "off with the powder magazine and the great garrison flag still flying. "
+                  "Holds the Rocket's Red Glare set. Needs a Rampart Key.",
+                  hinge=[0, -0.15 * JL25_K, -0.44 * JL25_K],
+                  keyhole=[0.13 * JL25_K, -0.62 * JL25_K, 0.69 * JL25_K])
+def _():
+    y0, h = -0.80, 0.62
+    top = y0 + h
+    parts = [
+        # the harbour, the beach and the island's turf
+        part("cyl", [0, -0.885, 0], [2.10, 0.05, 2.10], JL25_SEA, m="glass", decal="jl25_water"),
+        part("cyl", [0, -0.855, 0], [1.98, 0.05, 1.98], JL25_SAND),
+        part("cyl", [0, -0.82, 0], [1.90, 0.04, 1.90], JL25_GRASS, decal="jl_grass", wrap=True),
+    ]
+    parts += at_frame(_jl25_fort(h), [0, y0, 0])
+    parts += [
+        # the gatehouse in the front angle, its arch, its sign and the lock
+        part("rbox", [0, y0 + 0.24, 0.53], [0.42, 0.48, 0.24], JL25_BRICK, decal="bricks", wrap=True),
+        part("rbox", [0, y0 + 0.50, 0.53], [0.46, 0.05, 0.28], JL25_STONE),
+        part("rbox", [0, y0 + 0.12, 0.652], [0.17, 0.24, 0.02], "#2a1e16"),
+        part("cyl", [0, y0 + 0.24, 0.652], [0.17, 0.02, 0.17], "#2a1e16", [PI / 2, 0, 0]),
+        part("box", [0, y0 + 0.38, 0.651], [0.32, 0.10, 0.01], "#000000", decal="jl25_plaque", a=-1),
+        part("rbox", [0.13, y0 + 0.18, 0.66], [0.09, 0.12, 0.03], BRASS, m="metal", decal="keyhole",
+             lock=1),
+        # the light inside, at the seam
+        part("cyl", [0, top + 0.005, 0], [0.90, 0.03, 0.90], "#ffd38a", m="neon"),
+        # the lid: the parade ground, its magazine, the shot, the flag
+        part("cyl", [0, top + 0.04, 0], [0.94, 0.06, 0.94], "#9a8a6a", lid=1),
+        part("rbox", [0.14, top + 0.17, 0.08], [0.34, 0.20, 0.26], JL25_BRICK, decal="bricks", wrap=True,
+             lid=1),
+        part("cyl", [0.14, top + 0.255, 0.08], [0.26, 0.36, 0.26], JL25_SLATE, [0, 0, PI / 2], lid=1),
+        part("box", [0.14, top + 0.15, 0.212], [0.14, 0.14, 0.01], "#000000", decal="jl25_powder", a=-1,
+             lid=1),
+        *[part("sph", p, [0.07, 0.07, 0.07], JL25_IRON, m="metal", lid=1)
+          for p in ([-0.22, top + 0.105, 0.20], [-0.15, top + 0.105, 0.20], [-0.185, top + 0.105, 0.14],
+                    [-0.185, top + 0.165, 0.18])],
+    ]
+    flag = _flag([-0.20, top + 0.07, -0.18], 1.0, 0.0, pole=1.10, decal="jl25_garrison")
+    parts += [dict(p, lid=1) for p in flag]
+    # cannons on the three seaward bastions, mortars on the two by the gate
+    for n in range(5):
+        a = PI + n * TAU / 5
+        r = 0.56
+        spot = [math.sin(a) * r, top + 0.07, math.cos(a) * r]
+        if n in (0, 1, 4):
+            parts += _jl25_cannon(spot, a, 1.0)
+        else:
+            parts += _jl25_mortars(spot, a, 1.0, launch=(n == 2))
+    # the stencil, on a notice board on the beach behind
+    parts += [rod([-0.22, -0.84, -0.92], [-0.22, -0.40, -0.92], 0.04, JL25_WOOD),
+              rod([0.22, -0.84, -0.92], [0.22, -0.40, -0.92], 0.04, JL25_WOOD),
+              part("rbox", [0, -0.50, -0.92], [0.60, 0.34, 0.03], "#e8dcc0"),
+              part("box", [0, -0.50, -0.94], [0.54, 0.30, 0.01], "#000000", [0, PI, 0], decal="stencil_jl25",
+                   a=-1)]
+    return at_frame(parts, [0, 0, 0], k=JL25_K)
+
+
+@JL25.key_model("Rampart Key",
+                "A brass key with a five-pointed star for a bow -- the fort seen from the "
+                "sky -- a red star in the middle with a fuse curling out of it, and a bit "
+                "cut like battlements. Opens one Star Fort. Keep it dry.", shoulder=-0.36)
+def _():
+    x0 = -0.62
+    return [
+        place("star", [x0, 0, 0], [0.62, 0.62, 0.60], BRASS, m="metal", decal="rivets"),
+        place("star", [x0, 0.0, 0.05], [0.34, 0.34, 0.30], RED, m="glass"),
+        part("sph", [x0, 0.0, 0.08], [0.08, 0.08, 0.05], WHITE),
+        rod([x0 + 0.02, 0.18, 0.04], [x0 + 0.10, 0.36, 0.06], 0.025, JL25_FUSE),
+        place("sparkle", [x0 + 0.11, 0.38, 0.06], 0.16, JL25_SPARK, m="neon", spin=6.0),
+        part("torus", [-0.34, 0, 0], [0.18, 0.18, 0.18], BRASS, [0, 0, PI / 2], m="metal"),
+        part("cyl", [0.06, 0, 0], [0.09, 0.80, 0.09], BRASS, [0, 0, PI / 2], m="metal"),
+        part("sph", [0.47, 0, 0], [0.11, 0.11, 0.11], BRASS, m="metal"),
+        # the bit: a wall and three merlons
+        part("rbox", [0.34, -0.10, 0], [0.26, 0.08, 0.07], BRASS, m="metal"),
+        *[part("rbox", [0.24 + 0.10 * n, -0.18, 0], [0.06, 0.08, 0.07], BRASS, m="metal") for n in range(3)],
+    ]
+
+
+# ================================================================== hats
+@JL25.hat("pyro_hard_hat", "Pyro Crew Hard Hat",
+          "Bright red, stickered all over, ear defenders clamped on the sides and a "
+          "face shield flipped up because you cannot see the fuse through it. The "
+          "crew wore these all night. The crew cannot hear you.", "uncommon")
+def _():
+    crown = dome(-0.34, 0.82, JL25_HAT, t="capcrown", decal="jl25_hardhat", wrap=True)
+    top = crown["p"][1] + crown["s"][1] / 2
+    parts = [
+        crown,
+        ringband(-0.30, 0.05, shade(JL25_HAT, 0.85), margin=0.16),
+        place("peak", [0, -0.30, 0.0], [1.30, 1.0, 1.80], shade(JL25_HAT, 0.92), anchor=[0, 0, 0]),
+        part("rbox", [0, top - 0.02, -0.05], [0.16, 0.07, 1.10], shade(JL25_HAT, 1.08)),
+        # the face shield, flipped up against the crown
+        part("rbox", [0, 0.22, 0.64], [1.26, 0.40, 0.03], "#bfe0ff", [-1.18, 0, 0], m="glass", a=0.45),
+    ]
+    for s in (1, -1):
+        parts += [
+            part("cyl", [0.86 * s, -0.64, 0.0], [0.36, 0.13, 0.36], "#2e3238", [0, 0, PI / 2]),
+            part("cyl", [0.80 * s, -0.64, 0.0], [0.30, 0.03, 0.30], "#1a1c20", [0, 0, PI / 2]),
+            part("cyl", [0.93 * s, -0.64, 0.0], [0.18, 0.02, 0.18], JL25_HIVIS, [0, 0, PI / 2]),
+            rod([0.86 * s, -0.47, 0.0], [0.86 * s, -0.31, 0.0], 0.05, JL25_HIVIS),
+            part("cyl", [0.80 * s, 0.10, 0.50], [0.08, 0.06, 0.08], "#1a1c20", [0, 0, PI / 2]),
+        ]
+    return parts
+
+
+@JL25.hat("garrison_shako", "Garrison Shako",
+          "The fort's own: tall blue felt, a leather peak, the brass plate with the "
+          "eagle on it, a cockade and a red-over-white plume that adds a foot to you. "
+          "Regulation. The regulations were written in 1812 and nobody has dared "
+          "change them.", "rare")
+def _():
+    parts = [
+        place("flare", [0, -0.40, 0], [2.06, 1.00, 2.00], NAVY, anchor=[0, 0, 0], decal="felt", wrap=True),
+        part("cyl", [0, 0.585, 0], [2.06, 0.05, 2.00], BLACK, decal="leather"),
+        part("torus", [0, 0.56, 0], [2.08, 0.25, 2.02], GOLD, m="metal"),
+        ringband(-0.36, 0.08, BLACK, margin=0.05, decal="leather"),
+        place("peak", [0, -0.36, 0.0], [1.30, 1.0, 1.80], BLACK, anchor=[0, 0, 0], decal="leather"),
+        place("shield", [0, 0.06, 0.885], [0.46, 0.52, 0.5], BRASS, r=[-0.05, 0, 0], m="metal",
+              decal="jl25_shakoplate"),
+        # the plume, red over white
+        part("capsule", [0, 1.00, 0.78], [0.26, 0.84, 0.26], WHITE, decal="felt", wrap=True),
+        part("capsule", [0, 1.52, 0.78], [0.23, 0.52, 0.23], RED, decal="felt", wrap=True),
+        part("cyl", [0, 0.62, 0.80], [0.14, 0.10, 0.14], GOLD, m="metal"),
+        # the cords swagged across the front
+        rod([-0.70, 0.20, 0.66], [0.0, 0.02, 0.92], 0.04, WHITE),
+        rod([0.0, 0.02, 0.92], [0.70, 0.20, 0.66], 0.04, WHITE),
+    ]
+    parts += _rosette([0, 0.42, 0.93], 0.70)
+    return parts
+
+
+@JL25.hat("finale_rack", "The Finale Rack",
+          "Nine mortars on a board on your head, fused together, and the middle one has "
+          "just gone: a streak of sparks straight up and a shell bursting red, white and "
+          "blue overhead, every single time. The crew built it as a joke. Then they ran "
+          "out of mortars and used it for real.", "legendary")
+def _():
+    parts = [
+        cap(-0.22, 0.06, JL25_WOOD, decal="planks", wrap=True),
+        band(-0.18, 0.08, shade(JL25_WOOD, 0.8)),
+        part("rbox", [0, 0.11, 0], [1.40, 0.10, 1.34], JL25_WOOD, decal="planks", wrap=True),
+    ]
+    tubes = []
+    for i, z in enumerate((-0.40, 0.0, 0.40)):
+        for j, x in enumerate((-0.42, 0.0, 0.42)):
+            c = [NAVY, RED, WHITE][(i + j) % 3]
+            tubes.append([x, 0.16, z])
+            parts += [part("cyl", [x, 0.38, z], [0.30, 0.44, 0.30], c, [0.12 * (z / 0.40), 0, -0.12 * (x / 0.42)],
+                           decal="jl25_tube", wrap=True),
+                      part("cyl", [x * 1.04, 0.605, z * 1.04], [0.22, 0.02, 0.22], "#1a1a1a")]
+    for p, q in zip(tubes, tubes[1:]):
+        parts.append(rod([p[0], 0.17, p[2]], [q[0], 0.17, q[2]], 0.03, JL25_FUSE))
+    # the middle one has just gone: the trail, the smoke, the burst
+    parts += [rod([0, 0.66, 0], [0, 1.50, 0], 0.05, JL25_EMBER, m="neon", a=0.75),
+              part("sph", [0, 0.70, 0], [0.30, 0.18, 0.30], "#c8c8cc", a=0.55),
+              part("sph", [0, 1.62, 0], [0.16, 0.16, 0.16], JL25_SPARK, m="neon")]
+    for n in range(14):
+        a = n * TAU / 14
+        tilt = 0.55 if n % 2 else -0.35
+        d = [math.sin(a) * math.cos(tilt), math.sin(tilt), math.cos(a) * math.cos(tilt)]
+        c = [RED, WHITE, "#4a7ae8"][n % 3]
+        tip = [d[0] * 0.70, 1.62 + d[1] * 0.70, d[2] * 0.70]
+        parts += [rod([d[0] * 0.14, 1.62 + d[1] * 0.14, d[2] * 0.14], tip, 0.035, c, m="neon"),
+                  part("sph", tip, [0.09, 0.09, 0.09], c, m="neon")]
+    return parts
+
+
+@JL25.hat("star_fort_cap", "Star Fort Cap",
+          "The fort itself, all five bastions of it, on a turf cap: the guns run out, the "
+          "magazine in the middle and the flag on its pole. Defended, at all times, by "
+          "whoever is wearing it. Has never fallen.", "legendary")
+def _():
+    parts = [
+        cap(-0.22, 0.06, JL25_GRASS, decal="jl_grass", wrap=True),
+        band(-0.18, 0.08, JL25_SAND),
+    ]
+    k, h = 0.84, 0.36
+    parts += at_frame(_jl25_fort(h), [0, 0.06, 0], k=k)
+    top = 0.06 + (h + 0.07) * k
+    parts += [part("cyl", [0, top - 0.02, 0], [0.80, 0.03, 0.80], "#9a8a6a"),
+              part("rbox", [0.12, top + 0.07, 0.06], [0.28, 0.16, 0.22], JL25_BRICK, decal="bricks", wrap=True),
+              part("cyl", [0.12, top + 0.15, 0.06], [0.24, 0.28, 0.22], JL25_SLATE, [0, 0, PI / 2])]
+    parts += _flag([-0.16, top, -0.14], 0.70, 0.0, pole=1.00, decal="jl25_garrison")
+    for n in (0, 1, 4):
+        a = PI + n * TAU / 5
+        parts += _jl25_cannon([math.sin(a) * 0.47, top, math.cos(a) * 0.47], a, 0.85)
+    return parts
+
+
+@JL25.hat("rampart_crown", "Rampart Crown",
+          "A mural crown: a ring of brick wall round your head with battlements on top, "
+          "four turrets with slate roofs, a gate at the front and pennants flying. In "
+          "the old pictures, cities wear these. Now you are a city.", "rare")
+def _():
+    parts = [
+        place("flare", [0, -0.32, 0], [2.06, 0.46, 2.00], JL25_BRICK, anchor=[0, 0, 0], decal="bricks",
+              wrap=True),
+        part("cyl", [0, 0.12, 0], [1.96, 0.04, 1.90], JL25_STONE),
+        ringband(-0.30, 0.06, JL25_STONE, margin=0.05),
+        # the gate
+        part("rbox", [0, -0.14, 0.93], [0.22, 0.28, 0.04], "#2a1e16"),
+        part("cyl", [0, 0.0, 0.93], [0.22, 0.04, 0.22], "#2a1e16", [PI / 2, 0, 0]),
+    ]
+    parts += around(16, 0.0, 0.0, lambda a, x, z: None if abs(math.sin(a * 2)) > 0.92 else part(
+        "rbox", [math.sin(a) * 0.98, 0.20, math.cos(a) * 0.95], [0.16, 0.14, 0.10], JL25_BRICK, [0, a, 0],
+        decal="bricks"), start=TAU / 32)
+    for n in range(4):
+        a = PI / 4 + n * PI / 2
+        x, z = math.sin(a) * 0.99, math.cos(a) * 0.96
+        parts += [part("cyl", [x, 0.05, z], [0.30, 0.50, 0.30], JL25_BRICK, decal="bricks", wrap=True),
+                  place("cone", [x, 0.38, z], [0.36, 0.26, 0.36], JL25_SLATE),
+                  rod([x, 0.50, z], [x, 0.74, z], 0.02, "#d9d2c0"),
+                  place("flag", [x, 0.72, z], [0.26, 0.26, 0.3], [RED, WHITE, NAVY, RED][n], anchor=[-0.5, 0.30, 0],
+                        r=[0, -a, 0])]
+    return parts
+
+
+@JL25.hat("blast_goggles", "Blast Goggles",
+          "Big brass-rimmed goggles with smoked lenses, pushed up on your forehead now "
+          "the show is over, and a perfect clean ring round each eye where they were. "
+          "Everything else about you is soot.", "uncommon", hair="show")
+def _():
+    brass = BRASS
+    parts = [band(-0.13, 0.11, "#3a3a3a", grow=0.02, decal="canvas")]
+    for s in (1, -1):
+        c = [0.24 * s, -0.04, 0.84]
+        parts += [
+            part("cyl", c, [0.34, 0.14, 0.34], "#2e2a26", [PI / 2 - 0.55, 0, 0]),
+            part("torus", [c[0], c[1] + 0.035, c[2] + 0.06], [0.34, 0.30, 0.34], brass, [PI / 2 - 0.55, 0, 0],
+                 m="metal"),
+            part("cyl", [c[0], c[1] + 0.04, c[2] + 0.065], [0.26, 0.02, 0.26], "#3a3a2a", [PI / 2 - 0.55, 0, 0],
+                 m="glass", a=0.8),
+        ]
+    parts.append(rod([-0.08, -0.04, 0.88], [0.08, -0.04, 0.88], 0.05, brass, m="metal"))
+    return parts
+
+
+@JL25.hat("sparkler_crown", "Sparkler Crown",
+          "A brass band with eleven sparklers stuck in it, every one of them lit. It is "
+          "the best crown in the world for exactly ninety seconds. Bring a bucket.",
+          "rare", hair="show")
+def _():
+    parts = [band(-0.10, 0.10, BRASS, grow=0.02, m="metal")]
+    for n in range(11):
+        a = (n - 5) * 0.27
+        s, c = math.sin(a), math.cos(a)
+        base = [s * 0.82, -0.06, c * 0.80]
+        tip = [s * 1.00, 0.78 + 0.06 * math.cos(n * 1.7), c * 0.96]
+        burnt = [base[0] + (tip[0] - base[0]) * 0.80, base[1] + (tip[1] - base[1]) * 0.80,
+                 base[2] + (tip[2] - base[2]) * 0.80]
+        parts += [rod(base, burnt, 0.03, "#8a8c90", m="metal"),
+                  rod(burnt, tip, 0.04, "#3a3836"),
+                  part("sph", tip, [0.08, 0.08, 0.08], JL25_SPARK, m="neon"),
+                  place("sparkle", tip, 0.30, "#ffd27a", m="neon", spin=6.0)]
+    return parts
+
+
+# ================================================================= backs
+@JL25.back("garrison_flag", "The Garrison Flag",
+           "The great flag from the fort, on a pole in a harness on your back: fifteen "
+           "stars, fifteen stripes, scorched at the fly and holed in three places by the "
+           "night's work, and still flying. Doorways are a problem.", "legendary")
+def _():
+    parts = straps("#5a3a1a") + [
+        part("rbox", [0.30, 0.50, -0.20], [0.30, 0.56, 0.26], "#6a4a2a", decal="leather", wrap=True),
+        part("rbox", [0.30, 0.78, -0.20], [0.34, 0.06, 0.30], BRASS, m="metal"),
+        part("cyl", [0.30, 2.20, -0.36], [0.09, 3.60, 0.09], "#d9d2c0", m="metal"),
+        part("sph", [0.30, 4.06, -0.36], [0.20, 0.20, 0.20], GOLD, m="metal"),
+        place("flag", [0.30, 3.92, -0.36], [3.10, 3.10, 1.4], WHITE, anchor=[-0.5, 0.30, 0],
+              decal="jl25_garrison", wrap=True),
+        rod([0.36, 0.80, -0.30], [0.36, 3.90, -0.30], 0.02, "#e8dcc0"),
+    ]
+    return parts
+
+
+@JL25.back("rocket_rack", "Rocket Rack",
+           "A launch frame on your back with five skyrockets loaded in their tubes, sticks "
+           "hanging down, fuses run together to one that is already fizzing. The crew "
+           "calls it the Backpack Finale. The crew is not allowed near it any more.",
+           "rare")
+def _():
+    parts = straps("#3a3a3a") + [
+        part("rbox", [0, 0.48, -0.30], [0.90, 0.84, 0.36], "#5a5a4a", decal="canvas", wrap=True),
+        part("rbox", [0, 0.94, -0.38], [1.10, 0.08, 0.50], JL25_IRON, m="metal"),
+    ]
+    tips = []
+    for n, x in enumerate((-0.44, -0.22, 0.0, 0.22, 0.44)):
+        tilt = x * 0.75
+        base = [x, 0.98, -0.42]
+        d = [math.sin(tilt), math.cos(tilt) * 0.97, -0.25]
+        c = [RED, WHITE, "#3a5ad8", WHITE, RED][n]
+        parts += [rod(base, [base[0] + d[0] * 0.62, base[1] + d[1] * 0.62, base[2] + d[2] * 0.62], 0.24,
+                      "#3a3e46", m="metal"),
+                  rod([base[0], base[1] - 0.80, base[2] + 0.04], base, 0.035, JL25_WOOD),
+                  place("rocket", [base[0] + d[0] * 0.95, base[1] + d[1] * 0.95, base[2] + d[2] * 0.95],
+                        [0.70, 0.95, 0.70], c, r=[-0.25, 0, -tilt], decal="firecracker", wrap=True)]
+        tips.append(base)
+    for p, q in zip(tips, tips[1:]):
+        parts.append(rod([p[0], 0.92, -0.66], [q[0], 0.92, -0.66], 0.025, JL25_FUSE))
+    parts += [rod([0.44, 0.92, -0.66], [0.56, 0.80, -0.70], 0.025, JL25_FUSE),
+              place("sparkle", [0.57, 0.78, -0.71], 0.22, JL25_SPARK, m="neon", spin=6.0)]
+    return parts
+
+
+# ================================================================== hair
+@JL25.hairdo("lit_fuse_mohawk", "Lit Fuse Mohawk",
+             "Shaved short at the sides and up the middle a crest of twisted black-powder "
+             "fuse, burning at the front. You have about four minutes. Nobody knows what "
+             "happens after that.", "rare")
+def _():
+    c = "#2a2420"
+    parts = [place("hairshort", [0, 0, 0], [1.03, 0.98, 1.03], c, anchor=[0, 0, 0], decal="strands",
+                   wrap=True)]
+    # the crest: one long twist of fuse laid front to back, standing up in
+    # the middle and coiling over at the front where it is lit
+    pts = [[0, 0.80, 0.48], [0, 0.86, 0.30], [0, 0.88, 0.10], [0, 0.86, -0.10], [0, 0.80, -0.28],
+           [0, 0.70, -0.42], [0, 0.56, -0.52]]
+    for n, (p, q) in enumerate(zip(pts, pts[1:])):
+        w = 0.20 - 0.015 * n
+        parts.append(rod(p, q, w, JL25_FUSE, t="capsule", decal="jl25_fuse", wrap=True))
+        parts.append(rod([p[0], p[1] - 0.16, p[2]], [q[0], q[1] - 0.16, q[2]], w * 0.8, shade(JL25_FUSE, 0.8)))
+    parts += [part("sph", [0, 0.84, 0.52], [0.13, 0.12, 0.13], JL25_EMBER, m="neon"),
+              place("sparkle", [0, 0.88, 0.56], 0.30, JL25_SPARK, m="neon", spin=6.0),
+              part("sph", [0.03, 0.78, 0.46], [0.12, 0.08, 0.10], "#4a4440")]
+    return parts
+
+
+@JL25.hairdo("singed_frizz", "Singed Frizz",
+             "What is left after you leant over the mortar to see why it had not gone off: "
+             "a great sooty frizz standing straight up, still smoking gently, with an ember "
+             "somewhere in it you have not found yet.", "uncommon")
+def _():
+    c, d = "#3a3430", "#24201e"
+    parts = [place("hairmid", [0, 0, 0], [1.05, 1.05, 1.05], c, anchor=[0, 0, 0], decal="felt", wrap=True)]
+    for n, (x, y, z, w) in enumerate(((0.0, 0.74, 0.0, 0.70), (0.32, 0.62, 0.20, 0.44),
+                                      (-0.32, 0.64, 0.18, 0.44), (0.30, 0.66, -0.26, 0.46),
+                                      (-0.28, 0.68, -0.26, 0.46), (0.0, 0.66, 0.34, 0.42),
+                                      (0.0, 0.70, -0.38, 0.44), (0.18, 0.90, 0.0, 0.40),
+                                      (-0.18, 0.88, -0.04, 0.40))):
+        parts.append(part("sph", [x, y, z], [w, w * 0.9, w], c if n % 2 else d, decal="felt", wrap=True))
+    for n, (x, y, s) in enumerate(((0.10, 1.18, 0.30), (-0.06, 1.42, 0.24), (0.12, 1.62, 0.18))):
+        parts.append(part("sph", [x, y, 0.0], [s, s * 0.85, s], "#c8c8cc", a=0.5 - 0.1 * n))
+    parts.append(part("sph", [0.30, 0.76, 0.30], [0.05, 0.05, 0.05], JL25_EMBER, m="neon"))
+    return parts
+
+
+# ================================================================= faces
+JL25.face("ka_boom", "Ka-BOOM!",
+          "Eyes screwed shut, mouth wide open in a scream nobody can hear over the "
+          "barrage, soot on both cheeks and a bead of sweat. The shell went off. You were "
+          "standing quite near it.", [
+              {"k": "line", "x1": -0.28, "y1": -0.18, "x2": -0.13, "y2": -0.11, "w": 0.035, "c": "#16171b"},
+              {"k": "line", "x1": -0.13, "y1": -0.11, "x2": -0.28, "y2": -0.04, "w": 0.035, "c": "#16171b"},
+              {"k": "line", "x1": 0.28, "y1": -0.18, "x2": 0.13, "y2": -0.11, "w": 0.035, "c": "#16171b"},
+              {"k": "line", "x1": 0.13, "y1": -0.11, "x2": 0.28, "y2": -0.04, "w": 0.035, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.0, "y": 0.17, "w": 0.24, "h": 0.22, "c": "#3a1414"},
+              {"k": "ellipse", "x": 0.0, "y": 0.235, "w": 0.13, "h": 0.07, "c": "#e05a6a"},
+              {"k": "ellipse", "x": -0.32, "y": 0.06, "w": 0.13, "h": 0.07, "c": "#5a5450"},
+              {"k": "ellipse", "x": 0.30, "y": 0.09, "w": 0.10, "h": 0.06, "c": "#5a5450"},
+              {"k": "ellipse", "x": 0.24, "y": -0.30, "w": 0.06, "h": 0.03, "c": "#5a5450"},
+              {"k": "poly", "pts": [[0.37, -0.30], [0.40, -0.21], [0.37, -0.17], [0.34, -0.21]], "c": "#7ac8ff"},
+          ])
+JL25.face("dawns_early_light", "Dawn's Early Light",
+          "Up all night: eyes half shut and heavy-lidded, bags under them, soot on the "
+          "forehead and a single tear, because at dawn the smoke cleared and the flag was "
+          "still there.", [
+              {"k": "ellipse", "x": -0.19, "y": -0.09, "w": 0.13, "h": 0.07, "c": "#16171b"},
+              {"k": "ellipse", "x": 0.19, "y": -0.09, "w": 0.13, "h": 0.07, "c": "#16171b"},
+              {"k": "line", "x1": -0.28, "y1": -0.125, "x2": -0.10, "y2": -0.12, "w": 0.04, "c": "#16171b"},
+              {"k": "line", "x1": 0.10, "y1": -0.12, "x2": 0.28, "y2": -0.125, "w": 0.04, "c": "#16171b"},
+              {"k": "arc", "x": -0.19, "y": -0.07, "r": 0.09, "a0": 0.12, "a1": 0.38, "w": 0.018, "c": "#8a6a9a"},
+              {"k": "arc", "x": 0.19, "y": -0.07, "r": 0.09, "a0": 0.12, "a1": 0.38, "w": 0.018, "c": "#8a6a9a"},
+              {"k": "arc", "x": 0.0, "y": 0.10, "r": 0.09, "a0": 0.10, "a1": 0.40, "w": 0.03, "c": "#16171b"},
+              {"k": "poly", "pts": [[0.25, -0.01], [0.27, 0.07], [0.25, 0.10], [0.23, 0.07]], "c": "#7ac8ff"},
+              {"k": "ellipse", "x": -0.10, "y": -0.36, "w": 0.18, "h": 0.06, "c": "#5a5450"},
+              {"k": "ellipse", "x": 0.04, "y": -0.39, "w": 0.08, "h": 0.04, "c": "#5a5450"},
+          ], "rare")
+
+# =============================================================== clothes
+JL25.shirt("garrison_coatee", "Garrison Coatee",
+           "The fort's dress coat: navy wool, red collar and facings, white cross-belts "
+           "with a polished brass plate where they meet, and two rows of buttons nobody "
+           "has managed to keep done up through a whole barrage.",
+           {"torso": NAVY, "arms": NAVY, "decal": "jl25_coatee"}, "rare")
+JL25.pants("pyro_cargo", "Pyro Cargo Trousers",
+           "Flame-resistant olive cargo trousers with a hi-vis stripe down each leg, pockets "
+           "full of spare fuse, and steel-capped boots for when the rack falls over.",
+           {"legs": "#4a4a36", "stripe": JL25_HIVIS, "cuff": "#2a2420", "weave": "canvas"})
+JL25.belt("fuse_bandolier", "Fuse Bandolier Belt",
+          "A canvas belt with a row of little firework shells in loops all the way round, "
+          "a brass buckle and two pouches of spare fuse. Do not sit near the barbecue.",
+          {"band": "#6a5a3a", "buckle": BRASS, "width": 0.22, "metal": True, "weave": "jl25_shells",
+           "pouch": True})
+
+
+# ================================================================ weapons
+def _jl25_ball(k=1.0):
+    """A round shot, still hot from the gun."""
+    return [part("sph", [0, 0, 0], [0.60 * k, 0.60 * k, 0.60 * k], JL25_IRON, m="metal"),
+            part("sph", [0, 0, -0.10 * k], [0.50 * k, 0.50 * k, 0.40 * k], JL25_EMBER, m="neon", a=0.35)]
+
+
+@JL25.weapon("round_shot", "Round Shot",
+             "A swivel gun off the fort's walls, bronze, on its yoke, with a tiller to aim "
+             "it by. It throws a solid iron ball that bowls straight through everybody in "
+             "a line and skips off the walls and floor like a stone on a pond.",
+             {"kind": "projectile", "projectile": "roundshot", "damage": 45, "splash": 0,
+              "splash_damage": 0, "rpm": 40, "mag": 1, "reload": 2.6, "speed": 72, "range": 240,
+              "auto": False, "sound": "shotgun", "recoil": 3.2, "reserve": 14, "gravity_scale": 0.55,
+              "self_damage": 0.0, "knockback": 20, "bounce": 2, "pierce_players": 3,
+              "trail_colors": ["#3a3a3a", "#ff8a2a"]},
+             [["+", "Bowls straight through up to three people: 45 each"],
+              ["+", "Skips off walls and floors twice before it stops"],
+              ["+", "Knocks whoever it hits flat: a 20 stud shove"],
+              ["-", "One ball, then a 2.6 second reload"],
+              ["-", "No splash at all: a miss is a miss"]], rarity="legendary",
+             proj=lambda: _jl25_ball(1.0))
+def _():
+    bronze = "#b8863a"
+    return [
+        # the tiller the hand holds, and the yoke it swivels on
+        rod([0, -0.02, -0.34], [0, 0.10, 0.02], 0.07, JL25_WOOD),
+        part("sph", [0, -0.03, -0.36], [0.09, 0.09, 0.09], JL25_WOOD),
+        rod([0, -0.04, 0.24], [0, 0.14, 0.24], 0.06, JL25_IRON, m="metal"),
+        rod([0.13, 0.14, 0.24], [0.0, -0.04, 0.24], 0.04, JL25_IRON, m="metal"),
+        rod([-0.13, 0.14, 0.24], [0.0, -0.04, 0.24], 0.04, JL25_IRON, m="metal"),
+        # the barrel, its rings, the muzzle swell and the cascabel
+        part("cyl", [0, 0.16, 0.50], [0.22, 0.96, 0.22], bronze, [PI / 2, 0, 0], m="metal"),
+        part("torus", [0, 0.16, 0.24], [0.26, 0.24, 0.26], bronze, [PI / 2, 0, 0], m="metal"),
+        part("torus", [0, 0.16, 0.66], [0.25, 0.22, 0.25], bronze, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.16, 0.96], [0.28, 0.08, 0.28], bronze, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.16, 0.995], [0.14, 0.02, 0.14], "#1a1a1a", [PI / 2, 0, 0]),
+        part("sph", [0, 0.16, 0.0], [0.14, 0.14, 0.14], bronze, m="metal"),
+        part("cyl", [0, 0.27, 0.06], [0.03, 0.04, 0.03], "#1a1a1a"),
+    ]
+
+
+@JL25.weapon("star_shell", "Star Shell",
+             "An illumination shell, fired high, that pops a parachute and hangs there "
+             "burning red. Under its light nobody on the other side can hide, and "
+             "everybody on yours can see exactly where to aim.",
+             {"kind": "deploy", "cooldown": 24, "sound": "rocket",
+              "deploy": {"type": "zone", "thrown": True, "throw": 40, "float": 9.0, "radius": 16.0,
+                         "secs": 9.0, "limit": 1, "scale": 1.6, "color": "#ff5a3a", "particle": "spark",
+                         "name": "Star Shell", "enemy": {"reveal": 1.5}, "ally": {"crit": [0.15, 1.0]}}},
+             [["+", "Fires a flare 40 studs out that hangs 9 studs up on its parachute for 9 "
+                    "seconds"],
+              ["+", "Every enemy under its light is shown to your whole side through walls"],
+              ["+", "Your side under it shoots straighter: a 15% chance of a critical hit"],
+              ["-", "Does no damage at all"],
+              ["-", "24 second cooldown"]], rarity="legendary",
+             deploy=lambda: [
+                 place("hemi", [0, 1.30, 0], [1.60, 0.70, 1.60], WHITE, anchor=[0, 0, 0], decal="jl25_chute",
+                       wrap=True),
+                 *[rod([math.sin(a) * 0.78, 1.30, math.cos(a) * 0.78], [0, 0.18, 0], 0.02, "#d9d2c0")
+                   for a in (0.4, 2.0, 3.6, 5.2)],
+                 part("cyl", [0, 0.10, 0], [0.16, 0.20, 0.16], "#3a3226"),
+                 part("sph", [0, -0.04, 0], [0.30, 0.30, 0.30], "#ff4a2a", m="neon"),
+                 part("sph", [0, -0.04, 0], [0.60, 0.60, 0.60], "#ff8a5a", m="neon", a=0.3)])
+def _():
+    return [
+        part("cyl", [0, 0.10, 0.20], [0.34, 0.56, 0.34], RED, decal="jl25_shell", wrap=True),
+        part("cyl", [0, 0.39, 0.20], [0.36, 0.04, 0.36], WHITE),
+        part("cyl", [0, -0.19, 0.20], [0.36, 0.04, 0.36], WHITE),
+        place("hemi", [0, 0.41, 0.20], [0.30, 0.10, 0.30], "#e8e0d0", anchor=[0, 0, 0]),
+        rod([0, 0.46, 0.20], [0.06, 0.62, 0.24], 0.025, JL25_FUSE),
+        part("sph", [0.065, 0.63, 0.245], [0.04, 0.04, 0.04], JL25_EMBER, m="neon"),
+    ]
+
+
+@JL25.weapon("linstock", "The Linstock",
+             "The gunner's staff: a spear point, and a brass serpent's head holding a "
+             "smouldering slow match. Every touch leaves them smoking, and every fourth "
+             "swing touches off whatever powder is lying about -- which, tonight, is all of it.",
+             {"kind": "melee", "damage": 30, "headshot": 1.0, "rpm": 80, "range": 11.0, "arc": 0.55,
+              "sound": "swing", "knockback": 6, "on_hit": {"burn": [4, 2.0]},
+              "aoe_every": {"every": 4, "radius": 8.0, "damage": 34, "knock": 22, "label": "Touched Off",
+                            "fx": "pulse", "on_hit": {"burn": [6, 3.0]}}},
+             [["+", "The slow match leaves whoever it hits smouldering: 4 a second for 2 seconds"],
+              ["+", "Every fourth hit touches off the powder: 34 to everyone within 8 studs, a "
+                    "shove, and they burn 6 a second for 3 seconds"],
+              ["-", "Slow: 80 swings a minute"],
+              ["-", "30 damage a hit"]], rarity="legendary")
+def _():
+    return [
+        part("cyl", [0, 0, 0.42], [0.09, 1.70, 0.09], JL25_WOOD, [PI / 2, 0, 0], decal="planks", wrap=True),
+        part("cyl", [0, 0, -0.42], [0.11, 0.06, 0.11], BRASS, [PI / 2, 0, 0], m="metal"),
+        # the serpent's head fork, the match in its jaws, the spear point
+        part("sph", [0, 0.02, 1.30], [0.14, 0.12, 0.20], BRASS, m="metal"),
+        rod([0, 0.0, 1.28], [0.14, 0.04, 1.44], 0.04, BRASS, m="metal"),
+        rod([0, 0.0, 1.28], [-0.14, 0.04, 1.44], 0.04, BRASS, m="metal"),
+        part("torus", [0.14, 0.05, 1.46], [0.12, 0.12, 0.12], JL25_FUSE),
+        part("sph", [0.15, 0.11, 1.48], [0.06, 0.06, 0.06], JL25_EMBER, m="neon"),
+        place("sparkle", [0.15, 0.13, 1.50], 0.18, JL25_SPARK, m="neon", spin=6.0),
+        part("sph", [-0.14, 0.12, 1.46], [0.10, 0.08, 0.10], "#c8c8cc", a=0.5),
+        place("cone", [0, 0, 1.58], [0.12, 0.30, 0.06], SILVER, r=[PI / 2, 0, 0], m="metal"),
+    ]
+
+
+@JL25.gear("garrison_bugle", "Garrison Bugle",
+           "A brass bugle with a red, white and blue cord. Sound To Arms and everybody on "
+           "your side who hears it squares up behind the ramparts and steps out smartly.",
+           {"kind": "ability", "cooldown": 30, "sound": "horn",
+            "ability": {"shield": {"secs": 6.0, "amount": 30, "radius": 18},
+                        "rally": {"radius": 18, "secs": 6.0, "speed": 0.20}}},
+           [["+", "You and everyone on your side within 18 studs get a 30 point shield for 6 "
+                  "seconds"],
+            ["+", "...and march 20% faster while it lasts"],
+            ["-", "No damage"],
+            ["-", "30 second cooldown"]], rarity="rare")
+def _():
+    return [
+        part("torus", [0, 0.16, 0.20], [0.42, 0.36, 0.42], BRASS, [0, 0, PI / 2], m="metal"),
+        place("trumpet", [0, 0.30, 0.20], [0.40, 0.44, 0.40], BRASS, anchor=[0, 0, 0], r=[PI / 2, 0, 0],
+              m="metal"),
+        rod([0, 0.0, 0.20], [0, -0.02, -0.06], 0.05, BRASS, m="metal"),
+        part("cyl", [0, -0.02, -0.08], [0.08, 0.04, 0.08], SILVER, [PI / 2, 0, 0], m="metal"),
+        rod([0.04, 0.0, 0.06], [0.04, -0.20, 0.24], 0.03, RED),
+        rod([0.04, -0.20, 0.24], [0.04, -0.06, 0.50], 0.03, WHITE),
+        place("teardrop", [0.04, -0.20, 0.24], [0.08, 0.16, 0.08], NAVY, anchor=[0, 1.0, 0]),
+    ]
+
+
+# =============================================================== effects
+JL25.effect("rockets_red_glare", name="Rocket's Red Glare", rate=3.0, life=[1.0, 1.4],
+            size=[0.30, 0.44], grow=-0.1, gravity=4.0, spread=0.25, rise=[1.5, 2.5],
+            blend="add", spin=0.0, colors=["#ff3a2a", "#ff8a2a", "#fff3b0"],
+            shapes=["jl25_rocket", "jl25_rocket", "spark"], radius=0.6, upright=True, wobble=0.1)
+JL25.effect("bombs_bursting", name="Bombs Bursting in Air", rate=2.2, life=[1.2, 1.8],
+            size=[0.30, 0.46], grow=0.25, gravity=0.0, spread=0.6, rise=[0.3, 0.7],
+            blend="normal", spin=1.2, colors=["#2a2a2e", "#ff3a2a", "#ffffff", "#4a7ae8"],
+            shapes=["jl25_bomb", "jl25_bomb", "firework"], radius=0.8, wobble=0.4)
+JL25.opening(
+    sky={"top": "#070a1e", "horizon": "#3a1a2a", "sun": [0.2, 0.9, 0.6], "clouds": 0,
+         "tint": "#ffd0b0"},
+    ambient="#5a4a6a", beam="#ff5a3a", seep="bombs_bursting", after="rockets_red_glare",
+    burst=["#ff3a2a", "#ffffff", "#3a5ad8", "#ffc94a"],
+    pieces=[{"shape": "jl25_rocket", "colors": ["#ff3a2a", "#ffc94a"], "blend": "add"},
+            {"shape": "star", "colors": ["#ffffff", "#4a7ae8"], "blend": "normal"},
+            {"shape": "jl25_bomb", "colors": ["#2a2a2e", "#ff5a2a"], "blend": "normal"},
+            {"shape": "jl_pennant", "colors": [RED, CREAM, BLUE], "blend": "normal"}],
+    backdrop="jl25_ramparts", title_wait="The fuses are lit...", title_shake="Ka-BOOM!")
+JL25.award("Rocket's Red Glare", ["Powder Monkey", "Fuse Lighter", "Gunner", "Rampart Watch",
+                                  "Master Pyrotechnician", "The Banner Yet Waves"],
+           "Opened Star Forts during Rocket's Red Glare, the Fourth of July 2025.", "em_firework",
+           "spangle")
+JL25.bundle("pair", "Fort and Key", 1, 1050, "One Star Fort, one Rampart Key.")
+JL25.bundle("barrage", "The Barrage", 3, 3000, "Three forts, three keys. Saves 300.")
+
+
 # @@ JL25 Rocket's Red Glare goes above this line @@
+
+# ============================================================ 2026
+JL26_BRONZE = "#6a5a44"
+JL26_OAK = "#6a4628"
+JL26_DARKOAK = "#4a3018"
+JL26_PARCHMENT = "#efe2bf"
+JL26_FROSTING = "#fbf3e4"
+JL26_CLAPBOARD = "#f4f2ea"
+JL26_BUFF = "#d8c8a0"
+JL26_INK = "#1a1e3a"
+JL26_GOLD = "#e8b830"
+JL26_STARBLUE = "#2a3a8a"
+
+
+def _jl26_candle(at, k=1.0, c=RED, **kw):
+    """A birthday candle stood on ``at``: a twisted stick, its wick and a
+    flame."""
+    x, y, z = at
+    return [part("cyl", [x, y + 0.08 * k, z], [0.05 * k, 0.16 * k, 0.05 * k], c, decal="jl26_candle",
+                 wrap=True, **kw),
+            part("cyl", [x, y + 0.17 * k, z], [0.012 * k, 0.03 * k, 0.012 * k], "#2a2420", **kw),
+            place("teardrop", [x, y + 0.18 * k, z], [0.05 * k, 0.10 * k, 0.05 * k], "#ffb03a", anchor=[0, 0, 0],
+                  m="neon", **kw)]
+
+
+def _jl26_star_ring(y, r, n=13, w=0.16, c=None, tilt=0.0, **kw):
+    """Thirteen stars in a ring, the old circle flag's, ``r`` out at height
+    ``y``, facing out."""
+    out = []
+    for i in range(n):
+        a = i * TAU / n
+        out.append(place("star", [math.sin(a) * r, y + math.sin(a) * tilt, math.cos(a) * r], [w, w, w * 1.6],
+                         c or JL26_GOLD, r=[0, a, 0], m="metal", **kw))
+    return out
+
+
+JL26 = Event(
+    "july4_2026", "july4", 2026, "jl26",
+    name="America 250", title="America 250",
+    blurb="Two hundred and fifty years, and Blockhaven threw the birthday party of the "
+          "century: fife and drum at dawn, a parade three streets long, a cake the size of a "
+          "barn with two hundred and fifty candles on it, a fresh copy of the Declaration in "
+          "the square for everybody to sign -- and a brand-new bell, cast for the day. It "
+          "cracked on the very first ring. Everyone agreed this was exactly right.",
+    tagline="Two hundred and fifty candles. One wish.",
+    starts="2026-06-27", ends="2026-07-11",
+    colors={"accent": "#c8202f", "deep": "#16204a", "glow": "#ffd36a"},
+    family_effects=["starstruck", "sunbeam", "candlelight_vigil"],
+    hero_effect="circle_of_stars", stencil="stencil_jl26")
+
+
+@JL26.crate_model("Birthday Bell",
+                  "The bell Blockhaven cast for the two hundred and fiftieth: dark bronze, "
+                  "PROCLAIM LIBERTY round the shoulder and the crack it got on its very first "
+                  "ring, hung in a timber yoke between two oak posts over a plinth draped in "
+                  "bunting. Bell and yoke lift away together. Holds the America 250 set. "
+                  "Needs a Quill Key.",
+                  hinge=[0, 0.93, -0.18], keyhole=[0.62, -0.74, 0.60])
+def _():
+    parts = [
+        # the plinth, its moulding, the brass 250 and the lock
+        part("rbox", [0, -0.74, 0], [1.70, 0.30, 1.16], JL26_OAK, decal="planks", wrap=True),
+        part("rbox", [0, -0.58, 0], [1.76, 0.04, 1.22], JL26_DARKOAK),
+        part("rbox", [0, -0.88, 0], [1.76, 0.04, 1.22], JL26_DARKOAK),
+        part("box", [0, -0.74, 0.585], [0.56, 0.20, 0.01], "#000000", decal="jl26_250", a=-1),
+        part("rbox", [0.62, -0.74, 0.59], [0.12, 0.16, 0.04], BRASS, m="metal", decal="keyhole", lock=1),
+        # the stencil on the back
+        part("box", [0, -0.74, -0.585], [0.70, 0.24, 0.01], "#000000", [0, PI, 0], decal="stencil_jl26",
+             a=-1),
+        # the light under the bell
+        part("cyl", [0, -0.555, 0], [1.00, 0.03, 1.00], "#ffd38a", m="neon"),
+        # the bell (the lid, with its yoke): the crown and canons, the clapper
+        place("bell", [0, -0.50, 0], [1.16, 1.16, 1.12], JL26_BRONZE, anchor=[0, 0, 0], m="metal",
+              decal="jl26_bell", wrap=True, lid=1),
+        part("torus", [0, -0.485, 0], [1.18, 0.30, 1.14], shade(JL26_BRONZE, 0.85), m="metal", lid=1),
+        part("cyl", [0, 0.68, 0], [0.30, 0.12, 0.30], shade(JL26_BRONZE, 0.85), m="metal", lid=1),
+        part("sph", [0, -0.36, 0], [0.16, 0.16, 0.16], "#2a2420", m="metal", lid=1),
+        rod([0, -0.30, 0], [0, 0.60, 0], 0.04, "#2a2420", lid=1),
+        # the yoke, its iron straps
+        part("rbox", [0, 0.80, 0], [1.80, 0.26, 0.34], JL26_DARKOAK, decal="planks", wrap=True, lid=1),
+        part("rbox", [0.14, 0.80, 0], [0.05, 0.28, 0.36], IRON, m="metal", lid=1),
+        part("rbox", [-0.14, 0.80, 0], [0.05, 0.28, 0.36], IRON, m="metal", lid=1),
+        part("rbox", [0, 0.70, 0], [0.34, 0.06, 0.36], IRON, m="metal", lid=1),
+    ]
+    # the two oak posts and their braces
+    for s in (1, -1):
+        parts += [part("rbox", [0.80 * s, 0.10, 0], [0.16, 1.38, 0.22], JL26_OAK, decal="planks", wrap=True),
+                  rod([0.80 * s, -0.40, 0.10], [0.56 * s, -0.58, 0.30], 0.07, JL26_DARKOAK),
+                  rod([0.80 * s, -0.40, -0.10], [0.56 * s, -0.58, -0.30], 0.07, JL26_DARKOAK),
+                  part("sph", [0.80 * s, 0.97, 0], [0.12, 0.12, 0.12], JL26_GOLD, m="metal")]
+        parts += _bunting([0.62 * s, -0.62, 0.60], 0.40, 0.0)
+    parts += _flag([0.80, 1.02, 0], 0.55, 0.0, pole=0.50, decal="jl_flag")
+    parts += _flag([-0.80, 1.02, 0], 0.55, PI, pole=0.50, decal="jl26_betsy")
+    return parts
+
+
+@JL26.key_model("Quill Key",
+                "A key with a white quill for a bow, a little inkwell for a collar and a gold "
+                "pen nib for a bit: the very pen, they say, that everybody at the party signed "
+                "with. Opens one Birthday Bell.", shoulder=-0.30)
+def _():
+    return [
+        # the quill: a slim shaft and a narrow vane curling off it
+        rod([-0.40, 0.0, 0], [-0.88, 0.40, 0], 0.03, "#e8e2d6"),
+        place("feather", [-0.52, 0.10, 0.0], [0.80, 0.64, 1.0], "#f6f4f0", anchor=[0, -0.5, 0], r=[0, 0, 0.88]),
+        part("cyl", [-0.32, 0, 0], [0.20, 0.16, 0.20], JL26_INK, [0, 0, PI / 2], m="glass"),
+        part("cyl", [-0.24, 0, 0], [0.14, 0.04, 0.14], BRASS, [0, 0, PI / 2], m="metal"),
+        part("cyl", [0.08, 0, 0], [0.08, 0.62, 0.08], BRASS, [0, 0, PI / 2], m="metal"),
+        # the nib
+        place("cone", [0.48, 0, 0], [0.14, 0.26, 0.05], JL26_GOLD, r=[0, 0, -PI / 2], m="metal"),
+        part("rbox", [0.50, 0, 0.02], [0.14, 0.006, 0.01], "#2a2420"),
+        part("sph", [0.44, 0, 0.022], [0.025, 0.025, 0.01], "#2a2420"),
+        # its tooth
+        part("rbox", [0.30, -0.10, 0], [0.08, 0.14, 0.06], BRASS, m="metal"),
+    ]
+
+
+# ================================================================== hats
+@JL26.hat("birthday_cake", "Two Hundred and Fifty Candles",
+          "The birthday cake: three tiers of white frosting piped in red and blue, berries "
+          "round every edge, the candles all lit and a gold 250 on top. Not all two hundred "
+          "and fifty candles fitted. The rest are in your pockets.", "legendary")
+def _():
+    parts = [
+        cap(-0.22, 0.06, JL26_FROSTING, decal="jl26_frosting", wrap=True),
+        band(-0.18, 0.08, RED),
+        part("cyl", [0, 0.24, 0], [1.40, 0.36, 1.36], JL26_FROSTING, decal="jl26_frosting", wrap=True),
+        part("cyl", [0, 0.57, 0], [1.00, 0.30, 0.98], JL26_FROSTING, decal="jl26_frosting", wrap=True),
+        part("cyl", [0, 0.85, 0], [0.62, 0.26, 0.60], JL26_FROSTING, decal="jl26_frosting", wrap=True),
+        # the 250 on its little gold stakes
+        rod([-0.14, 0.98, 0.0], [-0.14, 1.20, 0.0], 0.025, JL26_GOLD, m="metal"),
+        rod([0.14, 0.98, 0.0], [0.14, 1.20, 0.0], 0.025, JL26_GOLD, m="metal"),
+        part("rbox", [0, 1.26, 0.0], [0.50, 0.20, 0.03], JL26_GOLD, m="metal"),
+        part("box", [0, 1.26, 0.017], [0.46, 0.17, 0.005], "#000000", decal="jl26_250", a=-1),
+    ]
+    # berries round the edges, red and blue in turn
+    for y, r, n in ((0.42, 0.66, 22), (0.72, 0.46, 16), (0.98, 0.28, 10)):
+        for i in range(n):
+            a = i * TAU / n
+            parts.append(part("sph", [math.sin(a) * r, y, math.cos(a) * r * 0.97], [0.07, 0.07, 0.07],
+                              RED if i % 2 else BLUE, m="glass"))
+    # the candles
+    for y, r, n in ((0.42, 0.52, 14), (0.72, 0.32, 9)):
+        for i in range(n):
+            a = i * TAU / n + 0.12
+            parts += _jl26_candle([math.sin(a) * r, y, math.cos(a) * r * 0.97], 1.0,
+                                  [RED, WHITE, BLUE][i % 3])
+    return parts
+
+
+@JL26.hat("bald_eagle", "Bald Eagle",
+          "A bald eagle has landed on your head, wings spread, and given you a look. It is "
+          "not leaving. It is not going to explain itself. You are, apparently, a national "
+          "monument now.", "legendary")
+def _():
+    brown, white, gold = "#5a3a20", "#f6f4ee", "#f2b23a"
+    parts = [
+        cap(-0.24, 0.04, brown, decal="ea24_plumage", wrap=True),
+        # the body, the white head, the hooked beak and the glare
+        part("sph", [0, 0.34, -0.06], [0.60, 0.62, 0.70], brown, [-0.3, 0, 0], decal="ea24_plumage", wrap=True),
+        part("sph", [0, 0.78, 0.18], [0.40, 0.38, 0.42], white, decal="ea24_plumage", wrap=True),
+        place("cone", [0, 0.78, 0.44], [0.16, 0.26, 0.14], gold, r=[PI / 2 + 0.3, 0, 0]),
+        part("sph", [0, 0.71, 0.48], [0.08, 0.10, 0.08], gold),
+        part("sph", [0.12, 0.84, 0.34], [0.07, 0.05, 0.04], "#f2d23a"),
+        part("sph", [-0.12, 0.84, 0.34], [0.07, 0.05, 0.04], "#f2d23a"),
+        part("sph", [0.125, 0.84, 0.355], [0.035, 0.03, 0.02], BLACK),
+        part("sph", [-0.125, 0.84, 0.355], [0.035, 0.03, 0.02], BLACK),
+        part("rbox", [0.12, 0.90, 0.32], [0.12, 0.03, 0.06], brown, [0, 0, -0.3]),
+        part("rbox", [-0.12, 0.90, 0.32], [0.12, 0.03, 0.06], brown, [0, 0, 0.3]),
+        # the white tail, fanned behind
+        place("fan", [0, 0.20, -0.40], [0.90, 1.10, 1.0], white, anchor=[0, 0, 0], r=[-PI / 2 - 0.4, 0, 0]),
+    ]
+    # the talons, gripping
+    for s in (1, -1):
+        for d in (-0.08, 0.0, 0.08):
+            parts.append(rod([0.16 * s, 0.06, 0.04], [0.16 * s + d, -0.02, 0.18], 0.04, gold))
+    # the wings, spread wide, primaries fingered at the tips
+    for s in (1, -1):
+        r = [0, 0 if s > 0 else PI, 0.35]
+        parts.append(place("wing", [0.20 * s, 0.50, -0.10], [1.50, 1.10, 1.4], brown, anchor=[-0.5, 0, 0], r=r,
+                           decal="ea24_plumage"))
+        for n in range(5):
+            a = 0.10 + n * 0.16
+            base = [s * (1.10 + 0.04 * n), 0.88 - 0.10 * n, -0.12]
+            parts.append(rod(base, [base[0] + s * math.cos(a) * 0.34, base[1] + math.sin(a) * 0.20 - 0.06,
+                                    base[2]], 0.06, shade(brown, 0.8), t="capsule"))
+    return parts
+
+
+@JL26.hat("two_if_by_sea", "Two If By Sea",
+          "The old church steeple, clapboard and slate, its clock at a quarter to midnight and "
+          "two lanterns lit in the belfry: one if by land, two if by sea. Blockhaven is on an "
+          "island. It is always two.", "rare")
+def _():
+    parts = [
+        cap(-0.22, 0.06, JL26_CLAPBOARD, decal="jl26_clapboard", wrap=True),
+        band(-0.18, 0.08, "#8a8c90"),
+        part("rbox", [0, 0.36, 0], [0.92, 0.60, 0.92], JL26_CLAPBOARD, decal="jl26_clapboard", wrap=True),
+        part("disc", [0, 0.40, 0.47], [0.40, 0.40, 0.06], WHITE, decal="clockface"),
+        part("rbox", [0, 0.69, 0], [1.00, 0.06, 1.00], "#d8d4c8"),
+        # the belfry, open on all four sides, the lanterns hung in it
+        part("rbox", [0, 0.96, 0], [0.72, 0.50, 0.72], JL26_CLAPBOARD, decal="jl26_clapboard", wrap=True),
+        part("rbox", [0, 1.23, 0], [0.80, 0.05, 0.80], "#d8d4c8"),
+        rod([-0.20, 1.12, 0.0], [0.20, 1.12, 0.0], 0.03, IRON, m="metal"),
+    ]
+    for a in (0, PI / 2, PI, 3 * PI / 2):
+        s, c = math.sin(a), math.cos(a)
+        parts += [part("rbox", [s * 0.36, 0.94, c * 0.36], [0.30, 0.30, 0.02], "#1a1c22", [0, a, 0]),
+                  part("cyl", [s * 0.36, 1.09, c * 0.36], [0.30, 0.02, 0.30], "#1a1c22", [PI / 2, a, 0])]
+    parts += _tin_lantern([0.12, 0.96, 0.0], 0.26)
+    parts += _tin_lantern([-0.12, 0.96, 0.0], 0.26)
+    parts += [rod([0.12, 1.04, 0.0], [0.12, 1.12, 0.0], 0.015, IRON),
+              rod([-0.12, 1.04, 0.0], [-0.12, 1.12, 0.0], 0.015, IRON),
+              # the spire and the weathervane
+              place("cone", [0, 1.62, 0], [0.70, 0.80, 0.70], "#4a5060",
+                    decal="ea24_shingles", wrap=True),
+              part("sph", [0, 2.04, 0], [0.08, 0.08, 0.08], JL26_GOLD, m="metal"),
+              rod([0, 2.04, 0], [0, 2.30, 0], 0.025, JL26_GOLD, m="metal"),
+              place("arrow", [0, 2.24, 0], [0.24, 0.40, 0.3], JL26_GOLD, r=[0, 0, PI / 2], m="metal")]
+    return parts
+
+
+@JL26.hat("mitre_cap", "Fife and Drum Mitre",
+          "The drum corps' tall mitre cap: a front plate of red wool embroidered with thirteen "
+          "stars, a blue cap behind, a white worsted tassel on top. Adds a foot to you and "
+          "a fife to your step.", "rare")
+def _():
+    parts = [
+        dome(-0.36, 0.70, JL26_STARBLUE, decal="felt", wrap=True),
+        ringband(-0.30, 0.10, WHITE, margin=0.05),
+        place("shield", [0, 0.22, 0.78], [1.30, 1.80, 0.8], RED, r=[-0.22, 0, 0], decal="jl26_mitre",
+              wrap=True),
+        place("shield", [0, 0.22, 0.765], [1.38, 1.86, 0.5], WHITE, r=[-0.22, 0, 0]),
+        pompom([0, 1.16, 0.62], 0.24, WHITE),
+    ]
+    return parts
+
+
+@JL26.hat("star_halo", "Thirteen-Star Halo",
+          "The thirteen stars of the old circle flag, in a ring of gold floating over your "
+          "head and turning very slowly. One for every colony. They will not stay still for "
+          "photographs.", "rare", hair="show")
+def _():
+    parts = _jl26_star_ring(0.62, 0.64, 13, 0.20, tilt=0.06)
+    parts.append(part("torus", [0, 0.62, 0], [1.30, 0.06, 1.30], "#fff3b0", m="neon", a=0.45))
+    parts += [place("sparkle", [math.sin(a) * 0.80, 0.70, math.cos(a) * 0.80], 0.14, "#fff3b0", m="neon",
+                    spin=4.0) for a in (0.6, 2.7, 4.6)]
+    return parts
+
+
+@JL26.hat("liberty_cap", "Liberty Cap",
+          "The soft red cap that has meant liberty for longer than there has been a Fourth: "
+          "its top flopped forward, a band of thirteen white stars and a cockade on the "
+          "side. Very comfortable. Very revolutionary.", "uncommon")
+def _():
+    parts = [
+        dome(-0.36, 0.72, RED, decal="felt", wrap=True),
+        ringband(-0.28, 0.14, NAVY, margin=0.05, decal="jl26_stars13", wrap=True),
+        # the top, flopping forward over the brow
+        part("sph", [0, 0.40, 0.10], [0.70, 0.40, 0.66], RED, [0.5, 0, 0], decal="felt", wrap=True),
+        part("sph", [0, 0.40, 0.46], [0.46, 0.30, 0.40], RED, [1.0, 0, 0], decal="felt", wrap=True),
+        part("sph", [0, 0.30, 0.66], [0.28, 0.22, 0.26], shade(RED, 0.9), [1.4, 0, 0], decal="felt", wrap=True),
+    ]
+    parts += _rosette([0.80, -0.10, 0.38], 0.60, 1.10)
+    return parts
+
+
+@JL26.hat("inkwell", "The Inkwell",
+          "A glass inkwell on your head with an enormous goose quill stood in it, dripping. "
+          "You are ready to sign anything. You have signed several things already. Some of "
+          "them were other people's.", "uncommon")
+def _():
+    return [
+        part("cyl", [0, 0.14, 0], [0.62, 0.28, 0.62], "#2a3050", m="glass", a=0.85),
+        part("cyl", [0, 0.24, 0], [0.54, 0.04, 0.54], JL26_INK, m="glass"),
+        part("cyl", [0, 0.30, 0], [0.36, 0.06, 0.36], BRASS, m="metal"),
+        part("cyl", [0, 0.01, 0], [0.70, 0.03, 0.70], BRASS, m="metal"),
+        rod([0.0, 0.10, 0.0], [-0.10, 1.40, -0.44], 0.04, "#e8e2d6"),
+        place("feather", [-0.03, 0.55, -0.15], [0.95, 0.62, 1.0], "#f6f4f0", anchor=[0, -0.5, 0],
+              r=[-0.36, 0.5, 0.10]),
+        place("feather", [-0.07, 1.02, -0.32], [0.80, 0.42, 1.0], "#f6f4f0", anchor=[0, -0.5, 0],
+              r=[-0.50, 0.5, 0.16]),
+        part("capsule", [0.30, 0.10, 0.21], [0.07, 0.24, 0.05], JL26_INK, m="glass"),
+        part("sph", [0.30, -0.02, 0.22], [0.09, 0.10, 0.07], JL26_INK, m="glass"),
+    ]
+
+
+# ================================================================= backs
+@JL26.back("declaration", "The Declaration",
+           "A fair copy of the Declaration on two oak rollers, unrolled down your back for "
+           "everyone behind you to read -- and signed at the bottom, very large, by every "
+           "guest at the party. There is a quill tucked behind the top roller. Add yours.",
+           "legendary")
+def _():
+    parts = straps("#5a3a1a") + [
+        part("rbox", [0, 1.06, 0.12], [0.86, 0.10, 0.20], "#5a3a1a"),
+        part("box", [0, 1.05, -0.32], [1.40, 1.70, 0.02], JL26_PARCHMENT, [0, PI, 0], decal="jl26_declaration"),
+    ]
+    for y in (1.92, 0.18):
+        parts += [part("cyl", [0, y, -0.32], [0.14, 1.52, 0.14], JL26_DARKOAK, [0, 0, PI / 2], decal="planks"),
+                  part("sph", [0.80, y, -0.32], [0.14, 0.14, 0.14], JL26_GOLD, m="metal"),
+                  part("sph", [-0.80, y, -0.32], [0.14, 0.14, 0.14], JL26_GOLD, m="metal")]
+    parts += [rod([0.30, 0.30, -0.10], [0.30, 1.92, -0.26], 0.08, "#5a3a1a"),
+              rod([-0.30, 0.30, -0.10], [-0.30, 1.92, -0.26], 0.08, "#5a3a1a"),
+              place("feather", [0.44, 1.90, -0.40], [1.6, 0.90, 1.0], "#f6f4f0", anchor=[0, -0.5, 0],
+                    r=[0, 0, -0.35])]
+    return parts
+
+
+@JL26.back("parade_drum", "Parade Drum",
+           "The corps' snare drum slung on your back: a blue shell painted with the eagle and "
+           "thirteen stars, red hoops, rope tension and a pair of sticks in the holder. It "
+           "plays itself on bumpy ground.", "rare")
+def _():
+    parts = straps("#f4f2ea") + [
+        part("cyl", [0, 0.52, -0.42], [0.86, 0.54, 0.86], JL26_STARBLUE, [PI / 2, 0, 0], decal="jl26_drum",
+             wrap=True),
+        part("cyl", [0, 0.52, -0.155], [0.90, 0.07, 0.90], RED, [PI / 2, 0, 0]),
+        part("cyl", [0, 0.52, -0.685], [0.90, 0.07, 0.90], RED, [PI / 2, 0, 0]),
+        part("cyl", [0, 0.52, -0.725], [0.82, 0.01, 0.82], "#f6f0e2", [PI / 2, 0, 0]),
+    ]
+    for n in range(10):
+        a = n * TAU / 10
+        a2 = a + TAU / 20
+        parts.append(rod([math.sin(a) * 0.44, 0.52 + math.cos(a) * 0.44, -0.17],
+                         [math.sin(a2) * 0.44, 0.52 + math.cos(a2) * 0.44, -0.67], 0.025, "#e8dcc0"))
+    for s in (1, -1):
+        parts.append(rod([0.28 * s, 0.95, -0.70], [0.10 * s, 1.40, -0.76], 0.05, "#c8a878"))
+        parts.append(part("sph", [0.10 * s, 1.42, -0.76], [0.08, 0.08, 0.08], "#c8a878"))
+    return parts
+
+
+# ================================================================== hair
+@JL26.hairdo("powdered_queue", "Powdered Queue",
+             "The well-dressed head of 1776: powdered white, two neat rolls over each ear and "
+             "the rest tied back in a queue with a black silk ribbon. Every guest at the party "
+             "had one. The flour ran out by ten.", "rare")
+def _():
+    c = "#f2efe8"
+    sh = shade(c, 0.92)
+    parts = [place("hairmid", [0, 0, 0], [1.04, 1.02, 1.04], c, anchor=[0, 0, 0], decal="felt", wrap=True)]
+    for s in (1, -1):
+        for n, y in enumerate((-0.04, -0.22)):
+            parts.append(part("capsule", [0.60 * s, y, 0.0], [0.17, 0.52, 0.17], c if n % 2 == 0 else sh,
+                              [PI / 2, 0, 0], decal="felt", wrap=True))
+    parts += [rod([0, -0.10, -0.58], [0, -0.70, -0.62], 0.16, sh, t="capsule", decal="felt", wrap=True),
+              part("sph", [0, -0.72, -0.62], [0.14, 0.12, 0.14], c, decal="felt", wrap=True)]
+    parts += gift_bow([0, -0.16, -0.66], 0.36, "#16171b", knot="#2a2a2e", yaw=PI / 2)
+    return parts
+
+
+@JL26.hairdo("candle_bun", "Birthday Bun",
+             "A big top bun with a lit birthday candle stuck in it, because it is somebody's "
+             "birthday and it might as well be yours too. Make a wish. Do not nod.", "uncommon")
+def _():
+    c = "#6a4228"
+    parts = [place("hairmid", [0, 0, 0], [1.04, 1.02, 1.04], c, anchor=[0, 0, 0], decal="strands", wrap=True),
+             part("sph", [0, 0.72, -0.04], [0.56, 0.42, 0.54], c, decal="felt", wrap=True),
+             part("torus", [0, 0.62, -0.04], [0.56, 0.40, 0.54], RED)]
+    parts += _jl26_candle([0.04, 0.88, -0.02], 2.4, WHITE)
+    parts += [part("sph", [0.075, 0.97, 0.0], [0.035, 0.06, 0.035], WHITE, m="glass")]
+    return parts
+
+
+# ================================================================= faces
+JL26.face("make_a_wish", "Make a Wish",
+          "Eyes shut tight, cheeks puffed out like a bullfrog's, lips pursed: two hundred and "
+          "fifty candles, one breath. You can do this.", [
+              {"k": "arc", "x": -0.19, "y": -0.13, "r": 0.08, "a0": 0.55, "a1": 0.95, "w": 0.035, "c": "#16171b"},
+              {"k": "arc", "x": 0.19, "y": -0.13, "r": 0.08, "a0": 0.55, "a1": 0.95, "w": 0.035, "c": "#16171b"},
+              {"k": "ellipse", "x": -0.30, "y": 0.10, "w": 0.20, "h": 0.15, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.30, "y": 0.10, "w": 0.20, "h": 0.15, "c": "#ff9aa8"},
+              {"k": "ellipse", "x": 0.0, "y": 0.16, "w": 0.08, "h": 0.07, "c": "#3a1414"},
+              {"k": "arc", "x": 0.0, "y": 0.16, "r": 0.05, "a0": 0.0, "a1": 1.0, "w": 0.02, "c": "#c8203a"},
+              {"k": "line", "x1": 0.08, "y1": 0.14, "x2": 0.20, "y2": 0.12, "w": 0.012, "c": "#9fc8ff"},
+              {"k": "line", "x1": 0.08, "y1": 0.18, "x2": 0.22, "y2": 0.19, "w": 0.012, "c": "#9fc8ff"},
+          ])
+JL26.face("star_spangled_grin", "Star-Spangled Grin",
+          "Stars in your eyes -- actual blue stars -- a grin from ear to ear with every tooth "
+          "showing and red freckles all over. Best. Birthday. Ever.", [
+              {"k": "poly", "pts": [[-0.19, -0.23], [-0.165, -0.15], [-0.09, -0.15], [-0.15, -0.10],
+                                    [-0.13, -0.02], [-0.19, -0.07], [-0.25, -0.02], [-0.23, -0.10],
+                                    [-0.29, -0.15], [-0.215, -0.15]], "c": "#2a5ad8"},
+              {"k": "poly", "pts": [[0.19, -0.23], [0.215, -0.15], [0.29, -0.15], [0.23, -0.10],
+                                    [0.25, -0.02], [0.19, -0.07], [0.13, -0.02], [0.15, -0.10],
+                                    [0.09, -0.15], [0.165, -0.15]], "c": "#2a5ad8"},
+              {"k": "poly", "pts": [[-0.30, 0.08], [0.30, 0.08], [0.22, 0.22], [0.0, 0.27], [-0.22, 0.22]],
+               "c": "#3a1414"},
+              {"k": "poly", "pts": [[-0.28, 0.09], [0.28, 0.09], [0.25, 0.14], [-0.25, 0.14]], "c": "#ffffff"},
+              {"k": "ellipse", "x": -0.32, "y": 0.0, "w": 0.03, "h": 0.03, "c": "#d8505a"},
+              {"k": "ellipse", "x": -0.27, "y": 0.04, "w": 0.03, "h": 0.03, "c": "#d8505a"},
+              {"k": "ellipse", "x": 0.32, "y": 0.0, "w": 0.03, "h": 0.03, "c": "#d8505a"},
+              {"k": "ellipse", "x": 0.27, "y": 0.04, "w": 0.03, "h": 0.03, "c": "#d8505a"},
+          ], "rare")
+
+# =============================================================== clothes
+JL26.shirt("continental_coat", "Continental Coat",
+           "Blue and buff: a long blue coat with buff facings, a buff waistcoat, gold buttons "
+           "down both and a froth of white lace at the throat. Very grand. Very warm for July.",
+           {"torso": "#26346e", "arms": "#26346e", "decal": "jl26_continental"}, "rare")
+JL26.pants("buff_breeches", "Buff Breeches",
+           "Knee breeches in buff wool, white stockings and black buckled shoes. Your knees "
+           "have never been so admired.",
+           {"legs": JL26_BUFF, "cuff": "#16171b", "weave": "jl26_breeches"})
+JL26.belt("liberty_sash", "Liberty Sash",
+          "A red silk sash round the waist with a circle of thirteen stars woven all the way "
+          "round, tied off with a gilt buckle. Worn by everyone in the parade, and most of the "
+          "people watching it.",
+          {"band": RED, "buckle": JL26_GOLD, "width": 0.24, "metal": True, "weave": "jl26_stars13"})
+
+
+# ================================================================ weapons
+@JL26.weapon("crier_bell", "Town Crier's Bell",
+             "The crier's brass handbell, the one that rang in the party at dawn. Ring it at "
+             "somebody's ear and they stand there stunned for a moment, and then cannot hear "
+             "themselves think long enough to use anything clever.",
+             {"kind": "melee", "damage": 26, "headshot": 1.0, "rpm": 80, "range": 10.0, "arc": 0.60,
+              "sound": "bell", "knockback": 5, "on_hit": {"stun": 0.45, "silence": 2.5}},
+             [["+", "Every ring stuns for half a second"],
+              ["+", "...and leaves them deafened: no gear, abilities or held items for 2.5 seconds"],
+              ["-", "26 damage a ring"],
+              ["-", "Slow: 80 rings a minute"]], rarity="legendary")
+def _():
+    return [
+        part("cyl", [0, 0, -0.06], [0.10, 0.36, 0.10], JL26_DARKOAK, [PI / 2, 0, 0], decal="planks", wrap=True),
+        part("sph", [0, 0, -0.26], [0.13, 0.13, 0.13], JL26_DARKOAK),
+        place("handbell", [0, 0, 0.12], [0.62, 0.66, 0.62], BRASS, anchor=[0, 1.0, 0], r=[-PI / 2, 0, 0],
+              m="metal"),
+        part("torus", [0, 0, 0.74], [0.64, 0.20, 0.64], shade(BRASS, 0.85), [PI / 2, 0, 0], m="metal"),
+        part("sph", [0, -0.12, 0.66], [0.10, 0.10, 0.10], "#2a2420", m="metal"),
+        rod([0.05, 0.0, -0.10], [0.10, -0.24, -0.06], 0.03, RED),
+        rod([0.05, 0.0, -0.10], [0.12, -0.22, 0.02], 0.03, WHITE),
+        rod([0.05, 0.0, -0.10], [0.08, -0.26, 0.08], 0.03, BLUE),
+    ]
+
+
+@JL26.weapon("long_rifle", "The Long Rifle",
+             "A frontier long rifle five feet from butt to muzzle, curly maple and brass, rifled "
+             "for the long shot. Up close it is a nuisance. At the far end of a field it is the "
+             "most accurate thing at the party.",
+             {"kind": "hitscan", "damage": 46, "headshot": 2.0, "rpm": 34, "mag": 1, "reload": 2.6,
+              "spread": 0.05, "pellets": 1, "range": 600, "auto": False, "sound": "rifle",
+              "recoil": 2.6, "reserve": 24, "scope": 2.8, "tracer": "#e8dcc0",
+              "far": {"dist": 45, "bonus": 0.5}},
+             [["+", "Half as much damage again past 45 studs: 69, or 138 to the head"],
+              ["+", "A long sight to look down"],
+              ["-", "One shot, then a 2.6 second reload"],
+              ["-", "Clumsy at close quarters: 46 a shot"]], rarity="legendary")
+def _():
+    maple, brass = "#b07a3e", BRASS
+    return [
+        part("rbox", [0, -0.06, -0.30], [0.12, 0.22, 0.60], maple, [0.18, 0, 0], decal="planks", wrap=True),
+        part("rbox", [0, 0.02, 0.36], [0.10, 0.12, 0.80], maple, decal="planks", wrap=True),
+        part("cyl", [0, 0.08, 0.80], [0.07, 1.70, 0.07], "#3a3a3e", [PI / 2, 0, 0], m="metal"),
+        part("rbox", [0.065, -0.04, -0.34], [0.01, 0.10, 0.22], brass, [0.18, 0, 0], m="metal"),
+        part("rbox", [0, 0.02, -0.04], [0.04, 0.08, 0.10], "#3a3a3e", m="metal"),
+        part("cyl", [0, 0.14, 1.60], [0.03, 0.05, 0.03], brass, m="metal"),
+        part("cyl", [0, 0.08, 0.10], [0.11, 0.04, 0.11], brass, [PI / 2, 0, 0], m="metal"),
+        part("cyl", [0, 0.08, 0.60], [0.11, 0.04, 0.11], brass, [PI / 2, 0, 0], m="metal"),
+        # the powder horn on its cord
+        place("horn", [0.12, -0.20, -0.10], [0.36, 0.36, 0.36], "#e8dcc0", r=[0, PI / 2, 0]),
+    ]
+
+
+@JL26.weapon("thirteen_stars", "Thirteen Stars",
+             "The circle of thirteen stars off the old flag, cut from gold leaf and set spinning. "
+             "Throw it up and it wheels round and round you, and anyone it catches is left "
+             "dazzled -- and everybody else hits them all the harder for it.",
+             {"kind": "deploy", "cooldown": 22, "sound": "magic",
+              "deploy": {"type": "orbit", "orbit": 5.5, "speed": 2.2, "radius": 2.8, "damage": 12, "knock": 6,
+                         "rehit": 0.6, "secs": 10, "limit": 1, "name": "Thirteen Stars", "color": "#ffd36a",
+                         "scale": 1.4, "on_hit": {"dazzle": [2, 3.0, 0.25, 4.0]}}},
+             [["+", "A ring of stars wheels round you 5.5 studs out for 10 seconds"],
+              ["+", "Caught twice within 3 seconds and they are Dazzled: 25% more damage from "
+                    "everyone for 4 seconds"],
+              ["-", "Only 12 a touch, and no reach beyond the ring"],
+              ["-", "22 second cooldown"]], rarity="legendary",
+             deploy=lambda: (_jl26_star_ring(1.0, 0.70, 13, 0.30, spin=3.0) +
+                             [part("torus", [0, 1.0, 0], [1.50, 0.06, 1.50], "#fff3b0", m="neon", a=0.5, spin=3.0),
+                              part("sph", [0, 1.0, 0], [0.50, 0.50, 0.50], "#ffd36a", m="neon", a=0.35)]))
+def _():
+    return [
+        part("cyl", [0, 0.24, 0.14], [0.62, 0.06, 0.62], JL26_STARBLUE, [PI / 2, 0, 0]),
+        part("torus", [0, 0.24, 0.14], [0.66, 0.12, 0.66], JL26_GOLD, [PI / 2, 0, 0], m="metal"),
+        *[place("star", [math.sin(a) * 0.22, 0.24 + math.cos(a) * 0.22, 0.18], [0.08, 0.08, 0.12], JL26_GOLD,
+                m="metal") for a in [i * TAU / 13 for i in range(13)]],
+        rod([0, -0.02, 0.14], [0, 0.0, 0.14], 0.05, JL26_DARKOAK),
+        rod([0, -0.10, 0.10], [0, 0.0, 0.14], 0.06, JL26_DARKOAK),
+    ]
+
+
+@JL26.gear("birthday_slice", "A Slice of Birthday Cake",
+           "A great wedge of the two-hundred-and-fiftieth birthday cake, candle and all. You "
+           "feel lighter than air for a while afterwards, and there is enough to go round "
+           "everyone nearby.",
+           {"kind": "consume", "cooldown": 24, "sound": "eat",
+            "consume": {"heal": 30, "over": 5, "jump": [0.5, 6.0], "share": 10}},
+           [["+", "Heals 30 over 5 seconds"],
+            ["+", "...and you are floaty with sugar: jumps half again as high for 6 seconds"],
+            ["+", "Everyone on your side within 10 studs gets a slice too"],
+            ["-", "Nothing at once: it is cake, not medicine"],
+            ["-", "24 second cooldown"]], rarity="rare")
+def _():
+    # a slice lying on its plate, its point towards whoever is eating it:
+    # sponge, a stripe of jam, sponge, and the frosting on top and round the back
+    parts = [
+        part("cyl", [0, 0.0, 0.22], [0.62, 0.03, 0.62], "#e8e8ec"),
+        part("tri", [0, 0.07, 0.24], [0.44, 0.52, 0.12], "#f2d8a0", [PI / 2, PI, 0]),
+        part("tri", [0, 0.145, 0.24], [0.43, 0.51, 0.03], RED, [PI / 2, PI, 0]),
+        part("tri", [0, 0.21, 0.24], [0.44, 0.52, 0.10], "#f2d8a0", [PI / 2, PI, 0]),
+        part("tri", [0, 0.275, 0.24], [0.46, 0.54, 0.04], JL26_FROSTING, [PI / 2, PI, 0]),
+        part("rbox", [0, 0.15, 0.475], [0.46, 0.28, 0.03], JL26_FROSTING, decal="jl26_frosting"),
+        part("sph", [0.12, 0.31, 0.40], [0.07, 0.07, 0.07], RED, m="glass"),
+        part("sph", [-0.12, 0.31, 0.40], [0.07, 0.07, 0.07], BLUE, m="glass"),
+    ]
+    parts += _jl26_candle([0.0, 0.29, 0.36], 1.4, RED)
+    return parts
+
+
+# =============================================================== effects
+JL26.effect("circle_of_stars", name="Circle of Stars", rate=2.0, life=[2.6, 3.2],
+            size=[0.26, 0.34], grow=0.0, gravity=0.0, spread=0.05, rise=[0.0, 0.06],
+            blend="add", spin=0.6, colors=["#ffd36a", "#ffffff", "#9fc8ff"],
+            shape="star", radius=0.9, orbit=1.2, upright=True, wobble=0.2)
+JL26.effect("birthday_candles", name="Two Hundred and Fifty", rate=2.4, life=[1.6, 2.2],
+            size=[0.26, 0.34], grow=-0.05, gravity=0.4, spread=0.4, rise=[0.3, 0.6],
+            blend="normal", spin=0.3, colors=["#fff3e0", "#ff8a8a", "#9fb8ff"],
+            shapes=["candle", "candle", "jl26_bell"], radius=0.7, upright=True, wobble=0.3)
+JL26.opening(
+    sky={"top": "#16204a", "horizon": "#e88a5a", "sun": [0.2, 0.25, 0.7], "clouds": 0.2,
+         "tint": "#ffe8d0"},
+    ambient="#ffd8b8", beam="#ffd36a", seep="birthday_candles", after="circle_of_stars",
+    burst=["#c8202f", "#ffffff", "#2a5ad8", "#ffd36a"],
+    pieces=[{"shape": "confetti", "colors": ["#c8202f", "#ffffff", "#2a5ad8"], "blend": "normal"},
+            {"shape": "star", "colors": ["#ffd36a", "#ffffff"], "blend": "normal"},
+            {"shape": "jl26_bell", "colors": ["#b89a6a", "#ffd36a"], "blend": "normal"},
+            {"shape": "candle", "colors": ["#fff3e0", "#ffb03a"], "blend": "normal"}],
+    backdrop="jl26_birthday", title_wait="Everybody, take a deep breath...",
+    title_shake="Happy two hundred and fiftieth!")
+JL26.award("America 250", ["Party Guest", "Fifer", "Drummer", "Town Crier", "Signer",
+                           "Keeper of the Bell"],
+           "Opened Birthday Bells during America 250, the Fourth of July 2026.", "em_libertybell",
+           "spangle")
+JL26.bundle("pair", "Bell and Key", 1, 1050, "One Birthday Bell, one Quill Key.")
+JL26.bundle("parade", "The Parade", 3, 3000, "Three bells, three keys. Saves 300.")
+
 
 # @@ JL26 America 250 goes above this line @@
 
@@ -1655,7 +2869,7 @@ JL24.bundle("parade", "Lantern Parade", 3, 3000, "Three lanterns, three keys. Sa
 EVENTS = [JL22, JL23, JL24]
 
 # (JL25 adds itself to the list here)
-EVENTS += []  # @@ JL25 @@
+EVENTS += [JL25]  # @@ JL25 @@
 
 # (JL26 adds itself to the list here)
-EVENTS += []  # @@ JL26 @@
+EVENTS += [JL26]  # @@ JL26 @@
