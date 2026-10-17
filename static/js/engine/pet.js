@@ -1801,6 +1801,110 @@
     return 'walk';
   };
 
+  // ================================================ follower acts (on the move)
+  /* Added for the follower's following (static/js/game/pets.js): a skid
+     when her owner stops dead, a spin as they set off at a run, a sniff at
+     something by the wayside, waiting on her toes for them to catch up, a
+     pat on the head, and lying about on her tummy -- awake, and dozing.
+     Self-contained: nothing above depends on them. */
+  ACT.skid = function (p, t) {
+    var u = smooth01(t / 0.12);
+    var judder = Math.sin(t * 38) * 0.018 * (1 - smooth01(t / 0.5));
+    p.lean -= 0.36 * u;
+    p.legL = -0.6 * u; p.legR = -0.22 * u;
+    p.legLZ += 0.1 * u; p.legRZ += 0.1 * u;
+    p.armL = p.armR = -0.8 * u; p.armLZ += 1.05 * u; p.armRZ += 0.9 * u;
+    p.squash = 1 - 0.07 * u + judder;
+    p.skirt += 0.55 * u;
+    p.swayX += 0.6 * u;
+    p.headPitch -= 0.1 * u;
+    p.eyes = 'wide'; p.mouth = 'o';
+  };
+
+  ACT.zoom_spin = function (p, t) {
+    var v = clamp(t / 0.6, 0, 1), u = smooth01(v);
+    p.spin = u * PI * 2;
+    p.bob += Math.sin(v * PI) * 0.28;
+    p.armLZ += 1.45; p.armRZ += 1.45;
+    p.legL = -0.45 * Math.sin(v * PI); p.legR = 0.2 * Math.sin(v * PI);
+    p.skirt += 0.95 * Math.sin(v * PI) + 0.3;
+    p.swayZ += Math.sin(v * PI) * 0.6;
+    p.eyes = 'joy'; p.mouth = 'grin';
+  };
+
+  ACT.sniff = function (p, t) {
+    var u = smooth01(t / 0.35);
+    p.lean += 0.3 * u;
+    p.squash = 1 - 0.05 * u;
+    p.legL = -0.12 * u; p.legR = 0.18 * u;
+    p.armL = p.armR = -0.35 * u; p.armLZ += 0.12 * u; p.armRZ += 0.12 * u;
+    p.headPitch += 0.36 * u + Math.max(0, Math.sin(t * 13)) * 0.06 * u;
+    p.headYaw += Math.sin(t * 2.6) * 0.32 * u;
+    p.sniff = 1;
+    p.eyes = (t % 1.6) < 1.1 ? 'half' : 'open'; p.mouth = 'cat';
+  };
+
+  // waiting for her owner to catch up, up on her toes
+  ACT.tiptoe = function (p, t) {
+    var b = Math.abs(Math.sin(t * 7));
+    p.bob += b * 0.12;
+    p.squash = 1 + b * 0.03;
+    p.legL = p.legR = -0.06;
+    p.armL = p.armR = -0.45 - b * 0.3; p.armLZ += 0.3; p.armRZ += 0.3;
+    p.headRoll += Math.sin(t * 3.5) * 0.12;
+    p.skirt += b * 0.3;
+    p.eyes = 'joy'; p.mouth = 'grin';
+  };
+
+  // a pat on the head: she leans up into the hand and squeezes her eyes shut
+  ACT.patted = function (p, t) {
+    breathe(p, t);
+    var pat = Math.max(0, Math.sin(t * 7));
+    var u = smooth01(t / 0.3);
+    p.squash = 1 - pat * 0.045 * u;
+    p.headPitch -= (0.22 - pat * 0.1) * u;
+    p.headRoll += 0.18 * u;
+    p.armL = p.armR = -0.3 * u; p.armLZ = p.armRZ = -0.35 * u;
+    p.hipTwist += Math.sin(t * 2.4) * 0.1;
+    p.eyes = 'joy'; p.mouth = 'cat';
+    p.blush += 0.8;
+    p.earL = p.earR = 0.2; p.perk = 1.1;
+  };
+
+  // lying on her tummy, chin in her hands, kicking her feet
+  ACT.lounge = function (p, t) {
+    p.lie = 1;
+    p.headPitch -= 1.6 + Math.sin(t * 0.7) * 0.05;
+    p.headRoll += Math.sin(t * 0.55) * 0.12;
+    p.armL = p.armR = -2.35; p.armLZ = p.armRZ = -0.32;
+    var kick = Math.sin(t * 2.6);
+    p.legL = 1.1 + kick * 0.45; p.legR = 1.1 - kick * 0.45;
+    p.skirt += 0.1;
+    p.bob += Math.sin(t * 1.6) * 0.008;
+  };
+
+  // and dozing off like that, cheek on her arms
+  ACT.snooze = function (p, t) {
+    p.lie = 1;
+    p.headPitch -= 1.25 + Math.sin(t * 0.9) * 0.03;
+    p.headYaw += 0.75;
+    p.armL = p.armR = -2.6; p.armLZ = p.armRZ = -0.2;
+    p.legL = 0.2 + Math.sin(t * 0.6) * 0.04; p.legR = 0.12;
+    p.bob += Math.sin(t * 1.3) * 0.008;
+    p.eyes = 'closed'; p.mouth = 'tiny';
+    p.perk = 0.1; p.earL = p.earR = 0.05; p.glow = 0.9; p.flame = 0.15;
+    p.blush += 0.25;
+  };
+
+  Pet.DURATION.skid = 0.6;
+  Pet.DURATION.zoom_spin = 0.6;
+  Pet.DURATION.sniff = 1.6;
+  Pet.DURATION.tiptoe = 1.4;
+  Pet.DURATION.patted = 2.0;
+  Pet.DURATION.lounge = 0;
+  Pet.DURATION.snooze = 0;
+  // ============================================ end of follower acts
+
   // ------------------------------------------------------------ showcase
   /* A pet that entertains herself, for the market, the editor and the
      profile: idles, glances about, blinks, and every few seconds does
@@ -1836,6 +1940,7 @@
     this.pose = restPose();
     this.t = 0;
     this.action = 'idle';
+    this.last = null;
     this.actT = 0;
     this.next = 1.2 + Math.random() * 1.5;
     this.blinkAt = 1 + Math.random() * 2;
@@ -1870,8 +1975,11 @@
       if (this.action !== this.only) this.play(this.only);
     } else if (this.actT >= this.next && !this.calm) {
       if (this.action === 'idle') {
-        var pool = this.repertoire();
-        this.play(pool[(Math.random() * pool.length) | 0]);
+        // (not the same thing twice running, if she has anything else)
+        var pool = this.repertoire(), pick = this.last;
+        for (var n = 0; n < 8 && pick === this.last; n++) pick = pool[(Math.random() * pool.length) | 0];
+        this.last = pick;
+        this.play(pick);
       } else {
         this.action = 'idle';
         this.actT = 0;
