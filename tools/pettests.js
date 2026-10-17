@@ -136,6 +136,362 @@ var seen = {};
 for (var i = 0; i < 30 * 60; i++) { show.step(1 / 30); seen[show.action] = 1; }
 check('a showcase pet does several things in a minute', Object.keys(seen).length >= 4, Object.keys(seen));
 
+// ------------------------------------------------------------------ the face
+/* The eyes are the first thing anyone looks at, so they are checked the way
+   they go wrong: sinking into the head where it rounds off or standing off
+   it like a visor (at every species, expression, glance, head turn and
+   squash), the iris sliding out of the eye or over the lash (two blocks
+   fighting over one patch of face shimmer), and hair or a hat hanging in
+   front of them.  Everything is measured in the head's own frame, against
+   the head's real surface: the 'pethead' rounded box, from its own size. */
+console.log('\n== the face ==');
+function euler(r) {
+  var cx = Math.cos(r[0]), sx = Math.sin(r[0]), cy = Math.cos(r[1]), sy = Math.sin(r[1]);
+  var cz = Math.cos(r[2]), sz = Math.sin(r[2]);
+  return [cy * cz + sy * sx * sz, cx * sz, -sy * cz + cy * sx * sz,
+          -cy * sz + sy * sx * cz, cx * cz, sy * sz + cy * sx * cz, sy * cx, -sx, cy * cx];
+}
+function rot(m, v) {
+  return [m[0] * v[0] + m[3] * v[1] + m[6] * v[2], m[1] * v[0] + m[4] * v[1] + m[7] * v[2],
+          m[2] * v[0] + m[5] * v[1] + m[8] * v[2]];
+}
+function unrot(m, v) {
+  return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+          m[6] * v[0] + m[7] * v[1] + m[8] * v[2]];
+}
+/* The head's frame, in head units: its centre at the origin, facing +Z, and
+   any squash or stretch taken back out, so a squashed face is measured
+   against the same layout as a still one.  point() is a part's point at
+   (i, j, k), each -1..1 across its box. */
+function headFrame(parts) {
+  var head = parts.filter(function (p) { return p.k === 'head'; })[0];
+  var m = euler(head.r);
+  var R = Pet.HEAD_ROUND, S = Pet.B.head;
+  var k = [head.s[0] / S[0], head.s[1] / S[1], head.s[2] / S[2]];
+  return {
+    head: head, m: m,
+    local: function (P) {
+      var o = unrot(m, [P[0] - head.p[0], P[1] - head.p[1], P[2] - head.p[2]]);
+      return [o[0] / k[0], o[1] / k[1], o[2] / k[2]];
+    },
+    point: function (part, i, j, n) {
+      var o = rot(euler(part.r), [i * part.s[0] / 2, j * part.s[1] / 2, n * part.s[2] / 2]);
+      return this.local([part.p[0] + o[0], part.p[1] + o[1], part.p[2] + o[2]]);
+    },
+    // how far forward of the head's centre its skin is, at (x, y)
+    skin: function (x, y) {
+      var dx = Math.max(0, Math.abs(x) - S[0] * (0.5 - R[0])) / (S[0] * R[0]);
+      var dy = Math.max(0, Math.abs(y) - S[1] * (0.5 - R[1])) / (S[1] * R[1]);
+      return S[2] * (0.5 - R[2]) + S[2] * R[2] * Math.sqrt(Math.max(0, 1 - dx * dx - dy * dy));
+    },
+    // a ray from a point in the head's frame straight out of the face (or
+    // back into it, dir -1) against a part's box: how far along it enters,
+    // or Infinity
+    hit: function (P, part, max, dir) {
+      dir = dir || 1;
+      var pm = euler(part.r);
+      var o = unrot(pm, rot(m, [P[0] * k[0], P[1] * k[1], P[2] * k[2]]));
+      var d = unrot(pm, rot(m, [0, 0, dir * k[2]]));
+      var c = unrot(pm, [part.p[0] - head.p[0], part.p[1] - head.p[1], part.p[2] - head.p[2]]);
+      var t0 = 0, t1 = max;
+      for (var a = 0; a < 3; a++) {
+        var lo = c[a] - part.s[a] / 2, hi = c[a] + part.s[a] / 2;
+        if (Math.abs(d[a]) < 1e-9) {
+          if (o[a] < lo || o[a] > hi) return Infinity;
+        } else {
+          var u = (lo - o[a]) / d[a], v = (hi - o[a]) / d[a];
+          t0 = Math.max(t0, Math.min(u, v)); t1 = Math.min(t1, Math.max(u, v));
+        }
+      }
+      return t0 <= t1 ? t0 : Infinity;
+    }
+  };
+}
+var F = Pet.FACE;
+/* Which pixel of an eye bitmap a point on the face falls in. */
+function eyeCell(rows, x, y) {
+  var mirror = x > 0;
+  var u = (mirror ? (F.eyeX - x) : (x + F.eyeX)) / F.eyePx + rows[0].length / 2;
+  var v = (F.eyeY - y) / F.eyePx + rows.length / 2;
+  var r = Math.floor(v), c = Math.floor(u);
+  return r >= 0 && r < rows.length ? (rows[r].charAt(c) || '.') : '.';
+}
+function bitmaps(pose) {
+  var e = pose.eyes || 'open';
+  if (pose.blink > 0.5 && e !== 'joy' && e !== 'closed' && e !== 'dizzy') e = 'closed';
+  var pair = e === 'wink' ? ['open', 'joy'] : [e, e];
+  if (pose.blink > 0.5 && e === 'wink') pair = ['closed', 'closed'];
+  return [Pet.EYES[pair[0]], Pet.EYES[pair[1]]];
+}
+var faceFail = { sunk: [], proud: [], floats: [], overlap: [], outside: [], area: [] };
+function note(list, what) { if (list.length < 4) list.push(what); }
+function checkFace(sp, pose, label) {
+  var parts = Pet.build({ species: sp, items: {} }, { position: [3, 0, -2], yaw: 0.7, pose: pose,
+                                                      time: 1.3 });
+  var H = headFrame(parts);
+  var pieces = parts.filter(function (p) { return p.k === 'eye' || p.k === 'face'; });
+  pieces.forEach(function (p) {
+    var top = p.k === 'eye' ? 0.02 : 0.045;
+    [-1, 0, 1].forEach(function (i) {
+      [-1, 0, 1].forEach(function (j) {
+        var f = H.point(p, i, j, 1), b = H.point(p, i, j, -1);
+        var lift = f[2] - H.skin(f[0], f[1]);
+        if (lift < 0.001) note(faceFail.sunk, [label, p.k, lift.toFixed(4)]);
+        if (lift > top) note(faceFail.proud, [label, p.k, lift.toFixed(4)]);
+        if (b[2] - H.skin(b[0], b[1]) > -0.001) note(faceFail.floats, [label, p.k]);
+      });
+    });
+  });
+  // the eyes tile their outline exactly: no two pieces overlap, none strays
+  // outside it, and between them they cover all of it
+  var rows = bitmaps(pose);
+  var eyes = parts.filter(function (p) { return p.k === 'eye'; }).map(function (p) {
+    var a = H.point(p, -1, -1, 1), b = H.point(p, 1, 1, 1);
+    return [Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[1], b[1])];
+  });
+  var area = 0;
+  eyes.forEach(function (q, n) {
+    area += (q[1] - q[0]) * (q[3] - q[2]);
+    var bm = q[0] + q[1] > 0 ? rows[1] : rows[0];
+    for (var i = 0; i <= 4; i++) {
+      for (var j = 0; j <= 4; j++) {
+        var x = q[0] + 1e-4 + (q[1] - q[0] - 2e-4) * i / 4;
+        var y = q[2] + 1e-4 + (q[3] - q[2] - 2e-4) * j / 4;
+        if (eyeCell(bm, x, y) === '.') { note(faceFail.outside, [label, x.toFixed(3), y.toFixed(3)]); return; }
+      }
+    }
+    for (var k = n + 1; k < eyes.length; k++) {
+      var o = eyes[k];
+      var w = Math.min(q[1], o[1]) - Math.max(q[0], o[0]), h = Math.min(q[3], o[3]) - Math.max(q[2], o[2]);
+      if (w > 1e-5 && h > 1e-5) note(faceFail.overlap, [label, (w * h).toExponential(2)]);
+    }
+  });
+  var want = 0;
+  rows.forEach(function (bm) {
+    bm.join('').split('').forEach(function (ch) { if (ch !== '.') want += F.eyePx * F.eyePx; });
+  });
+  if (Math.abs(area - want) > 1e-5) note(faceFail.area, [label, area.toFixed(5), want.toFixed(5)]);
+}
+var looks = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.6], [-0.8, -0.5], [0.33, -0.21]];
+var heads = [[0, 0, 0], [0.9, 0.3, 0.2], [-1.05, -0.6, -0.3]];
+var faceBuilds = 0;
+species.forEach(function (sp) {
+  Object.keys(Pet.EYES).concat(['wink']).forEach(function (e) {
+    looks.forEach(function (lk) {
+      heads.forEach(function (hd, n) {
+        [1, 0.86, 1.06].forEach(function (sq) {
+          var pose = Pet.act('idle', 0.7);
+          pose.eyes = e; pose.lookX = lk[0]; pose.lookY = lk[1];
+          pose.headYaw = hd[0]; pose.headPitch = hd[1]; pose.headRoll = hd[2];
+          pose.squash = sq; pose.blink = (n === 2 && lk[0] === 1) ? 1 : 0;
+          pose.brows = ['angry', 'sad', 'up', 'worry', ''][n + (sq === 1 ? 0 : 2)];
+          pose.mouth = Object.keys(Pet.MOUTHS)[(faceBuilds++) % Object.keys(Pet.MOUTHS).length];
+          pose.blush = 0.8; pose.tears = lk[1] < 0 ? 1 : 0; pose.sniff = 1;
+          checkFace(sp, pose, [sp, e, lk.join(','), hd.join(','), sq].join(' '));
+        });
+      });
+    });
+  });
+  acts.forEach(function (a) {
+    [0.2, 0.9, 1.7].forEach(function (t) {
+      var pose = Pet.act(a, t);
+      pose.lookX = Math.sin(t * 3); pose.lookY = Math.cos(t * 5);
+      checkFace(sp, pose, sp + ' ' + a + '@' + t);
+      faceBuilds++;
+    });
+  });
+});
+check('eyes, mouth and cheeks never sink into the head (' + faceBuilds + ' faces)',
+      !faceFail.sunk.length, faceFail.sunk);
+check('...nor stand off it', !faceFail.proud.length, faceFail.proud);
+check('...nor float in front of it with a gap behind', !faceFail.floats.length, faceFail.floats);
+check('no two pixels of an eye cover the same patch of face', !faceFail.overlap.length,
+      faceFail.overlap);
+check('a glance never carries the iris out of the eye', !faceFail.outside.length, faceFail.outside);
+check('...nor leaves a hole in it', !faceFail.area.length, faceFail.area);
+
+/* ...and it does carry it the way she looks: the catchlight in each eye
+   moves with the look, and the white shows beside the iris when she looks
+   aside or up -- not at rest, and not when she looks down, when her lids
+   follow her eyes down instead. */
+var glances = [];
+species.forEach(function (sp) {
+  var s = Pet.SPECIES[sp], iris = s.colors.eyes;
+  var white = s.led ? Pet.shade(iris, 0.6) : '#f7f7fa';
+  function eyesAt(lx, ly) {
+    var pose = Pet.act('idle', 0.7);
+    pose.eyes = 'open'; pose.lookX = lx; pose.lookY = ly;
+    var parts = Pet.build({ species: sp, items: {} }, { pose: pose });
+    var H = headFrame(parts);
+    var eyes = { l: [0, 0, 0, false], r: [0, 0, 0, false] };
+    parts.forEach(function (p) {
+      if (p.k !== 'eye') return;
+      var c = H.point(p, 0, 0, 1), e = eyes[c[0] < 0 ? 'l' : 'r'];
+      if (p.c === white) e[3] = true;
+      if (p.c !== '#ffffff') return;
+      var a = p.s[0] * p.s[1];
+      e[0] += c[0] * a; e[1] += c[1] * a; e[2] += a;
+    });
+    return [eyes.l, eyes.r].map(function (e) { return [e[0] / e[2], e[1] / e[2], e[3]]; });
+  }
+  var rest = eyesAt(0, 0);
+  if (rest[0][2] || rest[1][2]) glances.push([sp, 'white showing at rest']);
+  [[1, 0, 0, 1, true], [-1, 0, 0, -1, true], [0, 1, 1, 1, true], [0, -1, 1, -1, false]]
+    .forEach(function (g) {
+      eyesAt(g[0], g[1]).forEach(function (e, n) {
+        var moved = (e[g[2]] - rest[n][g[2]]) * g[3];
+        if (!(moved > 0.006)) glances.push([sp, g[0], g[1], n ? 'right' : 'left', moved]);
+        if (e[2] !== g[4]) glances.push([sp, g[0], g[1], e[2] ? 'white showing' : 'no white']);
+      });
+    });
+});
+check('a glance moves the iris the way she looks, showing the white', !glances.length, glances);
+
+/* Nothing on her head hangs in front of her eyes, and the brows are always
+   drawn over what is in front of them -- looking straight out of the face,
+   so at any head turn -- while lying on it: no air behind a brow, and never
+   standing further forward than the hair or skin it is drawn over. */
+var covered = [], hidden = [], browsOff = [];
+function onHer(p) { return p.k !== 'eye' && p.k !== 'face' && p.k !== 'brow' && p.k !== 'head'; }
+function infront(H, from, parts, max) {
+  var best = Infinity, what = null;
+  parts.forEach(function (p) {
+    if (!onHer(p)) return;
+    var t = H.hit(from, p, max);
+    if (t < best) { best = t; what = p; }
+  });
+  return { t: best, part: what };
+}
+/* How far forward the skin or the hair is, straight behind a point. */
+function behind(H, P, parts) {
+  var z = H.skin(P[0], P[1]);
+  parts.forEach(function (q) {
+    if (!onHer(q)) return;
+    var t = H.hit(P, q, 0.3, -1);
+    if (t < Infinity) z = Math.max(z, P[2] - t);
+  });
+  return z;
+}
+/* How far forward the frontmost thing is that a brow is drawn over: the
+   skin across it, or any of her that overlaps it seen from the front (the
+   separating-axis test on its box's corners, along the brow's own axes and
+   the part's). */
+function under(H, brow, parts) {
+  var a = H.point(brow, -1, -1, 1), b = H.point(brow, 1, 1, 1);
+  var x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]);
+  var y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  var z = Math.max(H.skin(x0, y0), H.skin(x1, y0), H.skin(x0, y1), H.skin(x1, y1));
+  parts.forEach(function (q) {
+    if (!onHer(q)) return;
+    var pts = [];
+    [-1, 1].forEach(function (i) {
+      [-1, 1].forEach(function (j) {
+        [-1, 1].forEach(function (k) { pts.push(H.point(q, i, j, k)); });
+      });
+    });
+    var ax = pts[4][0] - pts[0][0], ay = pts[4][1] - pts[0][1];
+    var axes = [[1, 0], [0, 1], [ax, ay], [-ay, ax]];
+    var apart = axes.some(function (n) {
+      var len = Math.hypot(n[0], n[1]);
+      if (len < 1e-9) return false;
+      var lo = Infinity, hi = -Infinity;
+      pts.forEach(function (P) {
+        var d = (P[0] * n[0] + P[1] * n[1]) / len;
+        lo = Math.min(lo, d); hi = Math.max(hi, d);
+      });
+      var r = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(function (P) {
+        return (P[0] * n[0] + P[1] * n[1]) / len;
+      });
+      return Math.min.apply(null, r) >= hi - 1e-4 || Math.max.apply(null, r) <= lo + 1e-4;
+    });
+    if (!apart) {
+      pts.forEach(function (P) { z = Math.max(z, P[2]); });
+    }
+  });
+  return z;
+}
+species.forEach(function (sp) {
+  ['idle', 'walk', 'run', 'skip', 'hop', 'float', 'jump', 'land', 'twirl', 'dance', 'look',
+   'scan', 'sit', 'curtsy', 'nod', 'stomp', 'sad_walk', 'sparkle'].forEach(function (a) {
+    [0.15, 0.6, 1.2].forEach(function (t) {
+      var pose = Pet.act(a, t);
+      pose.brows = ['angry', 'sad', 'up', 'worry'][Math.round(t * 5) % 4];
+      var parts = Pet.build({ species: sp, items: {} }, { pose: pose, time: t });
+      var H = headFrame(parts);
+      parts.forEach(function (p) {
+        if (p.k !== 'eye' && p.k !== 'brow') return;
+        for (var i = -0.95; i < 1; i += 0.38) {
+          for (var j = -0.95; j < 1; j += 0.38) {
+            var hit = infront(H, H.point(p, i, j, 1), parts, 0.6);
+            if (hit.t < Infinity) note(p.k === 'eye' ? covered : hidden, [sp, a, t, hit.part.t]);
+            var b = H.point(p, i, j, -1);
+            if (p.k === 'brow' && b[2] - behind(H, b, parts) > 0.002) {
+              note(browsOff, [sp, a, t, 'air behind']);
+            }
+          }
+        }
+        if (p.k !== 'brow') return;
+        var off = H.point(p, 0, 0, 1)[2] - under(H, p, parts);
+        if (off > 0.02) note(browsOff, [sp, a, t, 'stands off by', off.toFixed(3)]);
+      });
+    });
+  });
+});
+check('no hair hangs in front of her eyes, whatever she is doing', !covered.length, covered);
+check('the brows are drawn over the fringe', !hidden.length, hidden);
+check('...lying on it rather than hovering in front of it', !browsOff.length, browsOff);
+
+/* The wardrobe: no hat ever comes down over her eyes, and nothing stuck on
+   her face (a plaster, a sticker: anything centred within a few hundredths
+   of the skin) is stuck over one -- glasses, which stand well out in front
+   of her eyes, are worn over them on purpose.  The models come from the
+   catalogue (app/models/pets.py). */
+var wardrobe = null;
+try {
+  wardrobe = JSON.parse(require('child_process').execFileSync('python3', ['-c',
+    'import json, sys; sys.path.insert(0, sys.argv[1]); from app.models import pets; ' +
+    'print(json.dumps([it for it in pets.ITEMS if it["slot"] in ("pet_hat", "pet_face")]))',
+    ROOT], { encoding: 'utf8', timeout: 30000 }));
+} catch (err) {
+  console.log('  SKIP  the wardrobe (no python3 to read the catalogue)');
+}
+if (wardrobe) {
+  var hatOver = [], stuckOver = [];
+  wardrobe.forEach(function (it) {
+    species.forEach(function (sp) {
+      var items = {};
+      items[it.slot] = { item_id: it.id, data: it.data };
+      [[0, 0], [1, 1], [-1, -1]].forEach(function (lk) {
+        var pose = Pet.act('idle', 0.4);
+        pose.lookX = lk[0]; pose.lookY = lk[1];
+        var parts = Pet.build({ species: sp, items: items }, { pose: pose, time: 0.4 });
+        var H = headFrame(parts);
+        var worn = parts.filter(function (p) {
+          if (p.k !== 'worn') return false;
+          if (it.slot === 'pet_hat') return true;
+          var c = H.local(p.p);
+          return c[2] - H.skin(c[0], c[1]) < 0.045;
+        });
+        parts.forEach(function (p) {
+          if (p.k !== 'eye') return;
+          [-0.9, 0, 0.9].forEach(function (i) {
+            [-0.9, 0, 0.9].forEach(function (j) {
+              var f = H.point(p, i, j, 1);
+              worn.forEach(function (w) {
+                if (H.hit(f, w, 0.6) === Infinity) return;
+                note(it.slot === 'pet_hat' ? hatOver : stuckOver, [it.id, sp, w.t]);
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+  check('no hat comes down over her eyes (' + wardrobe.length + ' hats and face things)',
+        !hatOver.length, hatOver);
+  check('nothing stuck on her face covers an eye', !stuckOver.length, stuckOver);
+}
+
 // ------------------------------------------------------------ following
 console.log('\n== following ==');
 var fern = { species: 'fern', name: 'Sprout', tags: ['cheerful', 'loyal', 'curious'], items: {} };
