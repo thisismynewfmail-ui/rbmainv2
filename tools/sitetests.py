@@ -215,6 +215,13 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("market: the event aisle sells the event's weapons while it runs",
           status == 200 and 'data-buy="use_hollow_harvester"' in event_html
           and 'data-buy="use_jack_o_launcher"' in event_html, status)
+    # past events' weapons: the Event Armory, at the price /api/catalog gives
+    armory = [i for i in catalog_items if i.get("armory")]
+    status, armory_html = client.get("/market?slot=armory")
+    check("market: the Event Armory sells past events' weapons above their event price",
+          status == 200 and bool(armory) and int(armory[0]["price"]) > int(armory[0]["base_price"])
+          and 'data-buy="%s" data-price="%d"' % (armory[0]["id"], int(armory[0]["price"]))
+          in armory_html, status)
 
     print("\n== crates and keys ==")
     keys = client.api("/api/market/buy", {"item_id": "key_standard", "qty": 2})

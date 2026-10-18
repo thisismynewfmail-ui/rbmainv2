@@ -11,6 +11,10 @@ crate exclusive, the event items while their event runs, and -- once an
 event is over -- its collection in the archive: its crate and key, and
 everything it held bar the hats.  ``purchase`` asks ``crates.for_sale``, the
 same rule the shelf is drawn from, so what is listed is what can be bought.
+
+A past event's weapons and held items also have an aisle of their own, the
+Event Armory, at a premium over what they cost while the event ran.  Every
+price here -- card, sort, till, sell-back -- is ``crates.price_of``.
 """
 from __future__ import annotations
 
@@ -46,11 +50,12 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
     as None it means "only when searching", so a search finds an old
     Halloween's coffin while the plain aisles stay the everyday gear (the
     archive has its own home in the market's Crate Hall).  The "event" aisle
-    is the live event's things only."""
+    is the live event's things only, and the "armory" aisle past events'
+    weapons and held items only."""
     now = int(time.time())
     term = (search or "").strip().lower()
     if archive is None:
-        archive = bool(term)
+        archive = bool(term) or slot == "armory"
 
     def age(it: Dict[str, Any]) -> str:
         return crates.event_state(it.get("event", ""), now)
@@ -67,6 +72,8 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
         elif slot == "event":
             items = [it for it in items
                      if it.get("event") and crates.event_active(it["event"], now)]
+        elif slot == "armory":
+            items = [it for it in items if crates.in_armory(it, now)]
         else:
             items = [it for it in items if it["slot"] == slot]
     if term:
@@ -74,9 +81,9 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
                  if term in it["name"].lower() or term in it["id"].lower()
                  or term in it.get("description", "").lower()]
     if sort == "price_asc":
-        items.sort(key=lambda i: (i.get("price", 0), i["name"]))
+        items.sort(key=lambda i: (crates.price_of(i, now), i["name"]))
     elif sort == "price_desc":
-        items.sort(key=lambda i: (-i.get("price", 0), i["name"]))
+        items.sort(key=lambda i: (-crates.price_of(i, now), i["name"]))
     elif sort == "name":
         items.sort(key=lambda i: i["name"].lower())
     else:
@@ -91,11 +98,19 @@ def listing(slot: Optional[str] = None, sort: str = "featured",
 
 def archive_count(now: Optional[int] = None) -> int:
     """How many things past events' collections sell -- the pieces the
-    everyday aisles leave to the Crate Hall."""
+    everyday aisles leave to the Crate Hall (the weapons and held items
+    have the Event Armory, see ``armory_count``)."""
     now = int(now if now is not None else time.time())
     return sum(1 for it in catalog.ALL_ITEMS
                if it.get("event") and crates.for_sale(it, now)
-               and crates.event_state(it["event"], now) == "past")
+               and crates.event_state(it["event"], now) == "past"
+               and not crates.in_armory(it, now))
+
+
+def armory_count(now: Optional[int] = None) -> int:
+    """How many past events' weapons and held items the Event Armory sells."""
+    now = int(now if now is not None else time.time())
+    return sum(1 for it in catalog.ALL_ITEMS if crates.in_armory(it, now))
 
 
 def catalog_listing() -> List[Dict[str, Any]]:
@@ -110,17 +125,21 @@ def _card(item: Dict[str, Any], now: Optional[int] = None) -> Dict[str, Any]:
     grade = crates.GRADES.get(item.get("rarity", "common"), crates.GRADES["common"])
     series = (crates.CRATE_SERIES.get(item["id"])
               or crates.KEY_SERIES.get(item["id"]))
+    price = crates.price_of(item, now)
     return db.AttrDict({
         "id": item["id"],
         "name": item["name"],
         "slot": item["slot"],
         "slot_label": catalog.SLOT_LABELS.get(item["slot"], item["slot"]),
-        "price": item.get("price", 0),
+        "price": price,
+        # the catalogue price -- what an Armory piece cost while its event ran
+        "base_price": int(item.get("price", 0)),
+        "armory": crates.in_armory(item, now),
         "rarity": item.get("rarity", "common"),
         "rarity_color": grade["color"],
         "description": item.get("description", ""),
         "data": item.get("data", {}),
-        "free": item.get("price", 0) <= 0,
+        "free": price <= 0,
         "for_sale": crates.for_sale(item, now),
         "crate_only": item["id"] in crates.CRATE_EXCLUSIVE,
         "event": item.get("event", ""),
@@ -147,7 +166,7 @@ def purchase(user_id: int, item_id: str, qty: int = 1) -> Dict[str, Any]:
             raise MarketError("%s only comes out of a crate now -- grab a crate and a key!"
                               % item["name"])
         raise MarketError("That item is not for sale.")
-    price = int(item.get("price", 0))
+    price = crates.price_of(item, now)
     if price < 0:
         raise MarketError("That item is not for sale.")
     if price == 0 and inventory.owns_item(user_id, item_id):
@@ -210,7 +229,7 @@ def purchase(user_id: int, item_id: str, qty: int = 1) -> Dict[str, Any]:
 
 
 def sell_back(user_id: int, inv_id: int) -> Dict[str, Any]:
-    """Refund an owned copy for 40% of its catalogue price."""
+    """Refund an owned copy for 40% of what the market charges for it."""
     row = inventory.get_row(user_id, inv_id)
     if row is None:
         raise MarketError("You do not own that item.")
@@ -219,8 +238,8 @@ def sell_back(user_id: int, inv_id: int) -> Dict[str, Any]:
         raise MarketError("Unknown item.")
     if item.get("is_default"):
         raise MarketError("Starter equipment cannot be sold.")
-    refund = int(item.get("price", 0) * 0.4)
     now = int(time.time())
+    refund = int(crates.price_of(item, now) * 0.4)
     with db.transaction() as conn:
         owned = conn.execute("SELECT 1 FROM inventory WHERE id=? AND user_id=?",
                              (inv_id, user_id)).fetchone()

@@ -1289,6 +1289,16 @@ def test_profiles() -> None:
     check("profiles: messenger switch follows its chance", abs(off - 40) < 3, "%.1f%%" % off)
     check("profiles: only settings that differ from the default are stored",
           all(v != users.PRIVACY_FIELDS[k] for p, _t, _m in draws for k, v in p.items()))
+    # what a bot's ledger says it paid is the market's own price
+    from app.models import catalog, crates
+    armory = [it for it in catalog.ALL_ITEMS if crates.in_armory(it)]
+    hat = catalog.get("hat_traffic_cone")
+    check("profiles: a bot pays the market's price, the Event Armory's premium included",
+          bool(armory)
+          and all(factory._cost(it) == crates.price_of(it) > int(it["price"]) for it in armory)
+          and factory._cost(hat) == (crates.price_of(catalog.get("crate_classic"))
+                                     + crates.price_of(catalog.get("key_standard"))),
+          [it["id"] for it in armory if factory._cost(it) != crates.price_of(it)][:3])
     bot_config.save({"llm.enabled": False, "creation.username_source": "procedural",
                      "creation.profile_source": "procedural"})
     made = factory.create_batch(300, random.Random(12), None)

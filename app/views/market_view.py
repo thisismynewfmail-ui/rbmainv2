@@ -11,9 +11,11 @@ from ..models import (avatars, catalog, crates, economy, inventory, market,
 from .base import api_error, api_ok, login_required, render, router
 
 # The market's aisles.  Hats are not one of them any more -- they come out of
-# crates -- so the first aisle is the crates and the keys that open them.
+# crates -- so the first aisle is the crates and the keys that open them.  The
+# Event Armory is past events' weapons and held items (crates.in_armory).
 MARKET_TABS = [("all", "Everything", "star"), ("stash", "Crates & Keys", "crate"),
                ("event", "Hallowed Harvest", "pumpkin"), ("usable", "Gear", "blade"),
+               ("armory", "Event Armory", "armory"),
                ("hair", "Hair", "hair"), ("face", "Faces", "face"),
                ("shirt", "Shirts", "shirt"), ("pants", "Pants", "pants"),
                ("belt", "Belts", "belt"), ("back", "Back", "wing")]
@@ -59,14 +61,25 @@ def market_page(req: Request):
     if slot not in [t[0] for t in tabs]:
         slot = "all"
     # a specific aisle lists past collections' pieces too (with a chip that
-    # jumps to their shelf); "Everything" leaves them to the Crate Hall
+    # jumps to their shelf); "Everything" leaves them to the Crate Hall, and
+    # points at the Event Armory after its own gear
     archive = bool(term) or slot not in ("all", "event")
     items = store.decorate(market.listing(slot, sort, term, archive=archive), now)
+    # the Armory's signs: a header over its first piece (on its own aisle,
+    # and on Gear when the everyday weapons come first), and on "Everything"
+    # a card after the last everyday weapon (at the end, sorted otherwise)
+    armory_n = market.armory_count(now)
+    armory_from = ""
+    if slot == "armory" or (slot == "usable" and sort == "featured" and not term):
+        armory_from = next((c["id"] for c in items if c["armory"]), "")
+    armory_card = slot == "all" and not term and armory_n > 0
+    gear = [c["id"] for c in items if c["slot"] == "usable"]
+    armory_after = gear[-1] if armory_card and sort == "featured" and gear else ""
     owned = _owned_counts(int(req.user["id"])) if req.user else {}
     stash = crates.stash_counts(int(req.user["id"])) if req.user else {}
     series = crates.all_series()
     offers = [dict(o, active=crates.series_active(crates.SERIES[o["series"]], now),
-                   value=sum(int(catalog.get(i)["price"]) * n
+                   value=sum(crates.price_of(catalog.get(i), now) * n
                              for i, n in o["contents"].items()))
               for o in crates.OFFERS]
     offers = [o for o in offers if o["active"]]
@@ -84,6 +97,9 @@ def market_page(req: Request):
                   ring=store.ring(series, stash, cn["sid"]),
                   side_odds=store.side_odds(cn, now),
                   archive_n=0 if archive else market.archive_count(now),
+                  armory_n=armory_n, armory_from=armory_from, armory_card=armory_card,
+                  armory_after=armory_after,
+                  premium=int(round((crates.ARMORY_PREMIUM - 1) * 100)),
                   extra_scripts=["/static/js/ui/crates.js", "/static/js/ui/store.js",
                                  "/static/js/ui/pets_shop.js"])
 

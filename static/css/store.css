@@ -659,6 +659,17 @@
 .vt .vt-more .vt-i { width: 32px; height: 32px; color: var(--ev-accent); filter: drop-shadow(1px 1px 0 #000); }
 .vt .vt-more b { font-size: 12px; text-transform: uppercase; }
 .vt .vt-more small { font-size: 10px; color: var(--vt-ink-soft); }
+/* the Event Armory: past events' weapons, under a sign of their own */
+.vt .vt-aisle-sign { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 6px 8px;
+  border: 2px solid var(--vt-frame); border-radius: 3px; color: var(--vt-ink); background: var(--vt-panel-2);
+  box-shadow: inset 2px 2px 0 var(--vt-hi), 0 3px 0 var(--vt-shadow); }
+.vt .vt-aisle-sign:first-child { margin-top: 0; }
+.vt .vt-aisle-sign .vt-i, .vt .vt-armory-card .vt-i { color: var(--ev-accent); --vt-i2: #000; filter: drop-shadow(1px 1px 0 #000); }
+.vt .vt-aisle-sign .vt-i { width: 28px; height: 28px; }
+.vt .vt-aisle-sign b { display: block; font-size: 12px; letter-spacing: .5px; text-transform: uppercase; }
+.vt .vt-aisle-sign small { display: block; font-size: 10px; color: var(--vt-ink-soft); }
+.vt .vt-slotcard > small.vt-from { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-transform: none; }
+.vt .vt-armory-card small { text-transform: none; }
 
 /* ================================================================== side */
 .vt .mk-side .vt-win-body { font-size: 11px; }

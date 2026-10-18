@@ -662,6 +662,15 @@ item are published in each crate's **What's inside?** panel.
     included. It does no self-damage and gives no rocket jump.
   While an event runs the market leads with its hero (a countdown, the chase
   items, the Unusual tease) and an event aisle.
+* **The archive.** Once an event is over, its crate, key and everything it
+  held bar the hats stay on sale in its holiday's collection in the Crate
+  Hall. Its weapons and held items also fill the **Event Armory**: their own
+  aisle (and the end of the Gear aisle), newest event first, each card
+  marked with its event and year. They cost a quarter more than they did
+  while the event ran, rounded to a tidy 50 (`crates.ARMORY_PREMIUM`); the
+  live event's own weapons keep their normal price. `crates.price_of` is
+  the one price every shelf, the Crate Hall, search, `/api/catalog`, the
+  till, the 40% sell-back and the bots read.
 * **Bundles** (crate + key, five-packs) are priced under the singles.
 * **The live drop feed** shows every opening; Unusual pulls also toast on the
   market and appear in the news ticker.

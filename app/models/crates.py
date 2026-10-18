@@ -226,6 +226,29 @@ def for_sale(item: Dict[str, Any], now: Optional[int] = None) -> bool:
     return True
 
 
+# A past event's weapons and held items stay on the shelf in the market's
+# Event Armory, at a quarter over what they cost while the event ran
+# (rounded to a tidy 50).  The live event's own sell at the catalogue price.
+ARMORY_PREMIUM = 1.25
+
+
+def in_armory(item: Dict[str, Any], now: Optional[int] = None) -> bool:
+    """A weapon or held item from an event that is over: the Event Armory's
+    stock, sold at ARMORY_PREMIUM."""
+    return (item.get("slot") == "usable" and bool(item.get("event"))
+            and event_state(item["event"], now) == "past" and for_sale(item, now))
+
+
+def price_of(item: Dict[str, Any], now: Optional[int] = None) -> int:
+    """What the market charges for ``item`` right now -- the one price the
+    shelves, the Crate Hall, the till, the sell-back and the bots all read.
+    The catalogue price, or for an Event Armory piece that and its premium."""
+    price = int(item.get("price", 0))
+    if price > 0 and in_armory(item, now):
+        return int(round(price * ARMORY_PREMIUM / 50.0)) * 50
+    return price
+
+
 def grade_of(series: Dict[str, Any], item_id: str) -> str:
     override = (series.get("grade_of") or {}).get(item_id)
     if override:
@@ -294,7 +317,7 @@ def public_series(series: Dict[str, Any]) -> Dict[str, Any]:
         "theme_def": series.get("theme_def") or {},
         "colors": series["colors"], "crate": series["crate"], "key": series["key"],
         "crate_name": crate.get("name", ""), "key_name": key.get("name", ""),
-        "crate_price": int(crate.get("price", 0)), "key_price": int(key.get("price", 0)),
+        "crate_price": price_of(crate), "key_price": price_of(key),
         "event": series.get("event", ""), "active": series_active(series),
         "live": state in ("always", "live"), "state": state,
         "holiday": series.get("holiday", ""), "year": series.get("year", 0),
@@ -347,7 +370,7 @@ def collections(now: Optional[int] = None) -> List[Dict[str, Any]]:
                               "rarity": item.get("rarity", "common"),
                               "grade": grade_of(series, item_id),
                               "color": GRADES[grade_of(series, item_id)]["color"],
-                              "price": int(item.get("price", 0)),
+                              "price": price_of(item, now),
                               "buyable": for_sale(item, now)})
             editions.append(dict(public_series(series), items=items,
                                  title=ev.title, blurb=ev.blurb,
@@ -645,7 +668,7 @@ def bot_unbox(user_id: int, rng: Optional[random.Random] = None) -> Optional[Dic
                for s in choices]
     series = rng.choices(choices, weights)[0]
     crate, key = catalog.get(series["crate"]), catalog.get(series["key"])
-    price = int(crate["price"]) + int(key["price"])
+    price = price_of(crate) + price_of(key)
     now = int(time.time())
     try:
         with db.transaction() as conn:
