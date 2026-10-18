@@ -97,7 +97,7 @@ window.BH = {
     {% if user %}
     <a href="/friends" class="{{ 'on' if path == '/friends' else '' }}">Friends{% if nav_requests %} <span class="badge">{{ nav_requests }}</span>{% endif %}</a>
     <a href="/messages" class="{{ 'on' if path.startswith('/messages') else '' }}">Messages{% if nav_unread %} <span class="badge alert">{{ nav_unread }}</span>{% endif %}</a>
-    <a href="/users" class="{{ 'on' if path == '/users' else '' }}">People</a>
+    {% if nav_pet %}<a href="/pet-zone" class="{{ 'on' if path == '/pet-zone' else '' }}">Pet Zone</a>{% endif %}
     <a href="/avatar" class="{{ 'on' if path == '/avatar' else '' }}">Avatar</a>
     <a href="/inventory" class="{{ 'on' if path.startswith('/inventory') else '' }}">Inventory</a>
     <a href="/worlds" class="{{ 'on' if path.startswith('/worlds') else '' }}">Worlds</a>
@@ -111,7 +111,6 @@ window.BH = {
     {% else %}
     <a href="/worlds">Worlds</a>
     <a href="/market">Market{% if season %}<span class="sn-navtag">EVENT · <span data-sn-left="short">{{ season.left_short }}</span></span>{% endif %}</a>
-    <a href="/users">People</a>
     <a class="off" aria-disabled="true" title="The world editor is not ready yet.">Editor<span class="soon">soon</span></a>
     <a class="off" aria-disabled="true" title="The economy pages are not ready yet.">Economy<span class="soon">soon</span></a>
     <a href="/login">Sign in</a>

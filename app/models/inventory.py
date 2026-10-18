@@ -79,6 +79,7 @@ def first_of(user_id: int, item_id: str) -> Optional[Dict[str, Any]]:
 
 def decorate(row: Dict[str, Any]) -> Dict[str, Any]:
     """Merge an inventory row with its catalogue entry for display/render."""
+    from . import crates          # crates imports this module
     item = catalog.get(row["item_id"]) or {
         "id": row["item_id"], "name": row["item_id"], "slot": "unknown",
         "price": 0, "rarity": "common", "description": "", "data": {}}
@@ -90,7 +91,8 @@ def decorate(row: Dict[str, Any]) -> Dict[str, Any]:
         "name": item["name"],
         "slot": item["slot"],
         "slot_label": catalog.SLOT_LABELS.get(item["slot"], item["slot"]),
-        "price": item.get("price", 0),
+        # what the market charges now, which is what a sell-back pays 40% of
+        "price": crates.price_of(item),
         "rarity": item.get("rarity", "common"),
         "description": item.get("description", ""),
         "data": item.get("data", {}),

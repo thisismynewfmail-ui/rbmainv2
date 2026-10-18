@@ -60,8 +60,8 @@
   var DRAW_RANGE = 170;
   // personal space, in studs: she never settles nearer her owner than
   // MIN_SPACE, and nothing but a purpose brings her inside BUBBLE
-  var MIN_SPACE = 4.5;
-  var BUBBLE = 3.2;
+  var MIN_SPACE = 6.0;
+  var BUBBLE = 4.3;
   // what she keeps clear of on her way anywhere (BUBBLE and a stride: she
   // goes round them, not across it), and how short of a spot she may come
   // to a stop
@@ -70,6 +70,10 @@
   // her owner's path, as breadcrumbs CRUMB studs apart, the last TRAIL of them
   var TRAIL = 40;
   var CRUMB = 1.4;
+  // how long after a shot her owner's gun counts as in use: she keeps out
+  // of the line of fire while they are shooting, not whenever they happen
+  // to look her way with something in their hands
+  var LIVE_FIRE = 2.5;
 
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -92,7 +96,7 @@
   /* Who she is, as numbers.  Every pet starts from BASE; each persona tag
      adds its leanings.  The follower reads these when it weighs what to do. */
   var BASE = {
-    follow: 6.0,     // how far from her owner she is comfortable, in studs
+    follow: 7.6,     // how far from her owner she is comfortable, in studs
     lead: 0,         // dashes ahead of them, and runs alongside when they run
     wander: 0.15,    // how readily she goes off to look at something
     range: 4,        // how far beyond her comfortable distance she goes then
@@ -142,7 +146,7 @@
     });
     // clingy and loyal come nearer, shy and dreamy keep further off, but
     // every one of them stays well outside her owner's body
-    t.follow = clamp(t.follow, MIN_SPACE + 0.3, 8.8);
+    t.follow = clamp(t.follow, MIN_SPACE + 0.4, 11.5);
     t.patience = clamp(t.patience, 2.5, 20);
     t.range = clamp(t.range, 2.5, 10);
     t.cut = clamp(t.cut, -1, 1);
@@ -1035,8 +1039,8 @@
         out.aim = null;
       }
     }
-    // never stand in front of a gun: out to the side of the line of fire,
-    // and no nearer them than she would have been
+    // never stand in front of a gun they are shooting: out to the side of
+    // the line of fire, and no nearer them than she would have been
     if (o.holding && this.state !== 'mourn' && out.p && this.inFire(o, out.p, 1.4)) {
       var vx = out.p[0] - o.pos[0], vz = out.p[2] - o.pos[2];
       var along = Math.max(0, vx * fwd[0] + vz * fwd[2]);
@@ -1215,7 +1219,7 @@
     var bk = this.besideK;
     // further back the faster they go
     var k = clamp(this.oSpd / 22, 0, 1.25);
-    var gap = lerp(R * (0.85 + 0.68 * k), Math.max(MIN_SPACE, R * 0.85), bk);
+    var gap = lerp(R * (0.85 + 0.5 * k), Math.max(MIN_SPACE, R * 0.85), bk);
     this.sideK += (this.side - this.sideK) * Math.min(1, dt * 0.9);
     var ang = lerp(t.lateral * this.sideK, 1.45 * this.side, bk);
     var ca = Math.cos(ang), sa = Math.sin(ang);
@@ -1248,8 +1252,11 @@
       bx = o.pos[0] + ox / od * ring; bz = o.pos[2] + oz / od * ring;
     }
     // ahead of them -- they have turned back on her, or set off past her:
-    // out of their way to the side she is on, and let them come by
-    var yw = w && w.kind === 'dart' ? 0 : clamp((ahead + 2.5 - bk * 4) / 2, 0, 1);
+    // out of their way to the side she is on, and let them come by.  (Only
+    // once they are nearly on her: from further off she simply comes back
+    // to them, and steps aside as they close.)
+    var yw = w && w.kind === 'dart' ? 0 : clamp((ahead + 2.5 - bk * 4) / 2, 0, 1) *
+             clamp((R * 1.8 - pd) / (R * 0.8), 0, 1);
     if (yw > 0) {
       var sg = across >= 0 ? 1 : -1;
       var yl = Math.max(MIN_SPACE, R * 0.85);
@@ -1317,7 +1324,7 @@
       this.pickSettle(o, R, false);
     } else {
       var d = hdist(S, o.pos);
-      if (d < MIN_SPACE || d > R * 1.6 || Math.abs(S[1] - o.pos[1]) > 1.6 ||
+      if (d < MIN_SPACE || d > R * 1.35 || Math.abs(S[1] - o.pos[1]) > 1.6 ||
           (o.holding && this.inFire(o, S, 1.0))) {
         this.pickSettle(o, R, false);
       } else if (this.settleT > this.settleFor && !this.act && hdist(this.pos, S) < 1) {
@@ -1364,8 +1371,22 @@
       p[0] = o.pos[0] + Math.sin(a) * r; p[2] = o.pos[2] + Math.cos(a) * r;
       if (this.spotOK(o, p)) return this.keepSettle(p);
     }
-    // nowhere on her ring will do (a ledge, a corridor): nearer in, then here
-    for (var rr = r * 0.75; rr >= 2.8; rr -= 0.9) {
+    // nowhere on her ring will do (a ledge, a corridor): where she stands,
+    // if that is a fair way off; further out; and only then nearer in,
+    // never inside their bubble
+    var here = hdist(this.pos, o.pos);
+    if (here >= MIN_SPACE && here <= r * 1.4) {
+      p[0] = this.pos[0]; p[2] = this.pos[2];
+      if (this.spotOK(o, p)) return this.keepSettle(p);
+    }
+    for (var rf = r * 1.2; rf <= r * 1.55; rf += r * 0.17) {
+      for (var j = 0; j < 3; j++) {
+        var af = b + sg * [0, 0.5, -0.5][j];
+        p[0] = o.pos[0] + Math.sin(af) * rf; p[2] = o.pos[2] + Math.cos(af) * rf;
+        if (this.spotOK(o, p)) return this.keepSettle(p);
+      }
+    }
+    for (var rr = r * 0.85; rr >= BUBBLE; rr -= 0.8) {
       p[0] = o.pos[0] + Math.sin(b) * rr; p[2] = o.pos[2] + Math.cos(b) * rr;
       if (this.spotOK(o, p)) return this.keepSettle(p);
     }
@@ -2534,6 +2555,8 @@
   // ================================================================ world
   function PetWorld(client) {
     this.client = client;
+    this.clock = 0;
+    this.shots = {};            // owner key -> clock at their last shot
     this.followers = {};
     this.owners = [];
     this.inbox = {};
@@ -2556,7 +2579,15 @@
     return d >= (reach || 30) ? null : y - d;
   };
 
-  /* Everyone in the world, as an owner record pets can read. */
+  /* Has ``key`` fired in the last LIVE_FIRE seconds? */
+  PetWorld.prototype.firing = function (key) {
+    var at = this.shots[key];
+    return at !== undefined && this.clock - at < LIVE_FIRE;
+  };
+
+  /* Everyone in the world, as an owner record pets can read.  ``holding``
+     is a gun out and in use (shot lately), the only time the line of fire
+     matters to a pet. */
   PetWorld.prototype.gather = function (dt) {
     var client = this.client, out = [];
     var me = client.local;
@@ -2567,7 +2598,7 @@
         pet: client.avatar && client.avatar.pet, pos: me.pos, yaw: me.yaw,
         speed: Math.hypot(me.vel[0], me.vel[2]), vel: me.vel, grounded: !!me.grounded,
         alive: !!me.alive, health: me.health === undefined ? 100 : me.health,
-        team: client.myTeam || '', holding: !!(weapon && !client.stowed)
+        team: client.myTeam || '', holding: !!(weapon && !client.stowed) && this.firing('me')
       });
     }
     var self = this;
@@ -2586,7 +2617,8 @@
         key: String(id), id: p.id, name: p.name, pet: p.avatar && p.avatar.pet,
         pos: p.pos, yaw: p.yaw, speed: Math.hypot(track.vel[0], track.vel[2]), vel: track.vel,
         grounded: p.anim !== 'jump' && p.anim !== 'fall', alive: !!p.alive,
-        health: p.health === undefined ? 100 : p.health, team: p.team || '', holding: !!hot
+        health: p.health === undefined ? 100 : p.health, team: p.team || '',
+        holding: !!hot && self.firing(String(id))
       });
     });
     return out;
@@ -2595,6 +2627,7 @@
   PetWorld.prototype.frame = function (dt, time, camera) {
     var renderer = this.client.renderer;
     this.tracks = this.tracks || {};
+    this.clock += dt;
     if (!global.Pet || !Settings.showPets) {
       this.followers = {};
       return;
@@ -2664,6 +2697,7 @@
       tell(this.keyFor(data.kid), 'kill', data);
       if (data.kid !== data.vid) tell(this.keyFor(data.vid), 'victim', data);
     } else if (kind === 'shot') {
+      this.shots[this.keyFor(data.id)] = this.clock;
       tell(this.keyFor(data.id), 'shot', data);
     } else if (kind === 'swing') {
       tell(this.keyFor(data.id), 'swing', data);

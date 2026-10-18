@@ -349,6 +349,8 @@
       else if ($('.vt-lock', el)) bits.push('<span>Only comes out of the crate</span>');
       var shelf = el.closest('.vt-shelf');
       if (shelf && shelf.dataset.title) bits.push('<span>From ' + Site.escape(shelf.dataset.title) + '</span>');
+      // an Event Armory piece says which event it came from
+      if (el.dataset.from) bits.push('<span>From ' + Site.escape(el.dataset.from) + '</span>');
       if (cat.price > 0) bits.push('<span>Sells back for ' + Math.floor(cat.price * 0.4) + '</span>');
       return bits.join('');
     }

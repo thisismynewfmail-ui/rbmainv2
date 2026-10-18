@@ -721,12 +721,15 @@ def _series_of(item: Dict[str, Any]):
 
 
 def _cost(item: Dict[str, Any]) -> int:
-    """What a bot paid for an item: the shelf price, or for anything that
-    only comes out of a crate, the crate and key it took to get it."""
+    """What a bot paid for an item: the market's price (an Event Armory
+    piece's premium included), or for anything that only comes out of a
+    crate, the crate and key it took to get it."""
+    from ..models import crates
     series = _series_of(item)
     if series is None:
-        return int(item["price"])
-    return int(catalog.get(series["crate"])["price"]) + int(catalog.get(series["key"])["price"])
+        return crates.price_of(item)
+    return (crates.price_of(catalog.get(series["crate"]))
+            + crates.price_of(catalog.get(series["key"])))
 
 
 def _bought(item: Dict[str, Any]) -> str:

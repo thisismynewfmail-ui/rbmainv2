@@ -9,12 +9,19 @@
    Any <canvas class="pt-live" data-pet="{...}"> on the page becomes a stage
    by itself; the pet in it entertains herself (Pet.Showcase, chosen by her
    persona tags), can be turned by dragging, and waves when her card is
-   hovered.  The rest of this file is the shop: try-on, looks, the wardrobe
-   tabs and buying through the market's till (Crates.buy). */
+   hovered.  A stage can also be *directed* (PetStages.add's ``director``):
+   something else decides where she stands and what she does, builds a room
+   round her, places the camera, sets the lights and paints over the frame --
+   the Pet Zone (pet_zone.js) is one.  A directed stage may ask for its own
+   size in pixels; it is drawn into a corner of the shared canvas, which
+   grows to fit the biggest, so it is still one context.  The rest of this
+   file is the shop: try-on, looks, the wardrobe tabs and buying through the
+   market's till (Crates.buy). */
 (function (global) {
   'use strict';
 
   var OFF_W = 480, OFF_H = 560;     // 6:7, the shape of every pet stage
+  var MAX_W = 1600, MAX_H = 1200;   // the most a directed stage may ask for
   var FOV = 30;
   var REST_YAW = -0.32;
 
@@ -44,36 +51,77 @@
                       clouds: 0, tint: '#ffffff' });
     renderer.setAmbient('#9fb3c8');
     renderer.buildStatic([]);
+    // the lights every stage starts from: a director that dims them for
+    // its own stage has them put back before the next one draws
+    PetStages.lights = { sun: renderer.sunColor.slice(), sky: renderer.skyAmbient.slice(),
+                         ground: renderer.groundAmbient.slice(), dir: renderer.sky.sun.slice() };
     PetStages.renderer = renderer;
     return renderer;
+  }
+
+  /* Draw the next stage at w x h pixels: the shared canvas grows (once) to
+     hold the biggest stage asked for, and each draws into its bottom-left
+     corner -- which is where a WebGL viewport at the origin lands. */
+  function fit(renderer, w, h) {
+    var c = renderer.canvas;
+    if (c.width < w || c.height < h) {
+      c.width = Math.max(c.width, w);
+      c.height = Math.max(c.height, h);
+      c.style.width = c.width + 'px';
+      c.style.height = c.height + 'px';
+    }
+    renderer.width = w;
+    renderer.height = h;
+    renderer.aspect = w / Math.max(1, h);
+  }
+
+  function restoreLights(renderer) {
+    var L = PetStages.lights;
+    if (!L) return;
+    renderer.sunColor = L.sun.slice();
+    renderer.skyAmbient = L.sky.slice();
+    renderer.groundAmbient = L.ground.slice();
+    renderer.sky.sun = L.dir.slice();
   }
 
   function parse(raw) {
     try { return JSON.parse(raw); } catch (e) { return null; }
   }
 
-  /* One stage: a canvas, the pet in it and what she is doing. */
+  /* One stage: a canvas, the pet in it and what she is doing.
+
+     opts.director, for a stage something else runs (all optional):
+       step(dt, stage)            -> her pose this frame; may move stage.pos
+                                     and turn stage.yaw
+       camera(stage)              -> { eye, target, fov }
+       light(renderer, stage)     set the lights for this stage only
+       scene(renderer, stage)     push whatever else is in the frame
+       overlay(ctx, stage, renderer)  paint over the finished frame
+       pixels(stage)              -> [w, h], the size to render at
+     opts.drag === false leaves the pointer to the director. */
   function Stage(canvas, pet, opts) {
     opts = opts || {};
     this.canvas = canvas;
     this.pet = pet;
-    this.show = new Pet.Showcase(pet, { only: opts.only, calm: opts.calm });
+    this.show = new Pet.Showcase(pet, { only: opts.only, calm: opts.calm, tone: opts.tone });
     this.time = Math.random() * 10;
     this.yaw = opts.yaw === undefined ? REST_YAW : opts.yaw;
     this.restYaw = this.yaw;
+    this.pos = [0, 0, 0];
     this.idleSince = 0;
     this.visible = true;
     this.dist = opts.dist || 6.9;
     this.focus = opts.focus || 1.52;
     this.tilt = opts.tilt === undefined ? 0.13 : opts.tilt;
     this.shadow = opts.shadow !== false;
-    this.bindDrag();
+    this.director = opts.director || null;
+    if (opts.drag !== false) this.bindDrag();
   }
 
   Stage.prototype.setPet = function (pet) {
     var keep = this.show;
     this.pet = pet;
-    this.show = new Pet.Showcase(pet, { only: keep.only, calm: keep.calm });
+    this.show = new Pet.Showcase(pet, { only: keep.only, calm: keep.calm, tone: keep.tone });
     this.show.pose = keep.pose;           // no snap: she carries on from here
   };
 
@@ -112,31 +160,52 @@
   };
 
   Stage.prototype.draw = function (renderer, dt) {
+    var d = this.director;
     this.time += dt;
-    // a turned pet drifts back to face you after a while
-    this.idleSince += dt;
-    if (this.idleSince > 2.5) this.yaw += (this.restYaw - this.yaw) * Math.min(1, dt * 1.6);
-    var pose = this.show.step(dt);
-    var parts = Pet.build(this.pet, { position: [0, 0, 0], yaw: this.yaw, pose: pose,
+    var pose;
+    if (d && d.step) {
+      pose = d.step(dt, this);
+    } else {
+      // a turned pet drifts back to face you after a while
+      this.idleSince += dt;
+      if (this.idleSince > 2.5) this.yaw += (this.restYaw - this.yaw) * Math.min(1, dt * 1.6);
+      pose = this.show.step(dt);
+    }
+    var size = (d && d.pixels) ? d.pixels(this) : [OFF_W, OFF_H];
+    var w = Math.max(1, Math.min(MAX_W, Math.round(size[0])));
+    var h = Math.max(1, Math.min(MAX_H, Math.round(size[1])));
+    fit(renderer, w, h);
+    var at = this.pos;
+    var parts = Pet.build(this.pet, { position: at, yaw: this.yaw, pose: pose,
                                       time: this.time });
     renderer.beginFrame(dt);
     for (var i = 0; i < parts.length; i++) renderer.push(parts[i]);
     if (this.shadow) {
       var lift = (pose.bob || 0) + (pose.float || 0);
       var k = Math.max(0.55, 1 - lift * 0.6);
-      renderer.pushRaw('cyl', 0, 0.015, 0, 0, 0, 0, 1.55 * k, 0.03, 1.3 * k,
+      renderer.pushRaw('cyl', at[0], at[1] + 0.015, at[2], 0, 0, 0, 1.55 * k, 0.03, 1.3 * k,
                        [0.2, 0.16, 0.24], 0.3 * k, 0, 0, 0.9, null);
     }
-    var f = [0, this.focus, 0];
-    var eye = [Math.sin(0) * this.dist, this.focus + Math.sin(this.tilt) * this.dist,
-               Math.cos(this.tilt) * this.dist];
-    renderer.setCameraMatrix(eye, f, FOV);
+    if (d && d.scene) d.scene(renderer, this);
+    var cam = (d && d.camera) ? d.camera(this) : null;
+    if (cam) {
+      renderer.setCameraMatrix(cam.eye, cam.target, cam.fov || FOV);
+    } else {
+      var f = [0, this.focus, 0];
+      var eye = [Math.sin(0) * this.dist, this.focus + Math.sin(this.tilt) * this.dist,
+                 Math.cos(this.tilt) * this.dist];
+      renderer.setCameraMatrix(eye, f, FOV);
+    }
+    if (d && d.light) d.light(renderer, this);
     renderer.render();
+    if (d && d.light) restoreLights(renderer);
     var ctx = this.canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(renderer.canvas, 0, 0, this.canvas.width, this.canvas.height);
+    ctx.drawImage(renderer.canvas, 0, renderer.canvas.height - h, w, h,
+                  0, 0, this.canvas.width, this.canvas.height);
+    if (d && d.overlay) d.overlay(ctx, this, renderer);
   };
 
   function tick(now) {
@@ -149,10 +218,12 @@
     if (!renderer) return;
     // drop stages whose canvas has left the page (a closed dialog)
     PetStages.list = PetStages.list.filter(function (s) { return document.body.contains(s.canvas); });
+    // reduced motion slows a showcase right down; a directed stage keeps
+    // its own time (its director has things to finish) and calms itself
     var slow = reduced();
     PetStages.list.forEach(function (stage) {
       if (!stage.visible) return;
-      stage.draw(renderer, slow ? dt * 0.35 : dt);
+      stage.draw(renderer, slow && !stage.director ? dt * 0.35 : dt);
     });
   }
 
@@ -180,6 +251,25 @@
     if (observer) observer.observe(canvas);
     start();
     return stage;
+  };
+
+  /* One still frame of a list of parts into a canvas, through the shared
+     renderer: the portraits and icons on a page that already runs a stage,
+     without a second context.  cam is { eye, target, fov }. */
+  PetStages.still = function (canvas, parts, cam) {
+    var renderer = canvas && ensure();
+    if (!renderer) return false;
+    var w = canvas.width, h = canvas.height;
+    fit(renderer, w, h);
+    renderer.beginFrame(0);
+    for (var i = 0; i < parts.length; i++) renderer.push(parts[i]);
+    renderer.setCameraMatrix(cam.eye, cam.target, cam.fov || FOV);
+    renderer.render();
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(renderer.canvas, 0, renderer.canvas.height - h, w, h, 0, 0, w, h);
+    return true;
   };
 
   /* Turn every canvas.pt-live[data-pet] on the page into a stage. */

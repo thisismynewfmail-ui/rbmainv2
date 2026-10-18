@@ -101,6 +101,13 @@ function inLine(w) {
   return along > 0 && along < 25 && Math.abs(across) < along * 0.4 + 0.5;
 }
 
+/* Her owner keeps shooting: a shot every half second or so. */
+function shooting(w, t) {
+  if (Math.floor(t / 0.5) !== Math.floor((t - 1 / 30) / 0.5) || t < 1 / 30) {
+    w.pw.notify('shot', { id: w.client.myId });
+  }
+}
+
 /* Her owner jumps: up, and down again a little later. */
 function hop(me) {
   me.grounded = false;
@@ -526,9 +533,9 @@ var w = world(win, { species: 'fern', name: 'Sprout', tags: ['cheerful', 'loyal'
 run(w, 1);
 var R = w.me().traits.follow;
 check('her comfortable distance is well outside her owner (' + R.toFixed(1) + ' studs, clingy and loyal)',
-      R >= 4.5 && R <= 6);
+      R >= 6 && R <= 7.5);
 check('she appears near her owner, at about that distance',
-      hd(w.me().pos, w.client.local.pos) > 3.5 && hd(w.me().pos, w.client.local.pos) < R + 2,
+      hd(w.me().pos, w.client.local.pos) > 4.5 && hd(w.me().pos, w.client.local.pos) < R + 2,
       hd(w.me().pos, w.client.local.pos).toFixed(1));
 w.client.local.vel = [0, 0, 15];
 w.client.local.anim = 'run';
@@ -559,10 +566,10 @@ run(w, 3, function () {
   }
 });
 check('when they stop she settles a comfortable distance off',
-      rest && rest.d >= 4.5 && rest.d < R * 1.25 + 1, rest && rest.d.toFixed(1));
+      rest && rest.d >= 6 && rest.d < R * 1.25 + 1, rest && rest.d.toFixed(1));
 check('...and comes to rest', !!rest, w.me().speed);
 check('...and looks at them', rest && rest.facing < 0.6, rest && rest.facing.toFixed(2));
-check('she is never inside her owner\'s personal space by accident', nearest > 3, nearest.toFixed(2));
+check('she is never inside her owner\'s personal space by accident', nearest > 4, nearest.toFixed(2));
 
 console.log('\n== waiting ==');
 var sat = false, slept = false, idled = {};
@@ -696,12 +703,50 @@ check('her name in chat gets a wave or a heart', named.wave || named.heart, Obje
 var gun = world(win, fern);
 gun.client.stowed = false;
 gun.client.currentWeapon = function () { return { name: 'pistol' }; };
-run(gun, 4);
+run(gun, 4, function (t) { shooting(gun, t); });
 var f = gun.me(), me = gun.client.local;
 var along = (f.pos[0] - me.pos[0]) * Math.sin(me.yaw) + (f.pos[2] - me.pos[2]) * Math.cos(me.yaw);
 var across = (f.pos[0] - me.pos[0]) * Math.cos(me.yaw) - (f.pos[2] - me.pos[2]) * Math.sin(me.yaw);
-check('she stays out of the line of fire', !(along > 0 && Math.abs(across) < along * 0.4 + 0.5),
+check('her owner shooting, she stays out of the line of fire', !(along > 0 && Math.abs(across) < along * 0.4 + 0.5),
       { along: along.toFixed(2), across: across.toFixed(2) });
+
+/* A gun in hand is not a gun going off: her owner, armed but not
+   shooting, turns to look at her, and she stays where she is -- until
+   they open fire, when she is out of the way at once. */
+var look = world(win, { species: 'fern', name: 'Sprout', tags: ['cheerful', 'loyal', 'clingy'], items: {} });
+look.client.stowed = false;
+look.client.currentWeapon = function () { return { name: 'pistol' }; };
+// (a pet with nothing else on her mind: no romps, rambles or cuddles to
+// move her about while this is watched)
+run(look, 0.1);
+['play', 'wander', 'cling', 'fidget'].forEach(function (k) { look.me().traits[k] = 0; });
+run(look, 6);
+var lf = look.me(), lme = look.client.local;
+lme.yaw = Math.atan2(lf.pos[0] - lme.pos[0], lf.pos[2] - lme.pos[2]);
+var lfrom = lf.pos.slice(), lmoved = 0;
+run(look, 3, function () { lmoved = Math.max(lmoved, hd(look.me().pos, lfrom)); });
+check('armed but not shooting, her owner turns to look at her and she stays put',
+      lmoved < 1.2 && inLine(look), lmoved.toFixed(2));
+var lclear = false;
+run(look, 1.5, function (t) { shooting(look, t); if (t > 1 && !inLine(look)) lclear = true; });
+check('...and when they start shooting she gets out of the way', lclear);
+
+/* A long way off and coming back to them as they walk her way, gun in
+   hand: she heads for them, not off to one side, until they close. */
+var cb = world(win, fern);
+cb.client.stowed = false;
+cb.client.currentWeapon = function () { return { name: 'pistol' }; };
+run(cb, 1);
+cb.me().pos = [0, 0, 30];
+cb.client.local.vel = [0, 0, 6];
+var bside = 0;
+run(cb, 1.5, function () {
+  var bf = cb.me(), bme = cb.client.local;
+  if (bf.pos[2] - bme.pos[2] > cb.me().traits.follow * 2) bside = Math.max(bside, Math.abs(bf.pos[0]));
+});
+cb.client.local.vel = [0, 0, 0];
+check('far ahead of them as they walk her way, she comes back to them, not off to one side',
+      bside < 2.5, bside.toFixed(2));
 
 // ------------------------------------------------------- personal space
 console.log('\n== personal space ==');
@@ -742,13 +787,13 @@ Pet.ORDER.forEach(function (sp) {
     });
   });
 });
-check('every species and persona settles a comfortable way off (at least 4.5 studs)',
-      settleMin.d >= 4.5, settleMin);
-check('...and not miles away (at most 11)', settleMax.d <= 11, settleMax);
-check('...and never comes inside her owner\'s personal space by accident', bubble.d >= 3, bubble);
+check('every species and persona settles a comfortable way off (at least 6 studs)',
+      settleMin.d >= 6, settleMin);
+check('...and not miles away (at most 14)', settleMax.d <= 14, settleMax);
+check('...and never comes inside her owner\'s personal space by accident', bubble.d >= 4, bubble);
 var nearR = Math.min.apply(null, follows), farR = Math.max.apply(null, follows);
 check('clingy and loyal keep nearer than shy and dreamy (' + nearR.toFixed(1) + ' to ' +
-      farR.toFixed(1) + ' studs)', nearR >= 4.5 && farR - nearR > 3);
+      farR.toFixed(1) + ' studs)', nearR >= 6 && farR - nearR > 3);
 
 // ---------------------------------------------------------- on the move
 console.log('\n== on the move ==');
@@ -795,13 +840,13 @@ PACES.forEach(function (tags) {
 var allWalks = [].concat.apply([], PACES.map(function (t) { return walks[t.join('+')]; }));
 var allRuns = [].concat.apply([], PACES.map(function (t) { return runs[t.join('+')]; }));
 var walkMean = avg(field(allWalks, 'mean')), runMean = avg(field(allRuns, 'mean'));
-check('walking, she trails a natural distance back (5 to 9 studs on average)',
-      walkMean >= 5 && walkMean <= 9, walkMean.toFixed(1));
+check('walking, she trails a natural distance back (6 to 10 studs on average)',
+      walkMean >= 6 && walkMean <= 10, walkMean.toFixed(1));
 check('...behind them, not alongside or in front', avg(field(allWalks, 'behind')) > 0.8,
       avg(field(allWalks, 'behind')).toFixed(2));
 check('running, she trails further back', runMean > walkMean + 1,
       [walkMean.toFixed(1), runMean.toFixed(1)]);
-check('...and keeps up (never more than 22 studs behind)', Math.max.apply(null, field(allRuns, 'max')) < 22,
+check('...and keeps up (never more than 24 studs behind)', Math.max.apply(null, field(allRuns, 'max')) < 24,
       Math.max.apply(null, field(allRuns, 'max')).toFixed(1));
 var clingyAt = avg(field(walks['loyal+clingy'], 'mean')), shyAt = avg(field(walks['shy+dreamy'], 'mean'));
 check('a clingy pet trails nearer than a shy dreamer', shyAt - clingyAt > 1.5,
@@ -891,6 +936,7 @@ function outing(tags, secs, species, holding) {
   var me = ww.client.local, seen = {}, hot = 0;
   run(ww, 1.5);
   run(ww, secs, function (t) {
+    if (holding) shooting(ww, t);
     var a = Math.sin(t * 0.25) * 1.2;
     me.vel = [Math.sin(a) * 9, 0, Math.cos(a) * 9];
     me.yaw = a;
@@ -917,25 +963,26 @@ check('...and a shy, sleepy one never does', shyDarts === 0, shyDarts + '/6');
 var whims = ['sniff', 'dart', 'dawdle', 'hops', 'race'].filter(function (k) { return kinds[k]; });
 check('between them they get up to all sorts on the way (' + whims.join(', ') + ')', whims.length >= 4);
 
-/* With a gun out: walking, backing up, strafing, running, stopping and
-   turning on the spot -- she keeps out of the line of fire throughout. */
+/* Shooting: walking, backing up, strafing, running, stopping and turning
+   on the spot -- she keeps out of the line of fire throughout. */
 var gw = world(win, { species: 'pixel', tags: ['playful', 'energetic', 'clingy'], items: {} });
 gw.client.stowed = false;
 gw.client.currentWeapon = function () { return { name: 'pistol' }; };
 var gme = gw.client.local, hot = 0, frames = 0, darted = false;
-run(gw, 2);
+run(gw, 2, function (t) { shooting(gw, t); });
 [[0, 10, 0], [0, -8, 0], [8, 0, 0], [0, 0, 0], [0, 22, 0], [0, 0, 0], [0, 0, Math.PI / 2],
  [0, 0, Math.PI], [-9, 0, Math.PI]].forEach(function (leg) {
   gme.vel = [leg[0], 0, leg[1]];
   gme.yaw = leg[2];
   run(gw, 4, function (t) {
+    shooting(gw, t);
     if (gw.me().whim && gw.me().whim.kind === 'dart') darted = true;
     if (t < 1.5) return;               // a moment to get out of the way
     frames++;
     if (inLine(gw)) hot++;
   });
 });
-check('with a gun out -- walking, backing up, strafing, running, turning -- she stays out of the line of fire',
+check('shooting -- walking, backing up, strafing, running, turning -- she stays out of the line of fire',
       hot === 0, hot + '/' + frames);
 check('...and never darts out in front of it', !darted);
 var guarded = outing(['playful', 'energetic', 'showoff'], 30, 'ember', true);
@@ -1014,7 +1061,7 @@ run(wv, 160, function (t) {
 });
 check('a clingy pet comes in close on purpose, for a cuddle or a pat', cuddled, inClose.toFixed(1));
 check('...not right on top of them', inClose > 1.5, inClose.toFixed(2));
-check('...and drifts back out to her spot after', outAgain !== null && outAgain >= 4.5,
+check('...and drifts back out to her spot after', outAgain !== null && outAgain >= 6,
       outAgain === null ? null : outAgain.toFixed(1));
 
 // ------------------------------------------------------------ many pets
@@ -1058,6 +1105,51 @@ win.Settings.showPets = false;
 run(off, 1);
 check('"Show pets" off: no pets at all', !off.me());
 win.Settings.showPets = true;
+
+console.log('\n== the Pet Zone ==');
+/* The room (static/js/ui/pet_zone.js) runs her through pet.js's library
+   by name: every name it asks for has to be there, every act it adds has
+   to keep her in one piece, and every treat and toy the server knows has
+   to have a model to draw. */
+var zone = fs.readFileSync(path.join(ROOT, 'static/js/ui/pet_zone.js'), 'utf8');
+var known = Pet.actions();
+var asked = {};
+(zone.match(/act: '[a-z_]+'/g) || []).forEach(function (m) { asked[m.slice(6, -1)] = 1; });
+(zone.match(/act: pick\(\[[^\]]+\]\)/g) || []).forEach(function (m) {
+  (m.match(/'[a-z_]+'/g) || []).forEach(function (q) { asked[q.slice(1, -1)] = 1; });
+});
+['snooze', 'nestle', 'stroked', 'sad_walk', 'float', 'idle'].forEach(function (a) { asked[a] = 1; });
+var missing = Object.keys(asked).filter(function (a) { return known.indexOf(a) < 0; });
+check('every act the Pet Zone asks for is in the library (' + Object.keys(asked).length + ')',
+      Object.keys(asked).length > 30 && !missing.length, missing);
+var ZONE_ACTS = ['munch', 'yum', 'nope', 'stroked', 'bliss', 'tickled', 'brushed', 'shake_off', 'catch',
+                 'cuddle', 'ready', 'beg', 'tummy', 'nestle', 'wake_up', 'nod_off', 'scratch', 'hop_hello',
+                 'sigh', 'mope', 'spicy'];
+var broken = [];
+ZONE_ACTS.forEach(function (name) {
+  if (!(name in Pet.DURATION)) broken.push(name + ': no duration');
+  for (var t = 0; t <= 3; t += 0.1) {
+    var p = Pet.act(name, t, Math.sin(t * 3));
+    Object.keys(p).forEach(function (k) {
+      if (typeof p[k] === 'number' && !isFinite(p[k])) broken.push(name + '.' + k + ' at ' + t.toFixed(1));
+    });
+    if (p.bob > 0.8 || p.squash < 0.75 || p.squash > 1.2) broken.push(name + ' leaps or squashes too far at ' + t.toFixed(1));
+    if (Math.abs(p.headYaw) > 1.2 || Math.abs(p.headPitch) > 1.0) broken.push(name + ' turns her head off at ' + t.toFixed(1));
+  }
+});
+check('the Pet Zone acts keep her in one piece, every frame for three seconds', !broken.length, broken.slice(0, 5));
+var parts = Pet.build({ species: 'mochi', tags: [] }, { pose: Pet.act('nestle', 1.2) });
+check('...and curled up for a nap she is still all there',
+      parts.length > 40 && parts.every(function (q) { return q.p.every(isFinite) && q.s.every(isFinite); }));
+var care = fs.readFileSync(path.join(ROOT, 'app/models/pet_care.py'), 'utf8');
+var ids = [];
+['TREAT_ORDER', 'TOY_ORDER'].forEach(function (name) {
+  var m = care.match(new RegExp(name + ' = \\[([^\\]]+)\\]'));
+  if (m) (m[1].match(/"[a-z]+"/g) || []).forEach(function (q) { ids.push(q.slice(1, -1)); });
+});
+var unmodelled = ids.filter(function (id) { return !new RegExp('\\n    ' + id + ': ').test(zone); });
+check('every treat and toy has a model in the room (' + ids.length + ')', ids.length === 11 && !unmodelled.length,
+      unmodelled);
 
 console.log('\n' + '='.repeat(20) + ' ' + passed + ' passed, ' + failed + ' failed ' + '='.repeat(20));
 process.exit(failed ? 1 : 0);

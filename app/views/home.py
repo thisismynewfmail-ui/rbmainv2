@@ -1,11 +1,13 @@
-"""Home page, people browser and search."""
+"""Home page, search and help."""
 from __future__ import annotations
+
+from urllib.parse import urlencode
 
 from ..http import router as R
 from ..http.router import Request
 from ..game import registry as game_registry
 from ..models import avatars, events, users, worlds
-from ..social import feed, follows, friends, posts
+from ..social import feed, friends, posts
 from .base import render, router
 
 
@@ -57,27 +59,19 @@ def home(req: Request):
     )
 
 
-# The People browser is a "who has just arrived" board rather than a
-# directory, so it is ordered by join date and capped at the newest 60.
-PEOPLE_LIMIT = 60
-
-
+# There was a People tab here once (/users, the newest sixty accounts); the
+# Pet Zone took its place in the navigation and the header search finds
+# players.  Old links -- bookmarks, the "Meet the Crew" spotlight in
+# somebody's history -- land on the search, with their ?q= intact.
 @router.get("/users")
 def people(req: Request):
-    term = req.query.get("q", "")
-    results = users.search(term, PEOPLE_LIMIT, order="joined")
-    rows = []
-    viewer = int(req.user["id"]) if req.user else 0
-    for row in results:
-        rows.append({
-            "user": row,
-            "online": users.is_online(row),
-            "friends": friends.count_friends(int(row["id"])),
-            "status": friends.status_for(viewer, int(row["id"])) if viewer else "none",
-            "following": follows.is_following(viewer, int(row["id"])) if viewer else False,
-        })
-    return render(req, "people.html", rows=rows, term=term,
-                  limit=PEOPLE_LIMIT, total=users.count_users())
+    term = (req.query.get("q") or "").strip()
+    return R.redirect("/search?" + urlencode({"q": term}) if term else "/search", 301)
+
+
+# An empty search (the header box submitted blank, or one of those old
+# People links) shows the newest arrivals rather than nothing at all.
+NEWEST_LIMIT = 24
 
 
 @router.get("/search")
@@ -89,7 +83,8 @@ def search(req: Request):
     world_rows = [w for w in worlds.all_worlds()
                   if term.lower() in w["name"].lower()] if term else []
     return render(req, "search.html", term=term, items=items,
-                  people=people_rows, worlds=world_rows)
+                  people=people_rows, worlds=world_rows,
+                  newest=[] if term else users.recent(NEWEST_LIMIT))
 
 
 @router.get("/help")

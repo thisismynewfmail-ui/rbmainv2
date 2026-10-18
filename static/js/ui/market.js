@@ -195,6 +195,15 @@
     });
   }
 
+  // ---------------------------------------------------------------- aisles
+  /* On a phone the aisle tabs scroll sideways; start with the open one in
+     view (the Event Armory sits past the edge otherwise). */
+  function bindTabs() {
+    var nav = $('.mk-tabs'), on = nav && $('a.on', nav);
+    if (!on || nav.scrollWidth <= nav.clientWidth) return;
+    nav.scrollLeft += on.getBoundingClientRect().left - nav.getBoundingClientRect().left - 12;
+  }
+
   // ---------------------------------------------------------- quantities
   function bindQty() {
     $$('[data-qty-for]').forEach(function (box) {
@@ -221,6 +230,7 @@
     bindFeed();
     bindOdds();
     bindTilt();
+    bindTabs();
     bindQty();
     document.addEventListener('click', function (e) {
       var b = e.target.closest('[data-buy], [data-offer]');

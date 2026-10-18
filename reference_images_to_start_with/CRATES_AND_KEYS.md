@@ -339,8 +339,10 @@ their series numbers. `crates.py` turns each one into a series (crate, key,
 loot, odds, Unusual effects), an event (dates, hero, theme), offers (its
 bundles) and a badge; nothing else needs to know how an event is built. An
 event whose dates have passed is in the **archive**: its crate and key are
-still sold, in its holiday's collection. One whose dates have not come yet
-(Christmas 2026 today) is shown as a teaser.
+still sold, in its holiday's collection, and its weapons and held items move
+to the market's **Event Armory** at `crates.ARMORY_PREMIUM` over their
+catalogue price (`crates.price_of` is the price everything reads). One
+whose dates have not come yet (Christmas 2026 today) is shown as a teaser.
 
 ### 6.1 Writing an event
 

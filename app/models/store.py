@@ -70,7 +70,7 @@ def series_now(sid: str, now: int) -> Dict[str, Any]:
 
 
 def _price(item_id: str) -> int:
-    return int((catalog.get(item_id) or {}).get("price", 0))
+    return crates.price_of(catalog.get(item_id) or {})
 
 
 def kits(sid: str) -> List[Dict[str, Any]]:
@@ -107,11 +107,12 @@ def classic_feature() -> Dict[str, Any]:
 def _edition_label(event_id: str) -> Dict[str, str]:
     event = crates.EVENTS.get(event_id or "")
     if not event:
-        return {"ed_label": "", "ed_short": ""}
+        return {"ed_label": "", "ed_short": "", "ed_name": ""}
     meta = HOLIDAY_META.get(event["holiday"], {})
     return {"ed_label": "%s %d" % (meta.get("name", event["name"]), event["year"]),
             "ed_short": "%s ’%02d" % (SHORT.get(event["holiday"], event["holiday"].upper()),
-                                            event["year"] % 100)}
+                                            event["year"] % 100),
+            "ed_name": event["name"]}
 
 
 def decorate(cards: List[Dict[str, Any]], now: int) -> List[Dict[str, Any]]:
@@ -246,7 +247,7 @@ def _classic_shelf(now: int, owned: Dict[str, int], stash: Dict[str, Any]) -> Di
             continue
         items.append({"id": item_id, "name": item["name"], "slot": item["slot"],
                       "grade": crates.grade_of(raw, item_id),
-                      "price": int(item.get("price", 0)),
+                      "price": crates.price_of(item, now),
                       "buyable": crates.for_sale(item, now)})
     ed = dict(series_now("classic", now), items=items, title="Blockhaven Classic",
               blurb=CLASSIC["blurb"], ordinal="")

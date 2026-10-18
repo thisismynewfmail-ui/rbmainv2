@@ -54,7 +54,7 @@
   {% if season and season.holiday == 'halloween' and not season.lite %}{% include "partials/season_halloween_foot.html" %}{% endif %}
   <div class="footer">
     <a href="/">Home</a> | <a href="/worlds">Worlds</a> | <a href="/market">Market</a> |
-    <a href="/users">People</a> | <a href="/help">Help</a>
+    {% if nav_pet %}<a href="/pet-zone">Pet Zone</a> | {% endif %}<a href="/help">Help</a>
     <div style="margin-top:6px">Noogblock, A place to play</div>
   </div>
 </div>
