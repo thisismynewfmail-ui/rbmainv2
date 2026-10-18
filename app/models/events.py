@@ -68,8 +68,8 @@ SPOTLIGHTS: List[Dict[str, Any]] = [
         "title": "Meet the Crew",
         "blurb": "Nothing on this platform is better with strangers. Find somebody, "
                  "add them, take a plot together.",
-        "cta": "Browse the player list",
-        "href": "/users",
+        "cta": "Find some players",
+        "href": "/search",
     },
 ]
 

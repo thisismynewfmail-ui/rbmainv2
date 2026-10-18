@@ -1753,6 +1753,322 @@
     p.blush += 0.5;
   };
 
+  // ======================================================== Pet Zone acts
+  /* Added for the Pet Zone (static/js/ui/pet_zone.js), where she is looked
+     after rather than followed about: eating out of her hands, being
+     stroked, brushed and tickled, catching and cuddling a toy, begging,
+     curling up for a nap and waking from it, and the moods in between.
+     Self-contained: nothing above depends on them, and the durations are
+     added to Pet.DURATION after it. */
+
+  // a treat held in both hands at her chin, nibbled
+  ACT.munch = function (p, t) {
+    breathe(p, t);
+    var bite = Math.max(0, Math.sin(t * 9));
+    var u = smooth01(t / 0.25);
+    p.armL = p.armR = -2.0 * u; p.armLZ = p.armRZ = -0.5 * u;
+    p.headPitch += 0.1 + bite * 0.07;
+    p.lean += 0.06;
+    p.squash = 1 - bite * 0.02;
+    p.eyes = 'happy';
+    p.mouth = bite > 0.5 ? 'o' : (t % 0.7 < 0.35 ? 'cat' : 'tiny');
+    p.blush += 0.35; p.sniff = 1;
+    p.earL += bite * 0.15; p.earR = p.earL;
+  };
+
+  // and how good it was: hands on her cheeks, swaying
+  ACT.yum = function (p, t) {
+    var sway = Math.sin(t * 5);
+    p.armL = p.armR = -2.3; p.armLZ = p.armRZ = -0.62;
+    p.headRoll += sway * 0.2;
+    p.roll += sway * 0.08;
+    p.hipTwist += sway * 0.1;
+    p.bob += Math.abs(sway) * 0.04;
+    p.eyes = 'joy'; p.mouth = 'cat';
+    p.blush += 0.9; p.perk = 1.1; p.earL = p.earR = 1.1; p.flame = 1.0; p.glow = 1;
+  };
+
+  // no thank you: a hand up, her head turned away, cheeks puffed
+  ACT.nope = function (p, t) {
+    breathe(p, t);
+    var u = smooth01(t / 0.25);
+    p.armR = -1.55 * u; p.armRZ = 0.25 * u;
+    p.armL = -0.3 * u; p.armLZ = -0.35 * u;
+    p.headYaw -= 0.55 * u + Math.sin(t * 10) * 0.12 * u;
+    p.headPitch -= 0.08 * u;
+    p.lean -= 0.08 * u;
+    p.eyes = 'squint'; p.mouth = 'pout'; p.brows = 'worry';
+    p.blush += 0.3;
+  };
+
+  // a hand stroking her head: she leans up into it and follows it about.
+  // k is where the hand is, -1 (her right) to 1 (her left)
+  ACT.stroked = function (p, t, k) {
+    breathe(p, t, 0.8);
+    var side = clamp(k || 0, -1, 1);
+    var u = smooth01(t / 0.3);
+    p.headPitch -= 0.18 * u;
+    p.headRoll += (0.12 + side * 0.22) * u;
+    p.roll += side * 0.05 * u;
+    p.squash = 1 - 0.035 * u;
+    p.armL = p.armR = -0.25 * u; p.armLZ = p.armRZ = -0.3 * u;
+    p.hipTwist += Math.sin(t * 2.2) * 0.08;
+    p.eyes = 'joy'; p.mouth = 'cat';
+    p.blush += 0.75; p.perk = 1.1; p.earL = p.earR = 0.25; p.glow = 1;
+  };
+
+  // nothing could be better: hands clasped, swaying, hearts in her eyes
+  ACT.bliss = function (p, t) {
+    var sway = Math.sin(t * 2.6);
+    p.armL = p.armR = -1.6; p.armLZ = p.armRZ = -0.55;
+    p.roll += sway * 0.1; p.headRoll += sway * 0.2;
+    p.bob += Math.abs(Math.sin(t * 5.2)) * 0.05;
+    p.skirt += 0.2 + Math.abs(sway) * 0.15;
+    p.eyes = 'love'; p.mouth = 'cat';
+    p.blush += 1; p.perk = 1.2; p.earL = p.earR = 1.1; p.glow = 1; p.flame = 1.1;
+  };
+
+  // being tickled: squirming, arms clamped to her tummy, laughing
+  ACT.tickled = function (p, t) {
+    var wr = Math.sin(t * 15), wr2 = Math.sin(t * 9.5);
+    p.armL = p.armR = -0.95; p.armLZ = p.armRZ = -0.5 + wr * 0.08;
+    p.twist += wr * 0.22; p.hipTwist -= wr2 * 0.18;
+    p.roll += wr2 * 0.1;
+    p.bob += Math.abs(wr) * 0.06;
+    p.lean += 0.12 + Math.abs(wr2) * 0.08;
+    p.legL = Math.max(0, wr) * -0.3; p.legR = Math.max(0, -wr) * -0.3;
+    p.skirt += 0.3 + Math.abs(wr) * 0.3;
+    p.headRoll += wr2 * 0.2;
+    p.eyes = 'joy'; p.mouth = (t % 0.4) < 0.2 ? 'grin' : 'open';
+    p.blush += 1; p.earL = p.earR = 0.9 + wr * 0.3; p.flame = 1.2;
+  };
+
+  // holding still for the brush, eyes shut; k is where the brush is
+  ACT.brushed = function (p, t, k) {
+    breathe(p, t, 0.7);
+    var side = clamp(k || 0, -1, 1);
+    p.headRoll += side * 0.16;
+    p.headPitch -= 0.06;
+    p.armL = p.armR = -0.15; p.armLZ = p.armRZ = -0.25;
+    p.squash = 1 - 0.02;
+    p.swayZ += side * 0.3;
+    p.eyes = 'joy'; p.mouth = 'cat';
+    p.blush += 0.45; p.perk = 1.0; p.earL = p.earR = 0.35;
+  };
+
+  // after a good brush, a shake from head to toe and she is fluffed up
+  ACT.shake_off = function (p, t) {
+    var fade = 1 - smooth01(t / 0.9);
+    var s = Math.sin(t * 34) * fade;
+    p.twist += s * 0.35; p.hipTwist -= s * 0.3; p.headYaw += s * 0.4;
+    p.swayZ += s * 0.9; p.swayX += 0.2 * fade;
+    p.skirt += Math.abs(s) * 0.8;
+    p.armLZ += 0.6 * fade; p.armRZ += 0.6 * fade;
+    p.squash = 1 + 0.04 * fade;
+    p.eyes = t < 0.7 ? 'squint' : 'joy'; p.mouth = t < 0.7 ? 'wavy' : 'grin';
+    p.earL = p.earR = 0.6 + s * 0.4;
+  };
+
+  // a leap for something thrown just over her head
+  ACT.catch = function (p, t) {
+    if (t < 0.18) {
+      var c = t / 0.18;
+      p.squash = 1 - 0.12 * c; p.armL = p.armR = 0.3 * c;
+      p.eyes = 'open'; p.mouth = 'o';
+    } else if (t < 0.62) {
+      var v = (t - 0.18) / 0.44;
+      p.bob += Math.sin(v * PI) * 0.62;
+      p.armL = p.armR = -2.75; p.armLZ = p.armRZ = -0.15;
+      p.legL = -0.45; p.legR = 0.15;
+      p.skirt += 0.9;
+      p.swayX -= 0.4;
+      p.eyes = 'wide'; p.mouth = 'open';
+    } else {
+      ACT.land(p, t - 0.62);
+      p.armL = p.armR = -1.3; p.armLZ = p.armRZ = -0.4;
+      p.eyes = 'joy'; p.mouth = 'grin';
+    }
+  };
+
+  // a toy hugged tight to her chest, rocking
+  ACT.cuddle = function (p, t) {
+    breathe(p, t);
+    var rock = Math.sin(t * 2.4);
+    p.armL = p.armR = -1.3; p.armLZ = p.armRZ = -0.5;
+    p.roll += rock * 0.09; p.headRoll += 0.14 + rock * 0.12;
+    p.headPitch += 0.12;
+    p.hipTwist += rock * 0.12;
+    p.eyes = 'joy'; p.mouth = 'cat';
+    p.blush += 0.8;
+  };
+
+  // crouched and wiggling, ready to chase whatever comes next
+  ACT.ready = function (p, t) {
+    var w = Math.sin(t * 14);
+    p.squash = 0.9;
+    p.lean += 0.32;
+    p.hipTwist += w * 0.16;
+    p.armL = p.armR = -0.75; p.armLZ = p.armRZ = 0.12;
+    p.legLZ += 0.1; p.legRZ += 0.1;
+    p.headPitch -= 0.28;
+    p.eyes = 'spark'; p.mouth = 'grin';
+    p.perk = 1.1; p.earL = p.earR = 1.1; p.flame = 1.2;
+  };
+
+  // please?  Hands clasped under her chin, up on her toes, big eyes
+  ACT.beg = function (p, t) {
+    var b = Math.abs(Math.sin(t * 4.5));
+    p.armL = p.armR = -1.9; p.armLZ = p.armRZ = -0.6;
+    p.bob += b * 0.05;
+    p.headPitch -= 0.14; p.headRoll += Math.sin(t * 1.7) * 0.14;
+    p.hipTwist += Math.sin(t * 2.2) * 0.08;
+    p.eyes = 'spark'; p.mouth = 'o'; p.brows = 'worry';
+    p.blush += 0.4; p.perk = 0.8;
+  };
+
+  // a rumbling tummy: hands on it, head down, a shiver as it growls
+  ACT.tummy = function (p, t) {
+    breathe(p, t);
+    var growl = (t % 1.5) < 0.35 ? Math.sin(t * 40) : 0;
+    p.armL = p.armR = -0.6; p.armLZ = p.armRZ = -0.55;
+    p.lean += 0.14;
+    p.headPitch += 0.3;
+    p.squash = 1 - Math.abs(growl) * 0.025;
+    p.twist += growl * 0.05;
+    p.eyes = 'sad'; p.mouth = 'wavy'; p.brows = 'sad';
+    p.perk = 0.25; p.earL = p.earR = 0.1; p.flame = 0.25;
+  };
+
+  // curled up for a nap: sitting, folded over her knees, arms round them
+  ACT.nestle = function (p, t) {
+    p.sit = 1;
+    var br = Math.sin(t * 1.2);
+    p.bob += br * 0.012;
+    p.lean += 0.38 + br * 0.015;
+    p.armL = p.armR = -0.95; p.armLZ = p.armRZ = -0.32;
+    p.headPitch += 0.42; p.headRoll += 0.3;
+    p.legLZ -= 0.02; p.legRZ -= 0.02;
+    p.eyes = 'closed'; p.mouth = 'tiny';
+    p.perk = 0.1; p.earL = p.earR = -0.1; p.glow = 0.95; p.flame = 0.12;
+    p.blush += 0.35;
+  };
+
+  // waking up: rubbing her eyes, a yawn and a stretch, and up she gets
+  ACT.wake_up = function (p, t) {
+    if (t < 0.9) {
+      p.sit = 1;
+      var rub = Math.sin(t * 16);
+      p.armR = -2.25; p.armRZ = -0.5 + rub * 0.08;
+      p.armL = -0.4; p.armLZ = -0.2;
+      p.headPitch += 0.15; p.headRoll += 0.15;
+      p.eyes = 'closed'; p.mouth = 'tiny';
+    } else if (t < 1.8) {
+      p.sit = 1;
+      var u = Math.sin(clamp((t - 0.9) / 0.9, 0, 1) * PI);
+      p.armLZ += 2.6 * u; p.armRZ += 2.6 * u;
+      p.lean -= 0.1 * u;
+      p.headPitch -= 0.22 * u;
+      p.eyes = 'closed'; p.mouth = u > 0.3 ? 'yawn' : 'o';
+    } else {
+      var v = smooth01((t - 1.8) / 0.6);
+      p.sit = 1 - v;
+      p.squash = 1 - 0.06 * Math.sin(v * PI);
+      p.armLZ += 0.3 * (1 - v); p.armRZ += 0.3 * (1 - v);
+      p.eyes = v < 0.6 ? 'half' : 'open'; p.mouth = 'smile';
+    }
+  };
+
+  // standing there, nodding off -- and jolting awake
+  ACT.nod_off = function (p, t) {
+    breathe(p, t, 0.6);
+    var cycle = t % 3;
+    var droop = smooth01(cycle / 2.4);
+    var jolt = cycle > 2.4 ? Math.sin((cycle - 2.4) / 0.6 * PI) : 0;
+    p.headPitch += droop * 0.5 - jolt * 0.25;
+    p.lean += droop * 0.08;
+    p.armL = p.armR = 0.05; p.armLZ = p.armRZ = -0.05;
+    p.squash = 1 - droop * 0.03 + jolt * 0.04;
+    p.eyes = cycle > 2.4 ? 'wide' : (droop > 0.5 ? 'closed' : 'half');
+    p.mouth = cycle > 2.4 ? 'o' : 'tiny';
+    p.perk = 0.3 + jolt * 0.8; p.earL = p.earR = 0.2 + jolt;
+  };
+
+  // an itch she cannot reach properly
+  ACT.scratch = function (p, t) {
+    breathe(p, t);
+    var s = Math.sin(t * 22);
+    p.armR = -2.6; p.armRZ = 0.55 + s * 0.08;
+    p.armL = -0.3; p.armLZ = 0.1;
+    p.headRoll -= 0.2; p.headPitch += 0.08;
+    p.roll -= 0.06;
+    p.legL = -0.15 + Math.max(0, s) * 0.06;
+    p.eyes = 'squint'; p.mouth = 'wavy';
+    p.sniff = 1;
+  };
+
+  // the day's hello: hopping on the spot, both arms waving over her head
+  ACT.hop_hello = function (p, t) {
+    var ph = (t * 2.6) % 1;
+    var air = Math.sin(ph * PI);
+    p.bob += air * 0.3;
+    p.squash = 1 + air * 0.05 - (ph < 0.12 ? 0.08 : 0);
+    var wv = Math.sin(t * 11);
+    p.armLZ = 2.5 + wv * 0.28; p.armRZ = 2.5 - wv * 0.28;
+    p.armL = p.armR = -0.2;
+    p.legL = p.legR = -air * 0.25;
+    p.skirt += air * 0.7;
+    p.swayX -= air * 0.25;
+    p.eyes = 'joy'; p.mouth = 'grin';
+    p.blush += 0.5; p.perk = 1.2; p.earL = p.earR = 1.1; p.flame = 1.3; p.glow = 1;
+  };
+
+  // a long sigh: shoulders up, and all the way down
+  ACT.sigh = function (p, t) {
+    var u = Math.sin(clamp(t / 2.2, 0, 1) * PI);
+    var down = smooth01((t - 1.1) / 1.0);
+    p.armLZ += 0.2 * u; p.armRZ += 0.2 * u;
+    p.squash = 1 + 0.03 * u - 0.04 * down;
+    p.headPitch += 0.35 * down - 0.1 * u;
+    p.armL = p.armR = 0.05;
+    p.eyes = t < 1.1 ? 'closed' : 'half'; p.mouth = t < 1.1 ? 'o' : 'flat';
+    p.brows = 'sad';
+    p.perk = 0.3; p.earL = p.earR = 0.0; p.flame = 0.3; p.glow = 0.3;
+  };
+
+  // sitting on her own, chin on her hand
+  ACT.mope = function (p, t) {
+    p.sit = 1;
+    breathe(p, t, 0.7);
+    p.lean += 0.18;
+    p.armR = -1.75; p.armRZ = -0.3;
+    p.armL = -0.7; p.armLZ = -0.25;
+    p.headRoll += 0.22; p.headPitch += 0.05;
+    p.lookX = Math.sin(t * 0.6) * 0.6;
+    p.eyes = 'half'; p.mouth = 'frown'; p.brows = 'sad';
+    p.perk = 0.2; p.earL = p.earR = -0.2; p.flame = 0.2; p.glow = 0.2;
+  };
+
+  // too hot!  Fanning her mouth and hopping about
+  ACT.spicy = function (p, t) {
+    var f = Math.sin(t * 20);
+    var hop = Math.abs(Math.sin(t * 7));
+    p.armR = -2.0; p.armRZ = -0.25 + f * 0.25;
+    p.armL = -1.7; p.armLZ = -0.4 - f * 0.2;
+    p.bob += hop * 0.16;
+    p.legL = -hop * 0.3; p.legR = 0;
+    p.headPitch -= 0.15;
+    p.eyes = 'squint'; p.mouth = 'open';
+    p.blush += 1; p.flame = 1.5; p.glow = 1; p.perk = 1.2; p.earL = p.earR = 1.2;
+  };
+
+  // how long each one-shot lasts (0: it loops until replaced)
+  var ZONE_DURATION = {
+    munch: 0, yum: 1.6, nope: 1.3, stroked: 0, bliss: 2.2, tickled: 2.0, brushed: 0,
+    shake_off: 1.0, catch: 1.0, cuddle: 0, ready: 1.0, beg: 2.2, tummy: 2.2, nestle: 0,
+    wake_up: 2.4, nod_off: 3.0, scratch: 1.8, hop_hello: 2.3, sigh: 2.4, mope: 0, spicy: 1.6
+  };
+  // ==================================================== end of Pet Zone acts
+
   /* Pose a pet doing ``name`` for ``t`` seconds. */
   Pet.act = function (name, t, k, into) {
     var p = into || restPose();
@@ -1772,6 +2088,7 @@
     inspect: 3.2, shy: 2.6, stomp: 1.6, shadowbox: 1.8, cry: 2.6, pant: 2.0, sit: 0,
     sleep: 0, hide: 0
   };
+  Object.keys(ZONE_DURATION).forEach(function (k) { Pet.DURATION[k] = ZONE_DURATION[k]; });
 
   /* Ease one pose toward another, field by field; the discrete fields (which
      eyes, which mouth) switch as soon as the target changes. */
@@ -1949,6 +2266,9 @@
     this.look = [0, 0];
     this.only = opts.only || null;
     this.calm = !!opts.calm;
+    // tone(pose, action, t): lays something over every pose before it is
+    // blended -- the Pet Zone's mood (static/js/ui/pet_zone.js)
+    this.tone = opts.tone || null;
   }
 
   Showcase.prototype.repertoire = function () {
@@ -2001,6 +2321,7 @@
     Pet.act(name, t, null, target);
     if (species.eyes && target.eyes === 'open') target.eyes = species.eyes;
     if (species.mouth && target.mouth === 'smile') target.mouth = species.mouth;
+    if (this.tone) this.tone(target, name, t);
     // glances
     this.lookT -= dt;
     if (this.lookT <= 0) {

@@ -886,6 +886,50 @@ steers round walls, hops up ledges, keeps out of the line of fire, and
 reappears at her owner's side when left far behind. *Show pets* in the game
 settings turns them all off.
 
+### The Pet Zone
+
+**Pet Zone** (`/pet-zone`) is a virtual pet for the pets you own, and the tab
+only appears once you own one (it replaced *People*; without a pet the page
+sends you to the Pet Shop). It is her room -- wallpaper, rug and cushion in
+her own colours, her bowl, her toy box, a window that shows the real time of
+day and a shelf that gains a trophy at every bond milestone -- with a switcher
+for your other pets and links to Edit Pet and the shop.
+
+* **Four needs** -- fullness, happiness, energy, cleanliness, 0 to 100 --
+  run down by the hour at rates her persona bends (Cheerful stays happy
+  longer, Energetic tires and hungers faster, Clumsy gets grubby). Nothing
+  runs in the background: a pet's needs are stored as they stood when last
+  touched and worked out on every read (`app/models/pet_care.py`,
+  `settle()`), so a pet nobody visits costs nothing.
+* **Looking after her** is a big thumb-sized bar along the bottom: **pat**
+  (or tap her; drag across her head to stroke it), **feed** (eight treats in a
+  tray -- tap one or drag it to her mouth; every species has a favourite),
+  **play** (toss a ball she chases down, a plushie she leaps for and cuddles,
+  a feather wand she pounces on -- or drag the toy where it should land),
+  **brush**, **tickle**, **cheer** and **nap** (the lights go down, she curls up
+  on her cushion and wakes by herself when rested -- or when you wake her,
+  a little cross if it was early). Each action has a short cooldown shown on
+  its button; a stuffed, spotless, worn-out, wide-awake or sleeping pet says
+  no, in her own way.
+* **Who she is** shows: each persona tag loves some actions (more happiness,
+  more bond) and dislikes others (Feisty would rather not be brushed, Shy
+  hides from being cheered, Clumsy trips when tickled), and her idle moments
+  follow her mood -- rubbing her tummy and begging at her bowl when hungry,
+  nodding off on her feet, moping when sad, wandering over to the window or
+  lounging on her cushion when all is well.
+* **The bond** only grows: a point or three for every kindness (up to 60 a
+  day), plus a **daily hello** that builds a streak, through nine milestones
+  from *Just Met* to *Soulmates*.
+
+The page is `templates/pet_zone.html` and `static/js/ui/pet_zone.js`, one
+*directed* stage of the shared pet renderer (`PetStages` in
+`static/js/ui/pets_shop.js`), so the room costs no second WebGL context.
+Every action shows at once and is then corrected by `POST /api/pets/care`
+(`{inv_id, action, item}`, CSRF-checked and limited to 60 a minute), whose
+answer -- or refusal -- always carries her whole state; `GET
+/api/pets/care?pet=` reads it. Rendering pauses on a hidden tab, and
+prefers-reduced-motion calms the camera, the particles and the shakes.
+
 ## Appearance and privacy
 
 A dark theme ships alongside the light one. It is a second hand-built palette
@@ -955,9 +999,10 @@ tiles still open the item preview when clicked.
 * **The news strip** carries new sign-ups alongside the Unusual pulls and the
   notable finds, and scrolls slowly enough to read a headline on the way past.
   Hovering parks it.
-* **People** (`/users`) is a "who has just arrived" board rather than a
-  directory: newest accounts first, capped at sixty, with the join date on
-  every card.
+* **There is no People tab any more**: the **Pet Zone** took its place in the
+  navigation (for pet owners). Players are found with the header search;
+  an empty search shows the newest arrivals, and old `/users` links land on
+  it with their `?q=` intact.
 * **The floating messenger** is two screens behind one bubble — the
   conversation list, and a direct-message view that slides in over it. Writing
   a note never costs you the page you were reading, and Back walks you straight
@@ -1454,8 +1499,8 @@ tools/mapcheck.py ironvale              # ...or just one
 tools/mapcheck.py lastlight             # each Last Light area on its own, routes from its safe room
 tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
-tools/pettests.py                       # pets: shop rules, Edit Pet, the descriptor (no server)
-node tools/pettests.js                  # the pet rig and the follower AI, headless
+tools/pettests.py                       # pets: shop rules, Edit Pet, the descriptor, Pet Zone care (no server)
+node tools/pettests.js                  # the pet rig, the follower AI and the Pet Zone's acts, headless
 node tools/petsheet.js --scale          # render the pets to a contact sheet
 tools/bottests.py                       # bot unit tests, headless rounds, scale
 tools/bottests.py scale --bots 100000   # ...just the scale test, bigger

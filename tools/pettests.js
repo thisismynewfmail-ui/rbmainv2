@@ -1106,5 +1106,50 @@ run(off, 1);
 check('"Show pets" off: no pets at all', !off.me());
 win.Settings.showPets = true;
 
+console.log('\n== the Pet Zone ==');
+/* The room (static/js/ui/pet_zone.js) runs her through pet.js's library
+   by name: every name it asks for has to be there, every act it adds has
+   to keep her in one piece, and every treat and toy the server knows has
+   to have a model to draw. */
+var zone = fs.readFileSync(path.join(ROOT, 'static/js/ui/pet_zone.js'), 'utf8');
+var known = Pet.actions();
+var asked = {};
+(zone.match(/act: '[a-z_]+'/g) || []).forEach(function (m) { asked[m.slice(6, -1)] = 1; });
+(zone.match(/act: pick\(\[[^\]]+\]\)/g) || []).forEach(function (m) {
+  (m.match(/'[a-z_]+'/g) || []).forEach(function (q) { asked[q.slice(1, -1)] = 1; });
+});
+['snooze', 'nestle', 'stroked', 'sad_walk', 'float', 'idle'].forEach(function (a) { asked[a] = 1; });
+var missing = Object.keys(asked).filter(function (a) { return known.indexOf(a) < 0; });
+check('every act the Pet Zone asks for is in the library (' + Object.keys(asked).length + ')',
+      Object.keys(asked).length > 30 && !missing.length, missing);
+var ZONE_ACTS = ['munch', 'yum', 'nope', 'stroked', 'bliss', 'tickled', 'brushed', 'shake_off', 'catch',
+                 'cuddle', 'ready', 'beg', 'tummy', 'nestle', 'wake_up', 'nod_off', 'scratch', 'hop_hello',
+                 'sigh', 'mope', 'spicy'];
+var broken = [];
+ZONE_ACTS.forEach(function (name) {
+  if (!(name in Pet.DURATION)) broken.push(name + ': no duration');
+  for (var t = 0; t <= 3; t += 0.1) {
+    var p = Pet.act(name, t, Math.sin(t * 3));
+    Object.keys(p).forEach(function (k) {
+      if (typeof p[k] === 'number' && !isFinite(p[k])) broken.push(name + '.' + k + ' at ' + t.toFixed(1));
+    });
+    if (p.bob > 0.8 || p.squash < 0.75 || p.squash > 1.2) broken.push(name + ' leaps or squashes too far at ' + t.toFixed(1));
+    if (Math.abs(p.headYaw) > 1.2 || Math.abs(p.headPitch) > 1.0) broken.push(name + ' turns her head off at ' + t.toFixed(1));
+  }
+});
+check('the Pet Zone acts keep her in one piece, every frame for three seconds', !broken.length, broken.slice(0, 5));
+var parts = Pet.build({ species: 'mochi', tags: [] }, { pose: Pet.act('nestle', 1.2) });
+check('...and curled up for a nap she is still all there',
+      parts.length > 40 && parts.every(function (q) { return q.p.every(isFinite) && q.s.every(isFinite); }));
+var care = fs.readFileSync(path.join(ROOT, 'app/models/pet_care.py'), 'utf8');
+var ids = [];
+['TREAT_ORDER', 'TOY_ORDER'].forEach(function (name) {
+  var m = care.match(new RegExp(name + ' = \\[([^\\]]+)\\]'));
+  if (m) (m[1].match(/"[a-z]+"/g) || []).forEach(function (q) { ids.push(q.slice(1, -1)); });
+});
+var unmodelled = ids.filter(function (id) { return !new RegExp('\\n    ' + id + ': ').test(zone); });
+check('every treat and toy has a model in the room (' + ids.length + ')', ids.length === 11 && !unmodelled.length,
+      unmodelled);
+
 console.log('\n' + '='.repeat(20) + ' ' + passed + ' passed, ' + failed + ' failed ' + '='.repeat(20));
 process.exit(failed ? 1 : 0);

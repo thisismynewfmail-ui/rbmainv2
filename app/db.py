@@ -324,6 +324,31 @@ CREATE TABLE IF NOT EXISTS pets (
 );
 CREATE INDEX IF NOT EXISTS idx_pets_user ON pets(user_id);
 
+-- How a pet is doing, for the Pet Zone (app/models/pet_care.py), keyed like
+-- ``pets`` on her inventory row.  The four needs are stored as they stood at
+-- ``settled_at`` and every read works out where they have got to since, so
+-- nothing runs in the background.  ``cooldowns`` and ``counts`` are small
+-- JSON maps: when each action was last done, and how often ever.
+CREATE TABLE IF NOT EXISTS pet_care (
+    inv_id        INTEGER PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    fullness      REAL NOT NULL DEFAULT 75,
+    happiness     REAL NOT NULL DEFAULT 80,
+    energy        REAL NOT NULL DEFAULT 85,
+    cleanliness   REAL NOT NULL DEFAULT 90,
+    settled_at    INTEGER NOT NULL DEFAULT 0,
+    napping_since INTEGER NOT NULL DEFAULT 0,
+    bond          INTEGER NOT NULL DEFAULT 0,
+    bond_day      INTEGER NOT NULL DEFAULT 0,
+    bond_today    INTEGER NOT NULL DEFAULT 0,
+    greeted_day   INTEGER NOT NULL DEFAULT 0,
+    streak        INTEGER NOT NULL DEFAULT 0,
+    cooldowns     TEXT NOT NULL DEFAULT '{}',
+    counts        TEXT NOT NULL DEFAULT '{}',
+    created_at    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_pet_care_user ON pet_care(user_id);
+
 CREATE TABLE IF NOT EXISTS bot_profiles (
     user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     tags        TEXT NOT NULL DEFAULT '',

@@ -10,7 +10,7 @@ from .. import config, security
 from ..http import router as R
 from ..http import templating
 from ..http.router import Request, Response
-from ..models import users
+from ..models import pets, users
 from ..social import friends, messages
 
 router = R.Router()
@@ -19,6 +19,8 @@ router = R.Router()
 # A page rendered without the base context -- an error page, say -- still has
 # to find the name, so it defaults to "no season" here.
 templating.register_global("season", None)
+# The same goes for the Pet Zone tab, which only a pet owner sees.
+templating.register_global("nav_pet", False)
 
 
 def flash_redirect(location: str, message: str = "", kind: str = "ok") -> Response:
@@ -176,6 +178,8 @@ def context(req: Request, **extra: Any) -> Dict[str, Any]:
         "nav_unread": messages.unread_count(user["id"]) if user else 0,
         "nav_requests": friends.pending_count(user["id"]) if user else 0,
         "nav_friends": friends.count_friends(user["id"]) if user else 0,
+        # the Pet Zone tab: one indexed lookup, and only for a signed-in user
+        "nav_pet": pets.owns_any(int(user["id"])) if user else False,
         "is_admin": bool(user and user["is_admin"]),
         "prefs": users.prefs_of(user) if user else dict(users.PREF_DEFAULTS),
         "theme": theme_for(req),

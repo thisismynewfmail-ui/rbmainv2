@@ -1,0 +1,173 @@
+{% include "partials/head.html" %}
+<link rel="stylesheet" href="{{ asset('/static/css/store.css') }}">
+<link rel="stylesheet" href="{{ asset('/static/css/pet_zone.css') }}">
+{#  THE PET ZONE -- her room, and looking after her.  A wing of the Pet Shop
+    (store.css windows, the shop's pink lamps), tinted by her own colours.
+
+    The room is one directed stage of PetStages (pets_shop.js): pet_zone.js
+    runs her, the room, the camera, the lights and the particles, and talks
+    to /api/pets/care.  Her needs, bond and mood come from
+    app/models/pet_care.py; everything here is drawn for the chosen pet and
+    redrawn in place when another is picked.
+    Template rules: never set or loop over a context name (care, needs,
+    moods, treats, toys, milestones, mine) -- loop names are pp, nd, ac, tr,
+    ty, ms, tg. #}
+<div class="vt pz{{ ' is-napping' if care.napping else '' }}" id="pet-zone" data-pet="{{ chosen }}"
+     style="--ev-accent:#ff8fb8;--ev-deep:#3a1f3a;--ev-glow:#ffd6ea;--ev-ink:#2a0f20;--pc:{{ current.colors.hair }};--po:{{ current.colors.outfit }};--pa:{{ current.colors.accent }}">
+
+  <!-- ============================================================ the room -->
+  <section class="vt-win pz-room" aria-labelledby="pz-h">
+    <h1 class="vt-titlebar pz-titlebar" id="pz-h">
+      <span class="pt-paw" aria-hidden="true"></span><span class="pz-title-text">Pet Zone</span>
+      <span class="pz-switch" role="tablist" aria-label="Your pets">
+        {% for pp in mine %}
+        <button type="button" role="tab" class="pz-who{{ ' on' if pp.inv_id == chosen else '' }}{{ ' needy' if moods.get(pp.inv_id, {}).get('needy') else '' }}"
+                data-pet-id="{{ pp.inv_id }}" aria-selected="{{ 'true' if pp.inv_id == chosen else 'false' }}"
+                title="{{ pp.name }} &middot; {{ moods.get(pp.inv_id, {}).get('label', '') }}" aria-label="{{ pp.name }}">
+          <canvas width="64" height="64" data-pz-thumb="{{ pp.inv_id }}" aria-hidden="true"></canvas>
+          <i class="pz-who-flag" aria-hidden="true">!</i>
+        </button>
+        {% endfor %}
+        <a class="pz-who pz-who-add" href="/market/pets" title="Adopt another pet" aria-label="Adopt another pet">+</a>
+      </span>
+      <button type="button" class="pz-mute" id="pz-mute" aria-pressed="false" title="Sound on" aria-label="Sound">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path class="pz-spk" d="M2 6h3l4-3v10l-4-3H2z"/><path class="pz-on" d="M11 5h1v1h1v4h-1v1h-1v-1h1V6h-1z"/><path class="pz-off" d="M11 6h1v1h1V6h1v1h-1v1h1v1h-1V8h-1v1h-1V8h1V7h-1z"/></svg>
+      </button>
+    </h1>
+    <div class="pz-stage" id="pz-stage">
+      <canvas id="pz-canvas" width="480" height="560" role="img"
+              aria-label="{{ current.name }} in her room"></canvas>
+      <div class="pz-hud" aria-hidden="false">
+        <div class="pz-plate">
+          <b class="pz-name" id="pz-name">{{ current.name }}</b>
+          <span class="pz-species" id="pz-species">{{ current.species_name }}</span>
+          <span class="pz-level" id="pz-level" title="{{ care.bond.blurb }}"><i class="pz-heart" aria-hidden="true"></i><span id="pz-level-name">{{ care.bond.name }}</span></span>
+        </div>
+        <div class="pz-mood mood-{{ care.mood.id }}" id="pz-mood" title="{{ care.mood.line }}">
+          <i class="pz-mood-ico" aria-hidden="true"></i><span id="pz-mood-label">{{ care.mood.label }}</span>
+        </div>
+      </div>
+      <button type="button" class="pz-follow{{ ' hidden' if chosen == active else '' }}" id="pz-follow">Take her along</button>
+      <span class="pz-following{{ '' if chosen == active else ' hidden' }}" id="pz-following"><span class="pet-paw" aria-hidden="true"></span> Following you</span>
+      <div class="pz-bubble" id="pz-bubble" hidden></div>
+      <button type="button" class="pz-greet" id="pz-greet"{{ '' if care.greet_ready else ' hidden' }}>
+        <i class="pz-heart" aria-hidden="true"></i> Say hello!</button>
+      <span class="pz-offline" id="pz-offline" role="status" hidden>Offline &mdash; she&rsquo;ll wait for you</span>
+      <p class="pz-hint" id="pz-hint">Tap her for a pat &middot; stroke her head</p>
+      <div class="pz-nap" id="pz-nap" hidden>
+        <b>Shh&hellip; she&rsquo;s napping</b>
+        <span id="pz-nap-left">She&rsquo;ll wake up by herself.</span>
+      </div>
+      <div class="pz-burst" id="pz-burst" hidden role="status">
+        <small>Bond milestone</small><b id="pz-burst-name"></b><span id="pz-burst-blurb"></span>
+      </div>
+      <noscript><p class="pz-noscript">The Pet Zone needs JavaScript to look after her.</p></noscript>
+    </div>
+  </section>
+
+  <!-- ======================================================= the action bar -->
+  <div class="pz-dock" id="pz-dock">
+    <div class="pz-tray" id="pz-tray-feed" hidden role="group" aria-label="Treats">
+      <div class="pz-tray-head"><b>Treats</b><span>Tap one, or drag it to her</span>
+        <button type="button" class="pz-tray-x" data-close aria-label="Close">&times;</button></div>
+      <div class="pz-tray-items">
+        {% for tr in treats %}
+        <button type="button" class="pz-item{{ ' fave' if tr.id == care.favourite_treat else '' }}" data-treat="{{ tr.id }}" title="{{ tr.blurb }}">
+          <canvas width="56" height="56" data-pz-icon="treat:{{ tr.id }}" aria-hidden="true"></canvas>
+          <span>{{ tr.name }}</span><i class="pz-fave" aria-hidden="true">&#9829;</i>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="pz-tray" id="pz-tray-play" hidden role="group" aria-label="Toys">
+      <div class="pz-tray-head"><b>Toys</b><span>Tap one, or drag it into the room</span>
+        <button type="button" class="pz-tray-x" data-close aria-label="Close">&times;</button></div>
+      <div class="pz-tray-items pz-toys">
+        {% for ty in toys %}
+        <button type="button" class="pz-item{{ ' fave' if ty.id == care.favourite_toy else '' }}" data-toy="{{ ty.id }}" title="{{ ty.blurb }}">
+          <canvas width="56" height="56" data-pz-icon="toy:{{ ty.id }}" aria-hidden="true"></canvas>
+          <span>{{ ty.name }}</span><i class="pz-fave" aria-hidden="true">&#9829;</i>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    <nav class="pz-bar" id="pz-bar" aria-label="Look after her">
+      {% for ac in care_actions %}
+      <button type="button" class="pz-act{{ ' loved' if ac.id in care.loves else '' }}{{ ' needed' if ac.id == care.mood.need else '' }}"
+              data-act="{{ ac.id }}" aria-label="{{ ac.name }}">
+        <i class="pz-ico pz-ico-{{ ac.id }}" aria-hidden="true"></i><span class="pz-act-name">{{ ac.name }}</span>
+        <i class="pz-cd" aria-hidden="true"></i>
+      </button>
+      {% endfor %}
+    </nav>
+  </div>
+
+  <!-- ============================================================ the side -->
+  <div class="pz-side">
+    <section class="vt-win pz-needs" aria-labelledby="pz-needs-h">
+      <h2 class="vt-titlebar" id="pz-needs-h">How she&rsquo;s doing <small id="pz-mood-line">{{ care.mood.line }}</small></h2>
+      <div class="vt-win-body">
+        <ul class="pz-meters">
+          {% for nd in needs %}
+          <li class="pz-meter pz-m-{{ nd }}{{ ' low' if care.needs[nd] < 25 else '' }}" data-need="{{ nd }}">
+            <i class="pz-ico pz-ico-{{ nd }}" aria-hidden="true"></i>
+            <span class="pz-m-label">{{ need_labels[nd] }}</span>
+            <span class="pz-m-track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ '%d' % care.needs[nd] }}" aria-label="{{ need_labels[nd] }}">
+              <span class="pz-m-fill" style="width:{{ '%.1f' % care.needs[nd] }}%"></span></span>
+            <b class="pz-m-val">{{ '%d' % care.needs[nd] }}</b>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="vt-win pz-bond" aria-labelledby="pz-bond-h">
+      <h2 class="vt-titlebar" id="pz-bond-h"><i class="pz-heart" aria-hidden="true"></i> Your bond
+        <small id="pz-streak">{% if care.streak > 1 %}{{ care.streak }}-day streak{% endif %}</small></h2>
+      <div class="vt-win-body">
+        <div class="pz-bond-now">
+          <span class="pz-bond-lv" id="pz-bond-lv">{{ care.bond.level + 1 }}</span>
+          <div>
+            <b id="pz-bond-name">{{ care.bond.name }}</b>
+            <p id="pz-bond-blurb">{{ care.bond.blurb }}</p>
+          </div>
+        </div>
+        <div class="pz-bond-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="pz-bond-bar"
+             aria-valuenow="{{ '%d' % (care.bond.progress * 100) }}" aria-label="Progress to the next milestone">
+          <span class="pz-bond-fill" style="width:{{ '%.1f' % (care.bond.progress * 100) }}%"></span></div>
+        <p class="pz-bond-next tiny" id="pz-bond-next">{% if care.bond.next %}{{ care.bond.points }} / {{ care.bond.next.at }} to <b>{{ care.bond.next.name }}</b>{% else %}{{ care.bond.points }} &mdash; as close as two can be{% endif %}</p>
+        <p class="pz-bond-today tiny" id="pz-bond-today">Bond today: <b>{{ care.bond.today }}</b> / {{ care.bond.cap }}</p>
+        <ol class="pz-miles" id="pz-miles">
+          {% for ms in milestones %}
+          <li class="{{ 'got' if care.bond.points >= ms.at else '' }}{{ ' here' if loop.index0 == care.bond.level else '' }}" title="{{ ms.blurb }}">
+            <i aria-hidden="true"></i><span>{{ ms.name }}</span><small>{{ ms.at }}</small></li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <section class="vt-win pz-about" aria-labelledby="pz-about-h">
+      <h2 class="vt-titlebar" id="pz-about-h"><span class="pt-paw" aria-hidden="true"></span> All about <span id="pz-about-name">{{ current.name }}</span></h2>
+      <div class="vt-win-body">
+        <p class="pz-sig" id="pz-sig"><b id="pz-about-species">{{ current.species_name }}</b> &middot; <span id="pz-sig-text">{{ species[current.species].signature }}</span></p>
+        <ul class="pz-tags" id="pz-tags" aria-label="Her persona tags">
+          {% for tg in current.tag_info %}<li class="ptag ptag-{{ tg.id }}" tabindex="0" data-tip="{{ tg.blurb }}">{{ tg.name }}</li>{% endfor %}
+        </ul>
+        <dl class="pz-facts">
+          <dt>Loves</dt><dd id="pz-loves">&mdash;</dd>
+          <dt>Not keen on</dt><dd id="pz-dislikes">&mdash;</dd>
+          <dt>Favourite treat</dt><dd id="pz-fave-treat">&mdash;</dd>
+          <dt>Favourite toy</dt><dd id="pz-fave-toy">&mdash;</dd>
+        </dl>
+        <ul class="pz-memories" id="pz-memories" aria-label="Memories"></ul>
+        <div class="pz-links">
+          <a class="mk-btn vt-plate" href="/pet?pet={{ chosen }}" id="pz-edit"><span><span class="pet-paw" aria-hidden="true"></span> Edit Pet</span></a>
+          <a class="mk-btn vt-plate" href="/market/pets"><span>Pet Shop</span></a>
+        </div>
+      </div>
+    </section>
+  </div>
+  <p class="vt-sr" id="pz-live" aria-live="polite"></p>
+</div>
+<script type="application/json" id="pz-boot">{{& to_json(boot) }}</script>
+{% include "partials/foot.html" %}

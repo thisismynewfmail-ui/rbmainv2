@@ -490,9 +490,74 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("csrf: a request with a bad token is rejected", not forged.get("ok"),
           forged)
 
+    print("\n== the Pet Zone, and the People tab gone ==")
+    status, _, head = client.request("GET", "/users")
+    check("people: /users is retired to the player search",
+          status == 301 and head.get("location") == "/search", (status, head.get("location")))
+    status, _, head = client.request("GET", "/users?q=builder")
+    check("people: ...keeping what was searched for",
+          status == 301 and head.get("location") == "/search?q=builder", head.get("location"))
+    status, search_html = client.get("/search")
+    check("people: an empty search shows the newest players",
+          status == 200 and "Newest players" in search_html, status)
+    _status, home_html = client.get("/")
+    check("pet zone: no People tab anywhere", 'href="/users"' not in home_html)
+    check("pet zone: no Pet Zone tab without a pet", 'href="/pet-zone"' not in home_html)
+    status, _, head = client.request("GET", "/pet-zone")
+    check("pet zone: without a pet it sends you to meet some",
+          status in (302, 303) and head.get("location") == "/market/pets", (status, head.get("location")))
+    no_pet = client.get_api("/api/pets/care")
+    check("pet zone: the API has nothing to say about a pet you do not have",
+          not no_pet.get("ok"), no_pet)
+    anon = Client(host, port, tls)
+    status, _, head = anon.request("GET", "/pet-zone")
+    check("pet zone: signed out, it asks you to sign in",
+          status in (302, 303) and "/login" in head.get("location", ""), (status, head.get("location")))
+    anon_api = anon.api("/api/pets/care", {"inv_id": 1, "action": "pat"})
+    check("pet zone: signed out, the API refuses", not anon_api.get("ok"), anon_api)
+    granted = admin.api("/api/admin/grant", {"username": name, "item_id": "pet_fern"})
+    pet_id = next((i["inv_id"] for i in client.get_api("/api/inventory").get("items", [])
+                   if i["item_id"] == "pet_fern"), 0)
+    check("pet zone: (a pet for the test account)", granted.get("ok") and pet_id, granted)
+    _status, home_html = client.get("/")
+    check("pet zone: owning a pet brings the Pet Zone tab", 'href="/pet-zone"' in home_html)
+    status, zone_html = client.get("/pet-zone")
+    check("pet zone: the page renders for an owner",
+          status == 200 and 'id="pet-zone"' in zone_html and 'id="pz-boot"' in zone_html, status)
+    check("pet zone: ...with the room, the needs and the action bar",
+          all(bit in zone_html for bit in ('id="pz-canvas"', 'data-need="fullness"', 'data-act="feed"',
+                                           'data-treat="berries"', 'data-toy="ball"', "pet_zone.js")))
+    for odd in ("/pet-zone?pet=abc", "/pet-zone?pet=999999"):
+        status, _ = client.get(odd)
+        check("pet zone: %s still shows your own pet" % odd, status == 200, status)
+    state = client.get_api("/api/pets/care?pet=%d" % pet_id)
+    check("pet zone: the API says how she is",
+          state.get("ok") and set(state["care"]["needs"]) == {"fullness", "happiness", "energy", "cleanliness"},
+          state)
+    pat = client.api("/api/pets/care", {"inv_id": pet_id, "action": "pat"})
+    check("pet zone: a pat lands, with her state and what it did",
+          pat.get("ok") and pat["result"]["action"] == "pat" and pat["care"]["cooldowns"]["pat"] > 0, pat)
+    again = client.api("/api/pets/care", {"inv_id": pet_id, "action": "pat"})
+    check("pet zone: a second pat at once is her cooldown, with her state",
+          not again.get("ok") and again.get("reason") == "cooldown" and again.get("care")
+          and again.get("retry_in", 0) > 0, again)
+    for body, why in (({"inv_id": pet_id, "action": "dance"}, "an unknown action"),
+                      ({"inv_id": pet_id, "action": "feed", "item": "steak"}, "an unknown treat"),
+                      ({"inv_id": pet_id, "action": "play"}, "play without a toy"),
+                      ({"inv_id": "abc", "action": "pat"}, "a pet that is not a number")):
+        bad = client.api("/api/pets/care", body)
+        check("pet zone: the API refuses %s" % why, not bad.get("ok") and bad.get("reason") == "invalid", bad)
+    check("pet zone: GET refuses a pet that is not a number",
+          not client.get_api("/api/pets/care?pet=abc").get("ok"))
+    theirs = other.api("/api/pets/care", {"inv_id": pet_id, "action": "pat"})
+    check("pet zone: nobody else can look after your pet",
+          not theirs.get("ok") and theirs.get("reason") == "not_owned", theirs)
+    check("pet zone: ...or read how she is",
+          not other.get_api("/api/pets/care?pet=%d" % pet_id).get("ok"))
+
     print("\n== page smoke test ==")
     pages = ["/", "/worlds", "/market", "/market?slot=stash", "/market?slot=event",
-             "/users", "/help", "/inventory", "/inventory?slot=stash",
+             "/pet-zone", "/search", "/help", "/inventory", "/inventory?slot=stash",
              "/avatar", "/friends", "/messages", "/settings", "/profile-editor",
              "/profile/%s" % name, "/inventory/%s" % name,
              "/worlds/blackout_relay", "/worlds/last_light",
