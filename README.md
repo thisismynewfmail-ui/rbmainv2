@@ -882,9 +882,12 @@ and plays some fifty named actions on top. Persona tags are numbers, not
 scripts -- Shy weighs hiding up and greeting down, Curious widens how far
 she wanders, Sleepy shortens how long she waits before sitting down -- so
 three tags make a character rather than three bolted-on behaviours. She
-steers round walls, hops up ledges, keeps out of the line of fire, and
-reappears at her owner's side when left far behind. *Show pets* in the game
-settings turns them all off.
+keeps a natural distance -- never settling nearer than 6 studs, most pets
+7 to 10 back, further at a run -- steers round walls, hops up ledges, and
+reappears at her owner's side when left far behind. She keeps out of the
+line of fire while her owner is shooting (a shot in the last 2.5 seconds),
+not whenever they happen to look her way with a gun in hand. *Show pets* in
+the game settings turns them all off.
 
 ### The Pet Zone
 
