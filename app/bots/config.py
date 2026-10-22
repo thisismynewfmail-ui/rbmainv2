@@ -46,18 +46,16 @@ DEFAULT_LOCATIONS = [
 
 from ..models import worlds as _world_registry  # noqa: E402  (data only)
 
-WORLD_IDS = ["burger_tycoon", "capture_the_flag", "fortress_team_2",
-             "blackout_relay", "last_light"]
+# Every world in the registry, in registry order (the director's order).
+WORLD_IDS = [w["id"] for w in _world_registry.WORLDS]
 # Worlds a bot can actually be sent into.  Burger Tycoon, Capture The Flag
 # and Fortress Team 2 are hidden (app/models/worlds.py HIDDEN_WORLDS): they
 # keep their place in WORLD_IDS so stored preferences line up, but they are
 # never offered, weighted or joined.
 OPEN_WORLD_IDS = [w for w in WORLD_IDS if _world_registry.is_open(w)]
-WORLD_LABELS = {"burger_tycoon": "Burger Tycoon",
-                "capture_the_flag": "Capture The Flag",
-                "fortress_team_2": "Fortress Team 2",
-                "blackout_relay": "Blackout Relay",
-                "last_light": "Last Light"}
+WORLD_LABELS = {w["id"]: w["name"] for w in _world_registry.WORLDS}
+# the arena worlds, each with a settings subtab of its own
+ARENA_IDS = [w["id"] for w in _world_registry.WORLDS if w.get("mode") == "arena"]
 
 # ------------------------------------------------------------------ prompts
 PROMPT_COMMENT = """You are a player on BLOCKHAVEN, an online block-game platform whose worlds are Blackout Relay (capture the flag at dusk) and Last Light (co-op zombie survival), with hats unboxed from crates, Unusual effects and badges. You are leaving a comment on the comment section of {target}'s profile page. Profile comments are short, casual and public, like a guestbook: greetings, compliments on an avatar or hat, "gg earlier", inviting someone to play, inside jokes between friends, replying to what was said before.
@@ -134,6 +132,7 @@ REASONING_EFFORTS = [
 
 # Sections drawn in the dashboard as a submenu of another one.
 SUBSECTIONS = {"survival": "ingame", "profiles": "ingame"}
+SUBSECTIONS.update({w: "ingame" for w in ARENA_IDS})
 
 # The profile settings a new bot is dealt, one weighted draw per setting.
 # The keys under "privacy" are the site's own privacy fields
@@ -191,6 +190,8 @@ SECTIONS = [
     ("worlds", "Joining Worlds", "How bots pick a world and an instance, and how empty instances sleep."),
     ("ingame", "In-Game Behaviour", "How bots play when a real player is in the round."),
     ("survival", "Last Light", "How bots play the zombie survival map: squads, lone wolves, the high ground and callouts."),
+] + [(w["id"], w["name"], "How bots play %s: %s." % (w["name"], w.get("genre", "").lower()))
+     for w in _world_registry.WORLDS if w.get("mode") == "arena"] + [
     ("profiles", "Profile Settings", "The privacy and account settings each new bot starts with."),
     ("friends", "Friends", "Bots adding and confirming friends."),
     ("chatter", "Chatter", "Profile comments, posts and likes between associated bots."),
@@ -210,6 +211,220 @@ def _tag_options() -> List[str]:
 
 
 F = Field
+
+
+def _arena_fields() -> List[Field]:
+    """The settings on each arena world's Bots Zone subtab."""
+    def pct(world, key, label, default, help, scope="base"):
+        return Field("%s.%s" % (world, key), label, "pct", default, world, help,
+                     0, 100, 1, "%", scope=scope)
+
+    def toggle(world, key, label, help):
+        return Field("%s.%s" % (world, key), label, "bool", True, world, help, toggle=True)
+
+    def flag(world, key, label, default, help):
+        return Field("%s.%s" % (world, key), label, "bool", default, world, help)
+
+    def span(world, key, label, default, lo, hi, step, unit, help):
+        return Field("%s.%s" % (world, key), label, "range", default, world, help,
+                     lo, hi, step, unit, scope="per-bot")
+
+    out: List[Field] = [
+        # Cataclysm
+        toggle("cataclysm", "smart", "Read the disaster",
+               "Bots take the right shelter for each disaster: high ground for floods and "
+               "tsunamis, a roof for acid rain, lightning and meteors, walls between them "
+               "and a tornado, a fire in a blizzard. Off: they run about at random."),
+        span("cataclysm", "react", "Time to react", [0.8, 5.0], 0, 20, 0.1, "s",
+             "How long after the disaster is announced a bot works out what to do; "
+             "veterans and tryhards at the short end, newbies and chill ones long."),
+        pct("cataclysm", "panic", "Panic", 25,
+            "Chance a bot runs about blindly for the first few seconds of a disaster "
+            "(newbies and kids most)."),
+        pct("cataclysm", "shove", "Shoving", 30,
+            "How keen chaotic and trash-talking bots are to shove people off ledges "
+            "and into the water."),
+        pct("cataclysm", "climb", "Climb for the view", 40,
+            "Between disasters, how much bots climb the tallest thing in reach "
+            "(explorers and kids most)."),
+        pct("cataclysm", "huddle", "Shelter together", 55,
+            "How much sociable bots pick the shelter somebody else is already in."),
+        # Prop Panic
+        toggle("prop_panic", "smart", "Blend in",
+               "Props pick a prop that is common in the room and settle beside its twins "
+               "at their angle; hunters check out-of-place props first. Off: random props "
+               "in random places."),
+        pct("prop_panic", "move", "Move while hunters are away", 20,
+            "Chance a prop sneaks to a better spot when no hunter is near."),
+        pct("prop_panic", "taunt", "Taunting", 30,
+            "How often props taunt for points (chaotic and meme personas far more)."),
+        pct("prop_panic", "decoy", "Decoys", 40,
+            "How readily a prop throws its decoy when a hunter comes into the room."),
+        pct("prop_panic", "suspicion", "Hunter suspicion", 50,
+            "How readily hunters shoot a prop on a hunch (fraggers more, careful "
+            "personas less)."),
+        pct("prop_panic", "sweep", "Room sweeps", 70,
+            "How methodically hunters go room by room, rather than wander."),
+        pct("prop_panic", "odd", "Odd hiding spots", 15,
+            "Chance a prop hides somewhere silly instead of somewhere sensible "
+            "(explorers more)."),
+        # Rail Rumble
+        toggle("rail_rumble", "smart", "Play the junctions",
+               "Bots throw the enemy's junction before their cart reaches it and put "
+               "their own straight again. Off: levers are pulled only by accident."),
+        pct("rail_rumble", "ride", "Ride the cart", 55,
+            "How many bots stay on their own cart rather than roam."),
+        pct("rail_rumble", "switch", "Throw junctions", 60,
+            "Willingness to run for a lever when it would hurt the other cart."),
+        pct("rail_rumble", "stoke", "Stoke the cart", 60,
+            "How readily pushers stop at a coal hopper to boost the cart."),
+        pct("rail_rumble", "hunt", "Hunt enemy pushers", 40,
+            "How much fraggers go after the bots on the other cart."),
+        # Convoy
+        toggle("convoy", "smart", "Play the convoy",
+               "Escorts ride the convoy, breach the roadblock and clear the next corner; "
+               "ambushers set up ahead and rush it when it stalls."),
+        pct("convoy", "escort", "Ride the convoy", 60,
+            "How many escorts stay by the truck rather than push ahead."),
+        pct("convoy", "breach", "Breach the roadblock", 70,
+            "How readily escorts go for the roadblock's generator."),
+        pct("convoy", "ahead", "Clear ahead", 40,
+            "How far forward the bold escorts push before the convoy arrives."),
+        pct("convoy", "rush", "Ambush rush", 45,
+            "How often ambushers charge the convoy instead of holding ahead of it."),
+        # Midnight Mystery
+        toggle("midnight_mystery", "smart", "Detective work",
+               "Bots act only on what they saw: the Sheriff shoots someone it watched "
+               "kill, innocents run from a drawn knife and say who it was."),
+        pct("midnight_mystery", "coins", "Collect coins", 70,
+            "How much innocents go after coins rather than stay put."),
+        pct("midnight_mystery", "crowd", "Stay in company", 55,
+            "How much innocents keep near other people (loners and shy ones less)."),
+        pct("midnight_mystery", "accuse", "Accuse in chat", 50,
+            "Chance a bot that saw a murder names the Murderer in chat."),
+        span("midnight_mystery", "patience", "Murderer patience", [3, 16], 0, 60, 0.5, "s",
+             "How long a bot Murderer stalks before it strikes; careful personas wait "
+             "longer for nobody to be watching."),
+        pct("midnight_mystery", "throw", "Knife throws", 35,
+            "How readily the Murderer throws the knife at someone running away."),
+        pct("midnight_mystery", "nerve", "Sheriff nerve", 60,
+            "How sure the Sheriff has to be before shooting (higher: more careful)."),
+        # Grand Heist
+        toggle("grand_heist", "smart", "Play the heist",
+               "Robbers crack vaults (in pairs, one watching), run bags and spring the "
+               "cell; cops chase carriers first and guard the getaway when it is close."),
+        pct("grand_heist", "crack", "Crack vaults", 65, "How many robbers go for vaults."),
+        pct("grand_heist", "spring", "Spring the cell", 55,
+            "How readily a free robber goes back to spring the cell."),
+        pct("grand_heist", "chase", "Chase carriers", 70,
+            "How keen cops are to chase a robber with a bag over anything else."),
+        pct("grand_heist", "guard", "Guard the getaway", 30,
+            "Share of cops who hang about the getaway when the take is close."),
+        flag("grand_heist", "pairs", "Crack in pairs", True,
+             "A second robber watches the door while one cracks."),
+        # Splat Turf
+        toggle("splat_turf", "smart", "Paint smart",
+               "Bots paint the open ground nobody has, push into the other colour and "
+               "go home to refill when dry. Off: they shoot at whatever is in front."),
+        pct("splat_turf", "paint", "Paint the open", 65,
+            "How much bots go after unpainted ground over fighting."),
+        pct("splat_turf", "push", "Push enemy turf", 40,
+            "How much bots go into the other team's colour."),
+        pct("splat_turf", "roller", "Roll", 35, "How often bots use the Roller."),
+        pct("splat_turf", "lobber", "Lob", 25, "How often bots use the Lobber."),
+        # Bonk Brawl
+        toggle("bonk_brawl", "smart", "Edge sense",
+               "Bots go for whoever has the highest bonk near an edge and hit them "
+               "outward, and keep away from edges themselves when they are high."),
+        pct("bonk_brawl", "aggro", "Go for the kill", 60,
+            "How keen bots are to chase the most-bonked player."),
+        pct("bonk_brawl", "middle", "Keep to the middle", 50,
+            "How much careful bots stay in the middle of a platform."),
+        pct("bonk_brawl", "pads", "Jump pads", 30, "How often bots use the jump pads."),
+        pct("bonk_brawl", "powerups", "Grab power-ups", 70,
+            "How readily bots go for a power-up that has just appeared."),
+        # Bastion
+        toggle("bastion", "smart", "Build turrets",
+               "Builder bots keep the pads filled and upgraded where the path bends; "
+               "gunners hold the chokepoints."),
+        pct("bastion", "build", "Builders", 60, "Share of bots that spend scrap."),
+        pct("bastion", "upgrade", "Upgrade over new", 55,
+            "Preference for upgrading a turret over buying a new one."),
+        pct("bastion", "repair", "Repair the core", 50,
+            "How readily a bot runs back to repair the core when it is hit."),
+        pct("bastion", "choke", "Hold chokepoints", 60,
+            "How much gunners stand at the bends rather than roam the road."),
+        # Dodgeball
+        toggle("dodgeball", "smart", "Play dodgeball",
+               "Bots rush the line, throw at open targets, back off to dodge and try to "
+               "catch balls coming straight at them."),
+        pct("dodgeball", "rush", "Rush the line", 70,
+            "How many bots sprint for the balls at the whistle."),
+        pct("dodgeball", "catch", "Catch attempts", 35,
+            "Base chance a bot tries to catch a ball coming at it (skill scales it)."),
+        pct("dodgeball", "dodge", "Dodge", 60, "How much bots sidestep incoming throws."),
+        # Bomb Bash
+        toggle("bomb_bash", "smart", "Hot potato sense",
+               "Carriers chase the nearest runner (never the one who just passed it); "
+               "runners keep away from carriers and use the climbs."),
+        pct("bomb_bash", "chase", "Carrier chase", 75,
+            "How hard a bot with a bomb chases somebody to pass it to."),
+        pct("bomb_bash", "flee", "Run from carriers", 70,
+            "How early runners leave when a carrier comes their way."),
+        pct("bomb_bash", "climb", "Use the high routes", 40,
+            "How much runners take the climbing frames, rigging and rooftops."),
+        pct("bomb_bash", "powerups", "Grab power-ups", 60,
+            "How readily bots go for sneakers and bubbles."),
+        # Plunder Cove
+        toggle("plunder_cove", "smart", "Pirate sense",
+               "Diggers go for the nearest mark, carriers head home with an escort, "
+               "raiders slip aboard the other ship, gunners man the cannons."),
+        pct("plunder_cove", "dig", "Dig", 60, "Share of bots that go for dig sites."),
+        pct("plunder_cove", "escort", "Escort carriers", 40,
+            "How readily a bot walks a teammate's chest home."),
+        pct("plunder_cove", "raid", "Raid the other ship", 30,
+            "How many bots go aboard the enemy ship to steal."),
+        pct("plunder_cove", "cannon", "Man the cannons", 25,
+            "How readily a bot on deck fires the cannons at the beach."),
+        # Storm Circle
+        toggle("storm_circle", "smart", "Play the circle",
+               "Bots loot, move inside the circle in time and fight what they meet; "
+               "careful ones move early, greedy ones late."),
+        pct("storm_circle", "hot", "Hot drops", 30,
+            "Chance a bot drops somewhere busy (fraggers more)."),
+        pct("storm_circle", "loot", "Loot", 70, "How much bots go out of their way for crates."),
+        pct("storm_circle", "early", "Move in early", 55,
+            "How early bots head for the next circle."),
+        pct("storm_circle", "fight", "Take fights", 55,
+            "How readily bots go after someone they see rather than avoid them."),
+        # Flee the Beast
+        toggle("flee_beast", "smart", "Play the escape",
+               "Survivors hack in pairs, run from the Beast, hide when cornered and free "
+               "the pods when it is away; the Beast patrols computers and checks lockers."),
+        pct("flee_beast", "hack", "Hack computers", 70, "Share of survivors on computers."),
+        pct("flee_beast", "rescue", "Free the pods", 55,
+            "How readily a survivor goes to free a frozen friend."),
+        pct("flee_beast", "hide", "Hide in lockers", 30,
+            "How readily a cornered survivor hides (shy and loner personas more)."),
+        pct("flee_beast", "checks", "Beast checks lockers", 45,
+            "How often a bot Beast opens a locker it passes."),
+        pct("flee_beast", "beat", "Hacking skill", 85,
+            "Base chance a bot hits the hacking beat (skill scales it); a miss alarms "
+            "the Beast."),
+        # Tycoon Wars
+        toggle("tycoon_wars", "smart", "Run the business",
+               "Builders buy in order and collect the bank, miners run ore, guards stay "
+               "home when raiders are about, raiders go for the richest vault."),
+        pct("tycoon_wars", "build", "Build", 80, "How keen bots are to buy the next machine."),
+        pct("tycoon_wars", "mine", "Mine ore", 35, "Share of bots that mine the ore field."),
+        pct("tycoon_wars", "raid", "Raid", 30, "Share of bots that raid enemy vaults."),
+        pct("tycoon_wars", "guard", "Guard home", 30,
+            "How many bots stay home when an enemy is on the plot."),
+    ]
+    return out
+
+
+ARENA_FIELDS = _arena_fields()
 FIELDS: List[Field] = [
     # ------------------------------------------------------------- master
     F("system.enabled", "Bot system", "bool", True, "stats",
@@ -480,6 +695,12 @@ FIELDS: List[Field] = [
     F("survival.practice", "Practice in the holdout", "bool", True, "survival",
       "Bots waiting in the bunker for the next wave put a few rounds into the "
       "practice dummies."),
+
+    # ------------------------------------------------------ the arena worlds
+    # Each world's own subtab: its switch for playing the world the way its
+    # people do, then the dials for its behaviours.  The world's plan reads
+    # them as ``<world>_<key>`` (ingame_section).
+    *ARENA_FIELDS,
 
     # ----------------------------------------------------------- profiles
     F("profiles.vary", "Varied profile settings", "bool", True, "profiles",
@@ -1026,8 +1247,12 @@ def schema() -> Dict[str, Any]:
         elif field.options == "events":
             entry["options"] = speech_catalogue.options()
         fields.append(entry)
-    return {"sections": [{"id": s, "label": l, "blurb": b,
-                          "parent": SUBSECTIONS.get(s)}
+    arena = {w["id"]: w for w in _world_registry.WORLDS if w.get("mode") == "arena"}
+    return {"sections": [dict({"id": s, "label": l, "blurb": b,
+                               "parent": SUBSECTIONS.get(s)},
+                              **({"world": s, "ties": arena[s].get("ties") or [],
+                                  "genre": arena[s].get("genre", "")}
+                                 if s in arena else {}))
                          for s, l, b in SECTIONS],
             "fields": fields}
 
@@ -1161,6 +1386,10 @@ def ingame_section() -> Dict[str, Any]:
            if k.startswith("ingame.")}
     out.update({k.replace(".", "_"): v for k, v in values.items()
                 if k.startswith("survival.")})
+    # each arena world's own dials, as <world>_<key>
+    arena_prefixes = tuple(w + "." for w in ARENA_IDS)
+    out.update({k.replace(".", "_"): v for k, v in values.items()
+                if k.startswith(arena_prefixes)})
     for key in ("messages.ingame_chat", "messages.quick_reactions",
                 "messages.chat_per_minute", "messages.typing_cps",
                 "messages.chat_reply_chance", "worlds.sleep_grace_seconds",

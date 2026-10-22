@@ -51,7 +51,11 @@ def load_world_class(world_id: str):
     elif world_id == "last_light":
         from app.game.worlds.last_light import LastLight as cls
     else:
-        raise SystemExit("unknown world %r" % world_id)
+        # the arena worlds, each a module of its own (app/game/arena/)
+        from app.game import arena
+        cls = arena.world_class(world_id)
+        if cls is None:
+            raise SystemExit("unknown world %r" % world_id)
     WORLD_CLASSES[world_id] = cls
     return cls
 

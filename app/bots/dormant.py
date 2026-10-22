@@ -19,6 +19,11 @@ So a sleeping instance is a handful of numbers advanced in closed form:
   fryer and freezer when the crew is the grinding kind) and buys the next
   upgrade the moment it can afford it -- the same upgrade table, the same
   prices, the same order as a live plot.
+* **The arena worlds** (``mode: "arena"``): rounds of the world's own length
+  in one place after another -- its rounds per place, then a random new one
+  -- each won by a team (or, free for all, by a player) with odds that follow
+  the size and skill of each side.  The world's ``arena`` entry in the
+  registry gives the numbers.
 
 Nothing here is ticked.  :meth:`advance` jumps straight from the last update
 to now, however long that was, by walking from one event to the next, so an
@@ -125,6 +130,20 @@ class Dormant:
             self.best = 0
             self.phase = "setup"
             self.phase_until = now + 30.0
+        elif self.mode == "arena":
+            spec = world.get("arena") or {}
+            self.spec = spec
+            self.areas = [a["id"] for a in world.get("areas") or []] or ["main"]
+            self.area = self.rng.choice(self.areas)
+            self.here = 0            # rounds played in this place so far
+            self.per_area = int(spec.get("per_area", 2) or 2)
+            self.round_len = float(spec.get("round", 300) or 300)
+            self.setup_len = float(spec.get("setup", 12) or 12)
+            self.teams = list(spec.get("teams") or ["red", "blue"])
+            self.style = spec.get("style", "teams")
+            self.scores = {t: 0 for t in self.teams}
+            self.phase = "setup"
+            self.phase_until = now + self.setup_len
         else:
             from ..game.worlds import burger_tycoon as tycoon
             self.tycoon = tycoon
@@ -153,6 +172,9 @@ class Dormant:
             team = self._pick_plot(uid, now)
         elif self.mode == "survival":
             team = "survivors"
+        elif self.mode == "arena":
+            counts = self.team_counts()
+            team = min(self.teams, key=lambda t: (counts.get(t, 0), self.rng.random()))
         else:
             counts = self.team_counts()
             team = min(TEAMS, key=lambda t: (counts.get(t, 0), self.rng.random()))
@@ -204,6 +226,8 @@ class Dormant:
             self._advance_payload(start, now, pace)
         elif self.mode == "survival":
             self._advance_survival(start, now, pace)
+        elif self.mode == "arena":
+            self._advance_arena(start, now, pace)
         else:
             self._advance_tycoon(dt, pace)
 
@@ -413,6 +437,76 @@ class Dormant:
                 self.phase = "wiped"
                 self.phase_until = t + 12.0
 
+    def _advance_arena(self, start: float, now: float, pace: float) -> None:
+        """Setup, the round, the results: round after round, and after the
+        world's rounds per place a shuffle to another at random."""
+        t = start
+        guard = 0
+        while t < now and guard < 400:
+            guard += 1
+            if now < self.phase_until:
+                return
+            t = self.phase_until
+            if self.phase == "setup":
+                self.phase = "active"
+                self.round_started = t
+                self.phase_until = t + self.round_len * self.rng.uniform(0.7, 1.0) / pace
+                continue
+            if self.phase == "active":
+                self._arena_result(t)
+                self.phase = "ended"
+                self.phase_until = t + 10.0
+                continue
+            # the results card is over: the next round, somewhere new or not
+            self.here += 1
+            if self.here >= self.per_area and len(self.areas) > 1:
+                self.area = self.rng.choice([a for a in self.areas if a != self.area])
+                self.here = 0
+            self.round += 1
+            self.scores = {team: 0 for team in self.teams}
+            for member in self.members.values():
+                member.k = member.d = 0
+            self.phase = "setup"
+            self.phase_until = t + self.setup_len
+
+    def _arena_result(self, t: float) -> None:
+        self.rounds_ended += 1
+        members = list(self.members.values())
+        if not members:
+            return
+        minutes = self.round_len / 60.0
+        kpm = float(self.spec.get("kpm", 0.9) or 0.0)
+        for member in members:
+            member.k += poisson(self.rng, kpm * minutes * (0.35 + member.skill * 1.3))
+            member.s += 8 + int(minutes * (3 + member.objective * 6))
+        if self.style in ("ffa", "coop"):
+            # a winner among the players (free for all), or the team holds
+            # (co-op) with odds that follow its skill
+            if self.style == "coop":
+                strength = sum(0.4 + m.skill * 0.8 for m in members)
+                if self.rng.random() < min(0.9, 0.35 + strength * 0.04):
+                    for member in members:
+                        member.s += 30
+                return
+            weights = [0.3 + m.skill + m.objective * 0.4 for m in members]
+            self.rng.choices(members, weights)[0].s += 50
+            return
+        strengths = {team: self._team_strength(team) for team in self.teams}
+        total = sum(strengths.values())
+        if total <= 0:
+            return
+        roll = self.rng.random() * total
+        winner = self.teams[-1]
+        for team in self.teams:
+            roll -= strengths[team]
+            if roll <= 0:
+                winner = team
+                break
+        self.scores[winner] = self.scores.get(winner, 0) + 1
+        for member in members:
+            if member.team == winner:
+                member.s += 50
+
     def _advance_tycoon(self, dt: float, pace: float) -> None:
         upgrades = self.tycoon.UPGRADES
         for plot in self.plots:
@@ -465,7 +559,17 @@ class Dormant:
                "humans": 0, "bots": len(self.members)}
         if self.mode == "survival":
             out["summary"] = "Wave %d" % max(1, self.wave)
+        elif self.mode == "arena":
+            out["summary"] = "Round %d · %s" % (self.here + 1, self._area_name())
         return out
+
+    def _area_name(self) -> str:
+        from ..models import worlds
+        world = worlds.get_any(self.world_id) or {}
+        for area in world.get("areas") or []:
+            if area["id"] == self.area:
+                return area["name"]
+        return self.area
 
     def summary(self) -> str:
         if self.mode == "captures":
@@ -475,6 +579,8 @@ class Dormant:
                                          self.round_wins["red"], self.round_wins["blue"])
         if self.mode == "survival":
             return "wave %d" % max(1, self.wave)
+        if self.mode == "arena":
+            return "round %d, %s" % (self.here + 1, self._area_name())
         built = sum(len(p["built"]) for p in self.plots)
         return "%d builds" % built
 
@@ -489,8 +595,18 @@ class Dormant:
         score = kills * 10 + int(minutes * (6 + member.objective * 10))
         if self.mode == "survival":
             score = kills * 2 + int(minutes * 6)
+        if self.mode == "arena":
+            kpm = float(self.spec.get("kpm", 0.9) or 0.0)
+            dpm = float(self.spec.get("dpm", 0.8) or 0.0)
+            kills = poisson(self.rng, kpm * minutes * (0.35 + member.skill * 1.3))
+            deaths = poisson(self.rng, dpm * minutes * (1.45 - member.skill * 0.9))
+            score = kills * 6 + int(minutes * (5 + member.objective * 9))
         rounds = max(0, self.rounds_ended - member.rounds)
         wins = sum(1 for _ in range(rounds) if self.rng.random() < 0.35 + member.skill * 0.3)
+        if self.mode == "arena" and self.spec.get("npc"):
+            # the enemies are machines, not players: booked apart from kills
+            return {"kills": 0, "zkills": kills, "deaths": deaths, "score": score,
+                    "playtime": int(minutes * 60), "rounds": rounds, "wins": wins}
         if self.mode == "survival":
             # the horde, not players: booked apart from the profile's kills
             return {"kills": 0, "zkills": kills, "deaths": deaths, "score": score,
@@ -529,6 +645,16 @@ class Dormant:
                           "time_left": max(20.0, self.round_ends - now),
                           "setup_left": max(0.0, self.phase_until - now)
                           if self.phase == "setup" else 0.0})
+        elif self.mode == "arena":
+            area, here = self.area, self.here
+            if self.phase == "ended":
+                # the results were in: the live round is the next one
+                here += 1
+                if here >= self.per_area and len(self.areas) > 1:
+                    area = self.rng.choice([a for a in self.areas if a != area])
+                    here = 0
+            state.update({"area": area, "rounds_here": min(here, self.per_area - 1),
+                          "scores": dict(self.scores)})
         elif self.mode == "survival":
             # a live round picks up between waves: the wave that was on is
             # counted as held if it was going to be, otherwise as the one
@@ -576,6 +702,12 @@ class Dormant:
             wins = live.get("round_wins") or {}
             self.round_wins = {t: int(wins.get(t, 0) or 0) for t in TEAMS}
             self.round_ends = now + float(live.get("time_left", 300) or 300)
+        elif self.mode == "arena":
+            if live.get("area") in self.areas:
+                self.area = live["area"]
+            self.here = max(0, min(self.per_area - 1, int(live.get("rounds_here", 0) or 0)))
+            self.phase = "setup"
+            self.phase_until = now + self.setup_len
         elif self.mode == "survival":
             if live.get("area") in self.areas:
                 self.area = live["area"]
@@ -612,6 +744,8 @@ class Dormant:
         elif self.mode == "survival":
             data.update({"area": self.area, "wave": self.wave, "best": self.best,
                          "losses": self.losses})
+        elif self.mode == "arena":
+            data.update({"area": self.area, "here": self.here, "scores": self.scores})
         else:
             data["plots"] = self.plots
         return data
@@ -637,6 +771,12 @@ class Dormant:
             for key in ("area", "wave", "best", "losses"):
                 if key in data:
                     setattr(inst, key, data[key])
+        elif inst.mode == "arena":
+            for key in ("area", "here", "scores"):
+                if key in data:
+                    setattr(inst, key, data[key])
+            if inst.area not in inst.areas:
+                inst.area = inst.rng.choice(inst.areas)
         elif "plots" in data:
             inst.plots = data["plots"]
         return inst
@@ -653,6 +793,12 @@ class Dormant:
             self.updated = now - self.rng.uniform(30, 400)
             self.phase_until = self.updated + 18
             self.round_ends = self.phase_until + 420
+        elif self.mode == "arena":
+            self.round = self.rng.randint(1, 9)
+            self.here = self.rng.randrange(self.per_area)
+            self.updated = now - self.rng.uniform(20, self.round_len)
+            self.phase = "setup"
+            self.phase_until = self.updated + self.setup_len
         elif self.mode == "survival":
             self.round = self.rng.randint(1, 5)
             self.wave = self.rng.randint(0, 6)

@@ -21,14 +21,17 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..models import arena_worlds as _arena_registry
+
+ARENA = tuple(w["id"] for w in _arena_registry.ARENA_WORLDS)
 CAPTURES = ("capture_the_flag", "blackout_relay")
 RELAY = ("blackout_relay",)
 PAYLOAD = ("fortress_team_2",)
 TYCOON = ("burger_tycoon",)
 SURVIVAL = ("last_light",)
-ROUNDS = ("capture_the_flag", "blackout_relay", "fortress_team_2")
+ROUNDS = ("capture_the_flag", "blackout_relay", "fortress_team_2") + ARENA
 ALL = ("capture_the_flag", "blackout_relay", "fortress_team_2", "burger_tycoon",
-       "last_light")
+       "last_light") + ARENA
 
 # (group id, heading on the Speech Events subtab)
 GROUPS = [
@@ -39,10 +42,12 @@ GROUPS = [
     ("payload", "Fortress Team 2"),
     ("tycoon", "Burger Tycoon"),
     ("survival", "Last Light"),
-]
+    ("arena", "Every arena world"),
+] + [(w["id"], w["name"]) for w in _arena_registry.ARENA_WORLDS]
 GROUP_WORLDS = {"all": ALL, "rounds": ROUNDS, "captures": CAPTURES,
                 "relay": RELAY, "payload": PAYLOAD, "tycoon": TYCOON,
-                "survival": SURVIVAL}
+                "survival": SURVIVAL, "arena": ARENA}
+GROUP_WORLDS.update({w: (w,) for w in ARENA})
 
 
 class Kind:
@@ -145,6 +150,90 @@ KINDS: List[Kind] = [
     Kind("biled", "Covered in bile", "survival", 25,
          "A Bloater bursts on somebody and the horde comes for them."),
 ]
+
+# The arena worlds.  Each event is written up by the world itself, once for
+# every side and for whoever did it (``ArenaWorld.say``), so the catalogue
+# here is only the names, the chances and the canned fall-backs.
+ARENA_KINDS_TABLE = [
+    ("arena", "ar_area", "New place", 20,
+     "A round starts: another round in the same place, or the server shuffles to "
+     "a new one."),
+    ("arena", "ar_go", "Round starts", 15, "Setup is over and the round is on."),
+    ("arena", "ar_end", "Round over", 45, "A round is won, lost or drawn."),
+    ("cataclysm", "cx_disaster", "Disaster strikes", 50, "The disaster begins, and what it is."),
+    ("cataclysm", "cx_survived", "Survived", 35, "The disaster blows over and the survivors count up."),
+    ("cataclysm", "cx_close", "Close call", 30, "Somebody comes through it on almost no health."),
+    ("cataclysm", "cx_last", "Last one standing", 55, "Only one survivor left mid-disaster."),
+    ("cataclysm", "cx_shove", "Shoved", 20, "Somebody shoves somebody to their doom."),
+    ("prop_panic", "pp_release", "Hunters released", 25, "The blindfolds come off."),
+    ("prop_panic", "pp_found", "Prop found", 40, "A hunter finds a hidden prop."),
+    ("prop_panic", "pp_taunt", "Taunt", 12, "A prop taunts the hunters."),
+    ("prop_panic", "pp_decoy", "Decoy shot", 25, "A hunter falls for a decoy."),
+    ("prop_panic", "pp_last", "Last prop", 50, "Only one prop left hiding."),
+    ("rail_rumble", "rr_switch", "Junction thrown", 45, "A cart is sent round its detour."),
+    ("rail_rumble", "rr_boost", "Cart stoked", 15, "A cart gets a burst of coal."),
+    ("rail_rumble", "rr_lead", "Lead change", 30, "The other cart is now in front."),
+    ("rail_rumble", "rr_final", "Final stretch", 45, "A cart enters the last part of its track."),
+    ("rail_rumble", "rr_blocked", "Cart blocked", 20, "An enemy is standing on a cart."),
+    ("convoy", "cv_breach", "Roadblock breached", 40, "The escort opens the leg's roadblock."),
+    ("convoy", "cv_checkpoint", "Checkpoint", 30, "The convoy reaches a checkpoint."),
+    ("convoy", "cv_leg", "Leg complete", 55, "The convoy rolls on to the next place."),
+    ("convoy", "cv_stall", "Convoy stalled", 25, "The ambush has stopped the convoy."),
+    ("midnight_mystery", "mm_kill", "Murder", 45, "Somebody is murdered."),
+    ("midnight_mystery", "mm_witness", "Witness", 40, "Somebody sees who did it."),
+    ("midnight_mystery", "mm_sheriff_down", "Sheriff down", 50, "The Sheriff falls and drops the gun."),
+    ("midnight_mystery", "mm_gun", "Gun picked up", 45, "Somebody picks up the dropped gun."),
+    ("midnight_mystery", "mm_wrong", "Wrong person", 45, "The Sheriff shoots an innocent."),
+    ("grand_heist", "gh_vault", "Vault cracked", 40, "Robbers crack a vault open."),
+    ("grand_heist", "gh_bag", "Bag delivered", 35, "A loot bag reaches the getaway."),
+    ("grand_heist", "gh_cuff", "Arrest", 30, "A cop cuffs a robber."),
+    ("grand_heist", "gh_spring", "Jailbreak", 45, "A robber springs the cell."),
+    ("grand_heist", "gh_close", "Nearly there", 40, "The robbers are one bag from the target."),
+    ("splat_turf", "st_rush", "Splat Rush", 45, "The last thirty seconds begin."),
+    ("splat_turf", "st_lead", "Coverage lead", 25, "The other colour takes the lead."),
+    ("splat_turf", "st_streak", "Splat streak", 25, "Somebody splats three in a row."),
+    ("bonk_brawl", "bb_ko", "Knock-out", 25, "Somebody is knocked off the arena."),
+    ("bonk_brawl", "bb_homerun", "Home run", 45, "A knock-out from a huge bonk."),
+    ("bonk_brawl", "bb_last_stock", "Last stock", 35, "Somebody is down to their last stock."),
+    ("bonk_brawl", "bb_powerup", "Power-up", 15, "Somebody grabs a power-up."),
+    ("bastion", "bs_wave", "Wave incoming", 12, "A wave of robots sets off."),
+    ("bastion", "bs_clear", "Wave cleared", 20, "The last robot of a wave goes down."),
+    ("bastion", "bs_mech", "Siege Mech", 50, "A Siege Mech joins the wave."),
+    ("bastion", "bs_core", "Core under attack", 45, "Robots are hitting the core."),
+    ("bastion", "bs_build", "Turret built", 15, "Somebody builds or upgrades a turret."),
+    ("bastion", "bs_secured", "Sector secured", 55, "The team holds the sector to the end."),
+    ("bastion", "bs_lost", "Sector lost", 55, "The core falls."),
+    ("dodgeball", "db_catch", "Catch", 45, "Somebody catches a throw."),
+    ("dodgeball", "db_out", "Out", 12, "Somebody is hit and goes to the bench."),
+    ("dodgeball", "db_last", "Last one on court", 50, "One player left for a team."),
+    ("dodgeball", "db_line", "Line foul", 30, "Somebody steps over the centre line."),
+    ("bomb_bash", "bm_pass", "Pass", 8, "The bomb changes hands."),
+    ("bomb_bash", "bm_boom", "Boom", 40, "A bomb goes off on somebody."),
+    ("bomb_bash", "bm_close", "Close call", 35, "A pass with the fuse almost gone."),
+    ("bomb_bash", "bm_final", "Final two", 45, "Two players left."),
+    ("plunder_cove", "pc_dig", "Chest dug", 12, "Somebody digs up a chest."),
+    ("plunder_cove", "pc_score", "Chest scored", 30, "A chest reaches a ship's hold."),
+    ("plunder_cove", "pc_steal", "Chest stolen", 45, "A chest is stolen from a hold."),
+    ("plunder_cove", "pc_gold", "Golden chest", 40, "A golden chest is dug up."),
+    ("plunder_cove", "pc_drop", "Carrier down", 25, "A chest carrier is knocked down."),
+    ("storm_circle", "sc_storm", "Storm moves", 25, "The circle starts to close."),
+    ("storm_circle", "sc_elim", "Elimination", 12, "Somebody is eliminated."),
+    ("storm_circle", "sc_final", "Final few", 45, "Three or fewer left."),
+    ("storm_circle", "sc_power", "Power weapon", 20, "Somebody loots a power weapon."),
+    ("flee_beast", "fb_hack", "Computer hacked", 25, "A computer is hacked."),
+    ("flee_beast", "fb_alarm", "Alarm", 30, "A missed beat sets off a computer's alarm."),
+    ("flee_beast", "fb_pod", "Frozen", 35, "The Beast puts somebody in a pod."),
+    ("flee_beast", "fb_free", "Freed", 40, "Somebody frees a friend from a pod."),
+    ("flee_beast", "fb_exits", "Exits powered", 50, "Enough computers: the exits are live."),
+    ("flee_beast", "fb_escape", "Escape", 45, "Somebody gets out."),
+    ("tycoon_wars", "tw_build", "Big purchase", 15, "A company buys a big machine."),
+    ("tycoon_wars", "tw_raid", "Vault raided", 50, "Somebody raids a vault."),
+    ("tycoon_wars", "tw_lead", "Lead change", 30, "A new company is worth the most."),
+    ("tycoon_wars", "tw_mega", "Mega Drill", 45, "A company buys the Mega Drill."),
+]
+KINDS.extend(Kind(kind, label, group, chance, help)
+             for group, kind, label, chance, help in ARENA_KINDS_TABLE)
+ARENA_KIND_IDS = frozenset(row[1] for row in ARENA_KINDS_TABLE)
 KINDS_BY_ID: Dict[str, Kind] = {k.id: k for k in KINDS}
 DEFAULT_CHANCES: Dict[str, int] = {k.id: k.chance for k in KINDS}
 
@@ -292,6 +381,8 @@ def describe(event: Dict[str, Any], name: str, team: str) -> Tuple[str, str]:
         return ("%s just bought %s for %s (%s)." % (by, upgrade, plot, progress), "neutral")
     if kind in SURVIVAL_KINDS:
         return _survival(kind, event, name, me)
+    if kind in ARENA_KIND_IDS:
+        return _arena(event, name, team, bool(me))
     if kind == "killstreak":
         count = int(event.get("n", 3) or 3)
         if me:
@@ -461,6 +552,23 @@ def _survival(kind: str, event: Dict[str, Any], name: str, me: bool) -> Tuple[st
     return ("", "neutral")
 
 
+def _arena(event: Dict[str, Any], name: str, team: str, me: bool) -> Tuple[str, str]:
+    """An arena world's event, as the world wrote it for this bot: what only
+    it knows (a witness), what it did, what its side saw, or the plain
+    version."""
+    private = (event.get("private") or {}).get(name)
+    if private:
+        return str(private[0]), str(private[1] if len(private) > 1 else "neutral")
+    if me and event.get("actor"):
+        return str(event["actor"]), "actor"
+    sides = event.get("sides") or {}
+    if team and team in sides:
+        text, relation = (list(sides[team]) + ["neutral"])[:2]
+        return str(text), str(relation)
+    default = list(event.get("default") or ["", "neutral"]) + ["neutral"]
+    return str(default[0]), str(default[1])
+
+
 def voice_weight(event: Dict[str, Any], relation: str) -> float:
     if event.get("kind") == "player_joined":
         return 1.0
@@ -559,6 +667,73 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("barrel", "ally"): ["boom", "nice barrel", "lmao", "big boom"],
     ("barrel", "actor"): ["boom", "lol", "kaboom"],
     ("biled", "victim"): ["run", "get away from him", "cover him", "ew"],
+    # ---- the arena worlds
+    ("ar_area", "neutral"): ["new map", "ooh this one", "lets go", "i love this one", "ok"],
+    ("ar_go", "neutral"): ["go go go", "here we go", "gl", "lets go", "gl hf"],
+    ("ar_end", "ally"): ["gg", "ez", "gg wp", "lets go", "ggs"],
+    ("ar_end", "victim"): ["gg", "close one", "rematch", "ggs", "next one"],
+    ("ar_end", "actor"): ["gg", "lets gooo", "ez", "gg all"],
+    ("ar_end", "neutral"): ["gg", "ggs", "good game"],
+    ("cx_disaster", "neutral"): ["RUN", "oh no", "get high", "find a roof", "here it comes"],
+    ("cx_survived", "neutral"): ["survived", "made it", "ez", "that was close"],
+    ("cx_survived", "actor"): ["made it!!", "survived lol", "ez"],
+    ("cx_last", "neutral"): ["youre the last one", "dont die", "clutch time"],
+    ("cx_shove", "victim"): ["why", "bro", "who pushed me", "rude"],
+    ("cx_shove", "actor"): ["oops", "lol", "byeee"],
+    ("pp_release", "neutral"): ["here they come", "shh", "dont move"],
+    ("pp_found", "actor"): ["got one", "found you", "lol nice try"],
+    ("pp_found", "victim"): ["noo", "how", "they got me"],
+    ("pp_taunt", "neutral"): ["lol", "i heard that", "where was that"],
+    ("pp_last", "neutral"): ["one left", "find the last one", "dont move"],
+    ("rr_switch", "victim"): ["they switched our track", "junction!!", "get the lever"],
+    ("rr_switch", "ally"): ["nice switch", "sent them round", "lol"],
+    ("rr_final", "ally"): ["almost there", "push push", "last stretch"],
+    ("rr_final", "victim"): ["stop their cart", "everyone on their cart", "block it"],
+    ("cv_breach", "ally"): ["roadblock open", "nice", "push through"],
+    ("cv_breach", "victim"): ["they opened it", "fall back", "hold the next corner"],
+    ("cv_leg", "ally"): ["next leg", "rolling on", "lets go"],
+    ("cv_leg", "victim"): ["hold the next one", "they got through", "regroup"],
+    ("mm_kill", "neutral"): ["someone died", "who was that", "omg", "run"],
+    ("mm_sheriff_down", "neutral"): ["gun dropped", "sheriff is down", "get the gun"],
+    ("mm_gun", "neutral"): ["someone has the gun", "hero time", "go get him"],
+    ("mm_wrong", "neutral"): ["sheriff shot the wrong guy", "lol rip", "bruh"],
+    ("gh_vault", "ally"): ["vault open", "grab the bags", "go go go"],
+    ("gh_vault", "victim"): ["they cracked it", "stop the bags", "cover the getaway"],
+    ("gh_bag", "ally"): ["bag secured", "ka-ching", "more more"],
+    ("gh_cuff", "victim"): ["got cuffed", "spring me", "help"],
+    ("gh_spring", "ally"): ["free!!", "jailbreak", "ty"],
+    ("st_rush", "neutral"): ["splat rush", "paint everything", "go go go"],
+    ("st_lead", "victim"): ["they are ahead", "paint more", "push"],
+    ("bb_ko", "actor"): ["bonk", "byeee", "home run"],
+    ("bb_ko", "victim"): ["nooo", "how", "rip"],
+    ("bb_homerun", "neutral"): ["HOME RUN", "he flew", "lmao"],
+    ("bs_mech", "neutral"): ["MECH", "big one", "everyone on the mech"],
+    ("bs_core", "neutral"): ["core!!", "they are at the core", "defend the core"],
+    ("bs_clear", "neutral"): ["wave clear", "nice", "build more"],
+    ("bs_secured", "neutral"): ["SECURED", "gg", "we held it"],
+    ("bs_lost", "neutral"): ["core down", "gg", "next time"],
+    ("db_catch", "actor"): ["caught it", "nice try", "got it"],
+    ("db_catch", "ally"): ["nice catch", "clutch", "lets go"],
+    ("db_catch", "victim"): ["no way", "how did he catch that", "bruh"],
+    ("db_last", "neutral"): ["one left", "clutch time", "you got this"],
+    ("db_line", "neutral"): ["line!!", "lol stepped over", "out"],
+    ("bm_boom", "neutral"): ["BOOM", "lol", "rip", "kaboom"],
+    ("bm_close", "neutral"): ["so close", "lmao", "just in time"],
+    ("bm_final", "neutral"): ["final two", "who wins", "dont get tagged"],
+    ("pc_steal", "victim"): ["they stole our chest", "stop him", "thief!!"],
+    ("pc_steal", "ally"): ["nice steal", "run run", "got one"],
+    ("pc_gold", "neutral"): ["GOLD", "gold chest!!", "escort the gold"],
+    ("pc_score", "ally"): ["scored", "nice", "more gold"],
+    ("sc_storm", "neutral"): ["storm coming", "move in", "rotate"],
+    ("sc_final", "neutral"): ["final three", "gl", "this is it"],
+    ("fb_alarm", "neutral"): ["oops", "alarm!!", "it heard that"],
+    ("fb_pod", "victim"): ["help", "free me", "im in a pod"],
+    ("fb_free", "ally"): ["ty", "freed", "run"],
+    ("fb_exits", "neutral"): ["EXITS OPEN", "go go go", "get out"],
+    ("fb_escape", "neutral"): ["one got out", "escaped", "lets go"],
+    ("tw_raid", "victim"): ["raided!!", "guard the vault", "who was that"],
+    ("tw_raid", "actor"): ["ka-ching", "ez money", "lol"],
+    ("tw_mega", "neutral"): ["mega drill wow", "rich", "theyre winning"],
 }
 
 

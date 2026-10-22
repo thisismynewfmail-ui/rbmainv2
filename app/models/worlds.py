@@ -234,6 +234,12 @@ WORLDS: List[Dict[str, Any]] = [
     },
 ]
 
+# The fifteen arena worlds (app/models/arena_worlds.py), after the original
+# five for the same reason: a bot's world is stored as an index into this list.
+from .arena_worlds import ARENA_WORLDS  # noqa: E402
+
+WORLDS.extend(ARENA_WORLDS)
+
 WORLDS = [db.AttrDict(w) for w in WORLDS]
 WORLDS_BY_ID: Dict[str, Dict[str, Any]] = {w["id"]: w for w in WORLDS}
 
@@ -266,7 +272,7 @@ def is_open(world_id: str) -> bool:
 
 def all_worlds() -> List[Dict[str, Any]]:
     """Every world that is open to play, in display order (``display_order``,
-    then registry order): Last Light, then Blackout Relay."""
+    then registry order): Last Light, Blackout Relay, then the arena worlds."""
     open_worlds = [w for w in WORLDS if w["id"] not in HIDDEN_WORLDS]
     return sorted(open_worlds, key=lambda w: (int(w.get("display_order") or 99),
                                              WORLDS.index(w)))
@@ -390,7 +396,7 @@ def is_favourite(world_id: str, user_id: int) -> bool:
 
 # Worlds whose enemies are the infected rather than other players: what dies
 # there is booked as ``zkills``, never as a kill.
-HORDE_WORLDS = ("last_light",)
+HORDE_WORLDS = ("last_light", "bastion")
 
 
 def add_game_stats(user_id: int, world_id: str, kills: int = 0, deaths: int = 0,

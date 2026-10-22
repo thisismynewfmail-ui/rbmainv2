@@ -77,6 +77,12 @@ class BotRunner:
         self._human_check = 0.0
         # Last Light: survivors with minds of their own (bots/survival.py)
         self.survival = SurvivalPlan(self) if self.mode == "survival" else None
+        # an arena world: its own plan on top of the shared brain
+        # (app/game/arena/bots.py and each world's module)
+        self.plan = None
+        if self.mode == "arena":
+            maker = getattr(instance, "bot_plan", None)
+            self.plan = maker(self) if maker is not None else None
 
     @property
     def cfg(self) -> Dict[str, Any]:
@@ -116,6 +122,8 @@ class BotRunner:
                         ["gtg", "bye", "cya", "gn", "bye guys", "brb"]), brain.traits, self.rng)})
             if self.survival is not None:
                 self.survival.forget(brain)
+            if self.plan is not None:
+                self.plan.forget(brain)
             self.brains.pop(pid, None)
             inst.remove_player(pid)
             return True
@@ -125,6 +133,8 @@ class BotRunner:
         brain = self.brains.pop(pid, None)
         if brain is not None and self.survival is not None:
             self.survival.forget(brain)
+        if brain is not None and self.plan is not None:
+            self.plan.forget(brain)
 
     # ================================================================ tick
     def tick(self, dt: float) -> None:
@@ -162,6 +172,9 @@ class BotRunner:
             # full detail where somebody real is looking: their own spot in
             # the field, or whoever a dead or waiting player is watching
             humans = [_Point(p) for p in self.survival.attention]
+        elif self.plan is not None and active:
+            self.plan.tick(moment)
+            humans = [_Point(p) for p in self.plan.attention()] or humans
         for brain in list(self.brains.values()):
             if active:
                 brain.step(dt)
@@ -387,6 +400,18 @@ class BotRunner:
             })
             if self.survival is not None:
                 state["teams"] = self.survival.summary()
+        elif self.mode == "arena":
+            state.update({
+                "world": inst.world.get("name", ""), "area": round_state.get("area_name"),
+                "arena_phase": round_state.get("aphase"),
+                "time_left": round_state.get("time_left"),
+                "round_in_area": round_state.get("in_area"),
+                "rounds_per_area": round_state.get("of"),
+                "twist": round_state.get("twist_name") or "",
+                "lines": inst.bot_lines(),
+            })
+            if self.plan is not None:
+                state["arena"] = self.plan.summary()
         elif self.mode == "endless":
             plots = sorted(round_state.get("plots") or [], key=lambda p: -p.get("earned", 0))
             state["restaurants"] = [
@@ -411,6 +436,9 @@ class BotRunner:
             me["revives"] = int((p.extra.get("ll") or {}).get("revives", 0))
             if self.survival is not None:
                 me.update(self.survival.bot_state(brain))
+        if self.mode == "arena" and self.plan is not None:
+            me["out"] = bool(p.extra.get("out"))
+            me.update(self.plan.bot_state(brain))
         if self.mode == "endless":
             plot = getattr(self.instance, "plot_of", lambda _p: None)(p)
             if plot is not None:
@@ -574,6 +602,8 @@ class BotRunner:
 
     def on_round_end(self, winner: str, reason: str = "") -> None:
         self.last_winner = winner or ""
+        if self._speech_on() and self.mode == "arena":
+            return          # the world's own results event already went out
         if self._speech_on():
             self.on_game_event("round_end", {
                 "winner": winner, "reason": reason,
@@ -591,11 +621,15 @@ class BotRunner:
         self.carriers.clear()
         if self.survival is not None:
             self.survival.reset()
+        if self.plan is not None:
+            self.plan.reset()
         for brain in self.brains.values():
             # the round wiped kills and deaths; the score carries on
             brain.base = (0, 0, brain.base[2])
             brain.goal_until = 0.0
             brain.role = brain._pick_role()
+        if self.mode == "arena":
+            return          # an arena round announces itself (ar_area)
         self.on_game_event("round_start", {
             "round": self.instance.round_number,
             "attackers": getattr(self.instance, "attackers", "")})
@@ -682,6 +716,8 @@ class BotRunner:
     def urgent(self, brain: Brain) -> bool:
         """True while nothing should distract this bot from the objective:
         a flag carrier runs home, whatever mood it was in a moment ago."""
+        if self.mode == "arena":
+            return self.plan is not None and bool(self.plan.urgent(brain))
         if self.mode != "captures":
             return False
         flags = getattr(self.instance, "flags", None) or {}
@@ -696,6 +732,9 @@ class BotRunner:
                 self._payload(brain)
             elif self.mode == "survival":
                 self.survival.act(brain)
+            elif self.mode == "arena":
+                if self.plan is not None:
+                    self.plan.act(brain)
             else:
                 self._tycoon(brain)
         except Exception:
@@ -920,6 +959,12 @@ class BotRunner:
                 self.survival.spread(list(by_uid.values()))
             self._seed_chat(state, list(by_uid.values()))
             return
+        elif mode == "arena" and hasattr(inst, "resume"):
+            inst.resume(state)
+            if self.plan is not None:
+                self.plan.spread(list(by_uid.values()))
+            self._seed_chat(state, list(by_uid.values()))
+            return
         self._spread(by_uid, state)
         self._seed_chat(state, list(by_uid.values()))
 
@@ -1065,6 +1110,8 @@ class BotRunner:
             elif self.mode == "survival":
                 options = ["stick together", "need ammo", "that tank lol", "gg wave",
                            "who has meds", "stay near the bell", "rip", "nice save"]
+            elif self.mode == "arena" and self.plan is not None:
+                options = self.plan.seed_lines() or ["gg", "lol", "nice"]
             else:
                 options = ["gg", "lol", "nice", "push", "who has the flag",
                            "anyone", "wait", "go go", "rip"]
@@ -1095,7 +1142,7 @@ class BotRunner:
                          "checkpoints": inst.checkpoints_reached,
                          "round_wins": dict(inst.round_wins),
                          "time_left": max(0.0, inst.round_ends - moment)})
-        elif self.mode == "survival" and hasattr(inst, "sleep_state"):
+        elif self.mode in ("survival", "arena") and hasattr(inst, "sleep_state"):
             live.update(inst.sleep_state())
         elif self.mode == "endless" and hasattr(inst, "plots"):
             plots = []

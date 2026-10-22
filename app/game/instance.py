@@ -1184,8 +1184,7 @@ class GameInstance:
                               weapon_name, False)
             knock = float(stats.get("knockback", 0))
             if knock:
-                other.send({"t": "knock", "v": [unit[0] * knock, knock * 0.35,
-                                                unit[2] * knock]})
+                self._knock_out(other, [unit[0] * knock, knock * 0.35, unit[2] * knock])
         if self.gear.minions:
             hit_any += self.gear.melee_minions(player, origin, direction, reach, arc,
                                                float(stats.get("damage", 30)), weapon_name)
@@ -1219,6 +1218,12 @@ class GameInstance:
             player.score += 1
         else:
             self.heal(player, float(stats.get("self_heal", amount * 0.6)), player)
+
+    def _knock_out(self, player: Player, velocity) -> None:
+        """A shove from a melee hit or a blast.  People are moved by their own
+        browser; a world whose bots should fly too (the arena worlds) moves
+        their bodies here as well."""
+        player.send({"t": "knock", "v": list(velocity)})
 
     def heal(self, target: Player, amount: float,
              source: Optional[Player] = None) -> int:
@@ -1591,9 +1596,8 @@ class GameInstance:
                 push = normalise([centre[0] - proj.pos[0],
                                   max(0.4, centre[1] - proj.pos[1]),
                                   centre[2] - proj.pos[2]])
-                player.send({"t": "knock",
-                             "v": [push[0] * knock, abs(push[1]) * knock * 1.15,
-                                   push[2] * knock]})
+                self._knock_out(player, [push[0] * knock, abs(push[1]) * knock * 1.15,
+                                         push[2] * knock])
             if damage > 0.5:
                 self.apply_damage(player, owner, damage, weapon_name, False)
         if self.gear.minions:

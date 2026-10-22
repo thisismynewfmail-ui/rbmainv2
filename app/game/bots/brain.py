@@ -153,6 +153,10 @@ class Brain:
         self.ground = list(player.pos)
         self.climb: Optional[List[float]] = None
         self.failed_climbs = 0
+        # a shove still carrying the body sideways (an arena world's
+        # knockback): the push, and when it has worn off
+        self.push = [0.0, 0.0]
+        self.push_until = 0.0
         # counters the tests read: void rescues, ledge jumps, ones that fell short
         self.rescues = 0
         self.climbs = 0
@@ -223,6 +227,9 @@ class Brain:
             return "cart" if roll < 0.35 + self.objective * 0.55 else "roam"
         if mode == "survival":
             return "survivor"
+        if mode == "arena":
+            plan = getattr(self.runner, "plan", None)
+            return plan.pick_role(self) if plan is not None else "arena"
         return "tycoon" if roll < 0.25 + self.objective * 0.7 else "wander"
 
     def say(self, kind: str, name: str = "", chance: float = 1.0, delay: float = 0.0) -> None:
@@ -276,6 +283,8 @@ class Brain:
                 revenge *= 0.35
             elif self.runner.mode == "survival":
                 revenge = 0.0
+            elif self.runner.mode == "arena" and getattr(self.runner, "plan", None):
+                revenge *= self.runner.plan.revenge_scale(self)
             if self.rng.random() < revenge:
                 self.revenge = killer.pid
         if recent >= tilt_after and moment > self.tilt_until:
@@ -297,6 +306,15 @@ class Brain:
             self.track = 0.0
             self.next_shot = max(self.next_shot,
                                  now() + self.reaction * self.rng.uniform(0.9, 1.5))
+
+    def knock(self, velocity) -> None:
+        """A shove: up, and sideways for a moment, the way a person's
+        browser carries them when the server sends a knock."""
+        self.airborne = True
+        self.vy = max(self.vy, float(velocity[1]))
+        self.push = [float(velocity[0]), float(velocity[2])]
+        self.push_until = now() + 0.9
+        self.repath_at = 0.0
 
     def on_kill(self, victim) -> None:
         if victim is not None and victim.pid == self.revenge:
@@ -359,6 +377,12 @@ class Brain:
                 vx += sx
                 vz += sz
                 moving = True
+        pushed = moment < self.push_until
+        if pushed:
+            fade = (self.push_until - moment) / 0.9
+            vx += self.push[0] * fade
+            vz += self.push[1] * fade
+            moving = True
         if not moving and not self.airborne and moment < self.jumpy_until \
                 and can_jump and self.rng.random() < dt * 1.6:
             self.airborne = True
@@ -368,7 +392,7 @@ class Brain:
             self.vy -= G * dt
             vel = [vx, self.vy, vz]
             boxes = body_module.nearby(self.instance, p.pos, vel, dt)
-            if moving and not self.airborne:
+            if moving and not self.airborne and not pushed:
                 vel[0], vel[2] = self._edge_guard(boxes, vel[0], vel[2], dt)
             result = body_module.move(boxes, p.pos, vel, dt)
             vx, vz = vel[0], vel[2]
@@ -414,6 +438,12 @@ class Brain:
             p.anim = "idle"
         if self.airborne and (p.pos[1] < self.ground[1] - nav_module.DROP_MAX - 6
                               or p.pos[1] < self.runner.kill_y + 4):
+            plan = getattr(self.runner, "plan", None)
+            if plan is not None and getattr(plan, "falls_kill", False):
+                # knocked off the stage (Bonk Brawl): that is a knock-out,
+                # exactly as it is for a person who falls into the void
+                self.instance.kill(p, None, "the void")
+                return
             # fell somewhere no path goes: back to solid ground, the way the
             # server snaps back a player it thinks has left the map
             p.pos = list(self.ground)
@@ -505,7 +535,7 @@ class Brain:
             budget = self.runner.path_budget()
             nodes = grid.astar(start, goal, budget) or []
         los = None
-        if self.runner.mode == "survival":
+        if self.runner.mode in ("survival", "arena"):
             inst = self.instance
             los = lambda a, b: inst.line_of_sight([a[0], a[1] + 1.2, a[2]],  # noqa: E731
                                                   [b[0], b[1] + 1.2, b[2]])
@@ -741,6 +771,10 @@ class Brain:
         if self.runner.mode == "endless":
             weights["fight"] *= 0.12
             weights["revenge"] *= 0.3
+        elif self.runner.mode == "arena" and getattr(self.runner, "plan", None):
+            # each world knows what its people actually do: nobody "fights"
+            # in a disaster, and a prop does not go looking for a gunfight
+            self.runner.plan.goal_weights(self, weights)
         goal = self.rng.choices(list(weights), list(weights.values()))[0]
         self.goal = goal
         self.goal_data = {}
