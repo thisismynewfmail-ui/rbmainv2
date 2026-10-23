@@ -207,6 +207,7 @@ window.BH = {
 <script src="{{ asset('/static/js/engine/geometry.js') }}"></script>
 <script src="{{ asset('/static/js/engine/shapes.js') }}"></script>
 <script src="{{ asset('/static/js/engine/textures.js') }}"></script>
+<script src="{{ asset('/static/js/engine/world_emblems.js') }}"></script>
 <script src="{{ asset('/static/js/engine/renderer.js') }}"></script>
 <script src="{{ asset('/static/js/engine/avatar.js') }}"></script>
 <script src="{{ asset('/static/js/engine/pet.js') }}"></script>
@@ -221,6 +222,9 @@ window.BH = {
 <script src="{{ asset('/static/js/game/world_extras.js') }}"></script>
 <script src="{{ asset('/static/js/game/area_intro.js') }}"></script>
 <script src="{{ asset('/static/js/game/survival.js') }}"></script>
+<script src="{{ asset('/static/js/game/arena.js') }}"></script>
+{% for script in world.get('game_scripts') or [] %}<script src="{{ asset(script) }}"></script>
+{% endfor %}
 <script src="{{ asset('/static/js/game/gear.js') }}"></script>
 <script src="{{ asset('/static/js/game/pets.js') }}"></script>
 <script src="{{ asset('/static/js/game/client.js') }}"></script>

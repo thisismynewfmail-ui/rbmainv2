@@ -1,0 +1,202 @@
+EVENT WORLDS: HOW THEY ARE BUILT, AND HOW TO ADD ONE
+====================================================
+
+An event world is a server built the way Last Light is: one map holding four
+or more separate AREAS, only one of which is being played at a time, and a
+server that moves everybody to another of them -- with that area's own
+animated arrival sequence -- once the current one has had its rounds. Each
+world has its own game mode, its own badges, its own speech events, its own
+Bots Zone subtab and its own world-page thumbnails. They all share one
+engine, so a world is only its own rules, its own maps and its own art.
+
+
+1. WHERE EVERYTHING LIVES
+-------------------------
+
+  app/models/event_worlds/__init__.py   MODULES: every event world, in
+                                        registry order. APPEND ONLY (the bot
+                                        director stores each bot's world as
+                                        an index into the registry).
+  app/models/event_worlds/<id>.py       everything the WEB side knows about
+                                        the world, as data (see 2).
+  app/game/worlds/arena.py              ArenaWorld: the shared engine (see 3).
+  app/game/worlds/<id>.py               the world's rules: an ArenaWorld
+                                        subclass, exported as WORLD_CLASS.
+  app/game/maps/events/kit.py           ArenaArea + build_world + area_payload
+                                        + a few edge-of-the-world helpers.
+  app/game/maps/events/<id>/            the world's map: __init__.py builds
+                                        it (build_world), one module per area.
+  static/js/game/arena.js               the client half of the engine (see 4).
+  static/js/worlds/<id>.js              the world's client plugin and its
+                                        arrival scenes (Game View only).
+  static/js/worlds/<id>_thumbs.js       the world's card and area thumbnails,
+                                        loaded lazily by thumbs.js.
+  static/js/engine/world_emblems.js     every event world's badge emblems,
+                                        one section per world.
+  tools/eventtests.py                   the world's tests (see 6).
+
+Things that pick event worlds up by themselves, with no edit per world:
+the world registry (app/models/worlds.py), the game host's class loader
+(app/game/host.py), the badge catalogue and its families
+(app/models/badges.py), the speech catalogue (app/bots/speech.py), the Bots
+Zone schema, its subtab and the settings the hosts receive
+(app/bots/config.py), persona tags and world weights (app/bots/personas.py),
+made-up play history and its badges (app/bots/factory.py), sleeping rounds
+(app/bots/dormant.py), the language model's picture of the round
+(app/bots/prompts.py), the profile's badge filters, the world page (areas
+gallery and how-to panel), the Game View's scripts and tools/mapcheck.py.
+
+
+2. THE WORLD'S DATA MODULE (app/models/event_worlds/<id>.py)
+-----------------------------------------------------------
+
+  WORLD          the registry entry. Besides the usual keys (id, name, genre,
+                 tagline, description, max_players, team_count, mode,
+                 round_label, colors, thumb, features), an event world has:
+                   prefix       short code ("rr"); area thumbnails and
+                                arrival scenes are "<prefix>_<area id>"
+                   areas        [{id, name, blurb}] in the map's order
+                   areas_note   the line under the areas gallery
+                   howto        [{title, text}] for the How to play panel
+                   team_names   {"red": "Crimson Line", ...} (the HUD uses it)
+                 engine "arena", cls, thumb_script and game_scripts are filled
+                 in by event_worlds.world_defs().
+  FAMILY         (family name, {mesh, face, ribbon, wing, wing_mesh,
+                 plate_size, face_r, ...}): the badge plate. ``mesh`` is any
+                 shape in static/js/engine/shapes.js that app/models/modeling.py
+                 knows the size of.
+  BADGES         [(id, name, stat, thresholds, ranks, description, emblem,
+                 unit[, {mode: "max"}])]. Prefix ids and stats with the
+                 world's prefix. Six or more per world.
+  DERIVED        {"rr_areas": "rr_area_"} for "do it in every area" badges.
+  SPEECH         [(kind id, label, default chance, help)]; prefix the ids.
+  describe(kind, event, name, team) -> (text, relation) or None
+                 how an event reads from one bot's side. ``event["world"]``
+                 is set on every event an arena world raises, so this is
+                 also asked about round_start / round_end / arena_area.
+  CANNED         {(kind, relation): [stock lines]} for when the model is down.
+  BOT_SECTION    (section id, label, blurb, icon): the Bots Zone subtab.
+  BOT_INTRO      a sentence for the top of the subtab.
+  BOT_FIELDS     [(key, label, kind, default, help[, {extra Field args}])]:
+                 they become "<section>.<key>" settings, and reach the game
+                 host as bot_cfg["<section>_<key>"]. Start with a toggle.
+  PERSONA_TIES   [(personas, what they do here)] for the subtab's table --
+                 and the world's bot code must actually do it.
+  PERSONA_TAG    {id, label, prompt, weight, fx: {"w_<id>": 2.4, ...}}
+  PROMPT         what the language model is told the world is and how its
+                 players talk.
+  HISTORY        {kills, deaths (per minute), round_minutes, win}: how a new
+                 bot's made-up play history is booked.
+  history_badges(history, traits, rng) -> [(stat, amount, "add"|"max")]
+  DORMANT        {round_seconds, rounds_per_area, intermission, teams,
+                 kills, deaths, swap}: how a sleeping round advances.
+
+
+3. THE RULES (app/game/worlds/<id>.py)
+--------------------------------------
+
+An ArenaWorld subclass. Set the numbers, override the hooks you need:
+
+  MAP              the map package           TEAMS / TEAM_NAMES / FFA
+  ROUNDS_PER_AREA  rounds before a shuffle    INTRO_SECONDS / SETUP_SECONDS
+  ROUND_SECONDS    0 for no clock             RESULTS_SECONDS
+  ELIMINATION      the fallen watch           CUSTOM_KINDS   own weapon kinds
+  LOGO             what cards say             BOT_CHATTER    chat seed lines
+
+  round_setup()        the objective as it stands before a round
+  on_live()            the countdown is over
+  round_tick(dt, t)    every tick of the round; call finish_round(winner,
+                       reason) when it is decided
+  time_up() / leader() the clock ran out
+  spawn_stage(team)    which spawn stage a team comes back at
+  on_spawned(player)   give out kit (set_loadout), place props...
+  can_hurt / scale_damage / after_kill / hit_thing
+  custom_fire(player, stats, direction, origin)
+  use / unuse / world_action   E pressed / let go / anything else
+  move_scale / can_jump / held_still   (the bots obey these too)
+  me_state / hud_state / snapshot_extra / score_row / results_rows /
+  result_columns / awards   what the client is told
+  on_round_over(winner, reason, winners)   book the badges
+  sleep_extra / resume_progress            sleeping and waking
+  bot_role / bot_objective / bot_goal_weights / bot_urgent / bot_context /
+  bot_me / bot_spread / bot_tick           the bots (doing() notes what a
+                                           bot is up to for the Bots Zone)
+  selftest(result)     optional: [(name, ok, detail)] eventtests.py checks
+  observe()            optional: sampled every half second of a test run
+
+Use ``from .. import instance as engine`` and ``engine.now()`` for time, so
+the tests' simulated clock reaches the world's rules.
+
+Messages the engine sends: aarea (a round in an area, with the map when it
+is a new one), aphase, aend (the results card), ame (a player's own state),
+aload (kit), adyn (switchable solids); snapshots carry snapshot_extra() as
+"ax". The state every second carries round_state() + hud_state().
+
+
+4. THE CLIENT (static/js/worlds/<id>.js)
+----------------------------------------
+
+  Arena.register('<id>', function (arena) { return { ...hooks }; });
+  AreaIntro.register('<prefix>_<area>', scene)   one per area
+
+Hooks are listed at the top of static/js/game/arena.js. The plugin draws
+what the world adds (carts, props, paint), returns the objective panel from
+hud(state), and can change how players are drawn (avatarParts), moved
+(moveScale, canJump, gravityScale) and fired (canFire, isCustom, localFire).
+arena.banner(), setRole(), setHold(), side() and flashScreen() are the HUD
+pieces it can use. Sounds: GameAudio.register(name, fn(vol)).
+
+An arrival scene paints on a 1600 x 900 stage for about seven seconds with
+AreaIntro.kit's helpers: setup(rng) -> data, draw(ctx, t, data, run),
+title(ctx, t, data, run), cues [[t, sound, volume]], tagline. The chrome
+round it (the black bars, ROUND n, the line, the world's name) is drawn for
+you from what the server sends.
+
+Thumbnails: Thumbs.registerWorld(kind, {build(parts, kit), camera, sky}) for
+"<world thumb>" and every "<prefix>_<area>". kit.player(x, z, yaw, opts)
+draws a player in the classic colours -- yellow skin, red torso, blue legs
+-- which every player in a thumbnail wears; teams show in what they carry.
+
+
+5. THE MAP (app/game/maps/events/<id>/)
+--------------------------------------
+
+__init__.py:   AREAS = [(area id, module, name), ...]
+               def build(): return kit.build_world("<World>", "<mode>", AREAS)
+<area>.py:     HALF (or (half_x, half_z)), SKY, AMBIENT, GROUND, FOG and
+               build(b: ArenaArea).
+
+In build(): lay the ground (kit.ground), the edge (kit.perimeter,
+kit.backdrop), the place, then the meta: b.team_spawn(team, x, y, z, yaw,
+stage), b.camera(...), b.mark(kind, ...) for the world's points,
+b.landmark(x, z, name) for callouts, b.extra[...] for anything else, and
+switchable solids with ``with b.detached() as parts: ...`` then
+b.dynamic(key, parts, on). b.void = True for an area over open sky.
+
+The rules are Last Light's (app/game/maps/lastlight/kit.py): one ground
+plane laid with Surfaces, solids abut, anything reachable is solid.
+tools/mapcheck.py <id> must come back clean.
+
+
+6. TESTING
+----------
+
+  python3 tools/eventtests.py <id>          catalogue, client, map, play, sleep
+  python3 tools/eventtests.py <id> --fast   skip the route walk
+  python3 tools/mapcheck.py <id>            just the geometry
+
+Then run the server (tools/devserver.sh start --port 8972 --no-https), load
+the world, and play a round with bots in it.
+
+
+7. ADDING A WORLD: THE CHECKLIST
+--------------------------------
+
+  [ ] app/models/event_worlds/<id>.py, appended to MODULES
+  [ ] app/game/maps/events/<id>/ with four or more areas
+  [ ] app/game/worlds/<id>.py with WORLD_CLASS
+  [ ] static/js/worlds/<id>.js (plugin + an arrival scene per area)
+  [ ] static/js/worlds/<id>_thumbs.js (card + a thumbnail per area)
+  [ ] emblems in static/js/engine/world_emblems.js
+  [ ] python3 tools/eventtests.py <id> passes
+  [ ] README.md: the world's section

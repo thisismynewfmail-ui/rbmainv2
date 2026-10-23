@@ -51,7 +51,14 @@ def load_world_class(world_id: str):
     elif world_id == "last_light":
         from app.game.worlds.last_light import LastLight as cls
     else:
-        raise SystemExit("unknown world %r" % world_id)
+        # an event world names its own module; the class is the module's
+        # WORLD_CLASS (app/game/worlds/arena.py)
+        world = world_registry.get_any(world_id)
+        path = (world or {}).get("cls")
+        if not path:
+            raise SystemExit("unknown world %r" % world_id)
+        import importlib
+        cls = getattr(importlib.import_module(path), "WORLD_CLASS")
     WORLD_CLASSES[world_id] = cls
     return cls
 

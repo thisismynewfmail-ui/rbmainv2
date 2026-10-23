@@ -234,8 +234,20 @@ WORLDS: List[Dict[str, Any]] = [
     },
 ]
 
+# The event worlds (app/models/event_worlds/) come after the originals, in
+# the order that package lists them -- the director's indexes again.
+from . import event_worlds as _event_worlds  # noqa: E402
+
+WORLDS.extend(_event_worlds.world_defs())
+
 WORLDS = [db.AttrDict(w) for w in WORLDS]
 WORLDS_BY_ID: Dict[str, Dict[str, Any]] = {w["id"]: w for w in WORLDS}
+
+
+def is_arena(world_id: str) -> bool:
+    """A world built from areas played one at a time (an event world)."""
+    world = WORLDS_BY_ID.get(world_id)
+    return bool(world and world.get("engine") == "arena")
 
 # Worlds that are switched off.  They stay in WORLDS -- the bot director
 # stores each bot's world as an index into that list, so removing one would

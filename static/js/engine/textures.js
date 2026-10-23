@@ -5908,6 +5908,17 @@
   // @@ christmas painters go above this line @@
 
   Textures.emblems = Object.keys(emblems);
+
+  /* The event worlds' own emblems and decals (static/js/engine/world_emblems.js)
+     are registered from outside this file, with the same helpers the
+     originals are drawn with. */
+  Textures.registerEmblem = function (name, fn) {
+    emblem(name, fn);
+    if (Textures.emblems.indexOf(name) < 0) Textures.emblems.push(name);
+  };
+  Textures.registerPainter = function (name, fn) { painter(name, fn); };
+  Textures.ink = { inked: inked, stroked: stroked, poly: poly, circlePath: circlePath,
+                   CREAM: CREAM, INK: INK };
   /* Draw an emblem onto any 2D context, ``size`` pixels square. */
   Textures.paintEmblem = function (ctx, name, x, y, size) {
     var fn = emblems[name];

@@ -232,6 +232,10 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
             lines.append("The team is split into %d squad%s%s." % (
                 groups, "" if groups == 1 else "s",
                 (" and %d on their own" % alone) if alone else ""))
+    elif state.get("arena"):
+        # an event world writes its own picture of the round: what it is,
+        # where it is being played, the score and whatever its objective is
+        lines.extend(str(line) for line in (state.get("context") or []) if line)
     elif mode == "endless":
         if me.get("plot"):
             lines.append("Your restaurant: %s, %s upgrades built, %s coins in hand." % (
@@ -274,6 +278,7 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
         if mode != "endless" and ("kills" in me or "deaths" in me):
             mine.append("%s kills and %s deaths this round" % (me.get("kills", 0),
                                                               me.get("deaths", 0)))
+        mine.extend(str(line) for line in (me.get("context") or []) if line)
         role = {"attack": "you have been attacking", "defend": "you have been defending",
                 "roam": "you have been roaming the middle", "cart": "you have been on the cart",
                 "tycoon": "you have been building your restaurant"}.get(me.get("role", ""))
@@ -295,11 +300,16 @@ def chat(card: Dict[str, Any], world: str, team: str,
         persona_block(card)
     if (state or {}).get("mode") == "survival":
         system += "\n\n" + SURVIVAL_TONE
-    if team and (state or {}).get("mode") not in ("endless", "survival"):
-        system += "\nYou are on the %s team this round." % team
+    if (state or {}).get("tone"):
+        system += "\n\n" + str(state["tone"])
+    if team and (state or {}).get("mode") not in ("endless", "survival") and \
+            not (state or {}).get("ffa"):
+        system += "\nYou are on the %s team this round." % (state or {}).get(
+            "team_names", {}).get(team, team)
     context = game_context(state or {}, me or {}, team)
     if roster:
-        endless = (state or {}).get("mode") in ("endless", "survival")
+        endless = (state or {}).get("mode") in ("endless", "survival") or \
+            bool((state or {}).get("ffa"))
         names = ["%s%s" % (name, "" if endless or not side else
                            " (your team)" if side == team else " (other team)")
                  for name, side in roster[:24] if name]

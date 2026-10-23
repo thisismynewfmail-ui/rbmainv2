@@ -215,7 +215,11 @@ class Player:
         slot = self.slot if slot is None else slot
         if not (0 <= slot < catalog.HOTBAR_SIZE):
             return None
-        entry = self.avatar.get("hotbar", [])
+        # a world can hand out its own kit for a round (a dodgeball, a
+        # detective's revolver) in place of what the avatar carries
+        entry = self.extra.get("loadout")
+        if entry is None:
+            entry = self.avatar.get("hotbar", [])
         if slot >= len(entry) or not entry[slot]:
             return None
         return entry[slot]

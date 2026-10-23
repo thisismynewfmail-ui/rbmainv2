@@ -36,6 +36,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from .. import db
 from ..models import catalog, users
+from ..models import event_worlds as _event_worlds
 from . import config as bot_config
 from . import llm, names, personas, prompts, social, storage
 
@@ -614,11 +615,23 @@ def _history(joined: int, traits: Dict[str, float], rng: random.Random,
             kills = int(share * (2.5 + skill * 6.0))
             deaths = int(share * 0.05 * (1.6 - skill))
             rounds = int(share / 26)
+        win_rate = 0.3 + skill * 0.35
+        module = _event_worlds.by_id(world)
+        if module is not None:
+            # an event world says how its rounds go: how often anybody is
+            # knocked out there (nobody, in a race), how long a round runs
+            # and how often one is won (rarely, in a free-for-all)
+            plan = module.HISTORY
+            kills = int(share * plan.get("kills", 0.9) * (0.35 + skill * 1.3))
+            deaths = int(share * plan.get("deaths", plan.get("kills", 0.9))
+                         * (1.45 - skill * 0.9))
+            rounds = int(share / plan.get("round_minutes", 6.0))
+            win_rate = plan.get("win", 0.45) * (0.6 + skill * 0.8)
         zkills = 0
         if world == "last_light":
             kills, zkills = 0, kills      # the infected are not kills
         out[world] = {"kills": kills, "zkills": zkills, "deaths": deaths, "rounds": rounds,
-                      "wins": int(rounds * (0.3 + skill * 0.35)),
+                      "wins": int(rounds * min(0.95, win_rate)),
                       "playtime": int(share * 60),
                       "score": int(kills * 10 + share * (6 + traits.get("objective", 0.6) * 12)),
                       "visits": max(1, int(share / rng.uniform(12, 45)))}
@@ -920,6 +933,10 @@ def _badges(card: Dict[str, Any], rng: random.Random) -> None:
                     ("br_defends", int(br["kills"] * rng.uniform(0.04, 0.16)), "add"),
                     ("br_clutch", int(captures * rng.uniform(0.0, 0.08)), "add"),
                     ("br_sudden", int(rounds * rng.uniform(0.0, 0.02)), "add")]
+    for module in _event_worlds.modules():
+        played = card["history"].get(module.WORLD["id"])
+        if played and played.get("rounds"):
+            changes += list(module.history_badges(played, traits, rng))
     if not changes:
         return
     badges.record_many(card["id"], [c for c in changes if c[1] > 0], notify=False)
