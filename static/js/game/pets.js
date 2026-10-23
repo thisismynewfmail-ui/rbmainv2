@@ -2591,7 +2591,8 @@
   PetWorld.prototype.gather = function (dt) {
     var client = this.client, out = [];
     var me = client.local;
-    if (me && client.myId) {
+    var arena = client.arena;
+    if (me && client.myId && !(arena && arena.noPet(client.myId))) {
       var weapon = client.currentWeapon ? client.currentWeapon() : null;
       out.push({
         key: 'me', id: client.myId, name: (global.BH && BH.user && BH.user.name) || '',
@@ -2604,6 +2605,8 @@
     var self = this;
     Object.keys(client.players).forEach(function (id) {
       var p = client.players[id];
+      // a pet at a hider's heels would give the hider away
+      if (arena && arena.noPet(p.id)) return;
       var track = self.tracks[id] || (self.tracks[id] = { last: p.pos.slice(), vel: [0, 0, 0] });
       if (dt > 0) {
         var k = Math.min(1, dt * 8);

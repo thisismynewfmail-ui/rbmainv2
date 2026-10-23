@@ -154,6 +154,162 @@
     inked(ctx, circlePath(63, 64, 7), RR_GOLD, 4);
   });
 
+  // ------------------------------------------------------------- Prop Panic
+  var PP_PINK = '#f06a8a', PP_GOLD = '#ffc83a', PP_BLUE = '#5aa0f0', PP_GREEN = '#6ac860';
+
+  function ppEyes(ctx, x, y, gap, r) {
+    // a pair of googly eyes: the thing is not what it seems
+    [x - gap, x + gap].forEach(function (cx) {
+      inked(ctx, circlePath(cx, y, r), '#ffffff', 4);
+      inked(ctx, circlePath(cx + r * 0.25, y + r * 0.2, r * 0.45), INK, 2);
+    });
+  }
+
+  emblem('em_pp_house', function (ctx) {
+    // a cottage with a lit window
+    inked(ctx, poly([[24, 60], [64, 24], [104, 60]]), '#c0563a');
+    inked(ctx, poly([[32, 58], [96, 58], [96, 106], [32, 106]]), CREAM);
+    inked(ctx, poly([[56, 78], [72, 78], [72, 106], [56, 106]]), '#7a4a2a', 5);
+    inked(ctx, poly([[38, 66], [50, 66], [50, 78], [38, 78]]), PP_GOLD, 4);
+    inked(ctx, poly([[78, 66], [90, 66], [90, 78], [78, 78]]), PP_GOLD, 4);
+  });
+
+  emblem('em_pp_still', function (ctx) {
+    // a teapot keeping very still, eyes open
+    inked(ctx, function (g) { g.ellipse(60, 74, 34, 26, 0, 0, Math.PI * 2); }, CREAM);
+    inked(ctx, poly([[92, 70], [112, 52], [116, 58], [98, 80]]), CREAM, 6);
+    stroked(ctx, function (g) { g.arc(28, 74, 12, Math.PI * 0.5, Math.PI * 1.5); }, CREAM, 6);
+    inked(ctx, poly([[46, 46], [74, 46], [74, 52], [46, 52]]), PP_PINK, 5);
+    inked(ctx, circlePath(60, 40, 6), PP_PINK, 4);
+    ppEyes(ctx, 60, 72, 11, 8);
+  });
+
+  emblem('em_pp_eye', function (ctx) {
+    // a watching eye under a magnifier's rim
+    inked(ctx, function (g) {
+      g.moveTo(16, 64); g.quadraticCurveTo(64, 20, 112, 64); g.quadraticCurveTo(64, 108, 16, 64);
+    }, CREAM);
+    inked(ctx, circlePath(64, 64, 20), PP_BLUE, 5);
+    inked(ctx, circlePath(64, 64, 9), INK, 2);
+    inked(ctx, circlePath(58, 58, 4), '#ffffff', 1);
+  });
+
+  emblem('em_pp_horn', function (ctx) {
+    // a party horn blowing notes
+    inked(ctx, poly([[20, 84], [72, 52], [80, 64], [24, 96]]), PP_GOLD);
+    inked(ctx, poly([[72, 44], [92, 34], [96, 82], [80, 72]]), PP_PINK);
+    stroked(ctx, function (g) { g.moveTo(100, 36); g.lineTo(108, 28); }, CREAM, 4);
+    inked(ctx, circlePath(104, 54, 6), CREAM, 4);
+    inked(ctx, circlePath(108, 76, 5), CREAM, 4);
+  });
+
+  emblem('em_pp_dare', function (ctx) {
+    // a lamp sticking its tongue out at a looming shadow
+    inked(ctx, poly([[40, 34], [88, 34], [98, 62], [30, 62]]), PP_GOLD);
+    stroked(ctx, function (g) { g.moveTo(64, 62); g.lineTo(64, 104); }, '#a8a8a8', 6);
+    inked(ctx, poly([[46, 104], [82, 104], [80, 112], [48, 112]]), '#7a7a7a', 4);
+    ppEyes(ctx, 64, 46, 10, 6);
+    inked(ctx, function (g) { g.ellipse(64, 58, 6, 8, 0, 0, Math.PI); }, PP_PINK, 3);
+  });
+
+  emblem('em_pp_duck', function (ctx) {
+    // a rubber duck and its double
+    [[44, 0.85, '#d8b020'], [70, 1, PP_GOLD]].forEach(function (d) {
+      var x = d[0], k = d[1];
+      inked(ctx, function (g) { g.ellipse(x, 84, 26 * k, 18 * k, 0, 0, Math.PI * 2); }, d[2]);
+      inked(ctx, circlePath(x + 12 * k, 60, 14 * k), d[2]);
+      inked(ctx, poly([[x + 24 * k, 60], [x + 38 * k, 64], [x + 24 * k, 68]]), '#f08a2a', 4);
+      inked(ctx, circlePath(x + 15 * k, 56, 3), INK, 1);
+    });
+  });
+
+  emblem('em_pp_last', function (ctx) {
+    // the last one standing, under a spotlight
+    inked(ctx, poly([[50, 14], [78, 14], [104, 110], [24, 110]]), 'rgba(255,240,180,0.55)', 3);
+    inked(ctx, function (g) { g.ellipse(64, 104, 34, 8, 0, 0, Math.PI * 2); }, '#fff0b0', 4);
+    inked(ctx, poly([[52, 64], [76, 64], [80, 102], [48, 102]]), PP_PINK);
+    inked(ctx, circlePath(64, 54, 12), PP_PINK);
+    ppEyes(ctx, 64, 78, 7, 5);
+  });
+
+  emblem('em_pp_broom', function (ctx) {
+    // a broom sweeping up dust bunnies
+    stroked(ctx, function (g) { g.moveTo(96, 16); g.lineTo(58, 76); }, '#a07a52', 7);
+    inked(ctx, poly([[50, 70], [70, 82], [62, 112], [24, 98]]), PP_GOLD);
+    stroked(ctx, function (g) { g.moveTo(40, 94); g.lineTo(56, 104); g.moveTo(48, 84); g.lineTo(62, 92); },
+            '#c89a20', 3);
+    inked(ctx, circlePath(96, 100, 9), '#c8c0b8', 4);
+    inked(ctx, circlePath(108, 90, 6), '#c8c0b8', 4);
+  });
+
+  emblem('em_pp_mask', function (ctx) {
+    // a masquerade mask
+    inked(ctx, function (g) {
+      g.moveTo(16, 56); g.quadraticCurveTo(40, 34, 64, 50); g.quadraticCurveTo(88, 34, 112, 56);
+      g.quadraticCurveTo(108, 86, 82, 84); g.quadraticCurveTo(64, 78, 46, 84);
+      g.quadraticCurveTo(20, 86, 16, 56);
+    }, PP_PINK);
+    inked(ctx, function (g) { g.ellipse(42, 62, 10, 7, 0, 0, Math.PI * 2); }, INK, 2);
+    inked(ctx, function (g) { g.ellipse(86, 62, 10, 7, 0, 0, Math.PI * 2); }, INK, 2);
+    inked(ctx, poly([[100, 44], [118, 20], [110, 48]]), PP_GOLD, 4);
+  });
+
+  emblem('em_pp_cat', function (ctx) {
+    // Mittens, staring
+    inked(ctx, poly([[30, 40], [40, 14], [56, 34]]), '#e88a3a');
+    inked(ctx, poly([[72, 34], [88, 14], [98, 40]]), '#e88a3a');
+    inked(ctx, circlePath(64, 66, 38), '#e88a3a');
+    [[48, 62], [80, 62]].forEach(function (e) {
+      inked(ctx, function (g) { g.ellipse(e[0], e[1], 9, 11, 0, 0, Math.PI * 2); }, '#c8ff6a', 4);
+      inked(ctx, function (g) { g.ellipse(e[0], e[1], 2, 8, 0, 0, Math.PI * 2); }, INK, 1);
+    });
+    inked(ctx, poly([[58, 80], [70, 80], [64, 86]]), PP_PINK, 3);
+  });
+
+  emblem('em_pp_owl', function (ctx) {
+    // an owl with a torch beam
+    inked(ctx, poly([[64, 64], [118, 40], [118, 88]]), 'rgba(255,240,170,0.7)', 3);
+    inked(ctx, function (g) { g.ellipse(48, 72, 30, 36, 0, 0, Math.PI * 2); }, '#8a6a4a');
+    inked(ctx, poly([[24, 44], [32, 26], [42, 40]]), '#8a6a4a', 5);
+    inked(ctx, poly([[54, 40], [64, 26], [72, 44]]), '#8a6a4a', 5);
+    inked(ctx, circlePath(38, 62, 9), PP_GOLD, 4);
+    inked(ctx, circlePath(60, 62, 9), PP_GOLD, 4);
+    inked(ctx, poly([[46, 72], [52, 72], [49, 80]]), '#f08a2a', 3);
+  });
+
+  emblem('em_pp_tag', function (ctx) {
+    // a price tag on its string
+    inked(ctx, poly([[30, 50], [54, 26], [104, 26], [104, 102], [54, 102], [30, 78]]), PP_GOLD);
+    inked(ctx, circlePath(48, 64, 6), CREAM, 4);
+    stroked(ctx, function (g) { g.moveTo(66, 50); g.lineTo(92, 50); g.moveTo(66, 66); g.lineTo(88, 66); },
+            '#c83a2a', 5);
+    stroked(ctx, function (g) { g.moveTo(42, 64); g.quadraticCurveTo(24, 40, 14, 22); }, CREAM, 3);
+  });
+
+  emblem('em_pp_alarm', function (ctx) {
+    // a ringing alarm bell
+    inked(ctx, function (g) {
+      g.moveTo(36, 88); g.quadraticCurveTo(36, 30, 64, 30); g.quadraticCurveTo(92, 30, 92, 88);
+      g.lineTo(100, 96); g.lineTo(28, 96); g.closePath();
+    }, '#e8402e');
+    inked(ctx, circlePath(64, 102, 8), PP_GOLD, 4);
+    stroked(ctx, function (g) { g.moveTo(18, 52); g.lineTo(10, 46); g.moveTo(110, 52); g.lineTo(118, 46); },
+            PP_GOLD, 4);
+    stroked(ctx, function (g) { g.moveTo(16, 70); g.lineTo(6, 70); g.moveTo(112, 70); g.lineTo(122, 70); },
+            PP_GOLD, 4);
+  });
+
+  emblem('em_pp_map', function (ctx) {
+    // four rooms on a floor plan, each with a tick
+    inked(ctx, poly([[18, 22], [110, 22], [110, 106], [18, 106]]), CREAM);
+    stroked(ctx, function (g) { g.moveTo(64, 22); g.lineTo(64, 106); g.moveTo(18, 64); g.lineTo(110, 64); },
+            '#8a7a6a', 4);
+    [[40, 44, PP_PINK], [88, 44, PP_GOLD], [40, 86, PP_BLUE], [88, 86, PP_GREEN]].forEach(function (c) {
+      stroked(ctx, function (g) { g.moveTo(c[0] - 10, c[1]); g.lineTo(c[0] - 2, c[1] + 8); g.lineTo(c[0] + 12, c[1] - 8); },
+              c[2], 5);
+    });
+  });
+
   // @@ event world emblems go above this line @@
 
   void inked; void stroked; void poly; void circlePath; void CREAM; void INK;

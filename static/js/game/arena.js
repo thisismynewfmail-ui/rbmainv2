@@ -29,6 +29,9 @@
      localFire(stats, origin, dir) -> handled  useDown(repeat) -> handled
      useUp()  rayHit(origin, dir, dist) -> dist  camera() -> {eye,yaw,pitch}
      scoreHead() -> html  scoreRow(row) -> html  introInfo(msg) -> info
+     thirdPerson() -> bool (your own body drawn, not the view model)
+     reloadDown() -> handled  noPet(id) -> bool  disguised(player) -> bool
+     (no hat effects: whatever they are wearing is not a person)
 
    Nothing here decides anything: the server says what happened, this
    shows it. */
@@ -562,6 +565,22 @@
 
   Arena.prototype.nameTag = function (player) {
     return this.call('nameTag', player) || null;
+  };
+
+  Arena.prototype.forcesThird = function () {
+    return !!this.call('thirdPerson');
+  };
+
+  Arena.prototype.reloadDown = function () {
+    return !!this.call('reloadDown');
+  };
+
+  Arena.prototype.noPet = function (id) {
+    return !!this.call('noPet', id);
+  };
+
+  Arena.prototype.disguised = function (player) {
+    return !!this.call('disguised', player);
   };
 
   // ------------------------------------------------------- objective

@@ -102,6 +102,7 @@ Basic Shotgun and a Basic Stick.
 | **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 | **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
+| **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -359,6 +360,76 @@ lever ahead of the rival cart, the winch, the signal cabin, a drift, a heap.
 The Bots Zone's **Rail Rivals** subtab sets how many push and raid, how keen
 they are on the brakes, the coal and the twists, and how many always stay on
 the cart.
+
+### Prop Panic
+Prop hunt for up to sixteen. Each round one team hides and the other seeks,
+and the next round they swap, so in a place's two rounds everybody does both
+(the **Dust Bunnies** and the **Feather Dusters**). The seekers win by
+finding every hider before the clock runs out; one hider left standing wins
+it for the hiders.
+
+**Hiders** are props. Everyone starts as the place's humblest thing (a
+flower pot, a toy block, a cereal box, a vase) and turns into anything in
+the place by looking at it and pressing **E**; **R** gives a quarter turn.
+The disguise is the place's own drawing of the thing, so a hider is exactly
+as big as what it pretends to be: a teacup is hard to spot and breaks in a
+hit or two, a wardrobe soaks shots. A hider sees itself from behind and its
+name tag is hidden from the other team. The kit: a **taunt** (points --
+more with a seeker close, three times as many for the last hider -- at the
+price of a squeak, a honk or a kazoo), two **decoys** (a copy of your
+disguise left behind; a seeker who shoots one is hurt) and a **scurry**
+(three seconds at a sprint).
+
+**Seekers** wait in the place's pen, blindfolded, through the countdown,
+then the door opens. The **popper** finds a hider in a few hits and heals the
+seeker a little; a shot into a real prop is a wrong guess that costs health.
+The **sniffer** makes the nearest hider squeak; the **glitter bomb** dusts
+everything where it lands and shows who is not what they seem. In the last
+minute the house creaks and every hider still standing squeaks on its own.
+
+**The places**, each with a twist:
+
+* **Grandma's Cottage** -- two storeys of armchairs, teapots and grandfather
+  clocks, the garage, the front and back gardens (greenhouse, shed, pond,
+  treehouse, hen house, orchard, a gazebo and a pool). *Mittens*, Grandma's
+  cat, wanders the house and stops to stare at anything that is not what it
+  seems; a taunt beside her sends her off with a hiss.
+* **Tinker's Toy Emporium** -- two floors round an atrium with a giant toy
+  rocket, the plush mountain, the ball pit, the block castle, Tinker's
+  workshop and the stockroom, upstairs the games, music, space and party
+  rooms, and the town square outside with its carousel and fountain. *The
+  power* goes every so often: the lights flicker, then darkness and the
+  seekers' torches.
+* **MegaMart** -- seven aisles stocked to the ceiling, the produce hall, the
+  bakery, the freezers, the checkouts, the warehouse and its forklift, the
+  garden centre and a car park full of trolleys. *Flash sales*: the tannoy
+  announces a sale on one kind of thing, and six seconds later everything of
+  that kind has a price tag over it -- change, or be priced.
+* **The Museum After Dark** -- a T. rex under a glass lantern in the great
+  hall, the Egyptian room with its pyramid, the armoury and its castle, the
+  fossil hall, the space gallery, the gift shop and the cafe downstairs; the
+  sculpture hall, the vase room, the library, the portrait gallery (its
+  balcony over the T. rex), the art gallery, the clock room and the gem vault
+  upstairs; the plaza, the hedge maze and the dinosaur lawn outside. *The
+  searchlight*: the night watchman's beam sweeps the great hall, and
+  anything that moves in it sets off the alarm.
+
+**Badges** (struck on a carnival mask): House Rules (rounds won), Still Life
+(rounds survived hiding), Eagle Eye (hiders found), Show-Off (taunts),
+Daredevil (a taunt with a seeker close enough to touch), Decoy Duck (seekers
+fooled), Last Prop Standing, Clean Sweep (every hider found with a minute to
+spare), Master of Disguise, Cat Whisperer, Night Owl, Bargain Hunter, Alarm
+Bells (a find the searchlight gave away) and Every Room (a round won in every
+place).
+
+**Bots** hide by persona and settings -- still as a statue, a taunter who
+loves an audience, or a runner who moves on when the coast is clear -- pick
+a disguise that belongs in the room and fits the spot, drop decoys, dodge a
+flash sale and scurry when rumbled; seeking, they sweep the rooms, watch for
+anything that moved, follow squeaks, the cat, the price tags and the alarm,
+and take guesses. The Bots Zone's **Prop Panic** subtab sets how still they
+keep, how well they hide, how often they taunt, drop decoys, guess and sniff,
+how sharp their eyes are and how hard they play each place's twist.
 
 ---
 
