@@ -90,6 +90,14 @@ SPOT_R = 9.0
 ALARM_SECONDS = 6.0
 BOT_WALK = 14.0             # about how fast a bot covers ground, paths and all
 REVEAL_FIND = 9.0          # a find within this long of a reveal counts for its badge
+# what a seeking bot says when it goes after a lead, by what the lead was
+LEAD_LINES = {"cat": ["follow the cat", "the cat found one", "cats staring at something"],
+              "sale": ["check the price tags", "sale tag over here", "tagged one"],
+              "alarm": ["alarm!", "searchlight got one", "the alarm, go"],
+              "taunt": ["heard one", "its close", "taunt over here"],
+              "sniff": ["squeak over here", "sniffer says close"],
+              "creak": ["heard a squeak", "something squeaked"],
+              "glitter": ["glitter on one", "its sparkly lol"]}
 DEFAULTS: Dict[str, Any] = {}
 
 
@@ -1358,6 +1366,8 @@ class PropPanicWorld(ArenaWorld):
             brave = brain.role == "taunter" or brain.t("chaos", 0.1) > 0.5
             if brain.rng.random() < rate and (nearest > 18.0 or brave):
                 self._taunt(p)
+                self.callout(brain, ["catch me", "lol", "over here", "too slow", "cant find me"],
+                             "taunt", chance=0.3, every=40.0)
             mind["next_taunt"] = moment + brain.rng.uniform(14.0, 45.0) / max(0.3, rate + 0.2)
         if int(p.extra.get("decoys", 0)) > 0 and brain.rng.random() < 0.004 * self.pct("decoys") \
                 and brain.role != "still":
@@ -1457,6 +1467,8 @@ class PropPanicWorld(ArenaWorld):
         mind["shot_at"] = -99.0
         mind["exposed"] = -99.0
         self.doing(brain, "running for a new hiding place")
+        self.callout(brain, ["rumbled", "run", "moving!", "they found me"], "flee", chance=0.4,
+                     team=True)
         if int(p.extra.get("decoys", 0)) > 0 and brain.rng.random() < self.pct("decoys"):
             self._decoy(p)
 
@@ -1502,6 +1514,9 @@ class PropPanicWorld(ArenaWorld):
             return
         if self.phase != "active":
             return
+        if moment - self.live_since < 6.0:
+            self.callout(brain, ["ready or not", "here we come", "lets find them", "spread out"],
+                         "release", chance=0.35, every=120.0)
         self._bot_perceive(brain, mind, moment)
         lead = mind.get("lead")
         if lead is not None and moment - lead["at"] > 18.0:
@@ -1518,6 +1533,8 @@ class PropPanicWorld(ArenaWorld):
             d = math.hypot(p.pos[0] - lead["p"][0], p.pos[2] - lead["p"][2])
             if d > 7.0:
                 brain.go(lead["p"], "lead%d" % int(lead["at"] * 10))
+                self.callout(brain, LEAD_LINES.get(lead["why"], LEAD_LINES["taunt"]),
+                             "lead" + lead["why"], chance=0.45, every=30.0, team=True)
                 self.doing(brain, "following a %s near %s" % (
                     {"taunt": "taunt", "sniff": "sniff", "creak": "creak", "cat": "staring cat",
                      "sale": "price tag", "alarm": "alarm", "glitter": "glint"}.get(
@@ -1622,7 +1639,9 @@ class PropPanicWorld(ArenaWorld):
             if brain.rng.random() < chance:
                 sus[prop.pid] = moment + 10.0
                 if brain.rng.random() < 0.2:
-                    brain.say("spotted", chance=0.3)
+                    what = str(self.kinds.get(prop.extra.get("dis") or "", {}).get("name", "prop")).lower()
+                    self.callout(brain, ["that %s moved" % what, "sus %s" % what,
+                                         "%s looks off" % what], "spotted", chance=0.5, team=True)
 
     def _fits_in(self, prop: Player) -> bool:
         """Is there another of what this hider is pretending to be nearby?"""

@@ -76,6 +76,14 @@ GAS_EVERY = (34.0, 48.0)
 GAS_WARN = 6.0
 GAS_R = 12.0
 GAS_EDGE = 18.0
+# what a bot says when it takes on an errand
+JOB_LINES = {"release": ["brakes on our cart", "freeing the brakes", "on the lever"],
+             "dig": ["digging us out", "drift on our line"],
+             "lower": ["lowering our bridge", "our bridge is up, on it"],
+             "brake": ["braking their cart", "pulling their brakes"],
+             "signal": ["taking the signal", "signal cabin"],
+             "raise": ["winching their bridge", "their bridge is going up lol"],
+             "coal": ["getting coal", "coal run"]}
 DEFAULTS: Dict[str, Any] = {}
 
 
@@ -1157,12 +1165,16 @@ class RailRivalsWorld(ArenaWorld):
             if job is not None:
                 job["until"] = moment + job.get("for", 30.0)
                 p.extra["rr_job"] = job
+                self.callout(brain, JOB_LINES.get(job["k"], []), "job" + job["k"], chance=0.5,
+                             team=True)
         if job is not None:
             self.doing(brain, job["say"])
             return self._work_at(brain, job["at"], job["r"], job["key"], hold=job.get("hold", True))
         role = brain.role
         if role == "raider" or (role == "flex" and rival.fraction > own.fraction + 0.08):
             self.doing(brain, "contesting their cart")
+            self.callout(brain, ["contest their cart", "on their cart", "stop their cart"], "raid",
+                         chance=0.25, every=60.0, team=True)
             spot = self._beside(rival, brain, -2.0)
             if math.hypot(spot[0] - p.pos[0], spot[2] - p.pos[2]) > 3.0:
                 self._go(brain, spot, "raid%d" % int(rival.d / 6))

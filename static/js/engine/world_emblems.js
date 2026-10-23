@@ -310,6 +310,173 @@
     });
   });
 
+  // --------------------------------------------------------- Calamity Coast
+  var CC_RED = '#e8502a', CC_BLUE = '#2a8ad8', CC_GOLD = '#f2c230', CC_SEA = '#3a8ac8', CC_ICE = '#bfe6ff';
+
+  emblem('em_cc_siren', function (ctx) {
+    // a warning siren on its post, sounding
+    inked(ctx, function (g) { g.rect(58, 70, 12, 40); }, '#8a8f96', 5);
+    inked(ctx, function (g) {
+      g.moveTo(34, 72); g.lineTo(38, 40); g.quadraticCurveTo(64, 20, 90, 40); g.lineTo(94, 72); g.closePath();
+    }, CC_RED);
+    inked(ctx, function (g) { g.rect(30, 68, 68, 8); }, CC_GOLD, 4);
+    inked(ctx, circlePath(64, 44, 8), '#ffe8a0', 3);
+    stroked(ctx, function (g) {
+      g.arc(64, 50, 46, -2.6, -2.1); g.moveTo(64 + Math.cos(-1.0) * 46, 50 + Math.sin(-1.0) * 46);
+      g.arc(64, 50, 46, -1.0, -0.5);
+    }, CREAM, 4);
+  });
+
+  emblem('em_cc_stand', function (ctx) {
+    // a figure on its feet on a rock, the sea round it
+    inked(ctx, function (g) { g.moveTo(10, 98); g.quadraticCurveTo(64, 86, 118, 98); g.lineTo(118, 118); g.lineTo(10, 118); g.closePath(); }, CC_SEA, 5);
+    inked(ctx, poly([[34, 98], [48, 76], [82, 74], [96, 98]]), '#8a7a6a');
+    inked(ctx, function (g) { g.rect(56, 40, 16, 22); }, '#c4281c', 4);
+    inked(ctx, function (g) { g.rect(56, 60, 7, 16); g.rect(65, 60, 7, 16); }, '#0d69ac', 4);
+    inked(ctx, function (g) { g.rect(57, 22, 14, 14); }, '#f5cd30', 4);
+    stroked(ctx, function (g) { g.moveTo(56, 44); g.lineTo(42, 26); g.moveTo(72, 44); g.lineTo(86, 26); }, '#f5cd30', 5);
+  });
+
+  emblem('em_cc_wave', function (ctx) {
+    // a great wave curling over
+    inked(ctx, function (g) {
+      g.moveTo(10, 108); g.quadraticCurveTo(20, 40, 72, 30); g.quadraticCurveTo(110, 26, 112, 58);
+      g.quadraticCurveTo(96, 44, 80, 56); g.quadraticCurveTo(70, 70, 86, 82); g.quadraticCurveTo(100, 96, 118, 108);
+      g.closePath();
+    }, CC_SEA);
+    stroked(ctx, function (g) { g.moveTo(40, 52); g.quadraticCurveTo(62, 36, 92, 38); }, CREAM, 4);
+    inked(ctx, circlePath(104, 60, 6), CREAM, 3);
+    inked(ctx, circlePath(92, 52, 5), CREAM, 3);
+  });
+
+  emblem('em_cc_twister', function (ctx) {
+    // a tornado funnel with a plank caught in it
+    [[16, 96, 24], [28, 80, 40], [40, 64, 52], [52, 48, 64], [64, 32, 80]].forEach(function (b, i) {
+      inked(ctx, function (g) { g.ellipse(64 + (i % 2 ? 4 : -4), b[1] - 8, b[2] * 0.6 + 6, 9, 0, 0, Math.PI * 2); },
+            i % 2 ? '#9a9488' : '#b8b0a2', 4);
+    });
+    inked(ctx, function (g) { g.ellipse(60, 104, 10, 6, 0, 0, Math.PI * 2); }, '#9a9488', 4);
+    inked(ctx, poly([[90, 52], [112, 44], [114, 50], [92, 58]]), '#a07a52', 3);
+  });
+
+  emblem('em_cc_snow', function (ctx) {
+    // a snowflake over a drift
+    inked(ctx, function (g) { g.moveTo(10, 112); g.quadraticCurveTo(64, 80, 118, 112); g.closePath(); }, '#f4f8ff', 5);
+    for (var i = 0; i < 3; i++) {
+      var a = i * Math.PI / 3;
+      stroked(ctx, (function (a) {
+        return function (g) {
+          g.moveTo(64 - Math.cos(a) * 34, 54 - Math.sin(a) * 34); g.lineTo(64 + Math.cos(a) * 34, 54 + Math.sin(a) * 34);
+        };
+      })(a), CC_ICE, 6);
+    }
+    inked(ctx, circlePath(64, 54, 8), '#ffffff', 3);
+  });
+
+  emblem('em_cc_quake', function (ctx) {
+    // the ground split by a crack, with a jolt line
+    inked(ctx, poly([[10, 70], [60, 64], [52, 82], [72, 88], [60, 118], [10, 118]]), '#a08868');
+    inked(ctx, poly([[118, 70], [70, 66], [62, 80], [82, 90], [72, 118], [118, 118]]), '#b09878');
+    stroked(ctx, function (g) { g.moveTo(14, 40); g.lineTo(36, 40); g.lineTo(46, 22); g.lineTo(58, 56); g.lineTo(70, 18);
+      g.lineTo(80, 48); g.lineTo(90, 40); g.lineTo(114, 40); }, CC_RED, 5);
+  });
+
+  emblem('em_cc_flame', function (ctx) {
+    // a flame on a timbered gable
+    inked(ctx, poly([[24, 112], [24, 70], [64, 44], [104, 70], [104, 112]]), '#e8dcc0');
+    stroked(ctx, function (g) { g.moveTo(24, 70); g.lineTo(104, 112); g.moveTo(104, 70); g.lineTo(24, 112); }, '#5a3a24', 3);
+    inked(ctx, function (g) {
+      g.moveTo(64, 10); g.quadraticCurveTo(98, 46, 86, 76); g.quadraticCurveTo(64, 94, 42, 76);
+      g.quadraticCurveTo(30, 48, 64, 10);
+    }, '#ff7a1a');
+    inked(ctx, function (g) {
+      g.moveTo(64, 40); g.quadraticCurveTo(80, 60, 74, 74); g.quadraticCurveTo(64, 82, 54, 74);
+      g.quadraticCurveTo(48, 60, 64, 40);
+    }, CC_GOLD, 4);
+  });
+
+  emblem('em_cc_shield', function (ctx) {
+    // a shield without a mark on it, gleaming
+    inked(ctx, function (g) {
+      g.moveTo(64, 14); g.lineTo(104, 28); g.quadraticCurveTo(104, 88, 64, 114); g.quadraticCurveTo(24, 88, 24, 28);
+      g.closePath();
+    }, CC_BLUE);
+    inked(ctx, function (g) { g.moveTo(64, 26); g.lineTo(92, 36); g.quadraticCurveTo(92, 80, 64, 100); g.closePath(); },
+          '#5aa8f0', 3);
+    stroked(ctx, function (g) { g.moveTo(44, 62); g.lineTo(58, 76); g.lineTo(86, 46); }, CREAM, 6);
+  });
+
+  emblem('em_cc_last', function (ctx) {
+    // one flag left standing on a hilltop
+    inked(ctx, function (g) { g.moveTo(10, 116); g.quadraticCurveTo(64, 64, 118, 116); g.closePath(); }, '#5a8a4a');
+    stroked(ctx, function (g) { g.moveTo(64, 86); g.lineTo(64, 20); }, CREAM, 5);
+    inked(ctx, poly([[66, 22], [104, 32], [66, 44]]), CC_RED, 4);
+    inked(ctx, circlePath(64, 18, 5), CC_GOLD, 3);
+  });
+
+  emblem('em_cc_bolt', function (ctx) {
+    // a lightning bolt striking a hard hat
+    inked(ctx, function (g) {
+      g.moveTo(22, 96); g.quadraticCurveTo(24, 62, 64, 60); g.quadraticCurveTo(104, 62, 106, 96); g.closePath();
+    }, CC_GOLD);
+    inked(ctx, function (g) { g.rect(14, 94, 100, 10); }, '#d8a820', 4);
+    inked(ctx, poly([[70, 8], [46, 44], [62, 44], [50, 72], [84, 34], [66, 34], [80, 8]]), '#eaf2ff', 4);
+  });
+
+  emblem('em_cc_buoy', function (ctx) {
+    // a life ring with its rope
+    inked(ctx, circlePath(64, 64, 44), CREAM);
+    for (var q = 0; q < 4; q++) {
+      inked(ctx, (function (q) {
+        return function (g) {
+          g.arc(64, 64, 44, q * Math.PI / 2 + 0.3, q * Math.PI / 2 + 1.27);
+          g.arc(64, 64, 22, q * Math.PI / 2 + 1.27, q * Math.PI / 2 + 0.3, true); g.closePath();
+        };
+      })(q), CC_RED, 3);
+    }
+    inked(ctx, circlePath(64, 64, 22), '#2a3a4a', 5);
+    stroked(ctx, function (g) { g.arc(64, 64, 33, 0, Math.PI * 2); }, '#d8c8a0', 2);
+  });
+
+  emblem('em_cc_medal', function (ctx) {
+    // a hero's medal on a striped ribbon
+    inked(ctx, poly([[40, 10], [60, 10], [72, 54], [52, 54]]), CC_RED, 5);
+    inked(ctx, poly([[68, 10], [88, 10], [76, 54], [56, 54]]), CC_BLUE, 5);
+    inked(ctx, circlePath(64, 80, 30), CC_GOLD);
+    inked(ctx, function (g) {
+      for (var i = 0; i < 10; i++) {
+        var r = i % 2 ? 7 : 17, a = i * Math.PI / 5 - Math.PI / 2;
+        g[i ? 'lineTo' : 'moveTo'](64 + Math.cos(a) * r, 80 + Math.sin(a) * r);
+      }
+      g.closePath();
+    }, '#fff1a8', 3);
+  });
+
+  emblem('em_cc_crate', function (ctx) {
+    // a supply crate floating down on its parachute
+    inked(ctx, function (g) { g.moveTo(14, 46); g.quadraticCurveTo(64, -6, 114, 46); g.quadraticCurveTo(64, 34, 14, 46); },
+          CC_RED);
+    stroked(ctx, function (g) { g.moveTo(18, 46); g.lineTo(44, 74); g.moveTo(110, 46); g.lineTo(84, 74);
+      g.moveTo(64, 38); g.lineTo(64, 74); }, CREAM, 2);
+    inked(ctx, function (g) { g.rect(40, 72, 48, 42); }, '#a87a3a');
+    stroked(ctx, function (g) { g.moveTo(40, 93); g.lineTo(88, 93); g.moveTo(64, 72); g.lineTo(64, 114); }, '#5a3a1a', 4);
+  });
+
+  emblem('em_cc_map', function (ctx) {
+    // four towns on a stretch of coast, each with a tick
+    inked(ctx, function (g) {
+      g.moveTo(14, 22); g.lineTo(114, 22); g.lineTo(114, 106); g.lineTo(14, 106); g.closePath();
+    }, CC_SEA);
+    inked(ctx, function (g) {
+      g.moveTo(14, 22); g.lineTo(84, 22); g.quadraticCurveTo(70, 50, 90, 70); g.quadraticCurveTo(64, 90, 74, 106);
+      g.lineTo(14, 106); g.closePath();
+    }, '#d8c890', 4);
+    [[34, 40, CC_RED], [62, 46, CC_GOLD], [34, 84, CC_BLUE], [58, 92, '#5ad06a']].forEach(function (c) {
+      stroked(ctx, function (g) { g.moveTo(c[0] - 9, c[1]); g.lineTo(c[0] - 2, c[1] + 7); g.lineTo(c[0] + 10, c[1] - 7); },
+              c[2], 5);
+    });
+  });
+
   // @@ event world emblems go above this line @@
 
   void inked; void stroked; void poly; void circlePath; void CREAM; void INK;

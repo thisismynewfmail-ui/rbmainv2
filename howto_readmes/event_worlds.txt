@@ -123,6 +123,11 @@ An ArenaWorld subclass. Set the numbers, override the hooks you need:
                                            bot is up to for the Bots Zone)
   aim_heights(target)  where a bot aims on a target that is not a person's
                        shape (Prop Panic's hiders are the size of a teapot)
+  bot_push(player)     a horizontal drift (vx, vz) on a bot's body this tick:
+                       the gale or the current a person gets as a "knock"
+  callout(brain, lines, key)   a bot shouts a line in quick chat, when the
+                       world's ``callouts`` setting is on (one key per kind of
+                       thing, so it does not repeat itself)
   selftest(result)     optional: [(name, ok, detail)] eventtests.py checks
   observe()            optional: sampled every half second of a test run
 
@@ -147,7 +152,8 @@ hud(state), and can change how players are drawn (avatarParts, disguised,
 noPet -- a player who is a teapot has no hat sparkles and no pet), moved
 (moveScale, canJump, gravityScale; a plugin may set client.local.size for a
 body of another shape) and fired (canFire, isCustom, localFire), put the
-camera behind the player (thirdPerson) and take the reload key (reloadDown).
+camera behind the player (thirdPerson), take the reload key (reloadDown) and
+shake the view (jolt: [dx, dy, dz, dyaw] -- what is drawn moves, aim does not).
 arena.banner(), setRole(), setHold(), side() and flashScreen() are the HUD
 pieces it can use. Sounds: GameAudio.register(name, fn(vol)).
 
