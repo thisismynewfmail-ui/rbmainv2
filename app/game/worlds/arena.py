@@ -172,6 +172,8 @@ class ArenaWorld(GameInstance):
         self.dyn_on[key] = bool(on)
         self._rebuild_dynamic()
         self.broadcast({"t": "adyn", "on": {key: bool(on)}})
+        if on:
+            self._settle_on(key)
 
     def set_dynamic_group(self, group: str, on: bool) -> None:
         changed = {}
@@ -182,6 +184,29 @@ class ArenaWorld(GameInstance):
         if changed:
             self._rebuild_dynamic()
             self.broadcast({"t": "adyn", "on": changed})
+            for key, value in changed.items():
+                if value:
+                    self._settle_on(key)
+
+    def _settle_on(self, key: str) -> None:
+        """A solid just switched on under somebody's feet (a bridge deck
+        coming down at the bank, a floor sliding back): anybody it came up
+        through by no more than a step stands on it now, the way walking
+        onto it would have put them."""
+        boxes = ((self.area.get("dynamic") or {}).get(key) or {}).get("boxes") or []
+        if not boxes:
+            return
+        for player in self.players.values():
+            if not player.alive:
+                continue
+            x, y, z = player.pos
+            for lo, hi in boxes:
+                if lo[0] < x + 1.5 and hi[0] > x - 1.5 and lo[2] < z + 0.9 and hi[2] > z - 0.9 \
+                        and lo[1] < y + 5.0 and hi[1] > y and hi[1] - y <= 2.1:
+                    player.pos[1] = hi[1]
+                    if player.brain is None:
+                        self.correct(player)
+                    break
 
     def _rebuild_dynamic(self) -> None:
         boxes = []

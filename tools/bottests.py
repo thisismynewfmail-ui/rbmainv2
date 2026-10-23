@@ -145,7 +145,8 @@ class FakeHost:
         self.world = worlds.get_any(world_id)
         self.cls = load_world_class(world_id)
         self.map = self.cls.build_map()
-        self.nav = nav.NavGrid(world_id, self.map, GameInstance._build_colliders(self.map))
+        self.nav = nav.NavGrid(world_id, self.map, nav.walkable_colliders(
+            self.map, GameInstance._build_colliders(self.map)))
         if not self.nav._load_cache():
             self.nav.build()
             self.nav._save_cache()

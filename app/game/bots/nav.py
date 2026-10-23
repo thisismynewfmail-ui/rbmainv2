@@ -570,6 +570,19 @@ _grids: Dict[str, NavGrid] = {}
 _grids_lock = threading.Lock()
 
 
+def walkable_colliders(map_data: Dict[str, Any], colliders) -> list:
+    """The colliders a map is walked on: its static ones, plus an event
+    world's switchable solids that start switched on (a lift bridge down, a
+    gate across).  When one is switched off the bots' edge guard stops them
+    at the gap, the way a person waits for the bridge."""
+    extra = []
+    for area in ((map_data.get("markers") or {}).get("areas") or []):
+        for d in (area.get("dynamic") or {}).values():
+            if d.get("on"):
+                extra.extend((list(lo), list(hi)) for lo, hi in d.get("boxes") or [])
+    return list(colliders) + extra if extra else colliders
+
+
 def for_map(name: str, map_data: Dict[str, Any], colliders) -> NavGrid:
     """One graph per map per host process, shared by all its instances."""
     with _grids_lock:

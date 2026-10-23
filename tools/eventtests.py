@@ -326,7 +326,9 @@ def main(argv: List[str]) -> int:
         if "map" in groups:
             test_map(module, routes=not args.fast)
         if "play" in groups:
-            test_play(module, args.seconds)
+            # a world whose rounds run long (a race down a whole railroad)
+            # says how long a run it needs to see three of them
+            test_play(module, max(args.seconds, float(getattr(module, "TEST_SECONDS", 0))))
         if "sleep" in groups:
             test_sleep(module)
     print("\n%d passed, %d failed" % (len(PASSED), len(FAILED)))

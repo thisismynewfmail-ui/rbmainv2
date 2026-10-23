@@ -261,10 +261,14 @@ def backdrop(b: ArenaArea, kind: str, base: float, rng: random.Random,
             d = (hz if along_x else hx) + rng.uniform(depth * 0.3, depth)
             x, z = (u, sign * d) if along_x else (sign * d, u)
             c = rng.choice(palette)
+            # every piece stands on its own base height, so two that overlap
+            # never share a bottom face
+            sink = 3.0 + (i * 7 + len(side)) % 23 * 0.071
             if kind == "mesas":
                 h = rng.uniform(30, 90)
                 w = rng.uniform(40, 90)
-                b.box([x, base + h / 2, z], [w, h, w * rng.uniform(0.6, 1.0)], c, collide=False)
+                b.box([x, base - sink + (h + sink) / 2, z], [w, h + sink, w * rng.uniform(0.6, 1.0)],
+                      c, collide=False)
                 b.box([x, base + h + 2.0, z], [w * 0.92, 4.0, w * 0.6], palette[0], collide=False)
             elif kind == "peaks":
                 h = rng.uniform(80, 200)
@@ -283,7 +287,7 @@ def backdrop(b: ArenaArea, kind: str, base: float, rng: random.Random,
             elif kind == "city":
                 h = rng.uniform(40, 160)
                 w = rng.uniform(24, 46)
-                b.box([x, base + h / 2, z], [w, h, w], c, collide=False)
+                b.box([x, base - sink + (h + sink) / 2, z], [w, h + sink, w], c, collide=False)
                 for k in range(int(h // 14)):
                     if rng.random() < 0.35:
                         face = -sign * (w / 2 + 0.06)

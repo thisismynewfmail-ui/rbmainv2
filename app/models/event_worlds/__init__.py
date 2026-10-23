@@ -36,6 +36,7 @@ import importlib
 from typing import Any, Dict, List, Optional
 
 MODULES: List[str] = [
+    "rail_rivals",
 ]
 
 _loaded: Optional[List[Any]] = None

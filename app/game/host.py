@@ -116,7 +116,8 @@ class GameHost:
         self.nav = None
         try:
             from app.game.bots import nav as nav_module
-            colliders = GameInstance._build_colliders(self.map)
+            colliders = nav_module.walkable_colliders(
+                self.map, GameInstance._build_colliders(self.map))
             self.nav = nav_module.for_map(self.world_id, self.map, colliders)
         except Exception:
             if config.DEBUG:
