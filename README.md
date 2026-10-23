@@ -101,6 +101,7 @@ Basic Shotgun and a Basic Stick.
 | --- | --- | --- | --- |
 | **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
+| **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -269,6 +270,95 @@ four minutes is removed, and one stuck out of sight is moved; a wave that
 runs long hurries its stragglers on and brings any that are stuck somewhere
 they can walk to the survivors from; and a wave still going after nine
 minutes ends, so nobody unreachable can hold the server in one wave.
+
+### The event worlds
+The worlds below are *event worlds*: each is a server built the way Last
+Light is -- one map holding four or more separate areas, one played at a
+time, each with its own animated arrival sequence -- running a game mode of
+its own. They share one engine (`app/game/worlds/arena.py`, the client half
+in `static/js/game/arena.js`): rounds in three phases (the countdown, the
+round, the results card), a reel that lands on the next area when an area
+has had its rounds, per-area and per-team spawns that move up as the front
+moves, spectating for the fallen, a world's own kit, solids that switch on
+and off, the bots' hooks and the sleeping rounds. Each world brings its own
+badges (struck on a plate of its own), speech events, Bots Zone subtab,
+persona tag and world-page thumbnails. `howto_readmes/event_worlds.txt`
+walks through how one is put together; `python3 tools/eventtests.py <id>`
+tests one (catalogue, client, geometry, a round of bots, sleeping) and
+`python3 tools/shots.py <id> <area>` renders an area, its thumbnails or its
+arrival scenes with the game's own renderer.
+
+### Rail Rivals
+A payload race for up to sixteen. The **Crimson Line** (red) and the
+**Bluebird Express** (blue) each push an ore cart -- a little steam dinky with
+a bucket of gold -- along their own track from the west yards to the far
+terminus, and the first cart there wins (when the clock runs out, the one
+further down its line). The two tracks cross in the middle of every area, so
+every race comes to blows at the junction. Each area runs two races and the
+companies swap tracks for the second; then the reel lands on another
+railroad.
+
+**The cart** rolls while somebody of its own company stands within ten units
+of it and nobody of the other does: one pusher at walking pace, two a
+quarter faster, three or more half as fast again. An enemy beside it stops it
+dead (*contested*). Left alone for twelve seconds it rolls back -- never
+behind the last depot it passed. Every depot passed moves the company's
+spawns up the line.
+
+**Brake levers** stand beside every track. Hold **E** at one by the other
+company's track and their cart is locked for nine seconds -- unless one of
+them gets to the same lever and holds E to release it; a lever cools down
+after. **Coal**: hold E at a heap for a sack (you carry it on your back,
+a little slower), and E by your own cart to stoke it: half as fast again for
+ten seconds, stacking up to twenty-four.
+
+**The railroads**, each with a twist:
+
+* **Dustbowl Gulch** -- a gold town at the mouth of a red canyon at sundown:
+  Main Street with the Gilded Spur saloon, the bank and the hotel (stairs to
+  their roofs), the Bonanza Mine and its stamp mill, Boot Hill, a boxcar
+  siding and a timber siding, the Devil's Gate arch and a lookout butte.
+  *The signal*: hold the signal cabin on the junction tower, with nobody of
+  theirs in it, for three seconds and the junction signal is set against
+  the other company for twenty-two -- their cart stops short of the diamond.
+* **Silverpine Pass** -- a snowbound summit: both lines cross a frozen
+  finger lake on timber trestles (the ice, seven units down, is walkable --
+  a footbridge, dock stairs and an ice-fishing camp), meet at the summit
+  station and plow shed, and run through snow sheds (a solid uphill wall
+  with firing slits, a roof to fight on, a stair up) to the Silver Crown
+  Mine and its smelter, or the Timberline sawmill and lodge. *Snowdrifts*
+  come down on the track ahead of a cart; it stops at one until its own
+  company digs it out (hold E by it; two diggers dig twice as fast).
+* **Redrock Mesa** -- banded sandstone at sunset: a T. rex in the Bone Pit,
+  the lines crossing in a lantern-lit cavern under a mesa (stairs inside and
+  out to the ranch on top), and a river gorge cutting the area in two. *The
+  lift bridges*: each line crosses the gorge on a vertical-lift bridge, and
+  the other company can winch it up from its cabin on the east bank (a bell,
+  two seconds to get off the deck, then the deck rides up its towers). The
+  cart waits at the bank until it comes down -- by itself after eighteen
+  seconds, or when its own company winches it. Fall in the river and it
+  takes you.
+* **Lantern Deep** -- the lowest level of the mine: a cavern lit by lanterns,
+  crystal seams and glowing mushrooms, timbered galleries, the miners' camp,
+  St. Barbara's chapel, the Foundry and the Old Workings, with a lava chasm
+  under the Devil's Bridge where the lines cross. *Firedamp*: every forty
+  seconds or so a gas pocket at one of the warning boards hisses for six
+  seconds, then goes up -- deadly at its heart, a bad burn at its edge.
+
+**Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
+pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
+delivered), Lawman (raiders stopped by your cart), Photo Finish (won with
+theirs nine tenths of the way), Signalman, Snowplow, Bridgekeeper, Canary
+(out of a venting pocket in time) and Four Lines (a race won on every
+railroad).
+
+**Bots** take a job for the race by persona and settings -- pusher, raider,
+sniper on the water towers and decks, or a flexible hand who fetches coal
+and works the twist -- and run errands to the end once they start one: a
+lever ahead of the rival cart, the winch, the signal cabin, a drift, a heap.
+The Bots Zone's **Rail Rivals** subtab sets how many push and raid, how keen
+they are on the brakes, the coal and the twists, and how many always stay on
+the cart.
 
 ---
 

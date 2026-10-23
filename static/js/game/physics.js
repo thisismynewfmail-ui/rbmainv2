@@ -62,9 +62,26 @@
     });
   };
 
+  /* Solids that come and go: an event world's start gates, doors and
+     falling floors (static/js/game/arena.js keeps this list in step with
+     the server).  Few enough to test every one. */
+  Physics.prototype.setDynamic = function (boxes) {
+    this.dynamic = (boxes || []).map(function (b) {
+      return { minX: b[0][0], minY: b[0][1], minZ: b[0][2],
+               maxX: b[1][0], maxY: b[1][1], maxZ: b[1][2] };
+    });
+  };
+
   Physics.prototype.nearby = function (minX, maxX, minZ, maxZ) {
     var out = [];
     var seen = {};
+    var dyn = this.dynamic;
+    if (dyn) {
+      for (var d = 0; d < dyn.length; d++) {
+        var b = dyn[d];
+        if (b.maxX > minX && b.minX < maxX && b.maxZ > minZ && b.minZ < maxZ) out.push(b);
+      }
+    }
     var x0 = Math.floor(minX / this.cell), x1 = Math.floor(maxX / this.cell);
     var z0 = Math.floor(minZ / this.cell), z1 = Math.floor(maxZ / this.cell);
     for (var x = x0; x <= x1; x++) {

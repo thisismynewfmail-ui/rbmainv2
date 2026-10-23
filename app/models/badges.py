@@ -85,6 +85,15 @@ GAMES = {
     "event": "Events",
 }
 
+# Every event world (app/models/event_worlds/) strikes its badges on a plate
+# of its own -- a family with a ``mesh`` from static/js/engine/shapes.js --
+# and lists them under its own name.
+from . import event_worlds as _event_worlds  # noqa: E402
+
+for _module in _event_worlds.modules():
+    FAMILIES[_module.FAMILY[0]] = dict(_module.FAMILY[1])
+    GAMES[_module.WORLD["id"]] = _module.WORLD["name"]
+
 
 def _badge(badge_id: str, name: str, game: str, stat: str, thresholds: List[int],
            ranks: List[str], desc: str, emblem: str, family: str, unit: str,
@@ -240,6 +249,22 @@ def _event_badges() -> List[Dict[str, Any]]:
 
 
 BADGES_LIST.extend(_event_badges())
+
+
+def _world_badges() -> List[Dict[str, Any]]:
+    """Each event world's ladders, on its own plate."""
+    out = []
+    for module in _event_worlds.modules():
+        family = module.FAMILY[0]
+        for spec in module.BADGES:
+            badge_id, name, stat, thresholds, ranks, desc, emblem, unit = spec[:8]
+            extra = dict(spec[8]) if len(spec) > 8 else {}
+            out.append(_badge(badge_id, name, module.WORLD["id"], stat, list(thresholds),
+                              list(ranks), desc, emblem, family, unit, **extra))
+    return out
+
+
+BADGES_LIST.extend(_world_badges())
 BADGES: Dict[str, Dict[str, Any]] = {b["id"]: b for b in BADGES_LIST}
 BY_STAT: Dict[str, List[Dict[str, Any]]] = {}
 for _b in BADGES_LIST:
@@ -248,6 +273,8 @@ for _b in BADGES_LIST:
 # Stats that are not counted directly but worked out from others: the Grand
 # Tour is the number of areas with an ``ll_area_<id>`` mark.
 DERIVED = {"ll_areas": "ll_area_"}
+for _module in _event_worlds.modules():
+    DERIVED.update(getattr(_module, "DERIVED", None) or {})
 
 
 # ------------------------------------------------------------------ levels
@@ -589,6 +616,17 @@ def _build(badge: Dict[str, Any], level: int) -> List[Dict[str, Any]]:
         parts.append(place("snowflake", [0, 0, 0], [1.20, 1.20, 1.4], body, m="metal"))
         face_r = 0.30
         parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))
+    elif fam.get("mesh"):
+        # an event world's plate: any flat mesh, with a disc of enamel on it
+        size = fam.get("plate_size") or [1.08, 1.08, 0.9]
+        parts.append(place(fam["mesh"], [0, float(fam.get("plate_y", 0.0)), 0], size, body,
+                           r=fam.get("plate_r"), m="metal"))
+        face_r = float(fam.get("face_r", 0.33))
+        parts.append(place("disc", [0, float(fam.get("face_y", 0.0)), 0.045],
+                           [face_r * 2, face_r * 2, 0.5], face))
+        for k, c in enumerate(fam.get("stripes") or []):
+            parts.append(part("box", [0, face_r * 0.72 - k * 0.07, 0.10],
+                              [face_r * 1.4, 0.04, 0.02], c))
     else:  # moon
         parts.append(place("disc", [0, 0, 0], [1.0, 1.0, 0.85], body, m="metal"))
         face_r = 0.39

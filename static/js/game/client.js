@@ -74,6 +74,9 @@
     // Last Light's zombies, spectating and survival HUD (game/survival.js)
     this.survival = (this.world.mode === 'survival' && global.Survival)
       ? new global.Survival(this) : null;
+    // an event world's areas, rounds, spectating and HUD (game/arena.js)
+    this.arena = (this.world.engine === 'arena' && global.Arena)
+      ? new global.Arena(this) : null;
     this.fps = 60;
     this.lastFrame = performance.now();
     this.applySettings();
@@ -243,6 +246,10 @@
         self.survival.cycle(event.button === 2 ? -1 : 1);
         return;
       }
+      if (self.arena && self.arena.isWatching()) {
+        self.arena.cycle(event.button === 2 ? -1 : 1);
+        return;
+      }
       if (event.button === 0) { self.firing = true; self.tryFire(); }
       // Right click is the secondary action: scope or use the held item if it
       // has one, otherwise it does exactly what E does.
@@ -285,6 +292,7 @@
       if (action === 'reload') { self.net.send({ t: 'reload' }); return; }
       if (action === 'interact') {
         if (self.survival) { self.survival.useDown(event.repeat); return; }
+        if (self.arena) { self.arena.useDown(event.repeat); return; }
         self.interact();
         return;
       }
@@ -305,6 +313,7 @@
       var action = Settings.actionFor(event.code);
       if (action === 'scoreboard') { self.hud.toggleScoreboard(false); return; }
       if (action === 'interact' && self.survival) { self.survival.useUp(); return; }
+      if (action === 'interact' && self.arena) { self.arena.useUp(); return; }
       if (action) self.keys[action] = false;
     });
 
@@ -530,6 +539,8 @@
       if (down) this.tryFire();
       return;
     }
+    if (down && this.arena) { this.arena.useDown(false); return; }
+    if (!down && this.arena) { this.arena.useUp(); return; }
     if (down) this.interact();
   };
 
@@ -653,6 +664,7 @@
     });
     net.on('kill', function (msg) { self.onKill(msg); });
     if (this.survival) this.survival.bind(net);
+    if (this.arena) this.arena.bind(net);
     net.on('dmg', function (msg) { self.onDamage(msg); });
     net.on('dealt', function (msg) {
       self.hud.hitmarker();
@@ -758,8 +770,9 @@
     });
     net.on('round_start', function (msg) {
       self.hud.hideEndCard();
-      // a survival round announces its new area with its own banner
-      if (!self.survival) self.hud.toast('Round ' + msg.round + ' -- go!', 'good', true);
+      // a survival round (and an event world) announces its new area with
+      // its own banner
+      if (!self.survival && !self.arena) self.hud.toast('Round ' + msg.round + ' -- go!', 'good', true);
       if (msg.state) self.onState(msg.state);
     });
     net.on('respawned', function (msg) {
@@ -908,6 +921,7 @@
     this.staticParts = msg.map.parts;
     this.renderer.buildStatic(msg.map.parts);
     if (this.survival) this.survival.onMap(msg.map);
+    if (this.arena) this.arena.onMap(msg.map);
     this.local.pos = msg.you.pos ? msg.you.pos.slice() : [0, 20, 0];
     if (typeof msg.you.yaw === 'number') this.local.yaw = msg.you.yaw;
     this.state = msg.state || {};
@@ -983,6 +997,7 @@
       player.alive = !!row[9];
     }
     if (this.survival) this.survival.onSnapshot(msg);
+    if (this.arena) this.arena.onSnapshot(msg);
     if (this.gear) this.gear.onSnapshot(msg);
     var live = {};
     (msg.pr || []).forEach(function (row) {
@@ -1000,6 +1015,7 @@
     if (!state) return;
     this.state = state;
     if (this.survival) this.survival.onState(state);
+    if (this.arena) this.arena.onState(state);
     if (this.gear) this.gear.onState(state);
     this.hud.updateObjective(state);
     if (this.hud.scoreboardOpen) this.hud.renderScoreboard(state.scoreboard);
@@ -1140,8 +1156,10 @@
     var melee = stats.kind === 'melee';
     var gear = this.gear;
     if (gear && !gear.canFire(stats)) return;
-    var special = gear && gear.isGear(stats);
-    var noAmmo = special && (stats.kind !== 'cone' || !stats.mag);
+    if (this.arena && !this.arena.canFire(stats)) return;
+    var custom = this.arena && this.arena.isCustom(stats);
+    var special = (gear && gear.isGear(stats)) || custom;
+    var noAmmo = special && (custom || stats.kind !== 'cone' || !stats.mag);
     if (!melee && !noAmmo && stats.kind !== 'support' && this.ammo[this.slot] <= 0) {
       this.net.send({ t: 'reload' });
       return;
@@ -1152,6 +1170,10 @@
                   this.local.pos[2]];
     this.net.send({ t: 'fire', d: dir, o: origin });
     if (this.pets) this.pets.notify('shot', { id: this.myId });
+    if (custom) {
+      this.arena.localFire(stats, origin, dir);
+      return;
+    }
     if (special) {
       gear.localFire(stats, origin, dir);
       return;
@@ -1195,6 +1217,7 @@
       if (hit !== null && hit < distance) distance = hit;
     });
     if (this.survival) distance = this.survival.rayHit(origin, dir, distance);
+    if (this.arena) distance = this.arena.rayHit(origin, dir, distance);
     var end = [origin[0] + dir[0] * distance, origin[1] + dir[1] * distance,
                origin[2] + dir[2] * distance];
     // a tab in the background runs no frames to age these out, so keep only
@@ -1254,6 +1277,10 @@
       this.hud.setRespawn(null);      // the dead watch until the next wave
       return;
     }
+    if (!local.alive && this.arena && this.arena.isWatching()) {
+      this.hud.setRespawn(null);      // out of the round: watching it
+      return;
+    }
     if (!local.alive) {
       var remaining = this.respawnAt - performance.now() / 1000;
       this.hud.setRespawn(Math.max(0, remaining), this.deadBy);
@@ -1263,6 +1290,7 @@
     var speed = this.constants.walk || 22;
     if (this.keys.sprint) speed *= 0.45;
     if (this.survival) speed *= this.survival.moveScale();
+    if (this.arena) speed *= this.arena.moveScale();
     var gear = this.gear;
     if (gear) speed *= Math.max(0.0001, gear.moveScale());
     var held = gear && !gear.canMove();
@@ -1286,12 +1314,14 @@
       local.vel[2] *= friction;
     }
     if (this.keys.jump && local.grounded &&
-        (!this.survival || this.survival.canJump()) && (!gear || gear.canJump())) {
+        (!this.survival || this.survival.canJump()) && (!gear || gear.canJump()) &&
+        (!this.arena || this.arena.canJump())) {
       local.vel[1] = this.constants.jump || 34;
       local.grounded = false;
       this.audio.play('jump', { volume: 0.35 });
     }
-    local.vel[1] -= (this.constants.gravity || 62) * (gear ? gear.gravityScale() : 1) * dt;
+    local.vel[1] -= (this.constants.gravity || 62) * (gear ? gear.gravityScale() : 1) *
+      (this.arena ? this.arena.gravityScale() : 1) * dt;
     if (local.vel[1] < -140) local.vel[1] = -140;
 
     var result = this.physics.move(local, dt);
@@ -1340,6 +1370,10 @@
     if (this.survival && this.survival.isWatching()) {
       var watching = this.survival.camera();
       if (watching) return watching;
+    }
+    if (this.arena) {
+      var view = this.arena.camera();
+      if (view) return view;
     }
     if (!this.thirdPerson) {
       // EYE_HEIGHT sits a little above the middle of the head; the chase
@@ -1406,6 +1440,10 @@
       });
       if (self.survival) parts = self.survival.layDown(parts, player);
       if (self.gear && player.bits) parts = self.gear.avatarParts(player, parts, time);
+      if (self.arena) {
+        if (self.arena.hidden(player)) { self.renderer.dropTag('p' + player.id); return; }
+        parts = self.arena.avatarParts(player, parts, false);
+      }
       parts.forEach(function (part) { renderer.push(part); });
       self.drawShadow(player.pos);
       var hat = (player.avatar.items || {}).hat;
@@ -1421,6 +1459,9 @@
           var scale = Math.max(0.85, Math.min(3.4, 0.85 + distance * 0.011));
           var colour = player.team === 'red' ? '#ff9a90'
             : (player.team === 'blue' ? '#9ecbff' : '#ffe08a');
+          var custom = self.arena ? self.arena.nameTag(player) : null;
+          if (custom && custom.hide) return;
+          if (custom && custom.colour) colour = custom.colour;
           // Whose health you may read is a per-world rule.  Worlds that set
           // ``ally_health_only`` show it for your own side and give you
           // nothing but a name for the other one, so knowing an enemy is
@@ -1430,6 +1471,7 @@
           var show = self.world.mode !== 'endless' && !!player.team &&
             (self.world.ally_health_only ? ally : !ally);
           var sub = show ? Math.max(0, Math.round(player.health)) + ' hp' : '';
+          if (custom && custom.sub !== undefined) sub = custom.sub;
           renderer.queueTag('p' + player.id, player.name, colour, sub,
                             [player.pos[0], player.pos[1] + 7.6, player.pos[2]],
                             scale);
@@ -1451,6 +1493,11 @@
         if (this.survival && this.survival.me.downed) {
           parts = this.survival.layDown(parts, { id: this.myId, pos: this.local.pos,
                                                  yaw: this.local.yaw }, true);
+        }
+        if (this.arena) {
+          parts = this.arena.avatarParts({ id: this.myId, pos: this.local.pos,
+                                           yaw: this.local.yaw, team: this.myTeam,
+                                           avatar: this.avatar, alive: true }, parts, true);
         }
         parts.forEach(function (part) { renderer.push(part); });
       } else {
@@ -1525,6 +1572,7 @@
 
     if (this.extras) this.extras.draw(renderer, this.state, time, dt);
     if (this.survival) this.survival.draw(renderer, dt);
+    if (this.arena) this.arena.draw(renderer, dt, time);
     if (this.gear) this.gear.draw(renderer, dt, time);
     this.particles.update(dt);
     renderer.render();

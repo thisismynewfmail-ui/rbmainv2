@@ -7,6 +7,7 @@
         <div style="aspect-ratio:16/9;border:1px solid var(--preview-edge);border-radius:4px;overflow:hidden;margin-bottom:10px">
           <canvas class="world-shot" width="960" height="540" style="width:100%;height:100%;display:block"
                   data-world="{{ world.thumb }}" data-colors="{{ to_json(world.colors) }}"
+                  data-world-script="{{ world.get('thumb_script') or '' }}"
                   data-name="{{ world.name }}" data-big="1"></canvas>
         </div>
         <div class="spread">
@@ -46,15 +47,31 @@
           {% for area in world.areas %}
           <div class="ll-place">
             <div class="ll-shot"><canvas class="world-shot" width="512" height="288"
-                 data-world="ll_{{ area.id }}" data-name="{{ area.name }}"></canvas></div>
+                 data-world="{{ area.get('thumb') or ('ll_' + area.id) }}"
+                 data-world-script="{{ world.get('thumb_script') or '' }}"
+                 data-name="{{ area.name }}"></canvas></div>
             <b>{{ area.name }}</b>
             <p class="tiny muted">{{ area.blurb }}</p>
           </div>
           {% endfor %}
         </div>
       </div>
-      <div class="panel-foot tiny">Every area has its own safe room, ammunition crates, first-aid
-        cabinets, fuel barrels and one noise-maker that draws the whole horde to it.</div>
+      <div class="panel-foot tiny">{% if world.get('areas_note') %}{{ world.areas_note }}{% else %}Every area has its own safe room, ammunition crates, first-aid
+        cabinets, fuel barrels and one noise-maker that draws the whole horde to it.{% endif %}</div>
+    </div>
+    {% endif %}
+
+    {% if world.get('howto') %}
+    <div class="panel">
+      <div class="panel-head blue">How to play</div>
+      <div class="panel-body">
+        <div class="ev-howto">
+          {% for step in world.howto %}
+          <div class="ev-step"><b>{{ step.title }}</b><p class="tiny">{{ step.text }}</p></div>
+          {% endfor %}
+        </div>
+      </div>
+      {% if world.get('howto_note') %}<div class="panel-foot tiny">{{ world.howto_note }}</div>{% endif %}
     </div>
     {% endif %}
 

@@ -44,6 +44,21 @@ GROUP_WORLDS = {"all": ALL, "rounds": ROUNDS, "captures": CAPTURES,
                 "relay": RELAY, "payload": PAYLOAD, "tycoon": TYCOON,
                 "survival": SURVIVAL}
 
+# The event worlds (app/models/event_worlds/): every one has rounds, so the
+# round events apply to all of them, and each brings a group of its own.
+from ..models import event_worlds as _event_worlds  # noqa: E402
+
+_ARENA = tuple(_event_worlds.ids())
+ALL = ALL + _ARENA
+ROUNDS = ROUNDS + _ARENA
+GROUP_WORLDS["all"] = ALL
+GROUP_WORLDS["rounds"] = ROUNDS
+GROUPS[1] = ("rounds", "Rounds: Capture The Flag, Blackout Relay, Fortress Team 2"
+             + (" and the event worlds" if _ARENA else ""))
+for _module in _event_worlds.modules():
+    GROUPS.append((_module.WORLD["id"], _module.WORLD["name"]))
+    GROUP_WORLDS[_module.WORLD["id"]] = (_module.WORLD["id"],)
+
 
 class Kind:
     __slots__ = ("id", "label", "group", "chance", "help")
@@ -145,6 +160,13 @@ KINDS: List[Kind] = [
     Kind("biled", "Covered in bile", "survival", 25,
          "A Bloater bursts on somebody and the horde comes for them."),
 ]
+# each event world's own events, named with its prefix ("rr_brake")
+KIND_WORLD: Dict[str, Any] = {}
+for _module in _event_worlds.modules():
+    for _spec in getattr(_module, "SPEECH", []):
+        KINDS.append(Kind(_spec[0], _spec[1], _module.WORLD["id"], _spec[2], _spec[3]))
+        KIND_WORLD[_spec[0]] = _module
+
 KINDS_BY_ID: Dict[str, Kind] = {k.id: k for k in KINDS}
 DEFAULT_CHANCES: Dict[str, int] = {k.id: k.chance for k in KINDS}
 
@@ -186,6 +208,14 @@ def describe(event: Dict[str, Any], name: str, team: str) -> Tuple[str, str]:
     flag = str(event.get("team") or "")
     me = by and by == name
     mine = bool(team) and by_team == team
+    # an event world reads its own events first (and may read the round
+    # events its own way: a free-for-all is won by a person, not a team)
+    module = KIND_WORLD.get(kind) or (_event_worlds.by_id(str(event.get("world") or ""))
+                                      if event.get("world") else None)
+    if module is not None and hasattr(module, "describe"):
+        told = module.describe(kind, event, name, team)
+        if told:
+            return told
 
     if kind == "flag_take":
         if flag and flag == team:
@@ -560,6 +590,11 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("barrel", "actor"): ["boom", "lol", "kaboom"],
     ("biled", "victim"): ["run", "get away from him", "cover him", "ew"],
 }
+
+
+for _module in _event_worlds.modules():
+    for _key, _lines in (getattr(_module, "CANNED", None) or {}).items():
+        CANNED[tuple(_key)] = list(_lines)
 
 
 def canned(event: Dict[str, Any], relation: str, rng) -> Optional[str]:

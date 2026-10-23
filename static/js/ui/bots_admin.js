@@ -276,6 +276,7 @@
     if (BZ.sub === 'modifiers') { drawModifiers(); }
     if (BZ.sub === 'speech') { drawSpeech(); }
     if (BZ.sub === 'survival') { drawSurvival(); }
+    if (BZ.schema && sectionInfo(BZ.sub).world) { drawWorldLive(); }
   }
 
   /* The presence curve: the share of bots the director keeps online over
@@ -369,7 +370,7 @@
       var cls = (BZ.sub === sec.id ? 'on' : '') + (sec.parent ? ' child' : '');
       return '<button type="button" data-bz-sub="' + sec.id + '" class="' +
         cls.trim() + '" title="' + esc(sec.blurb) + '">' +
-        '<span class="ico">' + (ICONS[sec.id] || '•') + '</span>' +
+        '<span class="ico">' + (ICONS[sec.id] || sec.icon || '•') + '</span>' +
         '<span class="lbl">' + esc(sec.label) + '</span>' +
         '<span class="state ' + (state === null ? '' : (state ? 'on' : 'off')) + '"></span></button>';
     }).join('');
@@ -390,7 +391,8 @@
       messages: feedsPane, llm: llmPane, prompts: promptsPane,
       modifiers: modifiersPane, speech: speechPane
     }[BZ.sub];
-    html += '<div class="panel"><div class="panel-head purple"><span>' + (ICONS[BZ.sub] || '') + ' ' +
+    if (!extra && sec.world) extra = function () { return worldPane(sec); };
+    html += '<div class="panel"><div class="panel-head purple"><span>' + (ICONS[BZ.sub] || sec.icon || '') + ' ' +
       esc(sec.label) + '</span><span class="head-links">' + esc(sec.blurb) + '</span></div>' +
       '<div class="panel-body">' + familyTabs() + featureCards(BZ.sub) + (extra ? extra() : '') + '</div></div>';
     if (BZ.sub !== 'stats') html += settingsPanel(BZ.sub);
@@ -407,7 +409,7 @@
     if (family.length < 2) return '';
     return '<div class="bz-family">' + family.map(function (s) {
       return '<button type="button" class="btn small' + (s.id === BZ.sub ? ' primary' : '') +
-        '" data-bz-sub="' + s.id + '">' + (ICONS[s.id] || '') + ' ' + esc(s.label) + '</button>';
+        '" data-bz-sub="' + s.id + '">' + (ICONS[s.id] || s.icon || '') + ' ' + esc(s.label) + '</button>';
     }).join('') + '</div>';
   }
 
@@ -460,6 +462,42 @@
     }).join('');
   }
 
+  /* An event world's subtab: what each persona does there, and its live
+     rounds -- where they are being played and what every bot is up to. */
+  function worldPane(sec) {
+    return '<p class="bz-intro">' + esc(sec.intro || '') + ' The general In-Game Behaviour dials apply ' +
+      'here too: skill, reaction, tangents, AFK moments and the "anything can happen" floor.</p>' +
+      '<div class="bz-grid2"><div><div class="bz-feed-head"><b>What the persona does here</b></div>' +
+      '<table class="bz-mod-table"><tbody>' + (sec.ties || []).map(function (r) {
+        return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div><div class="bz-feed-head"><b>Live rounds</b></div><div class="bz-feed" id="bz-world-live"></div></div></div>';
+  }
+
+  function drawWorldLive() {
+    var box = el('bz-world-live');
+    if (!box || !BZ.overview) return;
+    var sec = sectionInfo(BZ.sub);
+    var rounds = (((BZ.overview.gamechat || {}).arena) || []).filter(function (r) {
+      return r.world === sec.world;
+    });
+    if (!rounds.length) {
+      box.innerHTML = '<span class="muted tiny">No round of ' + esc(sec.label) +
+        ' has a real player in it right now.</span>';
+      return;
+    }
+    box.innerHTML = rounds.map(function (r) {
+      return '<div class="bz-session"><div class="bz-session-head"><b>' + esc(r.area || sec.label) +
+        ' #' + r.inst + '</b> <span class="muted tiny">' + esc(r.summary || '') +
+        (r.people.length ? ' • with ' + r.people.map(esc).join(', ') : '') + '</span></div>' +
+        (r.bots || []).map(function (b) {
+          return '<div class="bz-line"><b>' + esc(b.name) + '</b>' +
+            (b.role ? ' <span class="pill tiny-pill">' + esc(b.role) + '</span>' : '') +
+            ' <span class="muted">' + esc(b.doing || '') + '</span></div>';
+        }).join('') + '</div>';
+    }).join('');
+  }
+
   function profilesPane() {
     return '<p class="tiny">Every new bot is dealt each of these settings on its own, from the chances in ' +
       'Settings below: an account can end up with a private inventory, a friends-only friends list and a dark ' +
@@ -477,6 +515,7 @@
     if (BZ.sub === 'modifiers') { drawModifiers(); }
     if (BZ.sub === 'speech') { drawSpeech(); }
     if (BZ.sub === 'survival') { drawSurvival(); }
+    if (sectionInfo(BZ.sub).world) { drawWorldLive(); }
     syncBands();
   }
 

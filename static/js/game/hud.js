@@ -231,6 +231,7 @@
     if (!board) return;
     rows = rows || this.client.state.scoreboard || [];
     var myId = this.client.myId;
+    if (this.client.arena && this.client.arena.renderScoreboard(rows)) return;
     var tycoon = this.client.world.mode === 'endless';
     if (this.client.world.mode === 'survival') {
       // one team against the horde: who is up, and what they have done
@@ -281,6 +282,10 @@
     if (mode === 'survival' && this.client.survival) {
       if (bar) bar.style.display = 'none';
       this.client.survival.updateObjective(state);
+      return;
+    }
+    if (this.client.arena) {
+      this.client.arena.updateObjective(state);
       return;
     }
     if (mode === 'captures') {

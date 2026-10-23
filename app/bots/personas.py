@@ -70,6 +70,12 @@ TRAIT_BASE: Dict[str, float] = {
     "caps": 0.04,
 }
 
+# Each event world (app/models/event_worlds/) is a world weight like the rest.
+from ..models import event_worlds as _event_worlds  # noqa: E402
+
+for _wid in _event_worlds.ids():
+    TRAIT_BASE.setdefault("w_" + _wid, 1.0)
+
 # Traits that are weights or multipliers rather than 0..1 dials.
 _UNBOUNDED = {"session", "night", "weekend"} | {
     k for k in TRAIT_BASE if k.startswith("w_") or k.startswith("wp_")}
@@ -271,6 +277,14 @@ TAGS: List[Dict[str, Any]] = [
        kindness=0.1),
 ]
 
+# ...and each event world brings its own "favourite world" tag, on the end of
+# the catalogue so every built-in tag keeps the bit it always had.
+for _module in _event_worlds.modules():
+    _tag = getattr(_module, "PERSONA_TAG", None)
+    if _tag:
+        TAGS.append(_t(_tag["id"], "world", _tag["label"], _tag["prompt"],
+                       _tag.get("weight", 1.0), **_tag.get("fx", {})))
+
 TAGS_BY_ID: Dict[str, Dict[str, Any]] = {t["id"]: t for t in TAGS}
 BUILTIN_TAG_IDS: List[str] = [t["id"] for t in TAGS]
 
@@ -439,7 +453,7 @@ PACK_ORDER = [
     "w_blackout_relay", "wp_sniper", "wp_shotgun", "wp_smg", "wp_rifle",
     "wp_melee", "wp_rocket", "lower", "emoji", "grammar", "abbrev", "caps",
     "w_last_light",
-]
+] + ["w_" + _wid for _wid in _event_worlds.ids()]
 
 
 def pack_traits(traits: Dict[str, float]) -> str:

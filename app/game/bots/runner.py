@@ -77,6 +77,9 @@ class BotRunner:
         self._human_check = 0.0
         # Last Light: survivors with minds of their own (bots/survival.py)
         self.survival = SurvivalPlan(self) if self.mode == "survival" else None
+        # an event world (app/game/worlds/arena.py) plays its own objective
+        # through hooks on the instance: bot_role, bot_objective, bot_me...
+        self.arena = getattr(instance, "engine", "") == "arena"
 
     @property
     def cfg(self) -> Dict[str, Any]:
@@ -162,6 +165,10 @@ class BotRunner:
             # full detail where somebody real is looking: their own spot in
             # the field, or whoever a dead or waiting player is watching
             humans = [_Point(p) for p in self.survival.attention]
+        elif self.arena and active:
+            # the same in an event world: a spectator's camera counts too
+            humans = [_Point(p) for p in inst.attention_points()] or humans
+            inst.bot_tick(moment)
         for brain in list(self.brains.values()):
             if active:
                 brain.step(dt)
@@ -393,6 +400,12 @@ class BotRunner:
                 {"name": p.get("name"), "owner": p.get("owner") or "", "built": p.get("built"),
                  "total": p.get("total"), "income": p.get("income")}
                 for p in plots if p.get("owner")][:5]
+        if self.arena:
+            try:
+                state.update(inst.bot_game_state())
+            except Exception:
+                import traceback
+                traceback.print_exc()
         state["people"] = [h.username for h in self.humans]
         state["players"] = len(inst.players)
         return state
@@ -417,6 +430,12 @@ class BotRunner:
                 me["plot"] = plot.name
                 me["built"] = len(plot.built)
                 me["coins"] = int(getattr(p, "coins", 0) or 0)
+        if self.arena:
+            try:
+                me.update(self.instance.bot_me(brain))
+            except Exception:
+                import traceback
+                traceback.print_exc()
         return me
 
     # ======================================================== speech events
@@ -468,6 +487,9 @@ class BotRunner:
                 event["of"] = len(getattr(inst, "checkpoint_fractions", []) or [])
         else:
             event.update(data)
+        if self.arena:
+            # an event world reads its own events (speech.describe)
+            event["world"] = inst.world_id
         self.speech.append(event)
         del self.speech[:-12]
         self.wants_report = True
@@ -682,6 +704,8 @@ class BotRunner:
     def urgent(self, brain: Brain) -> bool:
         """True while nothing should distract this bot from the objective:
         a flag carrier runs home, whatever mood it was in a moment ago."""
+        if self.arena:
+            return bool(self.instance.bot_urgent(brain))
         if self.mode != "captures":
             return False
         flags = getattr(self.instance, "flags", None) or {}
@@ -690,7 +714,9 @@ class BotRunner:
 
     def objective(self, brain: Brain) -> None:
         try:
-            if self.mode == "captures":
+            if self.arena:
+                self.instance.bot_objective(brain)
+            elif self.mode == "captures":
                 self._ctf(brain)
             elif self.mode == "payload":
                 self._payload(brain)
@@ -920,6 +946,13 @@ class BotRunner:
                 self.survival.spread(list(by_uid.values()))
             self._seed_chat(state, list(by_uid.values()))
             return
+        elif self.arena:
+            # an event world picks its round back up (its area, the clock,
+            # whatever its objective had got to) and places its own bots
+            inst.resume(state)
+            inst.bot_spread(list(by_uid.values()))
+            self._seed_chat(state, list(by_uid.values()))
+            return
         self._spread(by_uid, state)
         self._seed_chat(state, list(by_uid.values()))
 
@@ -1059,7 +1092,9 @@ class BotRunner:
                     at += rng.uniform(10, 60)
         chatty = sorted(players, key=lambda p: -(p.brain.t("chatty", 0.4) if p.brain else 0))
         for p in chatty[:rng.randint(1, 3)]:
-            if self.mode == "endless":
+            if self.arena:
+                options = list(getattr(inst, "BOT_CHATTER", None) or ["gg", "lol", "nice"])
+            elif self.mode == "endless":
                 options = ["nice restaurant", "lol", "how do i get money",
                            "we need the fryer", "almost arches"]
             elif self.mode == "survival":
@@ -1096,6 +1131,8 @@ class BotRunner:
                          "round_wins": dict(inst.round_wins),
                          "time_left": max(0.0, inst.round_ends - moment)})
         elif self.mode == "survival" and hasattr(inst, "sleep_state"):
+            live.update(inst.sleep_state())
+        elif self.arena:
             live.update(inst.sleep_state())
         elif self.mode == "endless" and hasattr(inst, "plots"):
             plots = []

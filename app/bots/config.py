@@ -58,6 +58,13 @@ WORLD_LABELS = {"burger_tycoon": "Burger Tycoon",
                 "fortress_team_2": "Fortress Team 2",
                 "blackout_relay": "Blackout Relay",
                 "last_light": "Last Light"}
+# The event worlds go on the end, in registry order (app/models/event_worlds/).
+from ..models import event_worlds as _event_worlds  # noqa: E402
+
+for _module in _event_worlds.modules():
+    WORLD_IDS.append(_module.WORLD["id"])
+    WORLD_LABELS[_module.WORLD["id"]] = _module.WORLD["name"]
+OPEN_WORLD_IDS = [w for w in WORLD_IDS if _world_registry.is_open(w)]
 
 # ------------------------------------------------------------------ prompts
 PROMPT_COMMENT = """You are a player on BLOCKHAVEN, an online block-game platform whose worlds are Blackout Relay (capture the flag at dusk) and Last Light (co-op zombie survival), with hats unboxed from crates, Unusual effects and badges. You are leaving a comment on the comment section of {target}'s profile page. Profile comments are short, casual and public, like a guestbook: greetings, compliments on an avatar or hat, "gg earlier", inviting someone to play, inside jokes between friends, replying to what was said before.
@@ -134,6 +141,12 @@ REASONING_EFFORTS = [
 
 # Sections drawn in the dashboard as a submenu of another one.
 SUBSECTIONS = {"survival": "ingame", "profiles": "ingame"}
+# every event world has a submenu of its own under In-Game Behaviour
+WORLD_SECTIONS: Dict[str, str] = {}      # section id -> world id
+for _module in _event_worlds.modules():
+    _section = _module.BOT_SECTION[0]
+    SUBSECTIONS[_section] = "ingame"
+    WORLD_SECTIONS[_section] = _module.WORLD["id"]
 
 # The profile settings a new bot is dealt, one weighted draw per setting.
 # The keys under "privacy" are the site's own privacy fields
@@ -191,6 +204,7 @@ SECTIONS = [
     ("worlds", "Joining Worlds", "How bots pick a world and an instance, and how empty instances sleep."),
     ("ingame", "In-Game Behaviour", "How bots play when a real player is in the round."),
     ("survival", "Last Light", "How bots play the zombie survival map: squads, lone wolves, the high ground and callouts."),
+] + [(m.BOT_SECTION[0], m.BOT_SECTION[1], m.BOT_SECTION[2]) for m in _event_worlds.modules()] + [
     ("profiles", "Profile Settings", "The privacy and account settings each new bot starts with."),
     ("friends", "Friends", "Bots adding and confirming friends."),
     ("chatter", "Chatter", "Profile comments, posts and likes between associated bots."),
@@ -770,6 +784,17 @@ FIELDS: List[Field] = [
       "{style} {worlds} {joined} {blurb}", rows=8),
 ]
 
+# Each event world's own subtab: its feature switch first, then its dials.
+# A world's settings are ``<section>.<key>`` here and reach its game host as
+# ``<section>_<key>`` (ingame_section below).
+for _module in _event_worlds.modules():
+    _section = _module.BOT_SECTION[0]
+    for _spec in _module.BOT_FIELDS:
+        _key, _label, _kind, _default, _help = _spec[:5]
+        _extra = dict(_spec[5]) if len(_spec) > 5 else {}
+        FIELDS.append(F("%s.%s" % (_section, _key), _label, _kind, _default, _section,
+                        _help, **_extra))
+
 FIELDS_BY_KEY: Dict[str, Field] = {f.key: f for f in FIELDS}
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -1026,10 +1051,19 @@ def schema() -> Dict[str, Any]:
         elif field.options == "events":
             entry["options"] = speech_catalogue.options()
         fields.append(entry)
-    return {"sections": [{"id": s, "label": l, "blurb": b,
-                          "parent": SUBSECTIONS.get(s)}
-                         for s, l, b in SECTIONS],
-            "fields": fields}
+    sections = []
+    for s, l, b in SECTIONS:
+        entry = {"id": s, "label": l, "blurb": b, "parent": SUBSECTIONS.get(s)}
+        world_id = WORLD_SECTIONS.get(s)
+        if world_id:
+            # an event world's subtab: its icon, what each persona does
+            # there, and which world's live rounds to show under it
+            module = _event_worlds.by_id(world_id)
+            entry.update({"world": world_id, "icon": module.BOT_SECTION[3],
+                          "ties": [list(t) for t in module.PERSONA_TIES],
+                          "intro": getattr(module, "BOT_INTRO", "")})
+        sections.append(entry)
+    return {"sections": sections, "fields": fields}
 
 
 def public_values() -> Dict[str, Any]:
@@ -1161,6 +1195,10 @@ def ingame_section() -> Dict[str, Any]:
            if k.startswith("ingame.")}
     out.update({k.replace(".", "_"): v for k, v in values.items()
                 if k.startswith("survival.")})
+    # the event worlds' own subtabs ride along the same way: "rr.brakes"
+    # arrives on the host as "rr_brakes"
+    out.update({k.replace(".", "_"): v for k, v in values.items()
+                if k.split(".", 1)[0] in WORLD_SECTIONS})
     for key in ("messages.ingame_chat", "messages.quick_reactions",
                 "messages.chat_per_minute", "messages.typing_cps",
                 "messages.chat_reply_chance", "worlds.sleep_grace_seconds",

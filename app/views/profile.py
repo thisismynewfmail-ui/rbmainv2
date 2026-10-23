@@ -4,7 +4,7 @@ from __future__ import annotations
 from ..http import router as R
 from ..http.router import Request
 from ..game import registry as game_registry
-from ..models import avatars, badges, inventory, pets, users, worlds
+from ..models import avatars, badges, event_worlds, inventory, pets, users, worlds
 from ..social import comments, follows, friends, posts
 from .base import (api_error, api_ok, flash_redirect, login_required, render,
                    router)
@@ -131,8 +131,9 @@ def edit_profile(req: Request):
     # Only what has been earned: a badge you have not unlocked is not shown
     # at all (it used to sit in the inventory greyed out, with its progress)
     earned_cards = [b for b in badges.collection(uid) if b["earned"]]
-    games = [("blackout_relay", "Blackout Relay"), ("last_light", "Last Light"),
-             ("market", "Crates"), ("event", "Events")]
+    games = [("blackout_relay", "Blackout Relay"), ("last_light", "Last Light")] + \
+        [(world_id, badges.GAMES.get(world_id, world_id))
+         for world_id in event_worlds.ids()] + [("market", "Crates"), ("event", "Events")]
     return render(req, "profile_edit.html", page_title="Edit profile",
                   privacy=users.privacy_of(fresh),
                   privacy_labels=users.PRIVACY_LABELS,

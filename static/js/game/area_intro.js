@@ -1583,14 +1583,25 @@
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     ctx.font = 'bold ' + Math.round(15 * s) + 'px ' + FONT;
-    ctx.fillStyle = '#ff8a6a';
+    ctx.fillStyle = info.kickerColour || '#ff8a6a';
     spaced(ctx, info.kicker || 'NEW LOCATION', W / 2, bar / 2, 8 * s);
     var by = H - bar / 2;
     ctx.font = 'bold ' + Math.round(14 * s) + 'px ' + FONT;
-    ctx.fillStyle = '#ffd27a';
+    ctx.fillStyle = info.accent || '#ffd27a';
     var round = 'ROUND ' + (info.round || 1);
     var lr = layout(ctx, round, 4 * s);
     spaced(ctx, round, 40 * s + lr.width / 2, by, 4 * s);
+    if (info.line !== undefined) {
+      // an event world: what this round is, in place of the tries
+      ctx.fillStyle = '#f4e6c8';
+      spaced(ctx, String(info.line).toUpperCase(), W / 2, by, 3 * s);
+      ctx.fillStyle = info.accent || '#ffd27a';
+      var name = String(info.logo || '').toUpperCase();
+      var ln = layout(ctx, name, 6 * s);
+      spaced(ctx, name, W - 40 * s - ln.width / 2, by, 6 * s);
+      ctx.restore();
+      return;
+    }
     var tries = info.tries || 3;
     var left = Math.max(0, tries - ((info.attempt || 1) - 1));
     var line = (left === tries ? tries + ' TRIES TO HOLD IT' : left + ' OF ' + tries +
@@ -1825,7 +1836,7 @@
     node.innerHTML = '<div class="ll-reel-k">SHUFFLING THE SERVER</div>' +
       '<div class="ll-reel-win"><div class="ll-reel-strip">' + strip.map(function (it, i) {
         return '<div class="ll-reel-item' + (i === target ? ' target' : '') +
-          '" style="--a:' + (ACCENT[it.id] || '#ffd27a') + '"><i></i>' + esc(it.name) + '</div>';
+          '" style="--a:' + (ACCENT[it.id] || it.accent || '#ffd27a') + '"><i></i>' + esc(it.name) + '</div>';
       }).join('') + '</div></div>';
     var stripNode = node.querySelector('.ll-reel-strip');
     var win = node.querySelector('.ll-reel-win');
@@ -1872,10 +1883,30 @@
     };
   }
 
+  /* An event world's arrival scenes (static/js/worlds/<id>.js) register
+     here, with the helpers every scene above is painted with.  A scene is
+     { setup(rng) -> data, draw(ctx, t, data, run), title(ctx, t, data, run),
+       cues: [[t, sound, volume]...], tagline, tagAt, tagY, shakes, accent }
+     on the 1600 x 900 stage; CLOSE is when the ring of light opens. */
+  function register(areaId, scene) {
+    SCENES[areaId] = scene;
+    if (scene.accent) ACCENT[areaId] = scene.accent;
+  }
+
   global.AreaIntro = {
     play: play, stop: stop, still: still, lamps: lamps, reel: reel,
+    register: register,
     has: function (areaId) { return !!SCENES[areaId]; },
     playing: function () { return !!current; },
-    DURATION: TOTAL
+    DURATION: TOTAL,
+    kit: {
+      VW: VW, VH: VH, CLOSE: CLOSE, TOTAL: TOTAL, TAU: TAU, FONT: FONT, HEAVY: HEAVY,
+      clamp: clamp, seg: seg, lerp: lerp, outCubic: outCubic, inCubic: inCubic,
+      inOut: inOut, outBack: outBack, wobble: wobble, rgbOf: rgbOf, rgba: rgba, mix: mix,
+      rng: rng, between: between, sputter: sputter, buzz: buzz, glow: glow, dot: dot,
+      additive: additive, roundRect: roundRect, layout: layout, spaced: spaced,
+      fitSize: fitSize, split: split, stars: stars, makeStars: makeStars, bands: bands,
+      pine: pine, chain: chain, crow: crow, bat: bat
+    }
   };
 })(window);

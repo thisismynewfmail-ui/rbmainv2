@@ -375,8 +375,19 @@
         this.noise({ filter: 'bandpass', freq: 700, freqEnd: 300, dur: 0.4, gain: 0.1 * vol });
         break;
       default:
+        // a sound an event world brought with it (Audio.register)
+        if (CUSTOM[name]) CUSTOM[name].call(this, vol, options);
         break;
     }
+  };
+
+  /* Sounds the event worlds add (static/js/worlds/<id>.js), synthesised
+     with the same tone and noise helpers as the rest. */
+  var CUSTOM = {};
+  Audio.register = function (name, fn) { CUSTOM[name] = fn; };
+  Audio.prototype.later = function (ms, fn) {
+    var self = this;
+    setTimeout(function () { fn.call(self); }, ms);
   };
 
   global.GameAudio = Audio;

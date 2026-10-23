@@ -200,6 +200,9 @@ class Brain:
 
     def _pick_role(self) -> str:
         mode = self.runner.mode
+        if getattr(self.runner, "arena", False):
+            # an event world hands out its own jobs (app/game/worlds/arena.py)
+            return str(self.instance.bot_role(self) or "player")
         roll = self.rng.random()
         if mode == "captures":
             # persona first, then the team: a side with five people on its
@@ -276,6 +279,8 @@ class Brain:
                 revenge *= 0.35
             elif self.runner.mode == "survival":
                 revenge = 0.0
+            elif getattr(self.runner, "arena", False):
+                revenge *= float(getattr(self.instance, "BOT_REVENGE", 1.0))
             if self.rng.random() < revenge:
                 self.revenge = killer.pid
         if recent >= tilt_after and moment > self.tilt_until:
@@ -330,6 +335,16 @@ class Brain:
         gear = self.instance.gear
         crawl *= gear.move_scale(p)
         can_jump = gear.can_jump(p)
+        if getattr(self.runner, "arena", False):
+            # and so does whatever an event world says (a heavy chest, a
+            # frozen statue, paint underfoot)
+            crawl *= self.instance.move_scale(p)
+            can_jump = can_jump and self.instance.can_jump(p)
+            if self.instance.held_still(p):
+                # frozen, disguised, waiting at a start gate: the body stays
+                # put (gravity still applies) and nothing is planned
+                still = True
+                self.waypoints = []
         if not still and self.waypoints:
             target = self.waypoints[0]
             dx, dz = target[0] - p.pos[0], target[2] - p.pos[2]
@@ -741,6 +756,12 @@ class Brain:
         if self.runner.mode == "endless":
             weights["fight"] *= 0.12
             weights["revenge"] *= 0.3
+        if getattr(self.runner, "arena", False):
+            # an event world weighs the same moods its own way: nobody goes
+            # AFK on a dodgeball court, everybody explores a museum
+            weights = self.instance.bot_goal_weights(self, dict(weights)) or weights
+            if self.runner.humans == [] and "follow" in weights:
+                weights["follow"] = 0.0
         goal = self.rng.choices(list(weights), list(weights.values()))[0]
         self.goal = goal
         self.goal_data = {}

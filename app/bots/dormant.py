@@ -103,6 +103,10 @@ class Dormant:
         self.rounds_ended = 0
         # how full the bots let this one get before they open another
         self.cap = max(1, min(self.max, int(round(self.max * cap))))
+        self.engine = world.get("engine", "")
+        if self.engine == "arena":
+            self._arena_init(world, now)
+            return
         if self.mode == "captures":
             relay = self.world_id == "blackout_relay"
             self.target = 5 if relay else 3
@@ -149,7 +153,9 @@ class Dormant:
     def add(self, uid: int, now: float, skill: float = 0.5,
             objective: float = 0.6) -> str:
         self.advance(now)
-        if self.mode == "endless":
+        if self.engine == "arena":
+            team = self._arena_team()
+        elif self.mode == "endless":
             team = self._pick_plot(uid, now)
         elif self.mode == "survival":
             team = "survivors"
@@ -198,7 +204,9 @@ class Dormant:
         self.updated = now
         if not self.members:
             return
-        if self.mode == "captures":
+        if self.engine == "arena":
+            self._advance_arena(start, now, pace)
+        elif self.mode == "captures":
             self._advance_ctf(start, now, pace)
         elif self.mode == "payload":
             self._advance_payload(start, now, pace)
@@ -349,6 +357,93 @@ class Dormant:
             self.phase = "intermission"
             self.phase_until = t + 8.0
 
+    # ------------------------------------------------------- event worlds
+    # Every event world plays rounds in one of its areas and moves to another
+    # after a few of them.  Asleep, a round runs its usual length (a bit
+    # either way), is won by a side in proportion to how strong each is --
+    # or, in a free-for-all, by one player, likelier the better they are --
+    # and the server shuffles on once the area has had its rounds.  How long
+    # a round is and how many an area gets are the world's own numbers
+    # (``DORMANT`` in app/models/event_worlds/<id>.py).
+    def _arena_init(self, world: Dict[str, Any], now: float) -> None:
+        from ..models import event_worlds
+        module = event_worlds.by_id(self.world_id)
+        self.params = dict(getattr(module, "DORMANT", None) or {})
+        self.teams = list(self.params.get("teams") or TEAMS)
+        self.areas = [a["id"] for a in world.get("areas") or []] or ["main"]
+        self.area = self.rng.choice(self.areas)
+        self.area_round = 0
+        self.wins: Dict[str, int] = {}
+        self.phase = "active"
+        self.round_started = now
+        self.phase_until = now + self._arena_round_len()
+
+    def _arena_round_len(self) -> float:
+        return float(self.params.get("round_seconds", 300.0)) * self.rng.uniform(0.75, 1.15)
+
+    def _arena_team(self) -> str:
+        if self.teams == ["ffa"]:
+            return "ffa"
+        counts = self.team_counts()
+        return min(self.teams, key=lambda t: (counts.get(t, 0), self.rng.random()))
+
+    def _advance_arena(self, start: float, now: float, pace: float) -> None:
+        t = start
+        guard = 0
+        per_area = max(1, int(self.params.get("rounds_per_area", 1)))
+        while t < now and guard < 400:
+            guard += 1
+            if self.phase == "intermission":
+                if now < self.phase_until:
+                    return
+                t = self.phase_until
+                if self.area_round >= per_area:
+                    others = [a for a in self.areas if a != self.area] or self.areas
+                    self.area = self.rng.choice(others)
+                    self.area_round = 0
+                self.round += 1
+                self.round_started = t
+                for member in self.members.values():
+                    member.k = member.d = 0
+                if self.params.get("swap") and len(self.teams) == 2:
+                    for member in self.members.values():
+                        if member.team in self.teams:
+                            member.team = self.teams[1 - self.teams.index(member.team)]
+                self.phase = "active"
+                self.phase_until = t + self._arena_round_len() / max(0.1, pace)
+                continue
+            if now < self.phase_until:
+                return
+            t = self.phase_until
+            members = list(self.members.values())
+            if self.teams == ["ffa"]:
+                if members:
+                    weights = [0.3 + m.skill * 1.2 + m.objective * 0.3 for m in members]
+                    champ = self.rng.choices(members, weights)[0]
+                    champ.s += 50
+                    self.wins[champ.team] = self.wins.get(champ.team, 0) + 1
+            else:
+                strengths = {team: self._team_strength(team) for team in self.teams}
+                total = sum(strengths.values())
+                if total > 0:
+                    roll = self.rng.random() * total
+                    winner = self.teams[-1]
+                    for team in self.teams:
+                        roll -= strengths[team]
+                        if roll <= 0:
+                            winner = team
+                            break
+                    self.wins[winner] = self.wins.get(winner, 0) + 1
+                    for member in members:
+                        if member.team == winner:
+                            member.s += 50
+            for member in members:
+                member.s += int(10 + member.objective * 20)
+            self.rounds_ended += 1
+            self.area_round += 1
+            self.phase = "intermission"
+            self.phase_until = t + float(self.params.get("intermission", 18.0))
+
     # waves last about four minutes, with twenty seconds between them
     WAVE_SECONDS = 215.0
     BREATHER = 20.0
@@ -465,9 +560,21 @@ class Dormant:
                "humans": 0, "bots": len(self.members)}
         if self.mode == "survival":
             out["summary"] = "Wave %d" % max(1, self.wave)
+        if self.engine == "arena":
+            out["summary"] = "Round %d · %s" % (max(1, self.round), self._area_name())
         return out
 
+    def _area_name(self) -> str:
+        from ..models import worlds as world_registry
+        world = world_registry.get_any(self.world_id) or {}
+        for area in world.get("areas") or []:
+            if area["id"] == self.area:
+                return area["name"]
+        return self.area
+
     def summary(self) -> str:
+        if self.engine == "arena":
+            return "round %d, %s" % (max(1, self.round), self._area_name())
         if self.mode == "captures":
             return "%d-%d" % (self.captures["red"], self.captures["blue"])
         if self.mode == "payload":
@@ -483,8 +590,11 @@ class Dormant:
         """What one bot did while this instance slept, for its game stats."""
         minutes = max(0.0, now - member.seg_start) / 60.0
         base = COMBAT.get(self.mode, 0.5)
-        kills = poisson(self.rng, base * minutes * (0.35 + member.skill * 1.3))
         dying = DEATHS.get(self.mode, base)
+        if self.engine == "arena":
+            base = float(self.params.get("kills", 0.9))
+            dying = float(self.params.get("deaths", base))
+        kills = poisson(self.rng, base * minutes * (0.35 + member.skill * 1.3))
         deaths = poisson(self.rng, dying * minutes * (1.45 - member.skill * 0.9))
         score = kills * 10 + int(minutes * (6 + member.objective * 10))
         if self.mode == "survival":
@@ -503,9 +613,12 @@ class Dormant:
         since = max(member.joined, self.round_started)
         minutes = max(0.0, now - since) / 60.0
         base = COMBAT.get(self.mode, 0.5)
+        dying = DEATHS.get(self.mode, base)
+        if self.engine == "arena":
+            base = float(self.params.get("kills", 0.9))
+            dying = float(self.params.get("deaths", base))
         member.k += poisson(self.rng, base * minutes * (0.35 + member.skill * 1.3))
-        member.d += poisson(self.rng, DEATHS.get(self.mode, base) * minutes
-                            * (1.45 - member.skill * 0.9))
+        member.d += poisson(self.rng, dying * minutes * (1.45 - member.skill * 0.9))
         member.s += member.k * (2 if self.mode == "survival" else 10) + \
             int(minutes * (4 + member.objective * 8))
 
@@ -516,6 +629,22 @@ class Dormant:
         state: Dict[str, Any] = {"mode": self.mode, "round": self.round,
                                  "phase": self.phase,
                                  "phase_left": max(0.0, self.phase_until - now)}
+        if self.engine == "arena":
+            # a round under way is picked up where it had got to; one
+            # between rounds is the next one, somewhere new if it is time
+            area, area_round = self.area, self.area_round
+            per_area = max(1, int(self.params.get("rounds_per_area", 1)))
+            if self.phase == "intermission" and area_round >= per_area:
+                area = self.rng.choice([a for a in self.areas if a != area] or self.areas)
+                area_round = 0
+            length = float(self.params.get("round_seconds", 300.0))
+            left = max(0.0, self.phase_until - now) if self.phase == "active" else length
+            state.update({"area": area, "area_round": area_round,
+                          "time_left": left,
+                          "progress": max(0.0, min(1.0, 1.0 - left / max(1.0, length))),
+                          "wins": dict(self.wins),
+                          "between": self.phase != "active"})
+            return state
         if self.mode == "captures":
             state["captures"] = dict(self.captures)
             state["time_left"] = max(30.0, self.round_started + self.round_len - now)
@@ -560,6 +689,18 @@ class Dormant:
                                         "intermission", "restarting",
                                         "ended") else "active"
         self.phase_until = now + float(live.get("phase_left", 0) or 0)
+        if self.engine == "arena":
+            if live.get("area") in self.areas:
+                self.area = live["area"]
+            self.area_round = int(live.get("area_round", 0) or 0)
+            self.wins = {str(k): int(v) for k, v in (live.get("wins") or {}).items()}
+            if live.get("between"):
+                self.phase = "intermission"
+                self.phase_until = now + 10.0
+            else:
+                self.phase = "active"
+                self.phase_until = now + max(20.0, float(live.get("time_left", 120) or 120))
+            return
         if self.phase in ("ended", "restarting"):
             self.phase = "voting"
             self.phase_until = max(self.phase_until, now + 10.0)
@@ -603,6 +744,10 @@ class Dormant:
             "round_started": self.round_started, "rounds_ended": self.rounds_ended,
             "updated": self.updated, "cap": self.cap, "created": self.created,
             "members": {str(uid): m.dump() for uid, m in self.members.items()}}
+        if self.engine == "arena":
+            data.update({"area": self.area, "area_round": self.area_round,
+                         "wins": self.wins})
+            return data
         if self.mode == "captures":
             data["captures"] = self.captures
         elif self.mode == "payload":
@@ -625,6 +770,14 @@ class Dormant:
                 setattr(inst, key, data[key])
         inst.members = {int(uid): Member.load(row)
                         for uid, row in (data.get("members") or {}).items()}
+        if inst.engine == "arena":
+            if data.get("area") in inst.areas:
+                inst.area = data["area"]
+            inst.area_round = int(data.get("area_round", 0) or 0)
+            inst.wins = dict(data.get("wins") or {})
+            if inst.phase not in ("active", "intermission"):
+                inst.phase = "active"
+            return inst
         if inst.mode == "captures" and "captures" in data:
             inst.captures = data["captures"]
         elif inst.mode == "payload":
@@ -643,7 +796,15 @@ class Dormant:
 
     def warm(self, now: float) -> None:
         """Start partway through, as if it had been running a while."""
-        if self.mode == "captures":
+        if self.engine == "arena":
+            self.round = self.rng.randint(1, 6)
+            self.area_round = self.rng.randint(0, max(0, int(self.params.get(
+                "rounds_per_area", 1)) - 1))
+            self.updated = now - self.rng.uniform(20, 240)
+            self.round_started = self.updated
+            self.phase = "active"
+            self.phase_until = self.updated + self._arena_round_len()
+        elif self.mode == "captures":
             elapsed = self.rng.uniform(0.05, 0.85) * self.round_len
             self.round_started = now - elapsed
             self.round = self.rng.randint(1, 6)

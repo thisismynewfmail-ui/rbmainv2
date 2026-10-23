@@ -712,6 +712,10 @@
       box([-30, 6, 16], [24, 12, 16], '#5885a2', { st: 1 });
       box([-30, 12.6, 16], [26, 1.6, 18], '#3f6580');
       box([12, 4, 18], [12, 8, 12], '#8a5a2b', { st: 1 });
+    } else if (Thumbs.worldScenes[kind]) {
+      // an event world's diorama (static/js/worlds/<id>_thumbs.js)
+      parts.length = 0;
+      Thumbs.worldScenes[kind].build(parts, worldKit(parts));
     } else if (kind === 'relay') {
       relayScene(parts, box, tree, lamp, windows, bunker, relayBase);
     } else if (kind === 'lastlight' || kind.indexOf('ll_') === 0) {
@@ -1158,6 +1162,103 @@
     ll_docks: { top: '#0a111d', horizon: '#3c4c5a', sun: [0.45, 0.45, -0.62], clouds: 0.6, tint: '#b8c8d8' },
     ll_camp: { top: '#35366a', horizon: '#f0a060', sun: [-0.55, 0.16, 0.62], clouds: 0.38, tint: '#ffc080' }
   };
+
+  /* ---- the event worlds' dioramas ----------------------------------
+     Each world's thumbnail script registers its card and its areas here:
+       Thumbs.registerWorld('rr_dustbowl', { build: fn(parts, kit),
+                                             camera: [eye, target, fov],
+                                             sky: {...} });
+     and is loaded the first time a canvas asks for one of them
+     (data-world-script), so a page only fetches the worlds it shows.
+     Players in them wear the classic default: yellow skin, red torso,
+     blue legs -- teams are told apart by what they carry and wear. */
+  Thumbs.worldScenes = {};
+  Thumbs.registerWorld = function (kind, def) {
+    Thumbs.worldScenes[kind] = def;
+    if (def.camera) WORLD_CAMERAS[kind] = def.camera;
+    if (def.sky) WORLD_SKIES[kind] = def.sky;
+  };
+  var CLASSIC = { head: '#f5cd30', torso: '#c4281c', legs: '#0d69ac' };
+  var scriptLoads = {};
+  Thumbs.loadScript = function (url) {
+    if (!url) return Promise.reject(new Error('no script'));
+    if (!scriptLoads[url]) {
+      scriptLoads[url] = new Promise(function (resolve, reject) {
+        var tag = document.createElement('script');
+        tag.src = url;
+        tag.onload = function () { resolve(); };
+        tag.onerror = function () { reject(new Error('could not load ' + url)); };
+        document.head.appendChild(tag);
+      });
+    }
+    return scriptLoads[url];
+  };
+
+  function worldKit(parts) {
+    function add(part) { parts.push(part); return part; }
+    function box(p, s, c, extra) {
+      var part = { t: 'box', p: p, s: s, c: c };
+      if (extra) { for (var k in extra) part[k] = extra[k]; }
+      return add(part);
+    }
+    function shape(t, p, s, c, extra) {
+      var part = { t: t, p: p, s: s, c: c };
+      if (extra) { for (var k in extra) part[k] = extra[k]; }
+      return add(part);
+    }
+    /* A player in the classic colours.  ``o``: y, anim ('idle', 'run',
+       'walk', 'jump'), time, pitch, holding (item data {parts:[...]}), face
+       (a face item id from RELAY_FACES), wear: parts in the player's own
+       space (+Z is the way they face; the head's top is at y 5.9) for a
+       team hat, a bandana, a crown. */
+    function player(x, z, yaw, o) {
+      o = o || {};
+      var faceId = o.face || 'face_grin';
+      var desc = { colors: { head: CLASSIC.head, torso: CLASSIC.torso, left_arm: CLASSIC.head,
+                             right_arm: CLASSIC.head, left_leg: CLASSIC.legs,
+                             right_leg: CLASSIC.legs, hips: CLASSIC.legs },
+                   items: { face: { item_id: faceId, slot: 'face', data: RELAY_FACES[faceId] ||
+                                    RELAY_FACES.face_grin } } };
+      var y = o.y || 0;
+      var anim = o.anim || 'idle';
+      var time = o.time === undefined ? 0.4 : o.time;
+      Avatar.build(desc, { position: [x, y, z], yaw: yaw, pitch: o.pitch || 0, time: time,
+                           pose: Avatar.pose(anim, time, anim === 'run' ? 1 : 0, desc),
+                           holding: o.holding === undefined ? LL_GUN : o.holding })
+        .forEach(add);
+      if (o.wear) attach(x, y, z, yaw, o.wear);
+    }
+    /* Parts given in a local frame (+Z forward), turned by ``yaw`` and put
+       at (x, y, z). */
+    function attach(x, y, z, yaw, local) {
+      var c = Math.cos(yaw), sn = Math.sin(yaw);
+      local.forEach(function (lp) {
+        var px = lp.p[0], pz = lp.p[2];
+        var part = {};
+        for (var k in lp) part[k] = lp[k];
+        part.p = [x + px * c + pz * sn, y + lp.p[1], z - px * sn + pz * c];
+        var r = lp.r || [0, 0, 0];
+        part.r = [r[0], r[1] + yaw, r[2]];
+        add(part);
+      });
+    }
+    function tracer(from, to) { relayTracer(parts, from, to); }
+    function tree(x, z, scale, leaf) {
+      add({ t: 'cyl', p: [x, 2.4 * scale, z], s: [1.2 * scale, 5 * scale, 1.2 * scale], c: '#7c503a' });
+      add({ t: 'sph', p: [x, 6.6 * scale, z], s: [6 * scale, 5.4 * scale, 6 * scale], c: leaf || '#287f47' });
+    }
+    function pine(x, z, scale, leaf, y) {
+      y = y || 0;
+      add({ t: 'cyl', p: [x, y + 1.6 * scale, z], s: [0.9 * scale, 3.2 * scale, 0.9 * scale], c: '#5a3a22' });
+      for (var i = 0; i < 3; i++) {
+        add({ t: 'cone', p: [x, y + (3.6 + i * 2.2) * scale, z],
+              s: [(6 - i * 1.5) * scale, 3.6 * scale, (6 - i * 1.5) * scale], c: leaf || '#24502e' });
+      }
+    }
+    return { add: add, box: box, shape: shape, player: player, attach: attach,
+             tracer: tracer, tree: tree, pine: pine, gun: LL_GUN, CLASSIC: CLASSIC };
+  }
+  Thumbs.worldKit = worldKit;
 
   /* A portrait of one of the infected, for the world page's bestiary. */
   Thumbs.renderZombie = function (canvas, kind) {
@@ -1856,7 +1957,14 @@
     } else if (el.dataset.user) {
       Thumbs.renderAvatarFor(el, el.dataset.user);
     } else if (el.dataset.world) {
-      Thumbs.renderWorld(el, el.dataset.world, null);
+      var kind = el.dataset.world;
+      if (el.dataset.worldScript && !Thumbs.worldScenes[kind]) {
+        Thumbs.loadScript(el.dataset.worldScript).then(function () {
+          Thumbs.renderWorld(el, kind, null);
+        }, function () { Thumbs.renderWorld(el, kind, null); });
+        return;
+      }
+      Thumbs.renderWorld(el, kind, null);
     } else if (el.dataset.zombie) {
       Thumbs.renderZombie(el, el.dataset.zombie);
     }

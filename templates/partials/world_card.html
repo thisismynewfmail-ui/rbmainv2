@@ -2,6 +2,7 @@
   <a class="shot" href="/worlds/{{ row.world.id }}">
     <canvas class="world-shot" width="640" height="360"
             data-world="{{ row.world.thumb }}"
+            data-world-script="{{ row.world.get('thumb_script') or '' }}"
             data-colors="{{ to_json(row.world.colors) }}"
             data-name="{{ row.world.name }}"></canvas>
     <span class="live"><span class="dot {{ 'game' if row.status.players else 'off' }}"></span>

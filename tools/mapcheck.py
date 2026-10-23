@@ -74,6 +74,13 @@ MAPS = {
     "tycoon": tycoon,
 }
 
+# every event world's map, by world id (app/models/event_worlds/)
+from app.models import event_worlds  # noqa: E402
+
+for _world_id in event_worlds.ids():
+    import importlib as _importlib
+    MAPS[_world_id] = _importlib.import_module("app.game.maps.events.%s" % _world_id)
+
 MIN_FACE_OVERLAP = 1.0      # square units before a coplanar pair is worth a word
 PLANE_EPS = 1e-4
 AXES = ("x", "y", "z")
@@ -351,6 +358,13 @@ def check_playfield(solid: Solid, data: Dict[str, Any], step: float = 12.0
     each of them; the empty country between them is not playfield."""
     parts = data["parts"]
     regions = (data.get("markers") or {}).get("nav_regions")
+    areas = (data.get("markers") or {}).get("areas") or []
+    if areas and any("void" in a for a in areas):
+        # an event world: an area floating over open sky (an arena in the
+        # air, an obstacle course) is meant to have no floor round it
+        regions = [a["rect"] for a in areas if not a.get("void")]
+        if not regions:
+            return []
     if regions:
         # inside the boundary: the regions run out under the walls
         boxes = [(r[0] + 16.0 + step, r[1] - 16.0 - step, r[2] + 16.0 + step,
@@ -821,6 +835,14 @@ def check_reachability(solid: Solid, data: Dict[str, Any],
 def audit(name: str, module) -> int:
     data = module.build()
     parts = data["parts"]
+    # an event world's switchable solids that start switched on (a lift
+    # bridge down, a gate shut) are part of the map as it is first played
+    switched = [part for area in (data.get("markers") or {}).get("areas") or []
+                for d in (area.get("dynamic") or {}).values() if d.get("on")
+                for part in d.get("parts") or []]
+    if switched:
+        parts = parts + switched
+        data = dict(data, parts=parts)
     colliders = [p for p in parts if p.get("col")]
     solid = Solid(parts)
 
@@ -844,6 +866,10 @@ def audit(name: str, module) -> int:
             points.append(("%s safe spawn %d" % (area["id"], i), list(spawn["p"])))
         for i, spawn in enumerate(area.get("zspawn") or []):
             points.append(("%s zspawn %d" % (area["id"], i), list(spawn["p"])))
+        # an event world's areas carry spawns per team (and stage)
+        for team, spawns in (area.get("spawns") or {}).items():
+            for i, spawn in enumerate(spawns):
+                points.append(("%s %s spawn %d" % (area["id"], team, i), list(spawn["p"])))
     lobby = (data.get("markers") or {}).get("lobby")
     if lobby:
         for i, spawn in enumerate(lobby.get("safe") or []):
@@ -867,7 +893,15 @@ def audit(name: str, module) -> int:
         # each area on its own, from its safe room to everything in it
         route_problems = []
         for area in areas:
-            targets = [("%s safe spawn" % area["id"], area["safe"][0]["p"])]
+            if area.get("safe"):
+                targets = [("%s safe spawn" % area["id"], area["safe"][0]["p"])]
+            else:
+                targets = [("%s %s spawn" % (area["id"], team), spawns[0]["p"])
+                           for team, spawns in sorted((area.get("spawns") or {}).items())
+                           if spawns]
+                for team, spawns in sorted((area.get("spawns") or {}).items()):
+                    targets += [("%s %s spawn %d" % (area["id"], team, i), sp["p"])
+                                for i, sp in enumerate(spawns[1:], 1)]
             targets += [("%s zspawn %d" % (area["id"], i), z["p"])
                         for i, z in enumerate(area.get("zspawn") or [])]
             for kind, entries in (area.get("points") or {}).items():
@@ -875,7 +909,11 @@ def audit(name: str, module) -> int:
                             for i, e in enumerate(entries)]
             if area.get("lure"):
                 targets.append(("%s lure" % area["id"], area["lure"]["p"]))
-            route_problems += check_reachability(solid, data, targets,
+            # an event world's areas are walked on a finer grid: their
+            # stairs and walkways are a player's width or two across, and a
+            # five-unit grid steps straight over them
+            spacing = 5.0 if area.get("safe") else 2.5
+            route_problems += check_reachability(solid, data, targets, spacing=spacing,
                                                  area=tuple(area["rect"]))
     else:
         route_problems = check_reachability(solid, data, key_points)
@@ -897,10 +935,10 @@ def audit(name: str, module) -> int:
             print("  %-20s clean" % title)
             continue
         print("  %-20s %d problem(s)" % (title, len(items)))
-        for line in items[:14]:
+        for line in items[:int(os.environ.get("MAPCHECK_SHOW", "14"))]:
             print("      - %s" % line)
-        if len(items) > 14:
-            print("      ... and %d more" % (len(items) - 14))
+        if len(items) > int(os.environ.get("MAPCHECK_SHOW", "14")):
+            print("      ... and %d more" % (len(items) - int(os.environ.get("MAPCHECK_SHOW", "14"))))
     return (len(fights) + len(floating) + len(hanging) + len(walkable) +
             len(loose) + len(lopsided) + len(spawn_problems) +
             len(field_problems))
