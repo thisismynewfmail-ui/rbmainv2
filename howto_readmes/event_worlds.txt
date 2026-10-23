@@ -121,6 +121,8 @@ An ArenaWorld subclass. Set the numbers, override the hooks you need:
   bot_role / bot_objective / bot_goal_weights / bot_urgent / bot_context /
   bot_me / bot_spread / bot_tick           the bots (doing() notes what a
                                            bot is up to for the Bots Zone)
+  aim_heights(target)  where a bot aims on a target that is not a person's
+                       shape (Prop Panic's hiders are the size of a teapot)
   selftest(result)     optional: [(name, ok, detail)] eventtests.py checks
   observe()            optional: sampled every half second of a test run
 
@@ -141,8 +143,11 @@ aload (kit), adyn (switchable solids); snapshots carry snapshot_extra() as
 
 Hooks are listed at the top of static/js/game/arena.js. The plugin draws
 what the world adds (carts, props, paint), returns the objective panel from
-hud(state), and can change how players are drawn (avatarParts), moved
-(moveScale, canJump, gravityScale) and fired (canFire, isCustom, localFire).
+hud(state), and can change how players are drawn (avatarParts, disguised,
+noPet -- a player who is a teapot has no hat sparkles and no pet), moved
+(moveScale, canJump, gravityScale; a plugin may set client.local.size for a
+body of another shape) and fired (canFire, isCustom, localFire), put the
+camera behind the player (thirdPerson) and take the reload key (reloadDown).
 arena.banner(), setRole(), setHold(), side() and flashScreen() are the HUD
 pieces it can use. Sounds: GameAudio.register(name, fn(vol)).
 
@@ -175,6 +180,10 @@ b.dynamic(key, parts, on). b.void = True for an area over open sky.
 
 The rules are Last Light's (app/game/maps/lastlight/kit.py): one ground
 plane laid with Surfaces, solids abut, anything reachable is solid.
+A text decal is squeezed into one square atlas cell and stretched over the
+face it is printed on, so keep a sign's aspect modest; a building's name
+goes up in kit.letters() (a board per letter). The same goes for a floor
+pattern: lay a big floor in squares (prop_panic/rooms.py's tiled()).
 tools/mapcheck.py <id> must come back clean.
 
 

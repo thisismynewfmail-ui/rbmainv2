@@ -520,8 +520,10 @@ class Brain:
             budget = self.runner.path_budget()
             nodes = grid.astar(start, goal, budget) or []
         los = None
-        if self.runner.mode == "survival":
-            inst = self.instance
+        inst = self.instance
+        # a shortcut must be open, not just floored on both sides: the camps'
+        # tents, and the event worlds' rooms, have walls thinner than the grid
+        if self.runner.mode == "survival" or getattr(inst, "engine", "") == "arena":
             los = lambda a, b: inst.line_of_sight([a[0], a[1] + 1.2, a[2]],  # noqa: E731
                                                   [b[0], b[1] + 1.2, b[2]])
         points = grid.smooth(p.pos, nodes, 12, los=los)
@@ -978,7 +980,11 @@ class Brain:
         eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
         # lead a moving target a little, badly
         lead = 0.0 if kind != "projectile" else distance / float(stats.get("speed", 70) or 70)
-        body_y, head_y = getattr(tgt, "aim_heights", (3.0, 4.6))
+        # a world whose bodies are not all people-shaped (a hider disguised
+        # as a teapot) says where on them to aim
+        hook = getattr(self.instance, "aim_heights", None)
+        body_y, head_y = (hook(tgt) if hook is not None else None) or \
+            getattr(tgt, "aim_heights", (3.0, 4.6))
         head = self.rng.random() < 0.12 + self.skill * 0.18
         if getattr(tgt, "kind", "") == "bomber":
             head = self.rng.random() < 0.35 + self.skill * 0.4   # defuse it

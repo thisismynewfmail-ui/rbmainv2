@@ -289,7 +289,11 @@
       if (action === 'chat') { event.preventDefault(); self.hud.openChat(false); return; }
       if (action === 'teamchat') { event.preventDefault(); self.hud.openChat(true); return; }
       if (action === 'camera') { event.preventDefault(); self.toggleCamera(); return; }
-      if (action === 'reload') { self.net.send({ t: 'reload' }); return; }
+      if (action === 'reload') {
+        if (self.arena && self.arena.reloadDown()) return;
+        self.net.send({ t: 'reload' });
+        return;
+      }
       if (action === 'interact') {
         if (self.survival) { self.survival.useDown(event.repeat); return; }
         if (self.arena) { self.arena.useDown(event.repeat); return; }
@@ -1447,6 +1451,10 @@
       parts.forEach(function (part) { renderer.push(part); });
       self.drawShadow(player.pos);
       var hat = (player.avatar.items || {}).hat;
+      if (self.arena && self.arena.disguised(player)) {
+        self.particles.clearEmitter('hat' + player.id);
+        hat = null;
+      }
       if (hat && hat.tier === 'unusual' && hat.effect_def && Settings.particles) {
         self.particles.setEmitter('hat' + player.id, hat.effect_def,
                                   Avatar.hatAnchor(player.pos, player.yaw, hat));
@@ -1482,8 +1490,9 @@
     // ---- own avatar
     var holdingSelf = this.currentWeapon();
     var watching = this.survival && this.survival.isWatching();
+    var forced = this.arena && this.arena.forcesThird();
     if (this.local.alive) {
-      if (this.thirdPerson || watching) {
+      if (this.thirdPerson || watching || forced) {
         var parts = Avatar.build(this.avatar, {
           position: this.local.pos, yaw: this.local.yaw, pitch: this.local.pitch,
           time: time, holding: holdingSelf,
@@ -1510,6 +1519,10 @@
       }
       this.drawShadow(this.local.pos);
       var myHat = (this.avatar.items || {}).hat;
+      if (forced) {
+        this.particles.clearEmitter('hatme');
+        myHat = null;
+      }
       if (myHat && myHat.tier === 'unusual' && myHat.effect_def && Settings.particles
           && this.thirdPerson) {
         this.particles.setEmitter('hatme', myHat.effect_def,

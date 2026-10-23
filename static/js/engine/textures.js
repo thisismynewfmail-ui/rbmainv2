@@ -607,6 +607,29 @@
     }
   });
 
+  // tiles: a chequer of polished floor tiles over the part's own colour,
+  // with a veined light tile, a darker one and the grout between them
+  painter('tiles', function (ctx) {
+    var rnd = scatter(83), n = 4, s = CELL / n;
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        ctx.fillStyle = (r + c) % 2 ? 'rgba(0,0,0,0.20)' : 'rgba(255,255,255,0.10)';
+        ctx.fillRect(c * s, r * s, s, s);
+        ctx.strokeStyle = (r + c) % 2 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(c * s + rnd() * s, r * s);
+        ctx.quadraticCurveTo(c * s + rnd() * s, r * s + s / 2, c * s + rnd() * s, r * s + s);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(40,32,24,0.38)';
+    for (var k = 0; k < n; k++) {
+      ctx.fillRect(k * s, 0, 1.5, CELL);
+      ctx.fillRect(0, k * s, CELL, 1.5);
+    }
+  });
+
   // planks: a crate's boards, grain, gaps and nail heads
   painter('planks', function (ctx) {
     var rnd = scatter(29);

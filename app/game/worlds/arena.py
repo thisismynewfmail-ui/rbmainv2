@@ -900,6 +900,11 @@ class ArenaWorld(GameInstance):
     def bot_role(self, brain) -> str:
         return "player"
 
+    def aim_heights(self, target) -> Optional[Tuple[float, float]]:
+        """Subclass hook: where on ``target`` a bot aims (body, head) above
+        its feet, when that is not a person's chest and head."""
+        return None
+
     def bot_goal_weights(self, brain, weights: Dict[str, float]) -> Dict[str, float]:
         return weights
 

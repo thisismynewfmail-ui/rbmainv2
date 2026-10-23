@@ -128,7 +128,10 @@
   };
 
   Physics.prototype.moveOnce = function (state, dt) {
-    var hw = SIZE.w / 2, hd = SIZE.d / 2, h = SIZE.h;
+    // a body may carry its own size (an event world's disguise); the
+    // default is a person's
+    var size = state.size || SIZE;
+    var hw = size.w / 2, hd = size.d / 2, h = size.h;
     var pos = state.pos, vel = state.vel;
     var result = { grounded: false, hitWall: false, landed: false, headBump: false };
     var candidates = this.nearby(
@@ -146,7 +149,7 @@
         // try stepping up onto low ledges
         if (box.maxY - pos[1] <= STEP_HEIGHT && box.maxY > pos[1]) {
           var lifted = box.maxY + 0.02;
-          if (!this.blocked(nx, lifted, pos[2], candidates)) {
+          if (!this.blocked(nx, lifted, pos[2], candidates, size)) {
             pos[1] = lifted;
             continue;
           }
@@ -169,7 +172,7 @@
                       nz - hd, nz + hd)) continue;
         if (box.maxY - pos[1] <= STEP_HEIGHT && box.maxY > pos[1]) {
           var lifted2 = box.maxY + 0.02;
-          if (!this.blocked(pos[0], lifted2, nz, candidates)) {
+          if (!this.blocked(pos[0], lifted2, nz, candidates, size)) {
             pos[1] = lifted2;
             continue;
           }
@@ -218,8 +221,9 @@
     return result;
   };
 
-  Physics.prototype.blocked = function (x, y, z, candidates) {
-    var hw = SIZE.w / 2, hd = SIZE.d / 2, h = SIZE.h;
+  Physics.prototype.blocked = function (x, y, z, candidates, size) {
+    size = size || SIZE;
+    var hw = size.w / 2, hd = size.d / 2, h = size.h;
     candidates = candidates || this.nearby(x - hw - 1, x + hw + 1, z - hd - 1, z + hd + 1);
     for (var i = 0; i < candidates.length; i++) {
       if (overlaps(candidates[i], x - hw, x + hw, y + 0.05, y + h, z - hd, z + hd)) {

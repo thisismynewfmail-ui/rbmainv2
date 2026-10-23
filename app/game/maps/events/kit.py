@@ -331,3 +331,28 @@ def ring_points(cx: float, cz: float, radius: float, count: int,
         x, z = cx + math.sin(a) * radius, cz + math.cos(a) * radius
         out.append((x, z, math.atan2(cx - x, cz - z)))
     return out
+
+
+def letters(b: MapBuilder, x: float, y: float, z: float, text: str, h: float,
+            background: str, colour: str, facing: str = "z+", depth: float = 0.3,
+            pitch: float = 0.0) -> None:
+    """A building's name in channel letters: one board per letter, centred
+    on (``x``, ``y``, ``z``) and reading left to right from the side it
+    faces.  A text decal is squeezed into one square atlas cell, so a long
+    name on a single board blurs; a letter to a board stays crisp at any
+    size.  The boards' backs lie on the plane through the centre, so it
+    goes on the face of the wall they are fixed to."""
+    pitch = pitch or h * 0.86
+    width = pitch - h * 0.08
+    run = {"z+": (1.0, 0.0), "z-": (-1.0, 0.0), "x+": (0.0, -1.0), "x-": (0.0, 1.0)}[facing]
+    out = {"z+": (0.0, 1.0), "z-": (0.0, -1.0), "x+": (1.0, 0.0), "x-": (-1.0, 0.0)}[facing]
+    turn = {"z+": 0.0, "z-": math.pi, "x+": math.pi / 2.0, "x-": -math.pi / 2.0}[facing]
+    advances = [pitch * (0.55 if ch == " " else 1.0) for ch in text]
+    along = -sum(advances) / 2.0
+    for ch, step in zip(text, advances):
+        if ch != " ":
+            centre = along + step / 2.0
+            b.box([x + run[0] * centre + out[0] * depth / 2.0, y,
+                   z + run[1] * centre + out[1] * depth / 2.0], [width, h, depth], background,
+                  r=[0.0, turn, 0.0], decal=sign_decal(ch, background, colour, width / h))
+        along += step
