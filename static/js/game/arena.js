@@ -583,6 +583,12 @@
     return !!this.call('disguised', player);
   };
 
+  /* A shake of the view this frame -- [dx, dy, dz, dyaw] -- or null: an
+     earthquake, a blast close by.  Only what is drawn moves; aim does not. */
+  Arena.prototype.jolt = function () {
+    return this.call('jolt') || null;
+  };
+
   // ------------------------------------------------------- objective
   Arena.prototype.updateObjective = function (state) {
     var panel = el('objective');

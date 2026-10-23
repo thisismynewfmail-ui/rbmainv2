@@ -908,6 +908,12 @@ class ArenaWorld(GameInstance):
     def bot_goal_weights(self, brain, weights: Dict[str, float]) -> Dict[str, float]:
         return weights
 
+    def bot_push(self, player: Player) -> Optional[Tuple[float, float]]:
+        """Subclass hook: a horizontal drift (vx, vz) the world puts on a
+        bot's body this tick -- the gale or the current a person feels as
+        a ``knock`` -- or None."""
+        return None
+
     def bot_urgent(self, brain) -> bool:
         return False
 
@@ -993,6 +999,35 @@ class ArenaWorld(GameInstance):
         """Note what a bot is up to (the Bots Zone shows it, and its chat
         knows it)."""
         brain.p.extra["bot_doing"] = text
+
+    def callout(self, brain, lines: Sequence[str], key: str, chance: float = 1.0,
+                every: float = 25.0, team: bool = False) -> bool:
+        """A bot shouts one of ``lines`` in quick chat ("run!", "evac's
+        clear") when the world's ``callouts`` setting is on and the people
+        playing have quick reactions on.  ``key`` keeps one bot from saying
+        the same sort of thing twice inside ``every`` seconds; chatty
+        personas shout more, and the runner caps quick chat per minute."""
+        setting = getattr(self, "setting", None)
+        if setting is not None and not setting("callouts"):
+            return False
+        runner = brain.runner
+        cfg = runner.cfg
+        if not runner.humans or not lines or \
+                not cfg.get("messages_quick_reactions", True) or \
+                not cfg.get("messages_ingame_chat", True):
+            return False
+        moment = engine.now()
+        said = brain.p.extra.setdefault("callouts", {})
+        if moment - said.get(key, -999.0) < every:
+            return False
+        if brain.rng.random() > chance * (0.3 + brain.t("chatty", 0.4)):
+            return False
+        said[key] = moment
+        from ..bots.brain import styled
+        text = styled(brain.rng.choice(list(lines)), brain.traits, brain.rng)
+        runner.queue_chat(brain, text, brain.rng.uniform(0.4, 1.8), quick=True,
+                          team=team and bool(brain.p.team))
+        return True
 
 
 def ffa_leader(players: Iterable[Player], key) -> str:

@@ -374,6 +374,14 @@ class Brain:
                 vx += sx
                 vz += sz
                 moving = True
+        if getattr(self.runner, "arena", False):
+            # a gale or a flood's current carries the body the way a knock
+            # carries a person's
+            push = self.instance.bot_push(p)
+            if push:
+                vx += push[0]
+                vz += push[1]
+                moving = True
         if not moving and not self.airborne and moment < self.jumpy_until \
                 and can_jump and self.rng.random() < dt * 1.6:
             self.airborne = True

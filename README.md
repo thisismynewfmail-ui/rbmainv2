@@ -103,6 +103,7 @@ Basic Shotgun and a Basic Stick.
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 | **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
+| **Calamity Coast** | `/calamity_coast` | Disaster survival: two rescue teams ride out three disasters a round -- tsunamis, tornadoes, avalanches, eruptions, the great fire -- and carry the stranded to safety; no PvP | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -430,6 +431,81 @@ anything that moved, follow squeaks, the cat, the price tags and the alarm,
 and take guesses. The Bots Zone's **Prop Panic** subtab sets how still they
 keep, how well they hide, how often they taunt, drop decoys, guess and sniff,
 how sharp their eyes are and how hard they play each place's twist.
+
+### Calamity Coast
+Disaster survival for up to sixteen, in two rescue teams -- the
+**Lifeguards** and the **Rangers**. Nobody can hurt anybody: the town does
+all the hurting. A round is three disasters, one after another, the third
+always the big one (a quarter worse and a little longer).
+
+**The calm** before each disaster names it, with a hint (*"Get above the
+second terrace!"*), and lasts sixteen seconds; the siren sounds for the last
+seven and the sky starts to turn. In the calm, **supply crates** parachute
+in (walk over one: a **life ring** floats you in water, a **hard hat**
+stops one hit from above, a **raincoat** keeps the cold and the hail off,
+**running shoes** make you quick for twenty-five seconds -- what drops leans
+towards what is coming), and two or three **townsfolk** are stranded in the
+worst places, waving for help. Hold **E** by one to put them over your
+shoulders (you walk slower) and carry them to the **EVAC** point, a helipad,
+for fifteen points of your own; a disaster that reaches them first takes
+them.
+
+**The disaster** then hits for most of a minute. Everyone still standing
+when it passes scores ten for their team; the fallen watch, and come back at
+the next calm. A roof is anything solid over your head; *in the lee* of a
+wall is out of the wind. The disasters are all made of the same few parts --
+water or lava **rising** to a height (below it you drown or burn), things
+**falling** on warning circles and landing on the first thing they hit,
+**gusts** that shove anyone in the open, a **tornado** walking a path, a
+**cold** meter that fills in the open and empties indoors or by a fire,
+**hail** on anyone not under a roof, a **quake** that brings parts of the
+town down, an **avalanche** or **rockslide** sweeping its lanes, a **fire**
+spreading from house to house and **sinkholes** cracking open under
+whoever is standing there -- so that every town has four of its own:
+
+* **Port Sunny** -- a seaside town on four terraces above the harbour, with
+  a lighthouse, the coastguard tower, the church belfry, the water tower, a
+  breakwater and two helipads. *Tsunami* (above the second terrace or
+  drown), *lightning storm* (strikes on anyone in the open), *meteor shower*
+  and a *tornado* down the high street throwing debris.
+* **Summit Village** -- a ski village up a mountainside: the lodge and its
+  fireplace, campfires and a hot spring, a rope bridge over the gorge, the
+  mine and its scaffold, a frozen lake, avalanche fences, and a cable car to
+  the peak, its station, the observatory and the helipad. *Avalanche* (five
+  lanes down the slope; get behind something), *blizzard* (cold and wind:
+  inside or by a fire), *earthquake* (the rope bridge and the scaffold give
+  way) and *rockslide*.
+* **Palm Key** -- a resort under a smoking volcano: the temple in the
+  jungle, the hotel (an outside stair to its roof), bungalows on stilts, the
+  beach, a pier and a seaplane. *Eruption* (lava down the north side and
+  lava bombs), *hurricane* (gale-force gusts and coconuts), *tsunami* and
+  *sinkholes* opening in the lawns.
+* **Old Town** -- a river town of timbered houses round the market square,
+  the cathedral under scaffolding, the town hall and its clock tower, the
+  inn, the bakery, the smithy and the mill, a stone bridge and an old wooden
+  one, and the castle on its hill with the helipad in the bailey.
+  *Earthquake* (the old bridge, the scaffolding and the castle walk come
+  down), *the great fire* (house to house; keep to the squares and the
+  river), *flood* (up the castle hill) and a *hailstorm*.
+
+**Badges** (struck on a life ring): Storm Chasers (rounds won), Still
+Standing (disasters survived), High Water, Eye of the Storm, Cold Feet, On
+Shaky Ground and Firewalker (each kind of disaster survived), Not a Scratch
+(a disaster without losing any health), Last One Standing, Lightning Rod (a
+strike taken on a hard hat), Lifesaver (rescues), Hero of the Hour (three
+rescues in a round), Supply Run (crates) and Every Town (a round won in
+every town).
+
+**Bots** read the coming disaster and head for the right kind of place --
+the high ground for water, a roof for anything falling, the open squares for
+a quake, a fire in a blizzard -- spreading out rather than piling into one
+spot, dodge the warning circles and run from the funnel, are carried by the
+gales and the floods like anyone else, and by persona take a job for the
+calm: rescuers fetch the stranded, scavengers race for the crates. They
+shout it all in quick chat (*high ground!*, *incoming*, *got one, cover
+me*). The Bots Zone's **Calamity Coast** subtab sets how many rescue and how
+many scavenge, how brave a rescuer is mid-disaster, how sharp their dodging
+is, and the callouts.
 
 ---
 

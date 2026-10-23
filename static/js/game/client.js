@@ -1416,6 +1416,11 @@
     renderer.resize();
     renderer.beginFrame(dt);
     var camera = this.cameraPosition();
+    var jolt = this.arena ? this.arena.jolt() : null;
+    if (jolt) {
+      camera = { eye: [camera.eye[0] + jolt[0], camera.eye[1] + jolt[1], camera.eye[2] + jolt[2]],
+                 yaw: camera.yaw + (jolt[3] || 0), pitch: camera.pitch };
+    }
     renderer.setCamera(camera.eye, camera.yaw, camera.pitch, this.currentFov());
 
     var time = this.time;
