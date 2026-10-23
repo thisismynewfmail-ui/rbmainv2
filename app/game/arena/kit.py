@@ -66,6 +66,7 @@ class ArenaArea(Area):
                          ground_colour, fog=fog)
         self.spawns: Dict[str, List[Dict[str, Any]]] = {}
         self.data: Dict[str, Any] = {}
+        self.shot: Dict[str, Any] = {}
 
     # ----------------------------------------------------------- spawning
     def team_spawn(self, team: str, x: float, y: float, z: float,
@@ -110,8 +111,19 @@ class ArenaArea(Area):
         entry.update(extra)
         self.data.setdefault(key, []).append(entry)
 
+    def thumb(self, eye: Sequence[float], look: Sequence[float], fov: float = 44.0,
+              figures: Sequence[Sequence[Any]] = (), props: Sequence[Dict[str, Any]] = (),
+              sky: Optional[Dict[str, Any]] = None) -> None:
+        """The place's picture for the world page (``app/game/arena/thumbs.py``
+        renders it from the real geometry): a camera, and the players posed
+        in it -- ``(x, y, z, yaw, pose, holding)`` in local coordinates, all
+        in the classic yellow, red and blue -- plus any props staged for the
+        shot (a wave, a meteor, a dropped bag) in local coordinates."""
+        self.shot = shot_spec(self, eye, look, fov, figures, props, sky)
+
     def finish(self) -> Dict[str, Any]:
         out = super().finish()
+        out["thumb"] = self.shot
         out["spawns"] = self.spawns
         # every pad, for the mapcheck probes and its route check: the first
         # one is where the routes start, so every team's room has to join up
@@ -120,8 +132,28 @@ class ArenaArea(Area):
         return out
 
 
+def shot_spec(area: "ArenaArea", eye: Sequence[float], look: Sequence[float], fov: float,
+              figures: Sequence[Sequence[Any]], props: Sequence[Dict[str, Any]],
+              sky: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {"eye": area.at(*eye), "look": area.at(*look), "fov": float(fov),
+                           "figures": [], "props": []}
+    for f in figures:
+        f = list(f) + [0.0, "idle", None][len(f) - 3:] if len(f) < 6 else list(f)
+        x, y, z, yaw, pose, holding = f[:6]
+        out["figures"].append({"p": area.at(x, y, z), "yaw": float(yaw), "pose": pose,
+                               "holding": holding, "extra": f[6] if len(f) > 6 else None})
+    for prop in props:
+        part = dict(prop)
+        part["p"] = area.at(*part["p"])
+        out["props"].append(part)
+    if sky:
+        out["sky"] = sky
+    return out
+
+
 def build_world(name: str, entries: Sequence[Tuple[str, Any, str, str, float]],
-                kill_y: float = KILL_Y) -> Dict[str, Any]:
+                kill_y: float = KILL_Y, card: Optional[Dict[str, Any]] = None
+                ) -> Dict[str, Any]:
     """The whole map: every place built in its own slot.
 
     ``entries`` is ``(id, module, name, ground colour, fog)`` per place; each
@@ -131,13 +163,21 @@ def build_world(name: str, entries: Sequence[Tuple[str, Any, str, str, float]],
     root = MapBuilder(name, sky=first.SKY, ambient=first.AMBIENT, fog=420.0,
                       ground="#3a3f46")
     areas: List[Dict[str, Any]] = []
+    card_shot: Dict[str, Any] = {}
     for index, (area_id, module, area_name, ground_colour, fog) in enumerate(entries):
         ox, oz = SLOTS[index]
         area = ArenaArea(root, area_id, area_name, ox, oz, module.HALF, module.SKY,
                          module.AMBIENT, ground_colour, fog=fog)
         module.build(area)
+        if card and card.get("area") == area_id:
+            # the world's own card: a moment staged in one of its places
+            card_shot = shot_spec(area, card["eye"], card["look"], card.get("fov", 44.0),
+                                  card.get("figures", ()), card.get("props", ()),
+                                  card.get("sky"))
+            card_shot["area"] = area_id
         areas.append(area.finish())
     root.marker("mode", "arena")
+    root.marker("card", card_shot)
     root.marker("areas", areas)
     root.marker("nav_regions", [a["rect"] for a in areas])
     root.kill_y = kill_y

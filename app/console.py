@@ -667,6 +667,12 @@ class Dashboard:
         meter_w = 10 if width >= 72 else (6 if width >= 56 else 0)
         out: List[str] = []
         any_bots = any(row.get("bots") for row in rows)
+        # with a long list of worlds, the empty ones that are up share a
+        # line at the end rather than taking one each
+        idle: List[Dict[str, Any]] = []
+        if len(rows) > 8:
+            idle = [row for row in rows if row["online"] and not row["players"]]
+            rows = [row for row in rows if row not in idle]
         for index, row in enumerate(rows):
             humans = int(row.get("humans", row["players"]))
             bots = int(row.get("bots", 0))
@@ -698,6 +704,13 @@ class Dashboard:
             if width >= 78:
                 body += dim("  %s visits" % _num(row.get("visits", 0)))
             out.append(self._pair("worlds" if index == 0 else "", body, width))
+        if idle:
+            names = ", ".join(row["name"] for row in idle)
+            room = max(10, width - 16)
+            if visible_len(names) > room:
+                names = names[:room - 3] + "..."
+            out.append(self._pair("worlds" if not rows else "",
+                                  dim("%d empty, up: " % len(idle)) + names, width))
         if any_bots and width >= 64:
             out.append(self._pair("", dim("%s people  %s bots  %s free   people+bots/room"
                                           % (METER_ON, METER_BOT, METER_OFF)), width))

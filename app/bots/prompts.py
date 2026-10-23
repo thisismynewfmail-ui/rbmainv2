@@ -126,6 +126,14 @@ def _clock(seconds: Any) -> str:
     return "%d:%02d" % (seconds // 60, seconds % 60)
 
 
+ARENA_TONE = """How people type in a party game's chat, which is how you type here:
+- quick reactions to what just happened: "NO WAY", "how did that miss", "clutch", "lol rip"
+- calling out what you see, with a place: "two by the vault", "they're on the bridge"
+- teasing friends and rivals, cheering a good play, groaning at a bad round
+- short, mostly lowercase, gamer slang (gg, ez, lol, omw, ngl, W, L); never describe the
+  game like a narrator, never give away anything your role is meant to keep secret"""
+
+
 SURVIVAL_TONE = """How people type in a co-op zombie game's chat, which is how you type here:
 - callouts with a place: "tank by the church", "bomber left", "spitter on the roof"
 - asking and offering help: "rez me", "omw", "need ammo", "cover me", "got you"
@@ -232,6 +240,34 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
             lines.append("The team is split into %d squad%s%s." % (
                 groups, "" if groups == 1 else "s",
                 (" and %d on their own" % alone) if alone else ""))
+    elif mode == "arena":
+        world = state.get("world") or "this world"
+        if state.get("genre"):
+            lines.append("This is %s, a %s game%s" % (
+                world, str(state["genre"]).lower(),
+                (": " + str(state["blurb"])) if state.get("blurb") else "."))
+        where = state.get("area")
+        if where:
+            n, of = state.get("round_in_area"), state.get("rounds_per_area")
+            lines.append("In %s%s." % (where, (
+                ", round %s of %s here before the server moves everybody to another place"
+                % (n, of)) if n and of and int(of) > 1 else ""))
+        aphase = state.get("arena_phase")
+        if aphase == "setup":
+            lines.append("The round has not started yet: this is the setup before it.")
+        elif aphase == "ended":
+            lines.append("The round just ended.")
+        elif aphase == "active" and _clock(state.get("time_left")):
+            lines.append("Time left in the round: %s." % _clock(state.get("time_left")))
+        if state.get("twist"):
+            lines.append("This round's twist: %s." % state["twist"])
+        sides = state.get("sides") or {}
+        if sides and team in sides and state.get("style") == "teams":
+            lines.append("Score this place: " + ", ".join(
+                "%s%s %s" % (info.get("name", side), " (yours)" if side == team else "",
+                             info.get("score", 0)) for side, info in sides.items()) + ".")
+        for line in (state.get("lines") or [])[:8]:
+            lines.append(str(line))
     elif mode == "endless":
         if me.get("plot"):
             lines.append("Your restaurant: %s, %s upgrades built, %s coins in hand." % (
@@ -243,7 +279,7 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
                                                 r.get("built"), r.get("total"))
                 for r in best[:3]) + ".")
     left = _clock(state.get("time_left"))
-    if left and mode not in ("endless", "survival") and state.get("phase") == "active":
+    if left and mode not in ("endless", "survival", "arena") and state.get("phase") == "active":
         lines.append("Time left in the round: %s." % left)
     if state.get("players"):
         lines.append("%s players in this server." % state["players"])
@@ -251,6 +287,8 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
     if me:
         if me.get("waiting"):
             mine.append("you are in the bunker waiting to deploy with the next wave")
+        elif mode == "arena" and me.get("out"):
+            mine.append("you are out for the rest of this round and watching")
         elif me.get("alive") is False:
             mine.append("you are dead and waiting to respawn"
                         if mode != "survival" else
@@ -271,7 +309,19 @@ def game_context(state: Dict[str, Any], me: Dict[str, Any], team: str) -> List[s
                 mine.append("hurt (%d health)" % hp)
             if me.get("ammo_low"):
                 mine.append("almost out of ammo")
-        if mode != "endless" and ("kills" in me or "deaths" in me):
+        if mode == "arena":
+            if me.get("side_name") and state.get("style") == "teams":
+                mine.append("on the %s side" % me["side_name"])
+            if me.get("secret"):
+                mine.append(str(me["secret"]))
+            if me.get("doing") and not me.get("out"):
+                mine.append(str(me["doing"]))
+            if me.get("near") and not me.get("out"):
+                mine.append("near %s" % me["near"])
+            for extra in (me.get("lines") or [])[:4]:
+                mine.append(str(extra))
+        if mode != "endless" and ("kills" in me or "deaths" in me) and \
+                (mode != "arena" or me.get("kills") or me.get("deaths")):
             mine.append("%s kills and %s deaths this round" % (me.get("kills", 0),
                                                               me.get("deaths", 0)))
         role = {"attack": "you have been attacking", "defend": "you have been defending",
@@ -293,13 +343,21 @@ def chat(card: Dict[str, Any], world: str, team: str,
     max_tokens = int(bot_config.get("llm.max_tokens_chat") or 48)
     system = _fmt(bot_config.get("prompts.chat"), world=world) + "\n\n" + \
         persona_block(card)
-    if (state or {}).get("mode") == "survival":
+    mode = (state or {}).get("mode")
+    shared = mode in ("endless", "survival") or \
+        (mode == "arena" and (state or {}).get("style") != "teams")
+    if mode == "survival":
         system += "\n\n" + SURVIVAL_TONE
-    if team and (state or {}).get("mode") not in ("endless", "survival"):
-        system += "\nYou are on the %s team this round." % team
+    if mode == "arena":
+        system += "\n\n" + ARENA_TONE
+        if (state or {}).get("tone"):
+            system += "\n" + str(state["tone"])
+    if team and not shared:
+        side = ((state or {}).get("sides") or {}).get(team) or {}
+        system += "\nYou are on the %s team this round." % side.get("name", team)
     context = game_context(state or {}, me or {}, team)
     if roster:
-        endless = (state or {}).get("mode") in ("endless", "survival")
+        endless = shared
         names = ["%s%s" % (name, "" if endless or not side else
                            " (your team)" if side == team else " (other team)")
                  for name, side in roster[:24] if name]

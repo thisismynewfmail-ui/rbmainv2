@@ -298,6 +298,10 @@ class ArenaWorld(GameInstance):
                      "of": self.ROUNDS_PER_AREA, "intro": False, "join": True,
                      "twist": self.twist, **self._twist_text()})
         player.send({"t": "ar_ents", "all": [e.row() for e in self.ents.values()]})
+        if "own_hotbar" in player.extra:
+            # lent before the welcome reached them: say it again now
+            player.send({"t": "ar_loadout", "id": player.pid,
+                         "hotbar": player.avatar.get("hotbar") or [], "slot": player.slot})
         for line in self.help_lines(player):
             player.send({"t": "chat", "kind": "system", "from": "", "id": 0, "m": line,
                          "at": time.time()})

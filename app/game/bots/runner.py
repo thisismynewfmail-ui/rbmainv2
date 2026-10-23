@@ -401,8 +401,16 @@ class BotRunner:
             if self.survival is not None:
                 state["teams"] = self.survival.summary()
         elif self.mode == "arena":
+            spec = inst.world.get("arena") or {}
+            scores = round_state.get("scores") or {}
+            sides = {side: {"name": info.get("name", side),
+                            "score": round(float(scores.get(side, 0) or 0))}
+                     for side, info in (inst.world.get("teams") or {}).items()}
             state.update({
-                "world": inst.world.get("name", ""), "area": round_state.get("area_name"),
+                "world": inst.world.get("name", ""), "genre": inst.world.get("genre", ""),
+                "blurb": spec.get("blurb") or inst.world.get("tagline", ""),
+                "tone": spec.get("tone", ""), "style": spec.get("style", "teams"),
+                "sides": sides, "area": round_state.get("area_name"),
                 "arena_phase": round_state.get("aphase"),
                 "time_left": round_state.get("time_left"),
                 "round_in_area": round_state.get("in_area"),
@@ -438,6 +446,9 @@ class BotRunner:
                 me.update(self.survival.bot_state(brain))
         if self.mode == "arena" and self.plan is not None:
             me["out"] = bool(p.extra.get("out"))
+            side = (self.instance.world.get("teams") or {}).get(p.team) or {}
+            if side.get("name"):
+                me["side_name"] = side["name"]
             me.update(self.plan.bot_state(brain))
         if self.mode == "endless":
             plot = getattr(self.instance, "plot_of", lambda _p: None)(p)

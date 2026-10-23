@@ -15,7 +15,11 @@
   var ICONS = {
     stats: '▣', creation: '✚', personas: '☺', presence: '☼',
     worlds: '◉', ingame: '⌖', friends: '❤', chatter: '✎',
-    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦', profiles: '⚿', survival: '☣'
+    messages: '✉', llm: '⚙', prompts: '¶', modifiers: '⇅', speech: '✦', profiles: '⚿', survival: '☣',
+    // the arena worlds, each its own subtab under In-Game Behaviour
+    cataclysm: '☄', prop_panic: '☕', rail_rumble: '⛟', convoy: '⛍', midnight_mystery: '☾',
+    grand_heist: '$', splat_turf: '✺', bonk_brawl: '✊', bastion: '♜', dodgeball: '◍',
+    bomb_bash: '✹', plunder_cove: '⚓', storm_circle: '◎', flee_beast: '☠', tycoon_wars: '♛'
   };
   var SCOPE_LABEL = { universal: 'Universal', 'per-bot': 'Per-bot range', base: 'Base × persona' };
   var SCOPE_HELP = {
@@ -276,6 +280,7 @@
     if (BZ.sub === 'modifiers') { drawModifiers(); }
     if (BZ.sub === 'speech') { drawSpeech(); }
     if (BZ.sub === 'survival') { drawSurvival(); }
+    if (isArena(BZ.sub)) { drawArena(); }
   }
 
   /* The presence curve: the share of bots the director keeps online over
@@ -390,6 +395,7 @@
       messages: feedsPane, llm: llmPane, prompts: promptsPane,
       modifiers: modifiersPane, speech: speechPane
     }[BZ.sub];
+    if (!extra && isArena(BZ.sub)) extra = arenaPane;
     html += '<div class="panel"><div class="panel-head purple"><span>' + (ICONS[BZ.sub] || '') + ' ' +
       esc(sec.label) + '</span><span class="head-links">' + esc(sec.blurb) + '</span></div>' +
       '<div class="panel-body">' + familyTabs() + featureCards(BZ.sub) + (extra ? extra() : '') + '</div></div>';
@@ -477,7 +483,61 @@
     if (BZ.sub === 'modifiers') { drawModifiers(); }
     if (BZ.sub === 'speech') { drawSpeech(); }
     if (BZ.sub === 'survival') { drawSurvival(); }
+    if (isArena(BZ.sub)) { drawArena(); }
     syncBands();
+  }
+
+  // ========================================================= arena worlds
+  /* Each arena world's subtab: how every persona plays it (the world's own
+     ties, from app/models/arena_worlds.py), its settings below, and the
+     rounds of it with a real player in them right now. */
+  function isArena(id) {
+    return !!(BZ.schema && sectionInfo(id).world);
+  }
+
+  function arenaPane() {
+    var sec = sectionInfo(BZ.sub);
+    return '<p class="bz-intro"><b>' + esc(sec.label) + '</b> &mdash; ' + esc(sec.genre || '') + '. ' +
+      'The bots here run this world\'s own plan on top of the shared brain: what to go for, when to ' +
+      'hold back, what to say. The settings below are this world\'s alone; the general In-Game Behaviour ' +
+      'dials (skill, tangents, AFK moments) apply here too, and the persona tags lean every bot its own way.</p>' +
+      '<div class="bz-grid2"><div><div class="bz-feed-head"><b>What the persona does here</b></div>' +
+      '<table class="bz-mod-table"><tbody>' + (sec.ties || []).map(function (r) {
+        return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div><div class="bz-feed-head"><b>Live rounds</b></div><div class="bz-feed" id="bz-ar-live"></div></div></div>';
+  }
+
+  function drawArena() {
+    var box = el('bz-ar-live');
+    if (!box || !BZ.overview) return;
+    var world = BZ.sub;
+    var rounds = (((BZ.overview.gamechat || {}).arena) || []).filter(function (r) { return r.world === world; });
+    if (!rounds.length) {
+      box.innerHTML = '<span class="muted tiny">No round of ' + esc(sectionInfo(world).label) +
+        ' has a real player in it right now.</span>';
+      return;
+    }
+    box.innerHTML = rounds.map(function (r) {
+      var sides = Object.keys(r.sides || {});
+      var score = sides.length > 1 ? sides.map(function (k) {
+        return esc(r.sides[k].name) + ' ' + r.sides[k].score;
+      }).join(' – ') : '';
+      return '<div class="bz-session"><div class="bz-session-head"><b>' + esc(r.area || r.world_name) + ' #' + r.inst +
+        '</b> <span class="muted tiny">' + esc(r.phase || '') +
+        (r.round_in_area ? ' • round ' + r.round_in_area + '/' + (r.per_area || '?') : '') +
+        (score ? ' • ' + score : '') + (r.twist ? ' • ' + esc(r.twist) : '') +
+        (r.people.length ? ' • with ' + r.people.map(esc).join(', ') : '') + '</span></div>' +
+        (r.lines || []).map(function (line) {
+          return '<div class="bz-line muted">' + esc(line) + '</div>';
+        }).join('') +
+        (r.bots || []).map(function (b) {
+          return '<div class="bz-line"><b>' + esc(b.name) + '</b>' +
+            (sides.length > 1 && r.sides[b.team] ? ' <span class="pill tiny-pill">' + esc(r.sides[b.team].name) + '</span>' : '') +
+            (b.out ? ' <span class="pill tiny-pill">out</span>' : '') +
+            ' <span class="muted">' + esc(b.doing || b.role || '') + (b.where ? ' • ' + esc(b.where) : '') + '</span></div>';
+        }).join('') + '</div>';
+    }).join('');
   }
 
   // ============================================================ personas

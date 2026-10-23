@@ -41,7 +41,12 @@ def world_detail(req: Request, world_id: str = ""):
         return R.not_found("That world does not exist.")
     viewer = int(req.user["id"]) if req.user else 0
     status = game_registry.world_status(world_id)
+    from ..models import badges
+    # the world's own badges, shown at the top of their ladders' first rung
+    world_badges = [badges.card(b["id"], 1, 0) for b in badges.BADGES_LIST
+                    if b["game"] == world_id][:8]
     return render(req, "world_detail.html", world=world, status=status,
+                  world_badges=world_badges,
                   stats=worlds.stats(world_id),
                   favourite=worlds.is_favourite(world_id, viewer) if viewer else False,
                   vote=worlds.user_vote(world_id, viewer) if viewer else 0,
@@ -209,3 +214,17 @@ def world_favourite(req: Request):
         return api_error("Unknown world.")
     state = worlds.toggle_favourite(world_id, int(req.user["id"]))
     return api_ok(favourite=state, stats=worlds.stats(world_id))
+
+
+@router.get("/api/arena_thumb/<key>")
+def arena_thumb(req: Request, key: str = ""):
+    """An arena world's picture (its card, or one of its places), cut from
+    the real map: app/game/arena/thumbs.py."""
+    import json
+    from ..game.arena import thumbs
+    shot = thumbs.shot(str(key)[:64])
+    if shot is None:
+        return api_error("No picture for that.", 404)
+    body = json.dumps({"ok": True, "shot": shot}, separators=(",", ":"))
+    return R.Response(body, 200, "application/json; charset=utf-8",
+                      headers={"Cache-Control": "public, max-age=3600"})

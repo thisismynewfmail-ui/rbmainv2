@@ -262,7 +262,11 @@
     }
   };
 
-  var FACES = { cog: '#173a66', shield: '#3a140c', star: '#2b1450', moon: '#1a0d26' };
+  var FACES = { cog: '#173a66', shield: '#3a140c', star: '#2b1450', moon: '#1a0d26',
+                hazard: '#2a1a06', frame: '#1c3446', crossbuck: '#2a0e0e', chevron: '#14263a',
+                keyhole: '#160c22', vault: '#14221a', splat: '#2a0c22', burst: '#2c1206',
+                rampart: '#0e2230', ball: '#3a0c0c', bomb: '#14141c', helm: '#0c2a30',
+                cloud: '#1a1240', pod: '#06222a', coin: '#2a2206' };
   var TIER_COLORS = { bronze: '#b8743a', silver: '#c9d2da', gold: '#f0bd45',
                       platinum: '#f1eef8', diamond: '#8fe6ff', mythic: '#2c1440' };
 

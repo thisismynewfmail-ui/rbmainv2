@@ -74,6 +74,21 @@ MAPS = {
     "tycoon": tycoon,
 }
 
+
+def _arena_maps() -> None:
+    """The arena worlds' maps (app/game/maps/<world>/), each built like Last
+    Light: separate places, each checked from its own spawn rooms."""
+    import importlib
+    from app.game.arena import WORLD_CLASSES
+    for world_id in WORLD_CLASSES:
+        try:
+            MAPS[world_id] = importlib.import_module("app.game.maps." + world_id)
+        except ImportError:
+            pass
+
+
+_arena_maps()
+
 MIN_FACE_OVERLAP = 1.0      # square units before a coplanar pair is worth a word
 PLANE_EPS = 1e-4
 AXES = ("x", "y", "z")
@@ -868,6 +883,10 @@ def audit(name: str, module) -> int:
         route_problems = []
         for area in areas:
             targets = [("%s safe spawn" % area["id"], area["safe"][0]["p"])]
+            # every other team's (or role's) spawn room has to join up too
+            targets += [("%s %s spawn" % (area["id"], team), spawns[0]["p"])
+                        for team, spawns in sorted((area.get("spawns") or {}).items())
+                        if spawns and spawns[0] is not area["safe"][0]]
             targets += [("%s zspawn %d" % (area["id"], i), z["p"])
                         for i, z in enumerate(area.get("zspawn") or [])]
             for kind, entries in (area.get("points") or {}).items():

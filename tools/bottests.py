@@ -203,6 +203,21 @@ def _spec(uid: int, rng: random.Random, team: str = "") -> Dict[str, Any]:
                      "objective": min(1.0, 0.72 * (0.5 + traits["objective"]))}}
 
 
+def _arena_modules() -> List[Any]:
+    """The arena engine and every arena world that is written: their clocks
+    run on the simulated one too."""
+    import importlib
+    from app.game.arena import WORLD_CLASSES
+    out = [importlib.import_module("app.game.arena.base"),
+           importlib.import_module("app.game.arena.bots")]
+    for path in WORLD_CLASSES.values():
+        try:
+            out.append(importlib.import_module(path.split(":")[0]))
+        except ImportError:
+            pass
+    return out
+
+
 def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = True,
               state: Dict[str, Any] = None, seed: int = 11,
               setup=None) -> Dict[str, Any]:
@@ -219,7 +234,7 @@ def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = Tru
     clock = Clock()
     patched = [engine, brain_module, runner_module, ctf_module, payload_module,
                tycoon_module, relay_module, survival_module, infected_module,
-               mind_module]
+               mind_module] + _arena_modules()
     originals = [(m, m.now) for m in patched if hasattr(m, "now")]
     for module, _orig in originals:
         module.now = clock

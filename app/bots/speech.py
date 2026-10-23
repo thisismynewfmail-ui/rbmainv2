@@ -566,7 +566,16 @@ def _arena(event: Dict[str, Any], name: str, team: str, me: bool) -> Tuple[str, 
         text, relation = (list(sides[team]) + ["neutral"])[:2]
         return str(text), str(relation)
     default = list(event.get("default") or ["", "neutral"]) + ["neutral"]
-    return str(default[0]), str(default[1])
+    if default[0]:
+        return str(default[0]), str(default[1])
+    # nothing written for it: say what kind of moment it was, and who
+    info = KINDS_BY_ID.get(str(event.get("kind", "")))
+    if info is None:
+        return "", "neutral"
+    by = event.get("by")
+    text = "%s: %s." % (info.label, info.help.rstrip(".")) if not by else \
+        "%s -- %s (%s)." % (info.label, info.help.rstrip("."), by)
+    return text, "neutral"
 
 
 def voice_weight(event: Dict[str, Any], relation: str) -> float:

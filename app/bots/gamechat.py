@@ -645,10 +645,28 @@ class Relay:
                                  "people": sorted(room.humans.values()),
                                  "squads": teams.get("squads") or [],
                                  "solo": teams.get("solo") or []})
+            arena = []
+            for room in self.rooms.values():
+                state = room.state or {}
+                if state.get("mode") != "arena":
+                    continue
+                summary = state.get("arena") or {}
+                arena.append({"world": room.world, "inst": room.inst,
+                              "world_name": bot_config.WORLD_LABELS.get(room.world, room.world),
+                              "area": state.get("area") or summary.get("area", ""),
+                              "phase": state.get("arena_phase") or "",
+                              "round_in_area": state.get("round_in_area"),
+                              "per_area": state.get("rounds_per_area"),
+                              "twist": state.get("twist") or "",
+                              "time_left": state.get("time_left"),
+                              "sides": state.get("sides") or {},
+                              "lines": list(state.get("lines") or [])[:6],
+                              "people": sorted(room.humans.values()),
+                              "bots": list(summary.get("bots") or [])[:24]})
             return {"rooms": len(self.rooms), "stats": dict(self.stats),
                     "recent": list(self.recent), "heat": heat,
                     "events": list(self.event_log)[-25:], "sessions": sessions,
-                    "survival": survival}
+                    "survival": survival, "arena": arena}
 
 
 def _styled(line: str, card: Dict[str, Any], rng: random.Random) -> str:

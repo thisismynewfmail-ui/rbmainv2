@@ -38,23 +38,62 @@
       </div>
     </div>
 
+    {% if world.get('howto') %}
+    <div class="panel">
+      <div class="panel-head navy">How it plays <span class="muted tiny">&mdash; {{ world.get('round_label') or world.genre }}</span></div>
+      <div class="panel-body">
+        <ol class="ar-howto">
+          {% for step in world.howto %}
+          <li><b>{{ step.title }}</b><span>{{ step.text }}</span></li>
+          {% endfor %}
+        </ol>
+        {% if world.get('teams') and len(world.teams) > 1 %}
+        <div class="ar-teams">
+          {% for side in world.teams.values() %}
+          <span class="ar-team" style="--side:{{ side.colour }}"><i></i>{{ side.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     {% if world.get('areas') %}
     <div class="panel">
-      <div class="panel-head">Locations <span class="muted tiny">&mdash; a new one every round</span></div>
+      <div class="panel-head">Locations <span class="muted tiny">&mdash; {{ 'a new one every round' if world.get('mode') != 'arena' else ('the server moves on after every round' if (world.get('arena') or {}).get('per_area', 1) == 1 else 'the server moves on every %d rounds' % (world.get('arena') or {}).get('per_area', 2)) }}</span></div>
       <div class="panel-body">
         <div class="ll-places">
           {% for area in world.areas %}
           <div class="ll-place">
             <div class="ll-shot"><canvas class="world-shot" width="512" height="288"
-                 data-world="ll_{{ area.id }}" data-name="{{ area.name }}"></canvas></div>
+                 data-world="{{ world.get('area_prefix') or 'll_' }}{{ area.id }}" data-name="{{ area.name }}"
+                 data-colors="{{ to_json(world.colors) }}"></canvas></div>
             <b>{{ area.name }}</b>
             <p class="tiny muted">{{ area.blurb }}</p>
           </div>
           {% endfor %}
         </div>
       </div>
-      <div class="panel-foot tiny">Every area has its own safe room, ammunition crates, first-aid
-        cabinets, fuel barrels and one noise-maker that draws the whole horde to it.</div>
+      <div class="panel-foot tiny">{{ world.get('areas_note') or 'Every area has its own safe room, ammunition crates, first-aid cabinets, fuel barrels and one noise-maker that draws the whole horde to it.' }}</div>
+    </div>
+    {% endif %}
+
+    {% if world_badges %}
+    <div class="panel p-badges">
+      <div class="panel-head gold">Badges to earn <span class="muted tiny">&mdash; each one levels up from Bronze to {{ 'Mythic' }}</span></div>
+      <div class="panel-body">
+        <div class="badge-row ar-badges">
+          {% for b in world_badges %}
+          <div class="badge-tile tier-{{ b.tier }}" tabindex="0" data-badge-pop="{{ b.id }}"
+               style="--tier:{{ b.color }};--glow:{{ b.glow }}">
+            <div class="bt-stage"><canvas class="badge-3d" width="200" height="200" data-badge="{{ b.id }}"></canvas></div>
+            <b class="bt-name">{{ b.name }}</b>
+            <span class="bt-rank">{{ b.ranks[0] }} &rarr; {{ b.ranks[-1] }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <script type="application/json" class="badge-data">{{& to_json({'cards': world_badges}) }}</script>
+      </div>
     </div>
     {% endif %}
 

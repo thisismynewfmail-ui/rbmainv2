@@ -590,6 +590,15 @@ def _colors(traits: Dict[str, float], rng: random.Random) -> Dict[str, str]:
             "hips": legs, "left_leg": legs, "right_leg": legs}
 
 
+def arena_spec(world: str) -> Dict[str, Any]:
+    """An arena world's sleeping-round numbers, or {} for any other world."""
+    from ..models import worlds as world_registry
+    entry = world_registry.get_any(world)
+    if not entry or entry.get("mode") != "arena":
+        return {}
+    return dict(entry.get("arena") or {})
+
+
 def _history(joined: int, traits: Dict[str, float], rng: random.Random,
              now: int) -> Dict[str, Dict[str, int]]:
     days = max(0.0, (now - joined) / 86400.0)
@@ -614,9 +623,16 @@ def _history(joined: int, traits: Dict[str, float], rng: random.Random,
             kills = int(share * (2.5 + skill * 6.0))
             deaths = int(share * 0.05 * (1.6 - skill))
             rounds = int(share / 26)
+        spec = arena_spec(world)
+        if spec:
+            # an arena world: its own pace (app/models/arena_worlds.py)
+            length = max(1.0, (float(spec.get("round", 240)) + float(spec.get("setup", 15))) / 60.0)
+            rounds = int(share / length)
+            kills = int(share * float(spec.get("kpm", 0.6)) * (0.35 + skill * 1.3))
+            deaths = int(share * float(spec.get("dpm", 0.6)) * (1.45 - skill * 0.9))
         zkills = 0
-        if world == "last_light":
-            kills, zkills = 0, kills      # the infected are not kills
+        if world == "last_light" or (spec and spec.get("npc")):
+            kills, zkills = 0, kills      # the infected (or the drones) are not kills
         out[world] = {"kills": kills, "zkills": zkills, "deaths": deaths, "rounds": rounds,
                       "wins": int(rounds * (0.3 + skill * 0.35)),
                       "playtime": int(share * 60),
@@ -920,6 +936,13 @@ def _badges(card: Dict[str, Any], rng: random.Random) -> None:
                     ("br_defends", int(br["kills"] * rng.uniform(0.04, 0.16)), "add"),
                     ("br_clutch", int(captures * rng.uniform(0.0, 0.08)), "add"),
                     ("br_sudden", int(rounds * rng.uniform(0.0, 0.02)), "add")]
+    from ..models import arena_badges
+    for world_id in arena_badges.BOT_RATES:
+        history = card["history"].get(world_id)
+        if history:
+            if world_id == "bastion":
+                history = dict(history, kills=history.get("kills", 0) + history.get("zkills", 0))
+            changes += arena_badges.bot_changes(world_id, history, traits, rng)
     if not changes:
         return
     badges.record_many(card["id"], [c for c in changes if c[1] > 0], notify=False)

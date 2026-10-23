@@ -1535,6 +1535,13 @@
 
   var SCENES = { town: TOWN, hospital: HOSPITAL, docks: DOCKS, camp: CAMP };
 
+  /* Another world's arrivals (game/arena_intro_kit.js builds them): the
+     same frame, bars and ring of light, its own scene inside. */
+  function register(id, scene) {
+    SCENES[id] = scene;
+    if (scene.accent) ACCENT[id] = scene.accent;
+  }
+
   // ======================================================== the frame
   var grainCanvas = null;
   function grain(ctx, W, H, t) {
@@ -1583,14 +1590,29 @@
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     ctx.font = 'bold ' + Math.round(15 * s) + 'px ' + FONT;
-    ctx.fillStyle = '#ff8a6a';
+    ctx.fillStyle = run.scene.kickerColour || '#ff8a6a';
     spaced(ctx, info.kicker || 'NEW LOCATION', W / 2, bar / 2, 8 * s);
     var by = H - bar / 2;
     ctx.font = 'bold ' + Math.round(14 * s) + 'px ' + FONT;
-    ctx.fillStyle = '#ffd27a';
+    ctx.fillStyle = run.scene.chromeColour || '#ffd27a';
     var round = 'ROUND ' + (info.round || 1);
     var lr = layout(ctx, round, 4 * s);
     spaced(ctx, round, 40 * s + lr.width / 2, by, 4 * s);
+    if (info.line) {
+      // a world of its own (game/arena.js): its line and its own name
+      ctx.fillStyle = '#f4e6c8';
+      spaced(ctx, info.line, W / 2, by, 3 * s);
+      ctx.fillStyle = run.scene.chromeColour || '#ffd27a';
+      var own = info.logo || '';
+      var lo = layout(ctx, own, 6 * s);
+      spaced(ctx, own, W - 40 * s - lo.width / 2, by, 6 * s);
+      additive(ctx, function () {
+        dot(ctx, info.accent || run.scene.accent || '#ffb040', W - 52 * s - lo.width, by, 11 * s,
+            0.6 + 0.4 * Math.sin(t * 13));
+      });
+      ctx.restore();
+      return;
+    }
     var tries = info.tries || 3;
     var left = Math.max(0, tries - ((info.attempt || 1) - 1));
     var line = (left === tries ? tries + ' TRIES TO HOLD IT' : left + ' OF ' + tries +
@@ -1708,9 +1730,10 @@
       ctx.globalCompositeOperation = 'lighter';
       var ring = ctx.createRadialGradient(W / 2, H / 2, Math.max(0, R - soft * 1.2), W / 2, H / 2,
                                           R + soft * 0.6);
-      ring.addColorStop(0, 'rgba(255,214,140,0)');
-      ring.addColorStop(0.6, 'rgba(255,214,140,' + (0.55 * (1 - k)) + ')');
-      ring.addColorStop(1, 'rgba(255,214,140,0)');
+      var rc = run.scene.ring || '#ffd68c';
+      ring.addColorStop(0, rgba(rc, 0));
+      ring.addColorStop(0.6, rgba(rc, 0.55 * (1 - k)));
+      ring.addColorStop(1, rgba(rc, 0));
       ctx.fillStyle = ring;
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
@@ -1813,8 +1836,9 @@
 
   /* The reel: every area's name round a slot window, spun after ``delay`` ms
      and slowing to a stop on ``nextId``.  ``done`` runs when it lands. */
-  function reel(node, items, nextId, audio, delay, done) {
+  function reel(node, items, nextId, audio, delay, done, words) {
     if (!node || !items || !items.length) return null;
+    words = words || {};
     var ROW = 54, LOOPS = 7;
     var index = 0;
     items.forEach(function (it, i) { if (it.id === nextId) index = i; });
@@ -1822,7 +1846,7 @@
     for (var l = 0; l < LOOPS; l++) strip = strip.concat(items);
     var target = (LOOPS - 1) * items.length + index;
     node.className = 'll-reel';
-    node.innerHTML = '<div class="ll-reel-k">SHUFFLING THE SERVER</div>' +
+    node.innerHTML = '<div class="ll-reel-k">' + esc(words.title || 'SHUFFLING THE SERVER') + '</div>' +
       '<div class="ll-reel-win"><div class="ll-reel-strip">' + strip.map(function (it, i) {
         return '<div class="ll-reel-item' + (i === target ? ' target' : '') +
           '" style="--a:' + (ACCENT[it.id] || '#ffd27a') + '"><i></i>' + esc(it.name) + '</div>';
@@ -1851,7 +1875,7 @@
       if (k >= 1) {
         win.classList.add('landed');
         node.classList.add('landed');
-        node.querySelector('.ll-reel-k').textContent = 'NOW ENTERING';
+        node.querySelector('.ll-reel-k').textContent = words.landed || 'NOW ENTERING';
         if (audio) audio.play('land', { volume: 0.6 });
         if (done) done();
         return;
@@ -1873,9 +1897,19 @@
   }
 
   global.AreaIntro = {
-    play: play, stop: stop, still: still, lamps: lamps, reel: reel,
+    play: play, stop: stop, still: still, lamps: lamps, reel: reel, register: register,
     has: function (areaId) { return !!SCENES[areaId]; },
     playing: function () { return !!current; },
-    DURATION: TOTAL
+    DURATION: TOTAL, CLOSE: CLOSE,
+    // the drawing kit the scenes are painted with, for other worlds' scenes
+    kit: {
+      VW: VW, VH: VH, TAU: TAU, FONT: FONT, HEAVY: HEAVY, clamp: clamp, seg: seg, lerp: lerp,
+      outCubic: outCubic, inCubic: inCubic, inOut: inOut, outBack: outBack, wobble: wobble,
+      rgbOf: rgbOf, rgba: rgba, mix: mix, rng: rng, between: between, sputter: sputter,
+      buzz: buzz, glow: glow, dot: dot, additive: additive, roundRect: roundRect,
+      layout: layout, spaced: spaced, fitSize: fitSize, split: split, stars: stars,
+      makeStars: makeStars, bands: bands, crow: crow, bat: bat, chain: chain, pine: pine,
+      pineIcon: pineIcon, perimeter: perimeter
+    }
   };
 })(window);

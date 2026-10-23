@@ -85,6 +85,12 @@ GAMES = {
     "event": "Events",
 }
 
+# the fifteen arena worlds strike theirs on plates of their own
+from . import arena_badges as _arena  # noqa: E402
+
+FAMILIES.update(_arena.FAMILIES)
+GAMES.update(_arena.GAMES)
+
 
 def _badge(badge_id: str, name: str, game: str, stat: str, thresholds: List[int],
            ranks: List[str], desc: str, emblem: str, family: str, unit: str,
@@ -239,6 +245,7 @@ def _event_badges() -> List[Dict[str, Any]]:
     return out
 
 
+BADGES_LIST.extend(_arena.badges(_badge))
 BADGES_LIST.extend(_event_badges())
 BADGES: Dict[str, Dict[str, Any]] = {b["id"]: b for b in BADGES_LIST}
 BY_STAT: Dict[str, List[Dict[str, Any]]] = {}
@@ -247,7 +254,7 @@ for _b in BADGES_LIST:
 
 # Stats that are not counted directly but worked out from others: the Grand
 # Tour is the number of areas with an ``ll_area_<id>`` mark.
-DERIVED = {"ll_areas": "ll_area_"}
+DERIVED = {"ll_areas": "ll_area_", **_arena.DERIVED}
 
 
 # ------------------------------------------------------------------ levels
@@ -548,7 +555,9 @@ def _build(badge: Dict[str, Any], level: int) -> List[Dict[str, Any]]:
     family = badge["family"]
 
     # --- the plate
-    if family == "cog":
+    if family in _arena.FAMILIES:
+        face_r = _arena.plate(parts, family, body, trim, face)
+    elif family == "cog":
         parts.append(place("cog", [0, 0, 0], [1.06, 1.06, 0.9], body, m="metal"))
         face_r = 0.37
         parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))

@@ -19,11 +19,12 @@
     spins up a new instance whenever the current ones fill up.</div>
 </div>
 
-<div class="row">
+<div class="world-live-grid">
   {% for row in rows %}
   <div class="col">
     <div class="panel">
-      <div class="panel-head {{ 'red' if row.world.id == 'fortress_team_2' else ('gold' if row.world.id == 'burger_tycoon' else ('purple' if row.world.id == 'blackout_relay' else 'green')) }}">
+      <div class="panel-head {{ 'red' if row.world.id == 'fortress_team_2' else ('gold' if row.world.id == 'burger_tycoon' else ('purple' if row.world.id == 'blackout_relay' else ('tinted' if row.world.get('mode') == 'arena' else 'green'))) }}"
+           {% if row.world.get('mode') == 'arena' %}style="--tint:{{ row.world.colors[0] }}"{% endif %}>
         {{ row.world.name }} &mdash; live instances
       </div>
       <div class="panel-body flush">
