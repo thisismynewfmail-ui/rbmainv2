@@ -196,11 +196,15 @@ class BotRunner:
             self._check_clock()
 
     def path_budget(self) -> int:
-        """Rationed A*: a few full searches a tick, cheap ones after that."""
+        """Rationed A*: a few full searches a tick, cheap ones after that --
+        more nodes each on a map with a finer grid, which has that many more
+        of them between the same two places."""
+        spacing = float(getattr(self.nav, "spacing", 4.0) or 4.0)
+        scale = max(1.0, min(4.0, (4.0 / spacing) ** 2))
         if self.path_tokens > 0:
             self.path_tokens -= 1
-            return 1600
-        return 250
+            return int(1600 * scale)
+        return int(250 * scale)
 
     # ================================================================ chat
     def _ensure_session(self) -> None:

@@ -1030,6 +1030,26 @@
     return [Math.cos(a) * r, Math.sin(a) * r, 0];
   }, function () { return 0.09; }, 30, 12));
 
+  /* A magnifying glass facing +Z: the lens rim round the origin, its handle
+     running down and to the right and sloping back behind the face, so a
+     badge's laurels can lie over it. */
+  add('magnifier', (function () {
+    var rim = tube(function (t) {
+      var a = t * TAU;
+      return [Math.cos(a) * 0.42, Math.sin(a) * 0.42, 0];
+    }, function () { return 0.08; }, 48, 12);
+    var handle = tube(function (t) {
+      var r = 0.40 + t * 0.62;
+      return [r * Math.SQRT1_2, -r * Math.SQRT1_2, -0.03 - Math.min(1, t * 3) * 0.19];
+    }, function (t) { return t < 0.18 ? 0.055 : 0.075; }, 16, 12);
+    var base = rim.p.length / 3;
+    rim.p = rim.p.concat(handle.p);
+    rim.n = rim.n.concat(handle.n);
+    rim.u = rim.u.concat(handle.u);
+    rim.i = rim.i.concat(handle.i.map(function (k) { return k + base; }));
+    return rim;
+  })());
+
   // A coil: a slinky, a streamer, a curly tail, a corkscrew curl of hair.
   add('spiral', tube(function (t) {
     var a = t * TAU * 4.5;

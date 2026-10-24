@@ -157,6 +157,9 @@
     renderer.buildStatic([]);
     renderer.beginFrame(0.016);
     parts.forEach(function (part) { renderer.push(part); });
+    // a sign ("t~...") is painted the first time a part asks for it, which
+    // is after beginFrame's upload: send the atlas again or it draws blank
+    renderer.refreshAtlas();
     // ``frame`` lets a tile draw the whole character but fit the camera to
     // one piece of it, which is what a belt needs: shown where it is worn,
     // close enough to see.
@@ -1306,6 +1309,7 @@
     renderer.buildStatic([]);
     renderer.beginFrame(0.016);
     parts.forEach(function (part) { renderer.push(part); });
+    renderer.refreshAtlas();   // the scene's signs, painted as it was pushed
     var shot = WORLD_CAMERAS[kind] || DEFAULT_CAMERA;
     renderer.setCameraMatrix(shot[0], shot[1], shot[2]);
     renderer.render();

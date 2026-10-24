@@ -39,6 +39,7 @@ MODULES: List[str] = [
     "rail_rivals",
     "prop_panic",
     "calamity_coast",
+    "whodunit",
 ]
 
 _loaded: Optional[List[Any]] = None
