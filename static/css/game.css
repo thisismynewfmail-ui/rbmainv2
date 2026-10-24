@@ -663,14 +663,16 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 #ar-banner { position: absolute; left: 50%; top: 22%; transform: translateX(-50%) scale(.94);
   text-align: center; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
 #ar-banner.on { opacity: 1; transform: translateX(-50%) scale(1); }
-#ar-banner b { display: block; font-size: 44px; font-weight: 900; letter-spacing: .1em; color: #f4e6c8;
+/* the title is the banner's own <b>; a <b> inside the line under it is just bold */
+#ar-banner > b { display: block; font-size: 44px; font-weight: 900; letter-spacing: .1em; color: #f4e6c8;
   text-shadow: 0 4px 18px #000, 0 0 26px var(--ar-accent); }
-#ar-banner span { display: block; font-size: 15px; font-weight: bold; letter-spacing: .05em;
+#ar-banner > span { display: block; font-size: 15px; font-weight: bold; letter-spacing: .05em;
   text-shadow: 0 2px 6px #000; margin-top: 2px; }
-#ar-banner.count b { font-size: 84px; color: var(--ar-accent); }
-#ar-banner.go b { font-size: 76px; color: #9ade8f; }
-#ar-banner.bad b { color: #ff7a5a; }
-#ar-banner.good b { color: #9ade8f; }
+#ar-banner > span b { color: #fff; }
+#ar-banner.count > b { font-size: 84px; color: var(--ar-accent); }
+#ar-banner.go > b { font-size: 76px; color: #9ade8f; }
+#ar-banner.bad > b { color: #ff7a5a; }
+#ar-banner.good > b { color: #9ade8f; }
 #ar-role { position: absolute; left: 50%; top: 96px; transform: translateX(-50%); display: none;
   background: rgba(10,14,20,.78); border: 1px solid var(--ar-accent); border-radius: 4px;
   padding: 4px 14px; font-size: 12px; font-weight: bold; letter-spacing: .08em; text-align: center; }

@@ -618,9 +618,10 @@ def _build(badge: Dict[str, Any], level: int) -> List[Dict[str, Any]]:
         parts.append(place("disc", [0, 0, 0.045], [face_r * 2, face_r * 2, 0.5], face))
     elif fam.get("mesh"):
         # an event world's plate: any flat mesh, with a disc of enamel on it
+        # (``plate_anchor``: the point on the mesh that goes in the middle)
         size = fam.get("plate_size") or [1.08, 1.08, 0.9]
         parts.append(place(fam["mesh"], [0, float(fam.get("plate_y", 0.0)), 0], size, body,
-                           r=fam.get("plate_r"), m="metal"))
+                           anchor=fam.get("plate_anchor"), r=fam.get("plate_r"), m="metal"))
         face_r = float(fam.get("face_r", 0.33))
         parts.append(place("disc", [0, float(fam.get("face_y", 0.0)), 0.045],
                            [face_r * 2, face_r * 2, 0.5], face))

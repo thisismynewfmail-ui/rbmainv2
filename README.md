@@ -104,6 +104,7 @@ Basic Shotgun and a Basic Stick.
 | **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
 | **Calamity Coast** | `/calamity_coast` | Disaster survival: two rescue teams ride out three disasters a round -- tsunamis, tornadoes, avalanches, eruptions, the great fire -- and carry the stranded to safety; no PvP | 16 |
+| **Whodunit** | `/whodunit` | Murder mystery: secret roles -- a murderer with a hidden knife, a detective with a revolver, everybody else innocent; clues fill a case file that gives up hints, and a twist in every place | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -506,6 +507,87 @@ shout it all in quick chat (*high ground!*, *incoming*, *got one, cover
 me*). The Bots Zone's **Calamity Coast** subtab sets how many rescue and how
 many scavenge, how brave a rescuer is mid-disaster, how sharp their dodging
 is, and the callouts.
+
+### Whodunit
+A murder mystery for up to sixteen. Everybody arrives a guest, and at the
+start of every case the roles are dealt in secret: one **murderer** (two in
+a big party, who know each other), one **detective** (or two), and
+everybody else **innocent**. Nobody is told who anybody else is.
+
+**The murderer** wins by leaving nobody else standing. The knife stays out
+of sight until it is drawn (**1**) -- and a guest holding a knife *is* the
+murderer, so the moment matters. One stab kills; **R** throws it across a
+room, on a cooldown, and it sticks where it lands. A murderer who picks up
+a clue burns it.
+
+**The detective** wins, with every innocent, by shooting the murderer: one
+revolver, one shot, a slow reload. Shoot anybody else and the detective is
+**disgraced** on the spot -- out of the case, the revolver left on the floor
+for any innocent brave enough to pick it up and finish the job as the
+**hero**.
+
+**The innocents** win by living out the clock (or seeing the murderer shot).
+**Clues** turn up round the place -- a sealed letter, a bloody glove, a
+pocket watch, a torn photograph, a brass key -- each with a beam of light to
+find it by, and every one an innocent or the detective picks up goes in the
+shared **case file** along the top of the screen. Enough clues and the file
+gives up a **hint**, four in all, each sharper than the last: where the
+murderer was *seen* a moment ago, their *trail* of glowing footprints, three
+*suspects* (one of them the murderer), and a *glimpse* -- the murderer
+stands out for a few seconds. The kill feed names the detective's shots but
+never the murderer's, and the dead talk only to the dead.
+
+Each place has a twist that comes and goes through the case, with a
+warning first:
+
+* **Blackwood Manor** -- a country house on a stormy night: the grand hall
+  and its stair, the library and its secret door, the drawing room, the
+  billiard room, the conservatory, the bedrooms upstairs, the wine cellar
+  and a tunnel from it to the chapel's crypt, the stables and a hedge maze.
+  *The storm* puts the lights out, with lightning for a glimpse of who is
+  where.
+* **The Midnight Express** -- a sleeper train on the mountain line, the
+  valley streaming past the windows: the observation car, two sleeping cars
+  of compartments, the lounge, the dining car and its galley, the baggage
+  car, the coal tender and a streamlined engine -- and the roof. *The
+  tunnel*: pitch dark, and anybody still on the roof is swept off.
+* **The Grand Meridian** -- a city hotel: the lobby under a glass atrium and
+  its grand stair, the ballroom and its balcony, the bar, the switchboard,
+  the kitchens, four guest rooms and the honeymoon suite, the roof garden
+  under the neon sign and the water tower, and the fire escape down to the
+  alley and the street. *The masquerade*: every guest in the same mask and
+  cloak, and no names over anybody's head.
+* **The SS Aurora** -- an ocean liner among the ice, five decks from the
+  engine room to the bridge: the swimming bath, the staterooms, the dining
+  saloon, the palm court and the grand staircase, the promenade, the boat
+  deck with its funnels and lifeboats, and nothing but sea over the rail.
+  *The fog*: you cannot see past arm's length.
+
+**Badges** (struck on a magnifying glass): Case Closed (cases won, either
+side), Cold Blooded (murders), In the Shadows (murders in the dark, the
+tunnel, the masquerade or the fog), Knife Thrower (kills with a thrown
+knife), No Witnesses (a murderer's win after four kills or more), Elementary
+(murderers shot), Unlikely Hero (a murderer caught with a picked-up
+revolver), Last Minute (caught with under ten seconds left), The Wrong Man
+(an innocent shot as the detective -- it happens), Sharp Eyes (clues), Still
+Breathing (cases lived through) and Every Scene (a case won in each of the
+four places).
+
+**Bots** play every role. Innocents mingle, go after clues, stick together
+and run from a body or a scream; they watch who draws a knife, who was near
+whom, and what the hints say, and tell the room (*its Sam!*, *Sam has a
+knife*, *stick together*) -- and a murderer named in front of everybody
+protests (*not me!*). A detective weighs up its suspects and only fires when it is sure
+enough -- and never through somebody else; a disgraced detective's revolver
+is picked up by a brave innocent. A murderer picks a victim who is alone (a
+trusting one with the revolver, best of all), follows them, and only draws
+the knife at arm's length with nobody watching -- bolder as the clock runs
+down -- or throws it from across a room; it burns clues when it can. They
+use the stairs between floors and decks like anyone else. The Bots Zone's
+**Whodunit** subtab sets how sure a detective has to be before firing, how
+sharp everybody's eyes are, how careful a murderer is about witnesses, how
+often it throws, how brave an innocent is about the revolver, how much
+they trust what they are told, and the callouts.
 
 ---
 

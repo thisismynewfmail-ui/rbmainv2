@@ -583,11 +583,21 @@ def walkable_colliders(map_data: Dict[str, Any], colliders) -> list:
     return list(colliders) + extra if extra else colliders
 
 
+def spacing_for(map_data: Dict[str, Any]) -> float:
+    """The grid a map asks for (``nav_spacing``), or the usual one."""
+    return float((map_data.get("markers") or {}).get("nav_spacing") or SPACING)
+
+
 def for_map(name: str, map_data: Dict[str, Any], colliders) -> NavGrid:
-    """One graph per map per host process, shared by all its instances."""
+    """One graph per map per host process, shared by all its instances.
+
+    A map of narrow rooms (doors a little wider than a player, stairs with a
+    rail either side) can ask for a finer grid with a ``nav_spacing`` marker:
+    on the usual one such a door only has a node in it when the grid
+    happens to line up with it."""
     with _grids_lock:
         grid = _grids.get(name)
         if grid is None:
-            grid = NavGrid(name, map_data, colliders)
+            grid = NavGrid(name, map_data, colliders, spacing=spacing_for(map_data))
             _grids[name] = grid
         return grid

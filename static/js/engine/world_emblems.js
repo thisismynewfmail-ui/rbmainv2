@@ -477,6 +477,148 @@
     });
   });
 
+  // --------------------------------------------------------------- Whodunit
+  var WD_RED = '#c83a3a', WD_BLUE = '#3a7ac8', WD_GOLD = '#e8c860', WD_STEEL = '#d8dce4',
+      WD_WOOD = '#6a4428';
+
+  emblem('em_wd_glass', function (ctx) {
+    // a magnifying glass over a footprint
+    inked(ctx, function (g) { g.ellipse(50, 58, 13, 20, -0.2, 0, Math.PI * 2); }, '#8a7a6a', 4);
+    inked(ctx, circlePath(36, 34, 6), '#8a7a6a', 3);
+    stroked(ctx, function (g) { g.moveTo(80, 80); g.lineTo(108, 108); }, WD_WOOD, 12);
+    inked(ctx, circlePath(60, 58, 30), 'rgba(190,220,255,0.55)', 7);
+    stroked(ctx, function (g) { g.arc(60, 58, 30, 0, Math.PI * 2); }, WD_GOLD, 6);
+    stroked(ctx, function (g) { g.arc(60, 58, 20, -2.6, -1.8); }, CREAM, 4);
+  });
+
+  emblem('em_wd_knife', function (ctx) {
+    // a dagger point down, a drop on its tip
+    inked(ctx, poly([[56, 20], [72, 20], [74, 84], [64, 104], [54, 84]]), WD_STEEL);
+    stroked(ctx, function (g) { g.moveTo(64, 26); g.lineTo(64, 90); }, '#a8b0bc', 3);
+    inked(ctx, function (g) { g.rect(38, 14, 52, 10); }, WD_GOLD, 5);
+    inked(ctx, function (g) { g.rect(58, 2, 12, 14); }, WD_WOOD, 4);
+    inked(ctx, function (g) {
+      g.moveTo(64, 108); g.quadraticCurveTo(72, 118, 64, 124); g.quadraticCurveTo(56, 118, 64, 108);
+    }, WD_RED, 3);
+  });
+
+  emblem('em_wd_shadow', function (ctx) {
+    // a figure in a hat against a moonlit window, one eye catching the light
+    inked(ctx, circlePath(64, 64, 46), '#c8d4ec');
+    inked(ctx, function (g) { g.moveTo(64, 18); g.arc(64, 64, 46, -Math.PI / 2, Math.PI / 2); g.closePath(); },
+          '#9aa8c8', 1);
+    inked(ctx, function (g) { g.rect(34, 40, 60, 10); g.rect(46, 18, 36, 24); }, '#1a1a24', 4);
+    inked(ctx, function (g) { g.ellipse(64, 80, 26, 30, 0, Math.PI, 0); g.closePath(); }, '#1a1a24', 4);
+    inked(ctx, function (g) { g.ellipse(74, 64, 7, 4, 0, 0, Math.PI * 2); }, WD_GOLD, 2);
+  });
+
+  emblem('em_wd_throw', function (ctx) {
+    // a knife in flight, its speed lines behind it
+    stroked(ctx, function (g) {
+      g.moveTo(14, 54); g.lineTo(44, 54); g.moveTo(8, 68); g.lineTo(40, 68); g.moveTo(16, 82); g.lineTo(42, 82);
+    }, CREAM, 4);
+    inked(ctx, poly([[56, 60], [100, 54], [118, 68], [100, 82], [56, 76]]), WD_STEEL);
+    inked(ctx, function (g) { g.rect(48, 52, 8, 32); }, WD_GOLD, 4);
+    inked(ctx, function (g) { g.rect(28, 62, 20, 12); }, WD_WOOD, 4);
+  });
+
+  emblem('em_wd_spotless', function (ctx) {
+    // a white glove, not a mark on it, a sparkle off one finger
+    inked(ctx, function (g) {
+      g.moveTo(40, 112); g.lineTo(40, 66); g.lineTo(28, 50); g.quadraticCurveTo(28, 40, 38, 44);
+      g.lineTo(46, 54); g.lineTo(46, 26); g.quadraticCurveTo(52, 18, 58, 26); g.lineTo(58, 52);
+      g.lineTo(60, 18); g.quadraticCurveTo(67, 12, 72, 20); g.lineTo(72, 52); g.lineTo(76, 24);
+      g.quadraticCurveTo(83, 18, 88, 26); g.lineTo(86, 58); g.lineTo(92, 40);
+      g.quadraticCurveTo(100, 36, 100, 46); g.lineTo(92, 80); g.lineTo(90, 112); g.closePath();
+    }, '#f8f6f0');
+    stroked(ctx, function (g) { g.moveTo(40, 100); g.lineTo(90, 100); }, '#c8c0b0', 3);
+    inked(ctx, poly([[104, 10], [108, 22], [120, 26], [108, 30], [104, 42], [100, 30], [88, 26], [100, 22]]),
+          WD_GOLD, 3);
+  });
+
+  emblem('em_wd_revolver', function (ctx) {
+    // the detective's revolver, smoke curling from the barrel
+    inked(ctx, function (g) { g.rect(40, 50, 66, 14); }, '#5a5e66');
+    inked(ctx, function (g) { g.ellipse(48, 64, 16, 14, 0, 0, Math.PI * 2); }, '#7a7e88');
+    inked(ctx, poly([[30, 58], [44, 62], [50, 104], [30, 108], [22, 76]]), WD_WOOD);
+    stroked(ctx, function (g) { g.arc(54, 84, 10, 0.2, 2.2); }, '#5a5e66', 4);
+    stroked(ctx, function (g) {
+      g.moveTo(110, 48); g.quadraticCurveTo(100, 38, 110, 30); g.quadraticCurveTo(120, 22, 110, 12);
+    }, CREAM, 4);
+  });
+
+  emblem('em_wd_hero', function (ctx) {
+    // the revolver picked up from the floor, a star behind it
+    inked(ctx, function (g) {
+      for (var i = 0; i < 10; i++) {
+        var r = i % 2 ? 20 : 46, a = i * Math.PI / 5 - Math.PI / 2;
+        g[i ? 'lineTo' : 'moveTo'](64 + Math.cos(a) * r, 62 + Math.sin(a) * r);
+      }
+      g.closePath();
+    }, WD_GOLD);
+    inked(ctx, function (g) { g.rect(46, 56, 50, 10); }, '#5a5e66', 4);
+    inked(ctx, poly([[40, 58], [54, 62], [58, 94], [42, 96], [34, 74]]), WD_WOOD, 4);
+  });
+
+  emblem('em_wd_clock', function (ctx) {
+    // a pocket watch a minute from twelve
+    stroked(ctx, function (g) { g.arc(64, 14, 8, 0, Math.PI * 2); }, WD_GOLD, 5);
+    inked(ctx, circlePath(64, 68, 44), WD_GOLD);
+    inked(ctx, circlePath(64, 68, 34), CREAM, 4);
+    for (var h = 0; h < 12; h++) {
+      stroked(ctx, (function (a) {
+        return function (g) { g.moveTo(64 + Math.sin(a) * 28, 68 - Math.cos(a) * 28);
+          g.lineTo(64 + Math.sin(a) * 33, 68 - Math.cos(a) * 33); };
+      })(h * Math.PI / 6), INK, 3);
+    }
+    stroked(ctx, function (g) { g.moveTo(64, 68); g.lineTo(64, 44); g.moveTo(64, 68); g.lineTo(62, 38); }, WD_RED, 4);
+    inked(ctx, circlePath(64, 68, 4), INK, 2);
+  });
+
+  emblem('em_wd_oops', function (ctx) {
+    // the detective's deerstalker knocked off, a red cross over it
+    inked(ctx, function (g) { g.ellipse(64, 76, 46, 14, 0, 0, Math.PI * 2); }, '#8a6a48');
+    inked(ctx, function (g) { g.moveTo(28, 76); g.quadraticCurveTo(28, 30, 64, 28); g.quadraticCurveTo(100, 30, 100, 76);
+      g.closePath(); }, '#c8a070');
+    stroked(ctx, function (g) { g.moveTo(64, 30); g.lineTo(64, 74); g.moveTo(40, 44); g.lineTo(88, 44); }, '#8a6a48', 3);
+    inked(ctx, circlePath(64, 26, 5), '#8a6a48', 3);
+    stroked(ctx, function (g) { g.moveTo(26, 26); g.lineTo(102, 102); g.moveTo(102, 26); g.lineTo(26, 102); }, WD_RED, 9);
+  });
+
+  emblem('em_wd_clue', function (ctx) {
+    // a sealed letter, the red wax pressed with an eye
+    inked(ctx, poly([[16, 34], [112, 34], [112, 98], [16, 98]]), '#f2ead8');
+    stroked(ctx, function (g) { g.moveTo(16, 34); g.lineTo(64, 72); g.lineTo(112, 34); }, '#b8a888', 4);
+    inked(ctx, circlePath(64, 72, 16), WD_RED, 4);
+    inked(ctx, function (g) { g.ellipse(64, 72, 9, 5, 0, 0, Math.PI * 2); }, '#f2ead8', 2);
+    inked(ctx, circlePath(64, 72, 3), INK, 1);
+  });
+
+  emblem('em_wd_candle', function (ctx) {
+    // a candle in its holder, still burning
+    inked(ctx, function (g) { g.ellipse(64, 104, 34, 10, 0, 0, Math.PI * 2); }, WD_GOLD);
+    stroked(ctx, function (g) { g.arc(100, 96, 10, -1.2, 1.6); }, WD_GOLD, 5);
+    inked(ctx, function (g) { g.rect(50, 50, 28, 52); }, '#f8f4e8');
+    inked(ctx, function (g) { g.moveTo(52, 50); g.quadraticCurveTo(54, 62, 58, 56); g.lineTo(58, 50); g.closePath(); },
+          '#e8e0cc', 2);
+    inked(ctx, function (g) {
+      g.moveTo(64, 10); g.quadraticCurveTo(80, 32, 72, 44); g.quadraticCurveTo(64, 50, 56, 44);
+      g.quadraticCurveTo(48, 32, 64, 10);
+    }, '#ffb84a', 4);
+    inked(ctx, function (g) { g.ellipse(64, 38, 4, 7, 0, 0, Math.PI * 2); }, '#fff1a8', 2);
+  });
+
+  emblem('em_wd_map', function (ctx) {
+    // four case files stacked, each stamped
+    [[22, 24, WD_RED], [58, 30, WD_BLUE], [22, 68, WD_GOLD], [58, 74, '#5ad06a']].forEach(function (f) {
+      inked(ctx, poly([[f[0], f[1] + 6], [f[0] + 14, f[1] + 6], [f[0] + 18, f[1]], [f[0] + 48, f[1]],
+                       [f[0] + 48, f[1] + 34], [f[0], f[1] + 34]]), '#d8b880', 4);
+      stroked(ctx, (function (x, y, c) {
+        return function (g) { g.moveTo(x + 14, y + 20); g.lineTo(x + 21, y + 27); g.lineTo(x + 34, y + 12); };
+      })(f[0], f[1], f[2]), f[2], 5);
+    });
+  });
+
   // @@ event world emblems go above this line @@
 
   void inked; void stroked; void poly; void circlePath; void CREAM; void INK;
