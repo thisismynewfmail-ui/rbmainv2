@@ -388,7 +388,8 @@ class Brain:
             self.vy = JUMP_SPEED
         # the body: gravity, walls, ledges, floors and ceilings
         if moving or self.airborne or self.vy:
-            self.vy -= G * dt
+            pull = self.instance.bot_gravity(p) if getattr(self.runner, "arena", False) else 1.0
+            self.vy -= G * pull * dt
             vel = [vx, self.vy, vz]
             boxes = body_module.nearby(self.instance, p.pos, vel, dt)
             if moving and not self.airborne:
@@ -435,7 +436,12 @@ class Brain:
             p.anim = "walk"
         else:
             p.anim = "idle"
-        if self.airborne and (p.pos[1] < self.ground[1] - nav_module.DROP_MAX - 6
+        # a world that sends fallers back to a checkpoint itself (an obby)
+        # catches them on the way down; the rest only ever lose a bot that
+        # left the paths
+        caught = getattr(self.runner, "arena", False) and \
+            getattr(self.instance, "CATCHES_FALLS", False)
+        if self.airborne and ((not caught and p.pos[1] < self.ground[1] - nav_module.DROP_MAX - 6)
                               or p.pos[1] < self.runner.kill_y + 4):
             # fell somewhere no path goes: back to solid ground, the way the
             # server snaps back a player it thinks has left the map

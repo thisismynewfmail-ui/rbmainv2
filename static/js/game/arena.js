@@ -25,7 +25,8 @@
      onMe(me)  onEnd(msg)  messages: {type: fn(msg)}  hud(state) -> panel
      prompt() -> text  draw(renderer, dt, time)  avatarParts(player, parts,
      self) -> parts  hidden(player) -> bool  nameTag(player) -> {colour, sub}
-     moveScale()  canJump()  gravityScale()  canFire(stats)  isCustom(stats)
+     moveScale()  canJump()  gravityScale()  jumpScale()  afterStep(local,
+     result, dt)  canFire(stats)  isCustom(stats)
      localFire(stats, origin, dir) -> handled  useDown(repeat) -> handled
      useUp()  rayHit(origin, dir, dist) -> dist  camera() -> {eye,yaw,pitch}
      scoreHead() -> html  scoreRow(row) -> html  introInfo(msg) -> info
@@ -547,6 +548,19 @@
   Arena.prototype.canJump = function () {
     var v = this.call('canJump');
     return v === undefined ? true : !!v;
+  };
+
+  // how hard a jump pushes off (a pair of spring shoes)
+  Arena.prototype.jumpScale = function () {
+    var v = this.call('jumpScale');
+    return v === undefined ? 1 : v;
+  };
+
+  /* After the body has moved this frame: whatever the world does to a body
+     the physics does not know about -- a conveyor under the feet, a jump
+     pad, a swinging hammer -- happens here, on the local player. */
+  Arena.prototype.afterStep = function (local, result, dt) {
+    this.call('afterStep', local, result, dt);
   };
 
   Arena.prototype.rayHit = function (origin, dir, distance) {

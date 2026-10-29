@@ -49,6 +49,15 @@ It answers the three questions that decide whether a map feels finished:
     every solid has a twin across the middle.  Cover only one team gets is a
     thumb on the scale, however it got there.
 
+``routes`` (an obstacle course's)
+    An area laid out as a course -- ``route`` marks, in order, each saying
+    how to get to the next: walk, jump or ride a pad -- cannot be walked
+    back from its finish, so it is not checked by walking.  It is *run*: a
+    body with a bot's legs (app/game/bots/body.py) goes from every mark to
+    the next the way the mark says, and has to land on it.  A gap with no
+    jump marked, a jump too far, a ledge too high or a pad that throws you
+    into a ceiling all fail here rather than in a race.
+
 Nothing in here is specific to one map, so a new world gets the same audit
 for free.
 """
@@ -786,6 +795,117 @@ def nearest_node(nodes, area, spacing, point) -> Optional[Tuple[int, int, int]]:
     return best
 
 
+def check_course(data: Dict[str, Any], area: Dict[str, Any]) -> List[str]:
+    """Run an obstacle course's line, mark to mark (see the module notes)."""
+    from app.game.bots import body as body_module
+    points = area.get("points") or {}
+    route = sorted(points.get("route") or [], key=lambda m: m["i"])
+    if len(route) < 2:
+        return []
+    extra = area.get("extra") or {}
+    pads = points.get("pad") or []
+    belts = extra.get("belts") or []
+    fall_y = float(extra.get("fall_y", -60.0))
+    # the course as the race finds it: the gates down, everything else
+    # (blinking tiles, crumbling grates) there
+    lo, hi = area["parts"]
+    parts = list(data["parts"][lo:hi])
+    for d in (area.get("dynamic") or {}).values():
+        if d.get("on", True) and d.get("group") != "gate":
+            parts += d["parts"]
+    solid = Solid(parts)
+    problems = []
+    for mark in route:
+        if int(mark.get("how", 0)) == 2:
+            continue
+        for pad in pads:
+            if math.hypot(mark["p"][0] - pad["p"][0], mark["p"][2] - pad["p"][2]) < pad["r"] + 0.6 \
+                    and abs(mark["p"][1] - pad["p"][1]) < 2.5:
+                problems.append("%s: route %d stands on a pad that is not its own: a body "
+                                "there is thrown off it" % (area["id"], mark["i"]))
+    for k, (a, b) in enumerate(zip(route, route[1:])):
+        # a pad is stepped onto from the mark before it, and fires at its rim
+        # -- run that approach too, not a launch from the pad's middle
+        before = route[k - 1] if int(a.get("how", 0)) == 2 and k > 0 else None
+        ok, why = _run_leg(solid, a, b, pads, belts, fall_y, body_module, before)
+        if not ok:
+            how = ("walk", "jump", "pad")[int(a.get("how", 0)) % 3]
+            problems.append("%s: route %d -> %d (%s from %s): %s"
+                            % (area["id"], a["i"], b["i"], how,
+                               ",".join("%.1f" % v for v in a["p"]), why))
+    return problems
+
+
+def _run_leg(solid: Solid, a, b, pads, belts, fall_y: float, body_module, before=None
+             ) -> Tuple[bool, str]:
+    """One leg of a course, run the way a bot runs it: straight at the next
+    mark at a run (slowing so as not to overshoot it, steering in the air),
+    jumping off a jump mark, hopping up a ledge it walks into, riding a belt
+    underfoot and a pad it steps on."""
+    dt = 0.05
+    pos = [float(v) for v in (before or a)["p"]]
+    goal = a["p"] if before is not None else b["p"]
+    airborne = int((before or a).get("how", 0)) == 1
+    vy = 34.0 if airborne else 0.0
+    push = [0.0, 0.0]
+    used_pad = False
+    span = math.hypot(goal[0] - pos[0], goal[2] - pos[2])
+    limit = span / 22.0 * 2.5 + 3.0
+    t = 0.0
+    while t < limit:
+        if not airborne:
+            push = [0.0, 0.0]
+            for pad in pads:
+                # a pad fires the moment a body is over its rim, and the
+                # body steers for the next mark from then on
+                if not used_pad and math.hypot(pos[0] - pad["p"][0], pos[2] - pad["p"][2]) < pad["r"] \
+                        and abs(pos[1] - pad["p"][1]) < 0.6:
+                    used_pad = True
+                    airborne = True
+                    vy = float(pad["v"])
+                    push = [math.sin(pad["yaw"]) * pad["f"], math.cos(pad["yaw"]) * pad["f"]]
+                    goal = b["p"]
+        dx, dz = goal[0] - pos[0], goal[2] - pos[2]
+        dist = math.hypot(dx, dz)
+        if dist < 1.0 and abs(pos[1] - goal[1]) < 1.2 and not airborne and goal is b["p"]:
+            return True, ""
+        speed = min(22.0, dist / dt)
+        vx = dx / dist * speed if dist > 1e-6 else 0.0
+        vz = dz / dist * speed if dist > 1e-6 else 0.0
+        if not airborne:
+            for belt in belts:
+                x0, x1, z0, z1 = belt["rect"]
+                if x0 <= pos[0] <= x1 and z0 <= pos[2] <= z1 and abs(pos[1] - belt["y"]) < 0.4:
+                    vx += belt["v"][0]
+                    vz += belt["v"][1]
+            if not airborne and goal[1] - pos[1] > 2.2 and dist < 7.0:
+                airborne, vy = True, 34.0          # a ledge: jump for it
+        if not airborne and goal[1] >= pos[1] - 2.3:
+            # a bot will not walk off an edge its line does not drop from
+            # (brain._edge_guard): along the edge if it can, else it stops
+            near = solid.near(pos[0], pos[2])
+            if not body_module.supported(near, pos[0] + vx * dt, pos[1], pos[2] + vz * dt):
+                if vx and body_module.supported(near, pos[0] + vx * dt, pos[1], pos[2]):
+                    vz = 0.0
+                elif vz and body_module.supported(near, pos[0], pos[1], pos[2] + vz * dt):
+                    vx = 0.0
+                else:
+                    return False, "a bot stops at the edge (at %.1f,%.1f,%.1f): mark a jump, " \
+                                  "or close the gap" % tuple(pos)
+        vy -= 62.0 * dt
+        vel = [vx + push[0], vy, vz + push[1]]
+        boxes = solid.near(pos[0], pos[2])
+        result = body_module.move(boxes, pos, vel, dt)
+        if result.grounded and vel[1] <= 0.0:
+            airborne, vy = False, 0.0
+        else:
+            airborne, vy = True, vel[1]
+        if pos[1] < fall_y:
+            return False, "fell, at %.1f,%.1f,%.1f" % tuple(pos)
+        t += dt
+    return False, "never got there (at %.1f,%.1f,%.1f)" % tuple(pos)
+
+
 def check_reachability(solid: Solid, data: Dict[str, Any],
                        targets: Sequence[Tuple[str, List[float]]],
                        spacing: float = 5.0,
@@ -887,12 +1007,18 @@ def audit(name: str, module) -> int:
     field_problems = check_playfield(solid, data)
     key_points = [pt for pt in points
                   if "spawn" in pt[0] or "flag_" in pt[0] or "outpost" in pt[0]]
+    course_problems: List[str] = []
     if "--fast" in sys.argv:
         route_problems = []
     elif areas:
         # each area on its own, from its safe room to everything in it
         route_problems = []
         for area in areas:
+            if (area.get("points") or {}).get("route"):
+                # an obstacle course: run, not walked (see check_course);
+                # a run is exact, so what it finds counts
+                course_problems += check_course(data, area)
+                continue
             if area.get("safe"):
                 targets = [("%s safe spawn" % area["id"], area["safe"][0]["p"])]
             else:
@@ -930,7 +1056,7 @@ def audit(name: str, module) -> int:
                          ("mirror symmetry", lopsided),
                          ("spawns and markers", spawn_problems),
                          ("playfield", field_problems),
-                         ("routes", route_problems)):
+                         ("routes", route_problems + course_problems)):
         if not items:
             print("  %-20s clean" % title)
             continue
@@ -941,7 +1067,7 @@ def audit(name: str, module) -> int:
             print("      ... and %d more" % (len(items) - int(os.environ.get("MAPCHECK_SHOW", "14"))))
     return (len(fights) + len(floating) + len(hanging) + len(walkable) +
             len(loose) + len(lopsided) + len(spawn_problems) +
-            len(field_problems))
+            len(field_problems) + len(course_problems))
 
 
 def main(argv: Sequence[str]) -> int:

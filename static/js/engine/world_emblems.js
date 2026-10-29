@@ -619,6 +619,164 @@
     });
   });
 
+  // ------------------------------------------------------------- Sky Sprint
+  var SS_SKY = '#5ab8f0', SS_RED = '#e8463a', SS_BLUE = '#3a8ae8', SS_GOLD = '#ffd23a',
+      SS_GREEN = '#7ad85a', SS_PINK = '#ff7ac8';
+
+  function ssCloud(ctx, x, y, s, colour) {
+    inked(ctx, function (g) {
+      g.moveTo(x - 30 * s, y + 10 * s);
+      g.arc(x - 18 * s, y + 2 * s, 12 * s, Math.PI * 0.6, Math.PI * 1.5);
+      g.arc(x, y - 6 * s, 16 * s, Math.PI * 1.1, Math.PI * 1.95);
+      g.arc(x + 20 * s, y + 2 * s, 12 * s, Math.PI * 1.45, Math.PI * 0.4);
+      g.closePath();
+    }, colour || CREAM, 4);
+  }
+
+  emblem('em_ss_trophy', function (ctx) {
+    // a winner's cup on a cloud
+    ssCloud(ctx, 64, 104, 1.5, '#ffffff');
+    inked(ctx, function (g) {
+      g.moveTo(34, 20); g.lineTo(94, 20); g.quadraticCurveTo(94, 66, 64, 70); g.quadraticCurveTo(34, 66, 34, 20);
+      g.closePath();
+    }, SS_GOLD);
+    stroked(ctx, function (g) { g.arc(30, 36, 12, Math.PI * 0.5, Math.PI * 1.5); g.moveTo(98, 24); g.arc(98, 36, 12, -Math.PI * 0.5, Math.PI * 0.5); },
+            SS_GOLD, 6);
+    inked(ctx, function (g) { g.rect(58, 68, 12, 14); g.rect(44, 80, 40, 10); }, SS_GOLD, 4);
+    inked(ctx, poly([[64, 28], [68, 38], [78, 38], [70, 45], [73, 55], [64, 49], [55, 55], [58, 45], [50, 38], [60, 38]]),
+          '#fff6c8', 2);
+  });
+
+  emblem('em_ss_flag', function (ctx) {
+    // a chequered flag waving over the line
+    stroked(ctx, function (g) { g.moveTo(30, 16); g.lineTo(30, 116); }, '#5a5e66', 7);
+    inked(ctx, function (g) {
+      g.moveTo(32, 18); g.quadraticCurveTo(64, 6, 78, 20); g.quadraticCurveTo(92, 32, 112, 22);
+      g.lineTo(112, 72); g.quadraticCurveTo(92, 82, 78, 70); g.quadraticCurveTo(64, 56, 32, 68); g.closePath();
+    }, CREAM);
+    for (var r = 0; r < 3; r++) {
+      for (var c = 0; c < 5; c++) {
+        if ((r + c) % 2) continue;
+        var x = 34 + c * 16, y = 22 + r * 16 + Math.sin(c * 1.3) * 4;
+        inked(ctx, function (g) { g.rect(x, y, 15, 15); }, INK, 1);
+      }
+    }
+  });
+
+  emblem('em_ss_first', function (ctx) {
+    // a gold medal with a big 1, its ribbon in both teams' colours
+    inked(ctx, poly([[40, 10], [58, 10], [70, 54], [52, 54]]), SS_RED, 4);
+    inked(ctx, poly([[88, 10], [70, 10], [58, 54], [76, 54]]), SS_BLUE, 4);
+    inked(ctx, circlePath(64, 80, 34), SS_GOLD);
+    inked(ctx, circlePath(64, 80, 24), '#ffe88a', 3);
+    inked(ctx, poly([[58, 66], [70, 60], [70, 98], [60, 98], [60, 72], [54, 74]]), '#c88a1a', 3);
+  });
+
+  emblem('em_ss_podium', function (ctx) {
+    // the three steps, a star over the top one
+    inked(ctx, function (g) { g.rect(46, 52, 36, 62); }, SS_GOLD);
+    inked(ctx, function (g) { g.rect(14, 72, 32, 42); }, '#c8ccd4');
+    inked(ctx, function (g) { g.rect(82, 84, 32, 30); }, '#d89a5a');
+    inked(ctx, poly([[64, 12], [70, 26], [85, 27], [73, 36], [77, 50], [64, 42], [51, 50], [55, 36], [43, 27], [58, 26]]),
+          '#fff6c8', 3);
+    inked(ctx, poly([[60, 66], [68, 62], [68, 92], [60, 92]]), '#c88a1a', 2);
+  });
+
+  emblem('em_ss_arch', function (ctx) {
+    // a checkpoint arch, its banner up, a glow on the line under it
+    inked(ctx, function (g) { g.ellipse(64, 106, 46, 9, 0, 0, Math.PI * 2); }, SS_SKY, 3);
+    inked(ctx, function (g) { g.rect(20, 34, 14, 72); g.rect(94, 34, 14, 72); }, SS_BLUE);
+    inked(ctx, function (g) { g.rect(14, 24, 100, 22); }, SS_BLUE);
+    inked(ctx, circlePath(27, 18, 8), SS_GOLD, 3);
+    inked(ctx, circlePath(101, 18, 8), SS_GOLD, 3);
+    inked(ctx, function (g) { g.rect(34, 30, 60, 10); }, CREAM, 2);
+  });
+
+  emblem('em_ss_boot', function (ctx) {
+    // a running shoe, out in front, speed lines behind it
+    stroked(ctx, function (g) {
+      g.moveTo(8, 50); g.lineTo(34, 50); g.moveTo(4, 66); g.lineTo(30, 66); g.moveTo(10, 82); g.lineTo(34, 82);
+    }, CREAM, 5);
+    inked(ctx, function (g) {
+      g.moveTo(40, 30); g.lineTo(66, 30); g.lineTo(72, 56); g.quadraticCurveTo(100, 60, 116, 78);
+      g.lineTo(116, 92); g.lineTo(40, 92); g.closePath();
+    }, SS_RED);
+    inked(ctx, function (g) { g.rect(38, 92, 80, 12); }, CREAM, 4);
+    stroked(ctx, function (g) { g.moveTo(54, 50); g.lineTo(66, 46); g.moveTo(56, 62); g.lineTo(70, 58); }, CREAM, 4);
+  });
+
+  emblem('em_ss_feather', function (ctx) {
+    // a feather drifting down, not a mark on the course under it
+    inked(ctx, function (g) {
+      g.moveTo(96, 14); g.quadraticCurveTo(110, 50, 70, 86); g.quadraticCurveTo(46, 100, 34, 98);
+      g.quadraticCurveTo(40, 70, 64, 44); g.quadraticCurveTo(80, 26, 96, 14); g.closePath();
+    }, '#f4f0ff');
+    stroked(ctx, function (g) { g.moveTo(96, 16); g.quadraticCurveTo(70, 60, 26, 112); }, '#8a8ab8', 4);
+    stroked(ctx, function (g) { g.moveTo(72, 46); g.lineTo(88, 50); g.moveTo(60, 62); g.lineTo(78, 68); g.moveTo(50, 78); g.lineTo(64, 84); },
+            '#c8c8e8', 3);
+    inked(ctx, poly([[22, 22], [26, 32], [36, 36], [26, 40], [22, 50], [18, 40], [8, 36], [18, 32]]), SS_GOLD, 3);
+  });
+
+  emblem('em_ss_glove', function (ctx) {
+    // the bonk glove, mid-punch, a star where it lands
+    inked(ctx, poly([[96, 34], [104, 50], [122, 52], [108, 62], [112, 80], [96, 70], [82, 80], [86, 62], [72, 52], [90, 50]]),
+          SS_GOLD, 3);
+    inked(ctx, function (g) { g.rect(10, 54, 24, 30); }, CREAM);
+    inked(ctx, function (g) {
+      g.moveTo(32, 46); g.quadraticCurveTo(48, 30, 72, 38); g.quadraticCurveTo(90, 46, 86, 70);
+      g.quadraticCurveTo(82, 94, 58, 94); g.quadraticCurveTo(38, 94, 32, 84); g.closePath();
+    }, '#e83a3a');
+    inked(ctx, function (g) { g.ellipse(52, 40, 12, 9, -0.4, 0, Math.PI * 2); }, '#e83a3a', 4);
+    stroked(ctx, function (g) { g.moveTo(46, 54); g.quadraticCurveTo(60, 50, 72, 56); }, '#ff8a8a', 4);
+  });
+
+  emblem('em_ss_ringout', function (ctx) {
+    // a racer tumbling off the edge of a platform into the clouds
+    ssCloud(ctx, 76, 108, 1.3, '#ffffff');
+    inked(ctx, function (g) { g.rect(10, 34, 52, 14); }, SS_GREEN);
+    stroked(ctx, function (g) { g.moveTo(66, 20); g.quadraticCurveTo(84, 22, 90, 40); }, CREAM, 4);
+    inked(ctx, function (g) { g.rect(80, 56, 20, 22); }, '#c4281c', 4);
+    inked(ctx, function (g) { g.rect(78, 40, 18, 16); }, '#f5cd30', 4);
+    inked(ctx, function (g) { g.rect(84, 78, 8, 16); g.rect(96, 74, 8, 16); }, '#0d69ac', 3);
+  });
+
+  emblem('em_ss_power', function (ctx) {
+    // a power-up box, the lightning bolt on it glowing
+    inked(ctx, circlePath(64, 64, 46), SS_PINK);
+    inked(ctx, function (g) { g.rect(34, 34, 60, 60); }, '#5a3aa8');
+    inked(ctx, poly([[70, 30], [44, 70], [62, 70], [54, 100], [86, 56], [66, 56], [76, 30]]), SS_GOLD, 4);
+  });
+
+  emblem('em_ss_rocket', function (ctx) {
+    // a rocket blasting upwards on a tail of flame
+    inked(ctx, function (g) {
+      g.moveTo(64, 108); g.quadraticCurveTo(48, 92, 56, 80); g.lineTo(72, 80); g.quadraticCurveTo(80, 92, 64, 108);
+    }, '#ff8a2a', 3);
+    inked(ctx, function (g) { g.moveTo(64, 102); g.quadraticCurveTo(58, 92, 60, 84); g.lineTo(68, 84); g.quadraticCurveTo(70, 92, 64, 102); },
+          '#ffe88a', 2);
+    inked(ctx, poly([[44, 84], [52, 62], [52, 82]]), SS_BLUE, 4);
+    inked(ctx, poly([[84, 84], [76, 62], [76, 82]]), SS_BLUE, 4);
+    inked(ctx, function (g) {
+      g.moveTo(64, 10); g.quadraticCurveTo(82, 30, 78, 82); g.lineTo(50, 82); g.quadraticCurveTo(46, 30, 64, 10);
+    }, CREAM);
+    inked(ctx, circlePath(64, 44, 9), SS_SKY, 4);
+    inked(ctx, function (g) { g.moveTo(64, 10); g.quadraticCurveTo(74, 18, 77, 28); g.lineTo(51, 28); g.quadraticCurveTo(54, 18, 64, 10); },
+          SS_RED, 3);
+  });
+
+  emblem('em_ss_map', function (ctx) {
+    // the four courses: a gear, a lollipop, a neon square, a pagoda roof
+    inked(ctx, circlePath(36, 36, 20), '#8a8e96', 4);
+    inked(ctx, circlePath(36, 36, 7), '#e8b830', 3);
+    stroked(ctx, function (g) { g.moveTo(92, 50); g.lineTo(92, 60); }, CREAM, 4);
+    inked(ctx, circlePath(92, 34, 18), SS_PINK, 4);
+    stroked(ctx, function (g) { g.arc(92, 34, 10, 0, Math.PI * 1.5); }, CREAM, 4);
+    inked(ctx, function (g) { g.rect(18, 74, 36, 36); }, '#1a1430', 4);
+    stroked(ctx, function (g) { g.rect(24, 80, 24, 24); }, '#3ad8ff', 4);
+    inked(ctx, poly([[66, 92], [92, 72], [118, 92], [110, 94], [92, 84], [74, 94]]), '#1e3a34', 4);
+    inked(ctx, function (g) { g.rect(80, 94, 24, 18); }, '#b8202a', 4);
+  });
+
   // @@ event world emblems go above this line @@
 
   void inked; void stroked; void poly; void circlePath; void CREAM; void INK;

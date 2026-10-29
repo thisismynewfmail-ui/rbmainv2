@@ -1320,7 +1320,7 @@
     if (this.keys.jump && local.grounded &&
         (!this.survival || this.survival.canJump()) && (!gear || gear.canJump()) &&
         (!this.arena || this.arena.canJump())) {
-      local.vel[1] = this.constants.jump || 34;
+      local.vel[1] = (this.constants.jump || 34) * (this.arena ? this.arena.jumpScale() : 1);
       local.grounded = false;
       this.audio.play('jump', { volume: 0.35 });
     }
@@ -1329,6 +1329,7 @@
     if (local.vel[1] < -140) local.vel[1] = -140;
 
     var result = this.physics.move(local, dt);
+    if (this.arena) this.arena.afterStep(local, result, dt);
     if (result.landed) {
       this.audio.play('land', { volume: 0.4 });
       this.particles.burst('dust', [local.pos[0], local.pos[1], local.pos[2]]);

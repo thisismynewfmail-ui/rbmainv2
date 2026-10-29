@@ -77,6 +77,7 @@ class ArenaWorld(GameInstance):
     ELIMINATION = False          # the fallen watch until the next round
     BALANCE = True               # even the teams up between rounds
     WARMUP_FIRE = False          # may people shoot during the countdown
+    CATCHES_FALLS = False        # the world sends fallers back itself (an obby)
     CUSTOM_KINDS: Tuple[str, ...] = ()
     HELD_TIMERS: Tuple[str, ...] = ()   # extra timers to hold with nobody here
     LOGO = ""                    # what the arrival sequence and cards say
@@ -176,9 +177,14 @@ class ArenaWorld(GameInstance):
             self._settle_on(key)
 
     def set_dynamic_group(self, group: str, on: bool) -> None:
+        self.set_dynamic_keys([key for key, d in (self.area.get("dynamic") or {}).items()
+                               if d.get("group") == group], on)
+
+    def set_dynamic_keys(self, keys: Sequence[str], on: bool) -> None:
+        """Switch several solids at once (one message, one rebuild)."""
         changed = {}
-        for key, d in (self.area.get("dynamic") or {}).items():
-            if d.get("group") == group and self.dyn_on.get(key) != bool(on):
+        for key in keys:
+            if key in self.dyn_on and self.dyn_on[key] != bool(on):
                 self.dyn_on[key] = bool(on)
                 changed[key] = bool(on)
         if changed:
@@ -913,6 +919,12 @@ class ArenaWorld(GameInstance):
         bot's body this tick -- the gale or the current a person feels as
         a ``knock`` -- or None."""
         return None
+
+    def bot_gravity(self, player: Player) -> float:
+        """Subclass hook: how hard gravity pulls on a bot's body this tick
+        (1 = normal; a feather that makes a person's browser fall slowly
+        makes a bot fall slowly too)."""
+        return 1.0
 
     def bot_urgent(self, brain) -> bool:
         return False
