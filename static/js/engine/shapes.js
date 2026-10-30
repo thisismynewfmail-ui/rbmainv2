@@ -1075,6 +1075,20 @@
     return pts;
   })(), { depth: 0.12, bevel: 0.04, smooth: 1.0 }));
 
+  /* A doubloon: a hand-struck cob coin, round but not quite -- its edge
+     wanders a little, the way a cut lump of silver does -- a badge's
+     plate. */
+  add('doubloon', extrude((function () {
+    var pts = [];
+    for (var i = 0; i < 72; i++) {
+      var a = (i / 72) * TAU;
+      var r = 0.5 * (1 + 0.035 * Math.sin(a * 3 + 0.6) + 0.02 * Math.sin(a * 7 + 1.9) +
+                     0.012 * Math.cos(a * 11));
+      pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    return pts;
+  })(), { depth: 0.14, bevel: 0.04, smooth: 1.0 }));
+
   // A coil: a slinky, a streamer, a curly tail, a corkscrew curl of hair.
   add('spiral', tube(function (t) {
     var a = t * TAU * 4.5;

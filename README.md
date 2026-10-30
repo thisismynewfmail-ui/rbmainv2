@@ -106,6 +106,7 @@ Basic Shotgun and a Basic Stick.
 | **Calamity Coast** | `/calamity_coast` | Disaster survival: two rescue teams ride out three disasters a round -- tsunamis, tornadoes, avalanches, eruptions, the great fire -- and carry the stranded to safety; no PvP | 16 |
 | **Whodunit** | `/whodunit` | Murder mystery: secret roles -- a murderer with a hidden knife, a detective with a revolver, everybody else innocent; clues fill a case file that gives up hints, and a twist in every place | 16 |
 | **Sky Sprint** | `/sky_sprint` | Obstacle-course race in the sky: two teams race pads, belts, hammers, sweepers, lasers and blinking tiles past checkpoints to the finish, a bonk glove to shove rivals off, power-ups and a twist on every course | 16 |
+| **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with cutlass, flintlock and ship's cannon, tosses and raids, and a twist on every island | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -658,6 +659,87 @@ go back to their checkpoint like anybody. They shout it in quick chat
 (*bonk*, *outta my way*, *that hammer*, *nooo*). The Bots Zone's **Sky
 Sprint** subtab sets their skill, their patience at a hazard, how keen they
 are to bonk, how far they will go for a power-up, and the callouts.
+
+
+### Plunder Bay
+A treasure haul for up to sixteen, in two pirate crews -- the **Scarlet
+Corsairs** and the **Azure Buccaneers** -- whose galleons are moored at
+either end of an island. Everybody starts aboard; at **GO** both crews go
+ashore after the treasure, and every piece carried into your own ship's
+**hold** (the hatch in the middle of the main deck) counts for your crew.
+First to **300 doubloons**, or the richer crew when the five minutes are up,
+wins the haul; then the crews sail on to another island.
+
+**The treasure**: pouches of doubloons (2), gold bars (4) and jewels (6)
+lying where they fell, coming back a while after they are taken; **chests**
+(12), dug up where **X** marks the spot -- hold **E** on a live X -- with
+a fresh X drawn somewhere else once one is dug; and, two minutes from the
+end, the **cursed idol** (25), rising on its altar, and shining over
+whoever carries it for everybody to chase. You carry one piece at a time:
+walk over it to pick it up. A pouch, a bar or a jewel leaves your hands
+free (a little slower); a chest or the idol takes **both hands** -- no
+cutlass, no flintlock -- and slows you right down. **R** tosses what you
+carry where you look: a crewmate can catch it in the air (so can anybody
+else), and treasure that lands on a hold's hatch is banked for that crew.
+Whoever is cut down drops what they carry where they fall. A bold raider,
+empty-handed in the other crew's hold, can hold **E** to steal a gold bar's
+worth out of it -- if the crew coming back to life beside it lets them.
+
+**Kit**: a **cutlass** (three cuts kill, close in) and a **flintlock** (one
+heavy shot, then a slow reload -- the cutlass is ready at once). Each ship
+has two deck **cannons**: stand at one of your own and a ring shows where
+the shell would land, where you are looking within its arc; **E** fires it.
+The shell lands a moment later, knocks everybody away and the treasure out
+of their hands. Wading slows you, deeper water more.
+
+Each island has its own twist, with a warning first:
+
+* **Skull Cove** -- a horseshoe island round a lagoon under a rock shaped
+  like a skull, a cave in its mouth and the idol in the cave: jungle, huts,
+  lookout towers, a pirate camp, a rope bridge, a sandbar and a sunken
+  sloop. *Low tide*: the sea falls in two steps, the lagoon floor is
+  uncovered and treasure lies on it -- until the tide comes back and washes
+  what is left away.
+* **Coral Reef** -- an atoll of sandy islets on boardwalks over the
+  shallows: stilt huts, giant clams with jewels in them, a lighthouse, and
+  a great wreck run aground in the lagoon with the idol on its forecastle.
+  *The kraken*: six tentacles rise round the wreck and slam down on whoever
+  comes near (a ring shows where first); cut one down and it leaves a
+  jewel.
+* **Port Royale** -- a colonial harbour town: warehouses and cranes on the
+  quays, a market square with its fountain, the tavern, the church, the
+  governor's mansion and the fort on the hill with the idol in its yard and
+  gold in its treasury. *The redcoats*: the garrison marches out on patrol
+  and shoots any pirate it sees, carriers first; a downed redcoat drops his
+  purse.
+* **Doubloon Isle** -- a volcanic island of black sand: a river of lava
+  with stone bridges over it, a moat round a stepped temple with the idol
+  on top, the old gold mine, hot springs and jungle. The lava is death at
+  any time. *The eruption*: lava bombs rain on the island (rings again) and
+  the volcano spews gold all over it.
+
+**Badges** (struck on a doubloon): Jolly Roger (hauls won), Plunderer
+(doubloons banked), X Marks the Spot (chests dug up), Heavy Lifter (chests
+banked), Cursed (the idol banked), Raider (raids), Swashbuckler (cutlass
+takedowns), Dead Shot (flintlock takedowns), Broadside (cannon hits), Good
+Catch (catches), Old Salt (taking on the sea: sunken treasure, blows on the
+kraken, redcoats downed, gold from the eruption) and Every Port (a haul won
+on each of the four islands).
+
+**Bots** are haulers, raiders or guards. Haulers go for the best treasure
+they can reach -- a live X, the idol, loot the twist brought -- without two
+of them chasing the same piece, dig, and carry it home, tossing it to a
+crewmate ahead of them when they are chased. Raiders hunt the other crew's
+carriers (a chest or the idol from furthest off) and slip aboard to rob
+their hold when it is not too well guarded. Guards stay by their ship,
+repel boarders, go out to meet a crewmate being chased home, and man the
+cannons, leading their target. Everybody steps out of a ring about to come
+down, fights the tentacles and the redcoats, goes for the sunken and
+erupted gold, keeps off the trench rims, and shouts it in quick chat
+(*got a chest*, *cover me*, *raiders!*, *FIRE*, *yoink*). The Bots Zone's
+**Plunder Bay** subtab sets how many haul, how many of the rest raid or
+guard, how far they chase a carrier, how readily they fire the cannons, and
+the callouts.
 
 ---
 

@@ -1265,7 +1265,9 @@
     var souls = document.querySelector('#ammo .souls');
     if (souls) souls.style.display = stats.souls ? '' : 'none';
     else if (stats.souls && this.hud.setSouls) this.hud.setSouls(0, stats.souls, 0);
-    if (stats.kind === 'melee') {
+    // a blade (an event world's cutlass or glove too) has no magazine to
+    // count, and a world's own kit can say its count means nothing
+    if (stats.kind === 'melee' || stats.melee || stats.hide_ammo) {
       this.hud.setAmmo(null, null, item ? item.name : '', false);
     } else {
       this.hud.setAmmo(this.ammo[this.slot], this.reserve[this.slot],
