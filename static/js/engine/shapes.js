@@ -1050,6 +1050,45 @@
     return rim;
   })());
 
+  /* A round cartoon cloud, flat on the bottom: five puffs about a middle,
+     the biggest on top -- a badge's plate, where 'cloud' (below) is a long
+     low one for hats and pets. */
+  add('skycloud', extrude((function () {
+    var puffs = [[-0.30, -0.08, 0.20], [-0.14, 0.12, 0.24], [0.10, 0.18, 0.27],
+                 [0.32, 0.02, 0.20], [0.0, -0.10, 0.26]];
+    var pts = [];
+    for (var i = 0; i < 64; i++) {
+      var a = (i / 64) * TAU;
+      var dx = Math.cos(a), dy = Math.sin(a);
+      // the furthest any puff reaches from the middle in this direction
+      var best = 0;
+      puffs.forEach(function (p) {
+        var b = p[0] * dx + p[1] * dy;
+        var c = p[0] * p[0] + p[1] * p[1] - p[2] * p[2];
+        var disc = b * b - c;
+        if (disc >= 0) best = Math.max(best, b + Math.sqrt(disc));
+      });
+      // and flat along the bottom
+      if (dy < -0.2) best = Math.min(best, -0.30 / dy);
+      pts.push([dx * best, dy * best]);
+    }
+    return pts;
+  })(), { depth: 0.12, bevel: 0.04, smooth: 1.0 }));
+
+  /* A doubloon: a hand-struck cob coin, round but not quite -- its edge
+     wanders a little, the way a cut lump of silver does -- a badge's
+     plate. */
+  add('doubloon', extrude((function () {
+    var pts = [];
+    for (var i = 0; i < 72; i++) {
+      var a = (i / 72) * TAU;
+      var r = 0.5 * (1 + 0.035 * Math.sin(a * 3 + 0.6) + 0.02 * Math.sin(a * 7 + 1.9) +
+                     0.012 * Math.cos(a * 11));
+      pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    return pts;
+  })(), { depth: 0.14, bevel: 0.04, smooth: 1.0 }));
+
   // A coil: a slinky, a streamer, a curly tail, a corkscrew curl of hair.
   add('spiral', tube(function (t) {
     var a = t * TAU * 4.5;

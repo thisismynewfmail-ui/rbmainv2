@@ -1265,7 +1265,9 @@
     var souls = document.querySelector('#ammo .souls');
     if (souls) souls.style.display = stats.souls ? '' : 'none';
     else if (stats.souls && this.hud.setSouls) this.hud.setSouls(0, stats.souls, 0);
-    if (stats.kind === 'melee') {
+    // a blade (an event world's cutlass or glove too) has no magazine to
+    // count, and a world's own kit can say its count means nothing
+    if (stats.kind === 'melee' || stats.melee || stats.hide_ammo) {
       this.hud.setAmmo(null, null, item ? item.name : '', false);
     } else {
       this.hud.setAmmo(this.ammo[this.slot], this.reserve[this.slot],
@@ -1320,7 +1322,7 @@
     if (this.keys.jump && local.grounded &&
         (!this.survival || this.survival.canJump()) && (!gear || gear.canJump()) &&
         (!this.arena || this.arena.canJump())) {
-      local.vel[1] = this.constants.jump || 34;
+      local.vel[1] = (this.constants.jump || 34) * (this.arena ? this.arena.jumpScale() : 1);
       local.grounded = false;
       this.audio.play('jump', { volume: 0.35 });
     }
@@ -1329,6 +1331,7 @@
     if (local.vel[1] < -140) local.vel[1] = -140;
 
     var result = this.physics.move(local, dt);
+    if (this.arena) this.arena.afterStep(local, result, dt);
     if (result.landed) {
       this.audio.play('land', { volume: 0.4 });
       this.particles.burst('dust', [local.pos[0], local.pos[1], local.pos[2]]);

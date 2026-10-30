@@ -105,6 +105,8 @@ Basic Shotgun and a Basic Stick.
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
 | **Calamity Coast** | `/calamity_coast` | Disaster survival: two rescue teams ride out three disasters a round -- tsunamis, tornadoes, avalanches, eruptions, the great fire -- and carry the stranded to safety; no PvP | 16 |
 | **Whodunit** | `/whodunit` | Murder mystery: secret roles -- a murderer with a hidden knife, a detective with a revolver, everybody else innocent; clues fill a case file that gives up hints, and a twist in every place | 16 |
+| **Sky Sprint** | `/sky_sprint` | Obstacle-course race in the sky: two teams race pads, belts, hammers, sweepers, lasers and blinking tiles past checkpoints to the finish, a bonk glove to shove rivals off, power-ups and a twist on every course | 16 |
+| **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with cutlass, flintlock and ship's cannon, tosses and raids, and a twist on every island | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -588,6 +590,156 @@ use the stairs between floors and decks like anyone else. The Bots Zone's
 sharp everybody's eyes are, how careful a murderer is about witnesses, how
 often it throws, how brave an innocent is about the revolver, how much
 they trust what they are told, and the callouts.
+
+
+### Sky Sprint
+An obstacle-course race for up to sixteen, in two teams -- the **Red
+Rockets** and the **Blue Comets** -- on a course hung in the sky. Everybody
+waits behind the gate on the start deck; it drops at **GO**, and the race is
+on: run the girders and the bridges, jump the gaps, ride the conveyors,
+launch off the jump pads, bounce off the jelly, time the hammers, hop the
+sweeping arms and the lasers, and get across the blinking tiles while they
+are there. Fall off (into the lava, the chocolate, the grid or the clouds)
+and you are back at the **last checkpoint you reached**, not the start.
+
+**Points** go to your team: one for every checkpoint you reach, three more
+for the first racer to each one, and at the finish 12, 9, 7, 5, 4, 3, 2
+and 1 by place. Once half the field is home a **hurry-up** gives the rest
+25 seconds. The team with more when everybody is in (or the clock or the
+hurry-up runs out) wins the race; two races on a course, then everybody
+moves on.
+
+**The bonk glove** is everybody's only kit: a shove, no damage, on a short
+cooldown. Bonk a rival off the course and that is a **ring-out**, two more
+points. **Power-ups** turn up on their spots round the course: **spring
+shoes** (higher jumps), a **feather** (you fall slowly), a **bubble**
+(nothing bonks, knocks or zaps you) and a **rocket** (**E**: a dash the way
+you are facing).
+
+The hammers, sweepers, lasers and wind run on clocks the server sends many
+times a second, so what you see swing is what hits everybody -- bots
+included. A tile about to blink out flashes red first, and its ghost stays
+where it was; a tile never comes back on top of anybody. Each course has
+its own twist, with a warning first:
+
+* **The Foundry** -- an ironworks over a lake of molten iron: I-beams and
+  conveyors, the hammer hall, piston steps, the gear room and its sweeping
+  arm, crane girders, crumbling grates and two blast pads up the great
+  chimney to the finish. *Reverse*: the conveyors run backwards and the
+  hammers swing faster.
+* **Candy Clouds** -- a sweet shop in the sky over a chocolate river:
+  gumdrop stepping stones, jelly that bounces you, taffy that holds you,
+  biscuit bridges that crumble, lollipop sweepers, marshmallow towers and
+  the cake at the top. *Sugar rush*: everybody runs faster and jumps
+  higher.
+* **Neon Grid** -- a synthwave city at night: speed strips down the
+  highway, beat tiles that blink to the music, sweeping lasers, spinning
+  neon bars and a stack of pads to the rooftop finish. *The drop*: the beat
+  doubles and the lasers sweep faster.
+* **Jade Temple** -- floating islands round a mountain temple: rope bridges
+  in the wind, the spinning bamboo, cloud platforms that drift in and out,
+  lotus pads and the temple bell at the top. *Typhoon*: a gale blows across
+  every bridge without a break.
+
+**Badges** (struck on a cloud): Sky High (races won), Over the Line
+(finishes), First Across (first place), Podium (top three), Waypoints
+(checkpoints), Trailblazer (first to a checkpoint), Flawless (a finish
+without a fall), Bonk! (bonks), Ring Out (rivals bonked off), Power Up
+(power-ups), Rocketeer (rockets lit) and Every Course (a race won on each of
+the four).
+
+**Bots** race the same course by the same rules: each course carries its
+line, marked mark by mark (walk, jump or pad), and a bot follows it --
+waiting at a mark for the hammer to pass, the arm to come round, the tile to
+come back or the crumbled bridge to rebuild, then going, hopping the arms
+and beams as they arrive. They lean into the wind, ride the belts and pads,
+detour for a power-up, light a rocket on a long straight, bonk a rival near
+an edge, and now and then misjudge a jump (the less skilled, more often) and
+go back to their checkpoint like anybody. They shout it in quick chat
+(*bonk*, *outta my way*, *that hammer*, *nooo*). The Bots Zone's **Sky
+Sprint** subtab sets their skill, their patience at a hazard, how keen they
+are to bonk, how far they will go for a power-up, and the callouts.
+
+
+### Plunder Bay
+A treasure haul for up to sixteen, in two pirate crews -- the **Scarlet
+Corsairs** and the **Azure Buccaneers** -- whose galleons are moored at
+either end of an island. Everybody starts aboard; at **GO** both crews go
+ashore after the treasure, and every piece carried into your own ship's
+**hold** (the hatch in the middle of the main deck) counts for your crew.
+First to **300 doubloons**, or the richer crew when the five minutes are up,
+wins the haul; then the crews sail on to another island.
+
+**The treasure**: pouches of doubloons (2), gold bars (4) and jewels (6)
+lying where they fell, coming back a while after they are taken; **chests**
+(12), dug up where **X** marks the spot -- hold **E** on a live X -- with
+a fresh X drawn somewhere else once one is dug; and, two minutes from the
+end, the **cursed idol** (25), rising on its altar, and shining over
+whoever carries it for everybody to chase. You carry one piece at a time:
+walk over it to pick it up. A pouch, a bar or a jewel leaves your hands
+free (a little slower); a chest or the idol takes **both hands** -- no
+cutlass, no flintlock -- and slows you right down. **R** tosses what you
+carry where you look: a crewmate can catch it in the air (so can anybody
+else), and treasure that lands on a hold's hatch is banked for that crew.
+Whoever is cut down drops what they carry where they fall. A bold raider,
+empty-handed in the other crew's hold, can hold **E** to steal a gold bar's
+worth out of it -- if the crew coming back to life beside it lets them.
+
+**Kit**: a **cutlass** (three cuts kill, close in) and a **flintlock** (one
+heavy shot, then a slow reload -- the cutlass is ready at once). Each ship
+has two deck **cannons**: stand at one of your own and a ring shows where
+the shell would land, where you are looking within its arc; **E** fires it.
+The shell lands a moment later, knocks everybody away and the treasure out
+of their hands. Wading slows you, deeper water more.
+
+Each island has its own twist, with a warning first:
+
+* **Skull Cove** -- a horseshoe island round a lagoon under a rock shaped
+  like a skull, a cave in its mouth and the idol in the cave: jungle, huts,
+  lookout towers, a pirate camp, a rope bridge, a sandbar and a sunken
+  sloop. *Low tide*: the sea falls in two steps, the lagoon floor is
+  uncovered and treasure lies on it -- until the tide comes back and washes
+  what is left away.
+* **Coral Reef** -- an atoll of sandy islets on boardwalks over the
+  shallows: stilt huts, giant clams with jewels in them, a lighthouse, and
+  a great wreck run aground in the lagoon with the idol on its forecastle.
+  *The kraken*: six tentacles rise round the wreck and slam down on whoever
+  comes near (a ring shows where first); cut one down and it leaves a
+  jewel.
+* **Port Royale** -- a colonial harbour town: warehouses and cranes on the
+  quays, a market square with its fountain, the tavern, the church, the
+  governor's mansion and the fort on the hill with the idol in its yard and
+  gold in its treasury. *The redcoats*: the garrison marches out on patrol
+  and shoots any pirate it sees, carriers first; a downed redcoat drops his
+  purse.
+* **Doubloon Isle** -- a volcanic island of black sand: a river of lava
+  with stone bridges over it, a moat round a stepped temple with the idol
+  on top, the old gold mine, hot springs and jungle. The lava is death at
+  any time. *The eruption*: lava bombs rain on the island (rings again) and
+  the volcano spews gold all over it.
+
+**Badges** (struck on a doubloon): Jolly Roger (hauls won), Plunderer
+(doubloons banked), X Marks the Spot (chests dug up), Heavy Lifter (chests
+banked), Cursed (the idol banked), Raider (raids), Swashbuckler (cutlass
+takedowns), Dead Shot (flintlock takedowns), Broadside (cannon hits), Good
+Catch (catches), Old Salt (taking on the sea: sunken treasure, blows on the
+kraken, redcoats downed, gold from the eruption) and Every Port (a haul won
+on each of the four islands).
+
+**Bots** are haulers, raiders or guards. Haulers go for the best treasure
+they can reach -- a live X, the idol, loot the twist brought -- without two
+of them chasing the same piece, dig, and carry it home, tossing it to a
+crewmate ahead of them when they are chased. Raiders hunt the other crew's
+carriers (a chest or the idol from furthest off) and slip aboard to rob
+their hold when it is not too well guarded. Guards stay by their ship,
+repel boarders, go out to meet a crewmate being chased home, and man the
+cannons, leading their target. Everybody steps out of a ring about to come
+down, fights the tentacles and the redcoats, goes for the sunken and
+erupted gold, keeps off the trench rims, and shouts it in quick chat
+(*got a chest*, *cover me*, *raiders!*, *FIRE*, *yoink*). The Bots Zone's
+**Plunder Bay** subtab sets how many haul, how many of the rest raid or
+guard, how far they chase a carrier, how readily they fire the cannons, and
+the callouts.
 
 ---
 
