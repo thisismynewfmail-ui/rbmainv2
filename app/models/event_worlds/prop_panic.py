@@ -70,7 +70,8 @@ WORLD: Dict[str, Any] = {
         {"title": "Seekers: pop the right prop",
          "text": "You start in the pen with your eyes shut. Your popper heals you when it "
                  "hits a hider and hurts you when it hits a real prop. The sniffer makes "
-                 "the nearest hider squeak; a glitter bomb shows who is not what they seem."},
+                 "the nearest hider squeak (once every 30 seconds); a glitter bomb shows who "
+                 "is not what they seem."},
         {"title": "Every place has a twist",
          "text": "Mittens the cat stares at hiders in Grandma's Cottage; the toy shop's "
                  "power cuts out; MegaMart's flash sales put price tags on one kind of "

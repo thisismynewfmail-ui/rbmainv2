@@ -38,8 +38,11 @@ WORLD: Dict[str, Any] = {
     "round_label": "One haul",
     "colors": ["#c8302a", "#2a6ab8", "#e8b830"],
     "thumb": "plunder_bay",
-    "features": ["16 players", "Treasure haul", "Pirate crews", "Dig for chests", "Cutlass and flintlock",
+    "features": ["16 players", "Treasure haul", "Pirate crews", "Dig for chests", "Your own weapons",
                  "Ship cannons", "Raids", "4 twists", "4 rotating islands"],
+    # an enemy is just a name on the tag: you read your own crew's health at a
+    # glance, never theirs
+    "ally_health_only": True,
     "areas": [
         {"id": "skullcove", "name": "Skull Cove",
          "blurb": "A horseshoe island round a lagoon, under a rock shaped like a skull with a "
@@ -66,9 +69,10 @@ WORLD: Dict[str, Any] = {
         {"title": "X marks the spot",
          "text": "Hold E on an X to dig up a chest. It is worth the most -- and takes both "
                  "hands, so you cannot fight while you carry it."},
-        {"title": "Cutlass, flintlock, cannon",
-         "text": "Cut down a carrier and they drop their treasure. Your flintlock has one shot "
-                 "and a slow reload; your ship's cannons (E) shell the beach."},
+        {"title": "Your own arms, and the cannon",
+         "text": "Fight with whatever is on your hotbar. Cut down a carrier and they drop their "
+                 "treasure; your ship's cannons (E) shell the beach. Your crew's health shows "
+                 "on their tags -- the other crew is just a name."},
         {"title": "Toss it, raid it",
          "text": "R tosses what you carry to a crewmate. Empty-handed in the enemy hold, hold "
                  "E to steal a bar of their gold."},
@@ -104,12 +108,14 @@ BADGES: List[Tuple[Any, ...]] = [
     ("pb_raider", "Raider", "pb_raids", [1, 10, 40, 120, 300],
      ["Sneak", "Burglar", "Raider", "Sea Wolf", "Scourge of the Seas"],
      "Stole gold out of the enemy crew's hold.", "em_pb_hold", "raids"),
-    ("pb_swashbuckler", "Swashbuckler", "pb_cutlass", [1, 25, 100, 300, 800],
+    ("pb_swashbuckler", "Swashbuckler", "pb_melee", [1, 25, 100, 300, 800],
      ["Scrapper", "Duellist", "Swashbuckler", "Blademaster", "Terror of the Tides"],
-     "Cut down rival pirates with your cutlass.", "em_pb_cutlass", "cutlass takedowns"),
-    ("pb_dead_shot", "Dead Shot", "pb_pistol", [1, 25, 100, 300, 800],
+     "Cut down rival pirates up close, with a weapon off your own hotbar.", "em_pb_cutlass",
+     "close-quarters takedowns"),
+    ("pb_dead_shot", "Dead Shot", "pb_ranged", [1, 25, 100, 300, 800],
      ["Trigger", "Marksman", "Dead Shot", "Sharpshooter", "One Shot"],
-     "Brought down rival pirates with your flintlock.", "em_pb_pistol", "flintlock takedowns"),
+     "Brought down rival pirates from range, with a weapon off your own hotbar.",
+     "em_pb_pistol", "takedowns at range"),
     ("pb_broadside", "Broadside", "pb_cannon", [1, 20, 80, 250, 600],
      ["Gunner", "Powder Monkey", "Master Gunner", "Broadside", "Admiral"],
      "Hit rival pirates with your ship's cannon.", "em_pb_cannon", "cannon hits"),
@@ -235,7 +241,7 @@ PERSONA_TIES: List[Tuple[str, str]] = [
     ("Fragger, Tryhard, Toxic", "Raid: hunt carriers and rob the enemy hold."),
     ("Patient, Helpful, Wholesome", "Guard: stay by the ship, escort carriers, man the cannons."),
     ("Chaotic, Kid", "Do a bit of everything, toss treasure about, fire the cannon a lot."),
-    ("Veteran, Sniper main", "Pick off carriers from range with the flintlock."),
+    ("Veteran, Sniper main", "Pick off carriers from range."),
     ("Social, Chatty", "Stick by a crewmate with a chest and catch whatever they toss."),
 ]
 PERSONA_TAG = {"id": "pirate", "label": "Pirate",
@@ -248,7 +254,7 @@ PROMPT = ("Plunder Bay is a pirate treasure haul on BLOCKHAVEN for two crews, th
           "gold bars, jewels, chests dug up where X marks the spot, and the cursed idol late "
           "in the round. A chest takes both hands; a carrier who is cut down drops it; treasure "
           "can be tossed to a crewmate, and raiders steal from the other crew's hold. Everybody "
-          "has a cutlass and a one-shot flintlock, and the ships have cannons. The places are "
+          "fights with their own weapons, and the ships have cannons. The places are "
           "Skull Cove (the tide goes out), the Coral Reef (a kraken), Port Royale (the redcoats "
           "march out) and Doubloon Isle (the volcano erupts gold). Players talk in short bursts, "
           "with a bit of pirate: 'yarr', 'got a chest', 'cover me', 'raiders!', 'idol's up', 'gg'.")
@@ -271,8 +277,8 @@ def history_badges(history: Dict[str, Any], traits: Dict[str, float], rng
            ("pb_chests", int(rounds * rng.uniform(0.05, 0.8) * (0.5 + skill * 0.5)), "add"),
            ("pb_idols", int(rounds * rng.uniform(0.0, 0.12)), "add"),
            ("pb_raids", int(rounds * rng.uniform(0.0, 0.6) * (0.4 + aggro)), "add"),
-           ("pb_cutlass", int(kills * rng.uniform(0.3, 0.6)), "add"),
-           ("pb_pistol", int(kills * rng.uniform(0.2, 0.5)), "add"),
+           ("pb_melee", int(kills * rng.uniform(0.3, 0.6)), "add"),
+           ("pb_ranged", int(kills * rng.uniform(0.2, 0.5)), "add"),
            ("pb_cannon", int(rounds * rng.uniform(0.0, 1.0)), "add"),
            ("pb_catches", int(rounds * rng.uniform(0.0, 0.5)), "add"),
            ("pb_twists", int(rounds * rng.uniform(0.2, 1.5)), "add")]

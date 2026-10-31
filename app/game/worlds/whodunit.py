@@ -44,7 +44,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .. import instance as engine
 from ...models import catalog
-from ..instance import EYE_HEIGHT, MAX_HEALTH, STOW_SLOT, Player, normalise, ray_aabb
+from ..instance import EYE_HEIGHT, JUMP_SPEED, MAX_HEALTH, STOW_SLOT, Player, normalise, ray_aabb
 from ..maps.events import whodunit as wd_map
 from .arena import NEVER, ArenaWorld
 
@@ -117,6 +117,7 @@ class WhodunitWorld(ArenaWorld):
     RESULTS_SECONDS = 16.0
     ELIMINATION = True
     LOGO = "Whodunit"
+    FREEZE_COUNTDOWN = True
     CUSTOM_KINDS = ("wd_knife", "wd_revolver")
     respawn_seconds = 6.0
     BOT_CHATTER = ["who is it", "sus", "stick together", "where is everyone", "gg", "not me",
@@ -230,9 +231,21 @@ class WhodunitWorld(ArenaWorld):
             self.set_loadout(player, [KNIFE], public=[], quiet=True)
             self.handle_slot(player, {"i": STOW_SLOT})
         elif role in ("detective", "hero"):
-            self.set_loadout(player, [REVOLVER], quiet=True)
+            # the revolver is on show to the guests -- but not to a murderer,
+            # who has to work out who carries it (from a shot, say)
+            self.set_loadout(player, [REVOLVER], public=[], quiet=True)
+            for other in self.players.values():
+                if other is not player and not self.is_murderer(other):
+                    self._show_revolver(player, other)
         else:
             self.set_loadout(player, [], public=[], quiet=True)
+
+    def _show_revolver(self, armed: Player, viewer: Player) -> None:
+        """Tell ``viewer`` (anybody but a murderer) what ``armed`` really
+        carries, and which slot is in their hand."""
+        viewer.send({"t": "aload", "id": armed.pid, "hotbar": armed.extra.get("loadout")})
+        viewer.send({"t": "slot", "id": armed.pid,
+                     "i": STOW_SLOT if armed.stowed else armed.slot})
 
     def _tell_role(self, player: Player) -> None:
         role = self.role(player)
@@ -280,6 +293,16 @@ class WhodunitWorld(ArenaWorld):
             # watching until the next case: empty-handed, not in their own
             # kit (nobody here carries anything the case did not hand out)
             self.set_loadout(player, [], public=[], quiet=True)
+
+    def on_player_ready(self, player: Player) -> None:
+        super().on_player_ready(player)
+        if self.is_murderer(player):
+            return
+        for other in self.players.values():
+            if other is not player and self.armed(other) and other.extra.get("loadout"):
+                self._show_revolver(other, player)
+        if self.gun is not None:
+            player.send({"t": "wdx", "k": "gun", "p": self.gun["p"], "late": 1})
 
     def welcome_lines(self, player: Player) -> List[str]:
         lines = super().welcome_lines(player)
@@ -409,6 +432,7 @@ class WhodunitWorld(ArenaWorld):
         self.broadcast({"t": "wdx", "k": "shot", "id": player.pid,
                         "a": [round(v, 2) for v in origin], "b": [round(v, 2) for v in end]})
         player.send({"t": "wdx", "k": "cool", "reload": REVOLVER_RELOAD})
+        self._bot_saw_shot(player, origin, end)
         if best is None:
             return False
         if self.is_murderer(best):
@@ -504,7 +528,11 @@ class WhodunitWorld(ArenaWorld):
         if self.armed(victim) and self.phase == "active":
             self.gun = {"p": self._ground([pos[0], pos[1] + 1.0, pos[2]]), "at": engine.now()}
             self.counts["gun_drops"] += 1
-            self.broadcast({"t": "wdx", "k": "gun", "p": self.gun["p"]})
+            # where it lies is for the guests' eyes: a murderer hears it
+            # clatter down, and no more
+            for other in self.players.values():
+                other.send({"t": "wdx", "k": "gun"} if self.is_murderer(other) else
+                           {"t": "wdx", "k": "gun", "p": self.gun["p"]})
             self._event("wd_gun", None, "", where=self._place(pos), dropped=True)
         self._check_end()
 
@@ -699,6 +727,10 @@ class WhodunitWorld(ArenaWorld):
                     break
 
     def _take_clue(self, player: Player, clue: Dict[str, Any]) -> None:
+        if player.brain is not None:
+            mind = self._mind(player)
+            mind.pop("clue", None)
+            mind["pause_until"] = engine.now() + player.brain.rng.uniform(0.3, 2.2)
         if self.is_murderer(player):
             self.counts["burned"] += 1
             self._stat(player, "burned")
@@ -878,8 +910,6 @@ class WhodunitWorld(ArenaWorld):
                          for c in self.clues.values()]
         if self.bodies:
             out["bd"] = [[b["id"], b["p"][0], b["p"][1], b["p"][2], b["yaw"]] for b in self.bodies]
-        if self.gun is not None:
-            out["gn"] = self.gun["p"]
         if self.knives:
             out["kn"] = [[k["id"], round(k["p"][0], 2), round(k["p"][1], 2), round(k["p"][2], 2)]
                          for k in self.knives.values()]
@@ -1001,6 +1031,31 @@ class WhodunitWorld(ArenaWorld):
                 for k in killers:
                     self._suspect(bot, k, 1.0, moment, sure=True)
 
+    def _bot_saw_shot(self, shooter: Player, origin: Sequence[float], end: Sequence[float]) -> None:
+        """A murderer is never shown the revolver: a bot one learns who carries
+        it the way a player would -- by seeing the flash (and feeling a round
+        go past)."""
+        moment = engine.now()
+        for m in self.playing():
+            if m.brain is None or not self.is_murderer(m):
+                continue
+            mind = self._mind(m)
+            eye = [m.pos[0], m.pos[1] + EYE_HEIGHT, m.pos[2]]
+            if math.dist(m.pos, shooter.pos) < self.sight() and self.line_of_sight(eye, origin):
+                mind.setdefault("armed_seen", {})[shooter.pid] = moment
+            # the shot's path past them: close enough to feel it
+            ab = [end[i] - origin[i] for i in range(3)]
+            span = sum(v * v for v in ab) or 1e-6
+            t = max(0.0, min(1.0, sum((eye[i] - origin[i]) * ab[i] for i in range(3)) / span))
+            if math.dist(eye, [origin[i] + ab[i] * t for i in range(3)]) < 6.0:
+                mind["shot_at"] = (list(shooter.pos), moment)
+
+    def _known_armed(self, murderer: Player, other: Player) -> bool:
+        """Whether a murderer bot knows ``other`` carries the revolver: it has
+        seen them fire it (the dead keep no secrets: a misfire disgraces the
+        detective in front of everybody)."""
+        return self.armed(other) and other.pid in self._mind(murderer).get("armed_seen", {})
+
     def bot_tick(self, moment: float) -> None:
         for player in self.players.values():
             if player.brain is not None:
@@ -1090,6 +1145,27 @@ class WhodunitWorld(ArenaWorld):
         self._levels_for = (self.area_id, levels)
         return levels
 
+    def _reachable(self, q: Sequence[float]) -> bool:
+        """Can the bots find floor at ``q`` -- a clue, a room, a staircase's
+        end?  A corner or two of a house has none on their map (the strip of
+        the crypt between its wall and the tombs, the bottom of the crypt
+        stair): a bot sent there walks to the spot over it and stands."""
+        nav = getattr(self.host, "nav", None)
+        if nav is None or not nav.ready:
+            return True
+        cache = getattr(self, "_reach_for", None)
+        if cache is None or cache[0] != self.area_id:
+            cache = (self.area_id, {})
+            self._reach_for = cache
+        key = (round(q[0], 1), round(q[1], 1), round(q[2], 1))
+        found = cache[1].get(key)
+        if found is None:
+            node = nav.nearest(q, 2)
+            found = node >= 0 and abs(nav.py[node] - q[1]) < 2.5 and \
+                math.hypot(nav.px[node] - q[0], nav.pz[node] - q[2]) < 4.5
+            cache[1][key] = found
+        return found
+
     def _unperch(self, brain) -> bool:
         """A bot that has jumped up onto something with no way on from it in
         its graph -- a rail, a lifeboat, a roof -- and stalled there: walk it
@@ -1138,7 +1214,9 @@ class WhodunitWorld(ArenaWorld):
         if held is not None:
             # on a staircase: see it through to the other end
             to, until = held
-            there = abs(to[1] - p.pos[1]) <= 1.5 and math.hypot(to[0] - p.pos[0], to[2] - p.pos[2]) < 3.0
+            # (a step's height off counts: coming down, a body stops on the
+            # lip of the bottom step right over the mark at its foot)
+            there = abs(to[1] - p.pos[1]) <= 3.0 and math.hypot(to[0] - p.pos[0], to[2] - p.pos[2]) < 3.0
             if moment < until and not there:
                 return list(to)
             mind.pop("via", None)
@@ -1149,6 +1227,8 @@ class WhodunitWorld(ArenaWorld):
             a, to = st["p"], st.get("to")
             if to is None or abs(a[1] - p.pos[1]) > 1.5:
                 continue                    # not on this floor (or half way up it)
+            if not self._reachable(to):
+                continue                    # a way down the bots cannot see the end of
             if abs(to[1] - point[1]) >= abs(a[1] - point[1]):
                 continue                    # it goes the wrong way
             near = math.hypot(a[0] - p.pos[0], a[2] - p.pos[2])
@@ -1169,43 +1249,353 @@ class WhodunitWorld(ArenaWorld):
         brain.aim_yaw = p.yaw
         return normalise([dx, dy, dz])
 
+    @staticmethod
+    def _looking_at(a: Player, b: Player, cone: float = 0.6) -> bool:
+        """``a`` faces ``b`` (within about 35 degrees either way)."""
+        dx, dz = b.pos[0] - a.pos[0], b.pos[2] - a.pos[2]
+        off = math.atan2(dx, dz) - a.yaw
+        return abs(math.atan2(math.sin(off), math.cos(off))) < cone
+
     def _sees(self, a: Player, b: Player, reach: Optional[float] = None) -> bool:
         if math.dist(a.pos, b.pos) > (reach or self.sight()):
             return False
         return self.line_of_sight([a.pos[0], a.pos[1] + EYE_HEIGHT, a.pos[2]],
                                   [b.pos[0], b.pos[1] + 3.0, b.pos[2]])
 
-    def _nearest_clue(self, p: Player, avoid: Optional[Sequence[float]] = None
-                      ) -> Optional[Dict[str, Any]]:
-        best, best_s = None, 1e9
-        for clue in self.clues.values():
-            d = math.dist(clue["p"], p.pos)
-            if avoid is not None and math.dist(clue["p"], avoid) < 25.0:
-                d += 200.0
-            if abs(clue["p"][1] - p.pos[1]) > 6.0:
-                d += 25.0
-            if d < best_s:
-                best, best_s = clue, d
-        return best if best_s < 260.0 else None
+    # ---- getting about the way a guest does
+    def _style(self, brain, mind: Dict[str, Any]) -> str:
+        """How this guest spends a case when nothing is chasing it, from its
+        persona: a sleuth after every clue in the house, a collector, a buddy
+        who sticks with somebody, a wallflower who keeps to a corner, a
+        wanderer who cannot keep still.  Dealt afresh each case."""
+        style = mind.get("style")
+        if style is None:
+            weights = {
+                "sleuth": 0.3 + brain.t("explore", 0.2) * 1.4 + brain.t("aggression", 0.5) * 0.5,
+                "collector": 0.75,
+                "buddy": 0.2 + brain.t("support", 0.2) * 1.2 + brain.t("social", 0.5) * 0.5,
+                "wallflower": 0.15 + (1.0 - brain.t("aggression", 0.5)) * 0.4 +
+                (1.0 - brain.t("social", 0.5)) * 0.3,
+                "wanderer": 0.12 + brain.t("chaos", 0.08) * 1.5 + brain.t("jumpy", 0.2) * 0.7,
+            }
+            style = brain.rng.choices(list(weights), list(weights.values()))[0]
+            mind["style"] = style
+        return style
 
-    def _wander(self, brain, mind: Dict[str, Any], key: str = "wander") -> None:
+    def _offset(self, point: Sequence[float], p: Player, radius: float) -> List[float]:
+        """Somewhere by ``point`` of this bot's own, so two of them sent to the
+        same place do not stand on the same spot (and never through a wall)."""
+        nav = getattr(self.host, "nav", None)
+        if nav is None or not nav.ready:
+            return list(point)
+        eye = [point[0], point[1] + 1.5, point[2]]
+        base = (p.pid * 2.399) % (2.0 * math.pi)
+        for r in (radius, radius * 0.6):
+            for turn in (0.0, 1.9, -1.9, 3.1, 0.9, -0.9):
+                a = base + turn
+                x, z = point[0] + math.sin(a) * r, point[2] + math.cos(a) * r
+                if nav.walkable(x, point[1], z) and self.line_of_sight(eye, [x, point[1] + 1.5, z]):
+                    return [x, point[1], z]
+        # a corridor, say: short of it, on the way in
+        d = math.hypot(p.pos[0] - point[0], p.pos[2] - point[2])
+        if d > radius:
+            x = point[0] + (p.pos[0] - point[0]) / d * radius
+            z = point[2] + (p.pos[2] - point[2]) / d * radius
+            if nav.walkable(x, point[1], z):
+                return [x, point[1], z]
+        return list(point)
+
+    def _look_round(self, brain, mind: Dict[str, Any], moment: float, at: Optional[Player] = None) -> None:
+        """Standing about: turn the view the way a person does at a party --
+        to the faces in the room (the one it has a hunch about, most of all),
+        a doorway, back again."""
+        p = brain.p
+        if at is not None:
+            brain.look_yaw = math.atan2(at.pos[0] - p.pos[0], at.pos[2] - p.pos[2])
+            return
+        if moment < mind.get("glance_at", 0.0):
+            return
+        mind["glance_at"] = moment + brain.rng.uniform(0.7, 2.2)
+        faces = [o for o in self.playing() if o is not p and math.dist(o.pos, p.pos) < 32.0 and
+                 abs(o.pos[1] - p.pos[1]) < 6.0]
+        if faces and brain.rng.random() < 0.6:
+            hunch, sure = self.prime_suspect(p)
+            face = hunch if hunch in faces and sure > 0.25 else brain.rng.choice(faces)
+            brain.look_yaw = math.atan2(face.pos[0] - p.pos[0], face.pos[2] - p.pos[2])
+        else:
+            brain.look_yaw = p.yaw + brain.rng.uniform(-1.7, 1.7)
+
+    def _fidget(self, brain, mind: Dict[str, Any], moment: float) -> None:
+        """Nobody stands stock still: a hop now and then (the restless more),
+        and a few steps up and down the room."""
+        p = brain.p
+        restless = brain.t("jumpy", 0.2) + brain.t("chaos", 0.08) + \
+            (0.35 if mind.get("style") == "wanderer" else 0.0)
+        if not brain.airborne and brain.rng.random() < 0.012 * restless:
+            brain.airborne = True
+            brain.vy = JUMP_SPEED
+        if brain.waypoints or moment < mind.get("pace_at", 0.0):
+            return
+        mind["pace_at"] = moment + brain.rng.uniform(2.5, 7.0) / (0.6 + restless)
+        if brain.rng.random() < 0.45:
+            a = brain.rng.uniform(0.0, 2.0 * math.pi)
+            r = brain.rng.uniform(1.5, 4.5)
+            step = [p.pos[0] + math.sin(a) * r, p.pos[1], p.pos[2] + math.cos(a) * r]
+            nav = getattr(self.host, "nav", None)
+            if nav is not None and nav.ready and nav.walkable(step[0], step[1], step[2]) and \
+                    self.line_of_sight([p.pos[0], p.pos[1] + 1.5, p.pos[2]], [step[0], step[1] + 1.5, step[2]]):
+                brain.waypoints = [step]
+
+    def _roam(self, brain, mind: Dict[str, Any], key: str = "wander") -> Tuple[str, str]:
+        """Room to room the way a guest goes about a house: somewhere it has
+        not been lately and everybody else is not, and a while there looking
+        round before moving on.  Says whether it is on its way or there, and
+        where."""
+        p = brain.p
         moment = engine.now()
         spot = mind.get("spot")
-        if spot is None or moment > mind.get("spot_until", 0.0) or \
-                math.hypot(brain.p.pos[0] - spot[0], brain.p.pos[2] - spot[2]) < 3.0:
-            options = self.marks.get("roam") or [{"p": p} for p, _ in self.landmarks]
-            if not options:
-                return super().bot_objective(brain)
-            spot = list(brain.rng.choice(options)["p"])
+        if spot is not None:
+            here = math.hypot(p.pos[0] - spot[0], p.pos[2] - spot[2]) < 3.2 and abs(p.pos[1] - spot[1]) < 3.0
+            if here:
+                if "linger_until" not in mind:
+                    mind["linger_until"] = moment + self._linger(brain, mind)
+                if moment < mind["linger_until"]:
+                    if not mind.get("pacing"):
+                        brain.waypoints = []
+                    self._look_round(brain, mind, moment)
+                    self._fidget(brain, mind, moment)
+                    return "here", self._place(spot)
+                spot = None
+            elif moment > mind.get("spot_until", 0.0):
+                spot = None                 # a long way round: somewhere else, then
+        if spot is None:
+            spot = self._next_spot(brain, mind)
+            if spot is None:
+                super().bot_objective(brain)
+                return "going", ""
             mind["spot"] = spot
-            mind["spot_until"] = moment + brain.rng.uniform(12.0, 30.0)
+            mind.pop("linger_until", None)
+            mind["spot_until"] = moment + 40.0
         self._go(brain, spot, key + "%d" % int(spot[0] * 3 + spot[2]))
+        return "going", self._place(spot)
+
+    def _linger(self, brain, mind: Dict[str, Any]) -> float:
+        lo, hi = {"sleuth": (2.0, 6.0), "collector": (3.0, 9.0), "buddy": (3.0, 7.0),
+                  "wallflower": (9.0, 22.0), "wanderer": (1.0, 4.0),
+                  "detective": (3.0, 8.0), "murderer": (3.0, 10.0)}.get(mind.get("style", ""), (3.0, 8.0))
+        return brain.rng.uniform(lo, hi)
+
+    def _next_spot(self, brain, mind: Dict[str, Any]) -> Optional[List[float]]:
+        p = brain.p
+        moment = engine.now()
+        options = self.marks.get("roam") or [{"p": q} for q, _ in self.landmarks]
+        if not options:
+            return None
+        style = mind.get("style", "")
+        reach = {"sleuth": 150.0, "wanderer": 190.0, "wallflower": 60.0, "detective": 130.0}.get(style, 100.0)
+        seen = mind.setdefault("seen", {})
+        others = [o for o in self.playing() if o is not p]
+        heading = [self._mind(o).get("spot") for o in others if o.brain is not None]
+        fresh = [b["p"] for b in self.bodies if moment - b["at"] < 45.0]
+        best, best_s, best_key = None, -1e9, ""
+        for m in options:
+            q = m["p"]
+            d = math.dist(q, p.pos)
+            if d < 8.0 or not self._reachable(q):
+                continue                    # here already (or nowhere a bot can stand)
+            key = "%d_%d_%d" % (int(q[0]), int(q[1]), int(q[2]))
+            s = -abs(d - reach * 0.5) * 0.25 - max(0.0, d - reach) * 0.6
+            s += min(70.0, moment - seen.get(key, -1e9)) * 0.5
+            s -= 22.0 * sum(1 for o in others if math.dist(o.pos, q) < 12.0)
+            s -= 26.0 * sum(1 for h in heading if h is not None and math.dist(h, q) < 10.0)
+            if not self.is_murderer(p):
+                # nobody innocent goes back to look at a body for long
+                s -= 30.0 * sum(1 for b in fresh if math.dist(b, q) < 18.0)
+            if abs(q[1] - p.pos[1]) > 4.0:
+                s -= 6.0 if style in ("sleuth", "wanderer", "detective") else 18.0
+            s += brain.rng.uniform(0.0, 18.0)
+            if s > best_s:
+                best, best_s, best_key = q, s, key
+        if best is None:
+            return None
+        seen[best_key] = moment
+        return self._offset(best, p, brain.rng.uniform(0.8, 3.2))
+
+    def _pick_clue(self, brain, mind: Dict[str, Any], reach: float,
+                   avoid: Optional[Sequence[float]] = None) -> Optional[Dict[str, Any]]:
+        """A clue of its own to go for: never one somebody nearer is already
+        after (the way a person sees another get there first and turns for the
+        next), and one a little out of the way over the one everybody sees."""
+        p = brain.p
+        claims: Dict[int, Player] = {}
+        for other in self.playing():
+            if other is not p and other.brain is not None:
+                cid = self._mind(other).get("clue")
+                if cid is not None:
+                    claims[cid] = other
+        playing = [o for o in self.playing() if o is not p]
+        best, best_s = None, 1e9
+        for cid, clue in self.clues.items():
+            q = clue["p"]
+            d = math.dist(q, p.pos)
+            if d > reach or not self._reachable(q):
+                continue
+            rival = claims.get(cid)
+            if rival is not None and math.dist(rival.pos, q) < d + 4.0:
+                continue
+            s = d + ((cid * 37 + p.pid * 11) % 17)
+            if abs(q[1] - p.pos[1]) > 6.0:
+                s += 25.0
+            if avoid is not None and math.dist(q, avoid) < 25.0:
+                s += 200.0
+            if any(math.dist(o.pos, q) < min(d - 3.0, 12.0) for o in playing):
+                s += 60.0                   # somebody is standing right by it
+            if s < best_s:
+                best, best_s = clue, s
+        if best is None:
+            mind.pop("clue", None)
+            return None
+        mind["clue"] = best["id"]
+        return best
+
+    def _tail(self, brain, target: Player, standoff: float, key: str) -> None:
+        """Keep ``target`` in view from across the room -- not at its elbow."""
+        p = brain.p
+        d = math.dist(target.pos, p.pos)
+        if d > standoff + 5.0 or not self._sees(p, target, standoff + 25.0):
+            # from its own side: two of them on one guest do not end up
+            # shoulder to shoulder
+            a = math.atan2(p.pos[0] - target.pos[0], p.pos[2] - target.pos[2]) + \
+                ((p.pid * 0.618) % 1.0 - 0.5) * 1.2
+            q = [target.pos[0] + math.sin(a) * standoff, target.pos[1],
+                 target.pos[2] + math.cos(a) * standoff]
+            nav = getattr(self.host, "nav", None)
+            if nav is None or not nav.ready or not nav.walkable(q[0], q[1], q[2]) or \
+                    not self.line_of_sight([target.pos[0], target.pos[1] + 1.5, target.pos[2]],
+                                           [q[0], q[1] + 1.5, q[2]]):
+                q = self._offset(target.pos, p, standoff * 0.7)
+            self._go(brain, q, key + "%d" % target.pid)
+        elif d < standoff - 6.0:
+            away = math.atan2(p.pos[0] - target.pos[0], p.pos[2] - target.pos[2])
+            self._go(brain, [p.pos[0] + math.sin(away) * 4.0, p.pos[1], p.pos[2] + math.cos(away) * 4.0],
+                     key + "back%d" % target.pid)
+        else:
+            brain.waypoints = []
+            self._fidget(brain, self._mind(p), engine.now())
+        self._look_round(brain, self._mind(p), engine.now(), at=target)
+
+    def _buddy(self, brain, mind: Dict[str, Any], moment: float) -> Optional[Player]:
+        """Somebody to stick with for a while: one guest each (two to a pair,
+        not a crowd), never a follower itself, and never one it has a hunch
+        about."""
+        p = brain.p
+        friend = self.players.get(mind.get("buddy", 0))
+        if friend is not None and self.in_play(friend) and moment < mind.get("buddy_until", 0.0) and \
+                self.suspicion(p, friend) < 0.4:
+            return friend
+        mind.pop("buddy", None)
+        if moment < mind.get("buddy_next", 0.0):
+            return None
+        mind["buddy_next"] = moment + brain.rng.uniform(6.0, 16.0)
+        taken = {self._mind(o).get("buddy") for o in self.playing() if o is not p and o.brain is not None}
+        best, best_s = None, -1e9
+        for other in self.playing():
+            if other is p or other.pid in taken or self.suspicion(p, other) >= 0.3:
+                continue
+            if other.brain is not None and self._mind(other).get("buddy"):
+                continue                    # no trains of followers
+            d = math.dist(other.pos, p.pos)
+            if d > 70.0:
+                continue
+            s = -d + (20.0 if other.brain is None else 0.0) + (15.0 if self.armed(other) else 0.0)
+            s += brain.rng.uniform(0.0, 15.0)
+            if s > best_s:
+                best, best_s = other, s
+        if best is not None:
+            mind["buddy"] = best.pid
+            mind["buddy_until"] = moment + brain.rng.uniform(20.0, 50.0)
+            mind["side"] = brain.rng.choice((-1.0, 1.0))
+        return best
+
+    def _keep_with(self, brain, mind: Dict[str, Any], friend: Player, moment: float) -> None:
+        """At a friend's shoulder -- a step behind and to one side -- watching
+        the room while they do whatever they are doing."""
+        p = brain.p
+        a = friend.yaw + math.pi + mind.get("side", 1.0) * 0.8
+        spot = [friend.pos[0] + math.sin(a) * 5.5, friend.pos[1], friend.pos[2] + math.cos(a) * 5.5]
+        nav = getattr(self.host, "nav", None)
+        if nav is None or not nav.ready or not nav.walkable(spot[0], spot[1], spot[2]):
+            spot = self._offset(friend.pos, p, 5.5)
+        d = math.dist(friend.pos, p.pos)
+        busy = sum(1 for o in self.playing() if o is not p and o is not friend and
+                   math.dist(o.pos, friend.pos) < 8.0)
+        if busy >= 1:
+            # company enough round them already: keep them in sight from
+            # across the room instead
+            self._tail(brain, friend, 11.0, "buddy")
+        elif d > 10.0 or d < 3.0:
+            self._go(brain, spot, "buddy%d" % friend.pid)
+        else:
+            brain.waypoints = []
+            self._look_round(brain, mind, moment)
+            self._fidget(brain, mind, moment)
+
+    def _bot_view_body(self, brain, mind: Dict[str, Any], style: str, moment: float) -> bool:
+        """A fresh body: the curious go and look -- from a few steps off, two
+        at most, a few seconds -- and then want to be anywhere else."""
+        if not self.bodies:
+            return False
+        p = brain.p
+        body = self.bodies[-1]
+        if moment - body["at"] > 22.0 or math.dist(body["p"], p.pos) > 80.0:
+            mind.pop("view", None)
+            return False
+        bid = body["id"]
+        rolls = mind.setdefault("body_roll", {})
+        if bid not in rolls:
+            chance = {"sleuth": 0.7, "collector": 0.3, "buddy": 0.2, "wallflower": 0.05,
+                      "wanderer": 0.45}.get(style, 0.3) * (0.6 + self.pct("bravery") * 0.8)
+            viewers = sum(1 for o in self.playing() if o is not p and o.brain is not None and
+                          self._mind(o).get("view") == bid)
+            rolls[bid] = viewers < 2 and brain.rng.random() < chance
+        if not rolls[bid]:
+            return False
+        mind["view"] = bid
+        spot = mind.get("view_at")
+        if spot is None or mind.get("view_id") != bid:
+            spot = self._offset(body["p"], p, brain.rng.uniform(4.5, 7.0))
+            if not self._reachable(spot):
+                rolls[bid] = False
+                mind.pop("view", None)
+                return False
+            mind.update({"view_at": spot, "view_id": bid, "view_until": None})
+        if math.hypot(p.pos[0] - spot[0], p.pos[2] - spot[2]) > 2.5:
+            self._go(brain, spot, "body%d" % bid)
+            self.doing(brain, "going to see the body")
+            return True
+        if mind.get("view_until") is None:
+            mind["view_until"] = moment + brain.rng.uniform(2.5, 5.0)
+            where = self._place(body["p"])
+            self.callout(brain, ["rip %s" % body["name"], "who did this", "%s is dead" % body["name"],
+                                 "omg" + (" in the " + where if where and not where.startswith("the ")
+                                          else (" in " + where if where else "")),
+                                 "anyone see who did it?"], "viewbody", chance=0.4, every=40.0)
+        if moment < mind["view_until"]:
+            brain.waypoints = []
+            brain.look_yaw = math.atan2(body["p"][0] - p.pos[0], body["p"][2] - p.pos[2])
+            self.doing(brain, "looking at the body of %s" % body["name"])
+            return True
+        rolls[bid] = False
+        mind.pop("view", None)
+        mind.pop("spot", None)              # and then away from it
+        return False
 
     # ---- innocents
     def _bot_innocent(self, brain) -> None:
         p = brain.p
         moment = engine.now()
         mind = self._mind(p)
+        style = self._style(brain, mind)
         threat, sure = self.prime_suspect(p)
         if threat is not None and sure >= 0.7 and math.dist(threat.pos, p.pos) < 45.0:
             self._flee(brain, threat.pos, "from %s" % threat.username)
@@ -1217,12 +1607,20 @@ class WhodunitWorld(ArenaWorld):
             self.callout(brain, ["RUN", "body!!", "someones dead" + (" in " + where if where else ""),
                                  "get out of " + (where or "here")], "body", chance=0.5, every=40.0)
             return
-        # the revolver on the floor: the brave go for it
-        if self.gun is not None and brain.rng.random() < 0.15 + self.pct("bravery") * 0.5:
+        mind.pop("flee_to", None)
+        # the revolver on the floor: the brave go for it (one at a time --
+        # whoever is nearest; the rest leave it to them)
+        if self.gun is not None and not mind.get("for_gun") and self._reachable(self.gun["p"]) and \
+                brain.rng.random() < 0.15 + self.pct("bravery") * 0.5:
             d = math.dist(self.gun["p"], p.pos)
             if d < 90.0 and mind.get("gun_try", 0.0) < moment:
                 mind["gun_try"] = moment + 20.0
                 mind["for_gun"] = True
+        if mind.get("for_gun") and self.gun is not None:
+            d = math.dist(self.gun["p"], p.pos)
+            if any(o is not p and o.brain is not None and self._mind(o).get("for_gun") and
+                   math.dist(o.pos, self.gun["p"]) < d for o in self.playing()):
+                mind["for_gun"] = False     # somebody nearer is on their way to it
         if mind.get("for_gun") and self.gun is not None:
             self._go(brain, self.gun["p"], "gun")
             self.doing(brain, "going for the detective's revolver")
@@ -1230,52 +1628,104 @@ class WhodunitWorld(ArenaWorld):
                          chance=0.4, every=60.0)
             return
         mind.pop("for_gun", None)
-        clue = self._nearest_clue(p, avoid=threat.pos if threat is not None else None)
+        if moment < mind.get("pause_until", 0.0):
+            # just picked something up: a look at it, and round the room
+            brain.waypoints = []
+            self._look_round(brain, mind, moment)
+            return
+        if self._bot_view_body(brain, mind, style, moment):
+            return
+        # a hunch about somebody: the bold keep an eye on them from across
+        # the room, and say so
+        watched = threat is not None and any(
+            o is not p and o.brain is not None and not self.armed(o) and
+            self._mind(o).get("watching") == threat.pid for o in self.playing())
+        if threat is not None and 0.45 <= sure < 0.7 and style in ("sleuth", "buddy") and \
+                not watched and brain.t("aggression", 0.5) > 0.35 and math.dist(threat.pos, p.pos) < 50.0:
+            mind["watching"] = threat.pid
+            self._tail(brain, threat, 14.0, "watch")
+            self.doing(brain, "keeping an eye on %s" % threat.username)
+            self.callout(brain, ["im watching you %s" % threat.username, "%s is sus" % threat.username,
+                                 "why is %s following people" % threat.username], "watch%d" % threat.pid,
+                         chance=0.3, every=60.0)
+            return
+        mind.pop("watching", None)
+        # in the mood for clues, or for a look round (each guest its own way)
+        if moment >= mind.get("mood_until", 0.0):
+            keen = {"sleuth": 0.85, "collector": 0.7, "buddy": 0.3, "wallflower": 0.25,
+                    "wanderer": 0.35}.get(style, 0.6)
+            mind["mood"] = "clues" if brain.rng.random() < keen else "roam"
+            mind["mood_until"] = moment + brain.rng.uniform(15.0, 35.0)
+        reach = {"sleuth": 240.0, "collector": 150.0}.get(style, 60.0) if mind["mood"] == "clues" else 16.0
+        clue = self._pick_clue(brain, mind, reach, avoid=threat.pos if threat is not None else None)
         if clue is not None:
             self._go(brain, clue["p"], "clue%d" % clue["id"])
             self.doing(brain, "picking up a clue%s" % (
                 " near " + self._place(clue["p"]) if self._place(clue["p"]) else ""))
             return
-        # nothing to pick up: keep with somebody (safety in numbers)
-        friend = self._crowd(p)
-        if friend is not None and brain.rng.random() < 0.4 + self.pct("bravery") * 0.3:
-            self._go(brain, friend.pos, "crowd")
-            self.doing(brain, "keeping with %s" % friend.username)
-            if self.bodies:
-                self.callout(brain, ["stick together", "stay with me", "dont go off alone",
-                                     "wait for me " + friend.username], "crowd",
-                             chance=0.2, every=90.0)
-            return
-        self._wander(brain, mind)
-        self.doing(brain, "looking round the place")
-
-    def _crowd(self, p: Player) -> Optional[Player]:
-        best, best_s = None, 1e9
-        for other in self.playing():
-            if other is p or self.suspicion(p, other) > 0.4:
-                continue
-            d = math.dist(other.pos, p.pos)
-            if 6.0 < d < best_s:
-                best, best_s = other, d
-        return best
+        # safety in numbers: a buddy sticks with somebody, and anybody may
+        # once there is a body
+        if style == "buddy" or (self.bodies and style != "wallflower" and brain.t("social", 0.5) > 0.5):
+            friend = self._buddy(brain, mind, moment)
+            if friend is not None:
+                self._keep_with(brain, mind, friend, moment)
+                self.doing(brain, "keeping with %s" % friend.username)
+                if self.bodies:
+                    self.callout(brain, ["stick together", "stay with me", "dont go off alone",
+                                         "wait for me " + friend.username], "crowd",
+                                 chance=0.2, every=90.0)
+                return
+        state, where = self._roam(brain, mind)
+        if state == "here":
+            self.doing(brain, "hanging about %s" % where if where else "looking round the place")
+        else:
+            self.doing(brain, "heading to %s" % where if where else "looking round the place")
 
     def _flee(self, brain, danger: Sequence[float], why: str) -> None:
+        """Away from ``danger`` -- never past it -- to somewhere the others are
+        not all running too."""
         p = brain.p
         mind = self._mind(p)
+        moment = engine.now()
+        held = mind.get("flee_to")
+        if held is not None and moment < held[1] and math.dist(held[0], danger) > 25.0 and \
+                math.dist(held[0], p.pos) > 3.0:
+            self._go(brain, held[0], "flee")
+            self.doing(brain, "running %s" % why)
+            return
         options = self.marks.get("roam") or [{"p": pt} for pt, _ in self.landmarks]
+        others = [o for o in self.playing() if o is not p]
+        runs = [self._mind(o).get("flee_to") for o in others if o.brain is not None]
+        away = [p.pos[0] - danger[0], p.pos[2] - danger[2]]
+        away_len = math.hypot(away[0], away[1]) or 1e-6
         best, best_s = None, -1e9
         for m in options:
             q = m["p"]
+            if not self._reachable(q):
+                continue
             # far enough is far enough: a long way off is a long way to run
             s = min(math.dist(q, danger), 70.0) - math.dist(q, p.pos) * 0.5
-            for other in self.playing():
-                if self.armed(other):
+            to = [q[0] - p.pos[0], q[2] - p.pos[2]]
+            to_len = math.hypot(to[0], to[1]) or 1e-6
+            if (to[0] * away[0] + to[1] * away[1]) / (to_len * away_len) < -0.3 and \
+                    math.dist(q, danger) < to_len + 10.0:
+                s -= 40.0                   # that way is past whoever it is
+            s -= 16.0 * sum(1 for r in runs if r is not None and math.dist(r[0], q) < 10.0)
+            for other in others:
+                if self.is_murderer(p):
+                    # a murderer runs from the gun it knows of, not towards one
+                    if self._known_armed(p, other):
+                        s -= max(0.0, 40.0 - math.dist(other.pos, q)) * 0.8
+                elif self.armed(other):
                     s += max(0.0, 30.0 - math.dist(other.pos, q)) * 0.8
+            s += brain.rng.uniform(0.0, 12.0)
             if s > best_s:
                 best, best_s = q, s
         if best is not None:
-            mind["spot"] = list(best)
-            self._go(brain, best, "flee")
+            to = self._offset(best, p, brain.rng.uniform(1.0, 3.5))
+            mind["flee_to"] = (to, moment + 5.0)
+            mind.pop("spot", None)
+            self._go(brain, to, "flee")
         self.doing(brain, "running %s" % why)
 
     # ---- the detective (and the hero)
@@ -1283,6 +1733,7 @@ class WhodunitWorld(ArenaWorld):
         p = brain.p
         moment = engine.now()
         mind = self._mind(p)
+        mind["style"] = "detective"
         trigger = self.pct("trigger")
         need = 0.85 - trigger * 0.45
         target, sure = self.prime_suspect(p)
@@ -1305,32 +1756,60 @@ class WhodunitWorld(ArenaWorld):
             self._go(brain, target.pos, "chase")
             self.doing(brain, "after %s" % target.username)
             return
+        if target is not None and sure >= 0.35 and math.dist(target.pos, p.pos) < 70.0:
+            # not sure enough to shoot: shadow them, and wait for them to slip
+            self._tail(brain, target, 16.0, "shadow")
+            self.doing(brain, "shadowing %s" % target.username)
+            return
         lead = mind.get("lead")
-        if lead is not None and moment - lead[1] < 25.0:
+        if lead is not None and moment - lead[1] < 25.0 and self._reachable(lead[0]):
             if math.dist(lead[0], p.pos) > 6.0:
                 self._go(brain, lead[0], "lead")
                 self.doing(brain, "checking %s" % (self._place(lead[0]) or "a lead"))
                 return
             mind.pop("lead", None)
-        # follow the screams: the latest body
+        # the scene of the crime: a look at the body, then the rooms round it
         if self.bodies:
             body = self.bodies[-1]
-            if moment - body["at"] < 12.0 and math.dist(body["p"], p.pos) < 120.0:
-                self._go(brain, body["p"], "body%d" % body["id"])
-                self.doing(brain, "going to the body")
+            if moment - body["at"] < 14.0 and math.dist(body["p"], p.pos) < 120.0 and \
+                    mind.get("examined") != body["id"]:
+                spot = self._offset(body["p"], p, 3.5)
+                if not self._reachable(spot):
+                    mind["examined"] = body["id"]       # nowhere to stand by it
+                elif math.hypot(spot[0] - p.pos[0], spot[2] - p.pos[2]) > 2.5:
+                    self._go(brain, spot, "body%d" % body["id"])
+                    self.doing(brain, "going to the body")
+                    return
+                else:
+                    until = mind.setdefault("examine_until", moment + brain.rng.uniform(2.0, 4.0))
+                    if moment < until:
+                        brain.waypoints = []
+                        brain.look_yaw = math.atan2(body["p"][0] - p.pos[0], body["p"][2] - p.pos[2])
+                        self.doing(brain, "examining the body")
+                        return
+                    mind.pop("examine_until", None)
+                    mind["examined"] = body["id"]
+                    near = sorted((m["p"] for m in self.marks.get("roam") or ()
+                                   if 10.0 < math.dist(m["p"], body["p"]) < 60.0 and self._reachable(m["p"])),
+                                  key=lambda q: math.dist(q, body["p"]))
+                    mind["sweep"] = [list(q) for q in near[:3]]
+                    brain.rng.shuffle(mind["sweep"])
+        sweep = mind.get("sweep")
+        if sweep:
+            q = sweep[0]
+            if math.hypot(q[0] - p.pos[0], q[2] - p.pos[2]) > 4.0:
+                self._go(brain, q, "sweep%d" % int(q[0] * 3 + q[2]))
+                self.doing(brain, "searching %s" % (self._place(q) or "round the body"))
                 return
-        clue = self._nearest_clue(p)
-        if clue is not None and math.dist(clue["p"], p.pos) < 40.0:
+            sweep.pop(0)
+        clue = self._pick_clue(brain, mind, 40.0)
+        if clue is not None:
             self._go(brain, clue["p"], "clue%d" % clue["id"])
             self.doing(brain, "picking up a clue")
             return
-        friend = self._crowd(p)
-        if friend is not None and brain.rng.random() < 0.5:
-            self._go(brain, friend.pos, "patrol")
-            self.doing(brain, "keeping an eye on %s" % friend.username)
-            return
-        self._wander(brain, mind, "patrol")
-        self.doing(brain, "on patrol")
+        state, where = self._roam(brain, mind, "patrol")
+        self.doing(brain, ("watching %s" % where if state == "here" else "on patrol to %s" % where)
+                   if where else "on patrol")
 
     def _in_the_way(self, p: Player, target: Player, margin: float = 2.6) -> Optional[Player]:
         """Somebody standing between ``p`` and ``target``, near enough the line
@@ -1371,10 +1850,11 @@ class WhodunitWorld(ArenaWorld):
         moment = engine.now()
         mind = self._mind(p)
         stealth = self.pct("stealth")
-        hunted = any(self.armed(o) and self._sees(o, p, 40.0) and
-                     self._mind(o)["sus"].get(p.pid, (0.0, 0.0))[0] >= 0.6
-                     for o in self.playing() if o.brain is not None) or \
-            any(self.armed(o) and o.brain is None and self._sees(o, p, 25.0) for o in self.playing())
+        # hunted: shot at lately, or a known gun close by and looking this way
+        shot_at = mind.get("shot_at")
+        sleuth = next((o for o in self.playing() if o is not p and self._known_armed(p, o) and
+                       self._sees(o, p, 40.0) and self._looking_at(o, p)), None)
+        hunted = sleuth is not None or (shot_at is not None and moment - shot_at[1] < 10.0)
         victim = self.players.get(mind.get("victim", 0))
         # named in front of everybody: deny it (a murderer who says nothing
         # looks guilty)
@@ -1408,8 +1888,10 @@ class WhodunitWorld(ArenaWorld):
             calm = moment < self.live_at + 15.0 + 25.0 * stealth
             desperate = self.round_ends - moment < 25.0
             if onlookers and (calm or not mind.get("bold")) and not hunted and not desperate:
+                # people about: hang back, the knife away, and wait for the
+                # victim to wander off on its own
                 self._stow(p)
-                self._go(brain, victim.pos, "stalk")
+                self._tail(brain, victim, 9.0 + 5.0 * stealth, "stalk")
                 self.doing(brain, "keeping close to %s" % victim.username)
                 return
             if d < KNIFE_REACH - 0.6:
@@ -1443,18 +1925,22 @@ class WhodunitWorld(ArenaWorld):
             return
         self._stow(p)
         if hunted:
-            sleuth = next((o for o in self.playing() if self.armed(o)), None)
-            if sleuth is not None:
-                self._flee(brain, sleuth.pos, "from the detective")
-                return
-        # blend in: pick clues up (and burn them), wander with the guests
-        clue = self._nearest_clue(p)
-        if clue is not None and brain.rng.random() < 0.7:
+            self._flee(brain, sleuth.pos if sleuth is not None else shot_at[0],
+                       "from the detective" if sleuth is not None else "from the gunfire")
+            return
+        # blend in: pick clues up (and burn them), drift round the rooms the
+        # way a guest does
+        mind["style"] = "murderer"
+        if moment >= mind.get("mood_until", 0.0):
+            mind["mood"] = "clues" if brain.rng.random() < 0.55 else "roam"
+            mind["mood_until"] = moment + brain.rng.uniform(10.0, 25.0)
+        clue = self._pick_clue(brain, mind, 120.0 if mind["mood"] == "clues" else 18.0)
+        if clue is not None:
             self._go(brain, clue["p"], "clue%d" % clue["id"])
             self.doing(brain, "picking up a clue")
             return
-        self._wander(brain, mind)
-        self.doing(brain, "mingling")
+        state, where = self._roam(brain, mind)
+        self.doing(brain, "mingling%s" % (" in " + where if where and state == "here" else ""))
 
     def _pick_victim(self, brain, hunted: bool) -> Optional[Player]:
         p = brain.p
@@ -1467,12 +1953,12 @@ class WhodunitWorld(ArenaWorld):
             # only the nearest few are worth looking round for witnesses
             alone = 1.0 if rank < 6 and self._alone(other, p) else 0.0
             s = -d + alone * 60.0 * (0.5 + self.pct("stealth"))
-            if self.armed(other):
+            if self._known_armed(p, other):
                 # the revolver is the one thing that can stop a murderer: take
-                # it out of the game while its owner suspects nothing (or when
+                # it out of the game while it is not pointed this way (or when
                 # it is coming for us anyway); otherwise keep clear of it
-                trusting = self.suspicion(other, p) < 0.4
-                s += 40.0 if hunted else (35.0 if alone and trusting else -30.0)
+                watching = self._looking_at(other, p) and self._sees(other, p, 50.0)
+                s += 40.0 if hunted else (35.0 if alone and not watching else -30.0)
             s += brain.rng.uniform(0.0, 20.0)
             if s > best_s:
                 best, best_s = other, s

@@ -64,8 +64,14 @@ def test_catalogue(module) -> None:
     from app.bots import config as bot_config, personas, speech
     world = module.WORLD
     wid = world["id"]
-    entry = worlds.get(wid)
-    check("%s: in the world registry and open" % wid, entry is not None)
+    if world.get("hidden"):
+        # a retired world: in the registry, and shut to everybody
+        entry = worlds.get_any(wid)
+        check("%s: in the world registry, hidden" % wid,
+              entry is not None and worlds.get(wid) is None and not worlds.is_open(wid))
+    else:
+        entry = worlds.get(wid)
+        check("%s: in the world registry and open" % wid, entry is not None)
     if entry is None:
         return
     areas = entry.get("areas") or []
@@ -115,7 +121,7 @@ def test_catalogue(module) -> None:
 
 def test_client(module) -> None:
     from app.models import worlds
-    world = worlds.get(module.WORLD["id"])
+    world = worlds.get_any(module.WORLD["id"])
     wid = world["id"]
     scripts = [world.get("thumb_script")] + list(world.get("game_scripts") or [])
     texts = {}
@@ -259,6 +265,9 @@ def test_sleep(module) -> None:
     from app.models import worlds
     from app.game.bots.runner import BotRunner
     world = worlds.get(module.WORLD["id"])
+    if world is None:
+        print("  (hidden: no sleeping rounds to test)")
+        return
     wid = world["id"]
     rng = random.Random(3)
     dorm = dormant.Dormant(world, 9, 1000.0, rng)
@@ -310,7 +319,9 @@ def main(argv: List[str]) -> int:
     args = parser.parse_args(argv[1:])
     isolate()
     from app.models import event_worlds
-    wanted = args.worlds or event_worlds.ids()
+    # a hidden world is left out unless it is asked for by name
+    wanted = args.worlds or [w for w in event_worlds.ids()
+                             if not event_worlds.by_id(w).WORLD.get("hidden")]
     groups = set(args.only.split(","))
     for wid in wanted:
         module = event_worlds.by_id(wid)

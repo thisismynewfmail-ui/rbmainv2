@@ -39,28 +39,39 @@
     k.box([mx - rx, 0.53, mz - rz], [0.36, 0.18, len], '#8c8a86', { r: [0, yaw, 0], m: 'metal' });
   }
 
-  /* The race's ore cart: a dinky boiler behind an ore bucket. */
+  /* The race's ore cart: a dinky engine leading the way (+z, the way it
+     runs) with its ore bucket behind like a tender. */
   function cart(k, x, z, yaw, colour) {
     k.attach(x, 0.44, z, yaw, [
       { t: 'box', p: [0, 1.5, 0], s: [4.2, 0.6, 7.8], c: '#3a3632', m: 'metal' },
-      { t: 'box', p: [0, 3.2, 1.7], s: [4.6, 2.8, 4.0], c: colour },
-      { t: 'box', p: [0, 4.7, 1.7], s: [4.9, 0.3, 4.3], c: '#2a2826', m: 'metal' },
-      { t: 'box', p: [0, 4.85, 1.7], s: [4.0, 0.6, 3.4], c: GOLD, m: 'metal' },
-      { t: 'sph', p: [-0.8, 5.3, 1.2], s: [1.4, 1.1, 1.3], c: '#ffd24a', m: 'metal' },
-      { t: 'cyl', p: [0, 3.0, -2.0], s: [2.6, 3.4, 2.6], c: '#2e2c2a', r: [Math.PI / 2, 0, 0], m: 'metal' },
-      { t: 'cyl', p: [0, 5.3, -2.6], s: [0.9, 2.2, 0.9], c: '#1e1c1a', m: 'metal' },
-      { t: 'cyl', p: [0, 6.5, -2.6], s: [1.4, 0.4, 1.4], c: GOLD, m: 'metal' },
-      { t: 'box', p: [0, 2.4, 3.95], s: [0.9, 0.9, 0.2], c: '#fff3c4', m: 'neon' },
-      { t: 'box', p: [2.0, 5.4, -0.6], s: [0.14, 3.2, 0.14], c: '#5a3a22' },
-      { t: 'box', p: [2.0, 6.5, -1.4], s: [0.06, 1.0, 1.6], c: colour },
+      { t: 'cyl', p: [0, 3.0, 2.0], s: [2.6, 3.4, 2.6], c: '#2e2c2a', r: [Math.PI / 2, 0, 0], m: 'metal' },
+      { t: 'cyl', p: [0, 3.0, 3.73], s: [2.1, 0.06, 2.1], c: '#1a1816', r: [Math.PI / 2, 0, 0], m: 'metal' },
+      { t: 'cyl', p: [0, 4.35, 1.0], s: [1.1, 0.7, 1.1], c: GOLD, m: 'metal' },
+      { t: 'cyl', p: [0, 5.3, 2.6], s: [0.9, 2.2, 0.9], c: '#1e1c1a', m: 'metal' },
+      { t: 'cyl', p: [0, 6.5, 2.6], s: [1.4, 0.4, 1.4], c: GOLD, m: 'metal' },
+      { t: 'box', p: [0, 4.55, 3.45], s: [0.9, 0.8, 0.5], c: '#3a3632', m: 'metal' },
+      { t: 'box', p: [0, 4.55, 3.72], s: [0.7, 0.6, 0.06], c: '#fff3c4', m: 'neon' },
+      { t: 'box', p: [0, 1.6, 3.95], s: [4.4, 0.5, 0.3], c: colour },
+      { t: 'box', p: [0, 0.95, 4.25], s: [3.6, 0.9, 0.5], c: '#5a5e66', r: [0.6, 0, 0], m: 'metal' },
+      { t: 'box', p: [0, 2.3, 0.85], s: [2.4, 1.0, 1.1], c: '#2a2826', m: 'metal' },
+      { t: 'box', p: [1.22, 2.3, 0.85], s: [0.06, 0.55, 0.75], c: '#ff9a2a', m: 'neon' },
+      { t: 'box', p: [-1.22, 2.3, 0.85], s: [0.06, 0.55, 0.75], c: '#ff9a2a', m: 'neon' },
+      { t: 'box', p: [0, 3.2, -1.7], s: [4.6, 2.8, 4.0], c: colour },
+      { t: 'box', p: [0, 4.7, -1.7], s: [4.9, 0.3, 4.3], c: '#2a2826', m: 'metal' },
+      { t: 'box', p: [0, 4.85, -1.7], s: [4.0, 0.6, 3.4], c: GOLD, m: 'metal' },
+      { t: 'sph', p: [0.8, 5.3, -1.2], s: [1.4, 1.1, 1.3], c: '#ffd24a', m: 'metal' },
+      { t: 'box', p: [2.0, 5.4, 0.7], s: [0.14, 3.2, 0.14], c: '#5a3a22' },
+      { t: 'box', p: [2.0, 6.5, -0.1], s: [0.06, 1.0, 1.6], c: colour },
       { t: 'cyl', p: [-2.0, 0.85, 2.4], s: [1.7, 0.5, 1.7], c: '#2a2826', r: [0, 0, Math.PI / 2] },
       { t: 'cyl', p: [2.0, 0.85, 2.4], s: [1.7, 0.5, 1.7], c: '#2a2826', r: [0, 0, Math.PI / 2] },
       { t: 'cyl', p: [-2.0, 0.85, -2.4], s: [1.7, 0.5, 1.7], c: '#2a2826', r: [0, 0, Math.PI / 2] },
       { t: 'cyl', p: [2.0, 0.85, -2.4], s: [1.7, 0.5, 1.7], c: '#2a2826', r: [0, 0, Math.PI / 2] }
     ]);
+    // the smoke streams back over the bucket
     for (var i = 0; i < 4; i++) {
-      var sx = x + Math.sin(yaw) * -2.6 + i * 0.6, sz = z + Math.cos(yaw) * -2.6 - i * 0.4;
-      k.shape('sph', [sx, 8.2 + i * 1.6, sz], [1.4 + i * 0.6, 1.2 + i * 0.5, 1.4 + i * 0.6],
+      var back = 2.6 - i * 1.4;
+      var sx = x + Math.sin(yaw) * back, sz = z + Math.cos(yaw) * back;
+      k.shape('sph', [sx, 8.2 + i * 1.2, sz], [1.4 + i * 0.6, 1.2 + i * 0.5, 1.4 + i * 0.6],
               i < 2 ? '#d8d4cc' : '#b8b4ac', { a: 0.85 - i * 0.12 });
     }
   }

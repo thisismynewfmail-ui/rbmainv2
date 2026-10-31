@@ -24,7 +24,9 @@ that lands on a hold's hatch is banked for that crew.  Empty-handed in the
 other crew's hold, hold E for four seconds to steal a gold bar's worth out
 of it.
 
-**Kit**: a cutlass (three cuts) and a flintlock (one shot, a slow reload).
+**Arms**: everybody fights with their own hotbar -- whatever they set on it
+-- against the other crew and the island's own (redcoats, the kraken); a
+chest or the idol takes both hands, and gives the hotbar back when it goes.
 Both ships carry two deck cannons: E at one of your own fires a shell
 where you are looking, within its arc -- it lands a moment later where the
 ring shows, knocks everybody about and the treasure out of their hands.
@@ -54,6 +56,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from ...models import catalog
 from .. import instance as engine
 from ..instance import EYE_HEIGHT, GRAVITY, Player, normalise, ray_aabb
 from ..maps.events import plunder_bay as pb_map
@@ -93,17 +96,6 @@ CATCH_REACH = 3.2
 FLY_MAX = 4.0
 STOP_POINTS = 3                       # for cutting down a carrier
 
-CUTLASS_DAMAGE = 34.0
-CUTLASS_REACH = 9.0
-CUTLASS_ARC = 0.45                    # cos of the half-angle in front that a cut reaches
-CUTLASS_RPM = 80
-CUTLASS_KNOCK = 12.0
-PISTOL_DAMAGE = 55.0
-PISTOL_HEAD = 1.5
-PISTOL_RANGE = 120.0
-PISTOL_RELOAD = 2.5                   # one shot, then this long to load the next
-PISTOL_CLICKS = 120                   # the trigger's own rate: the reload is the pistol's alone,
-                                      # so the cutlass is not held up by it
 CANNON_REACH = 5.4
 CANNON_COOL = 9.0
 CANNON_MIN = 24.0
@@ -163,29 +155,6 @@ def _item(item_id: str, name: str, kind: str, parts: List[Dict[str, Any]],
 
 
 GOLD = "#e8b830"
-CUTLASS = _item("pb_cutlass", "Cutlass", "pb_cutlass", [
-    {"t": "box", "p": [0, 0.04, 1.2], "s": [0.12, 0.42, 2.0], "c": "#dfe4ea", "m": "metal"},
-    {"t": "box", "p": [0, 0.2, 2.36], "s": [0.1, 0.32, 0.6], "c": "#dfe4ea", "m": "metal",
-     "r": [-0.4, 0, 0]},
-    {"t": "sph", "p": [0, -0.08, 0.12], "s": [0.56, 0.5, 0.4], "c": GOLD, "m": "metal"},
-    {"t": "box", "p": [0, 0.02, 0.24], "s": [0.62, 0.12, 0.14], "c": GOLD, "m": "metal"},
-    {"t": "cyl", "p": [0, 0, -0.3], "s": [0.18, 0.6, 0.18], "c": "#4a2a18",
-     "r": [1.5708, 0, 0]},
-    {"t": "sph", "p": [0, 0, -0.64], "s": [0.22, 0.22, 0.22], "c": GOLD, "m": "metal"}],
-    rpm=CUTLASS_RPM, range=CUTLASS_REACH, damage=CUTLASS_DAMAGE, melee=True, sound="pb_cutlass")
-PISTOL = _item("pb_pistol", "Flintlock", "pb_pistol", [
-    {"t": "cyl", "p": [0, 0.12, 0.78], "s": [0.18, 1.5, 0.18], "c": "#4a4e56", "m": "metal",
-     "r": [1.5708, 0, 0]},
-    {"t": "cyl", "p": [0, 0.12, 1.52], "s": [0.26, 0.1, 0.26], "c": GOLD, "m": "metal",
-     "r": [1.5708, 0, 0]},
-    {"t": "box", "p": [0, 0.04, 0.22], "s": [0.2, 0.24, 0.9], "c": "#6a3a1e"},
-    {"t": "box", "p": [0, -0.28, -0.3], "s": [0.2, 0.62, 0.32], "c": "#6a3a1e",
-     "r": [-0.5, 0, 0]},
-    {"t": "sph", "p": [0, -0.56, -0.46], "s": [0.28, 0.28, 0.28], "c": GOLD, "m": "metal"},
-    {"t": "box", "p": [0.13, 0.26, 0.0], "s": [0.06, 0.22, 0.26], "c": GOLD, "m": "metal"}],
-    rpm=PISTOL_CLICKS, range=PISTOL_RANGE, sound="pb_pistol", reload_s=PISTOL_RELOAD, hide_ammo=True,
-    # what a fight nobody is watching takes it to deal per pull of the trigger
-    damage=round(PISTOL_DAMAGE * 60.0 / (PISTOL_RELOAD * PISTOL_CLICKS), 1))
 HELD = {
     "chest": _item("pb_chest", "Treasure Chest", "pb_carry", [
         {"t": "box", "p": [-0.75, -0.25, 0.75], "s": [1.9, 1.1, 1.3], "c": "#7a4a26"},
@@ -202,7 +171,6 @@ HELD = {
         {"t": "box", "p": [-0.3, 1.26, 1.09], "s": [0.18, 0.14, 0.04], "c": "#ff3030", "m": "neon"}],
         rpm=60, range=1, hide_ammo=True),
 }
-KIT = [CUTLASS, PISTOL]
 
 
 def _in_rect(rect: Sequence[float], pos: Sequence[float], pad: float = 0.0) -> bool:
@@ -282,7 +250,8 @@ class PlunderBayWorld(ArenaWorld):
     ROUND_SECONDS = 300.0
     RESULTS_SECONDS = 15.0
     LOGO = "Plunder Bay"
-    CUSTOM_KINDS = ("pb_cutlass", "pb_pistol", "pb_carry")
+    FREEZE_COUNTDOWN = True
+    CUSTOM_KINDS = ("pb_carry",)
     respawn_seconds = 5.0
     BOT_CHATTER = ["yarr", "gg", "gold!", "where's the X", "cover me", "lol", "nice haul",
                    "raiders!", "ahoy", "shiver me timbers", "who has the chest", "go go"]
@@ -328,8 +297,8 @@ class PlunderBayWorld(ArenaWorld):
         self.claims: Dict[Tuple[str, int], float] = {}
         self.round_stats: Dict[int, Dict[str, float]] = {}
         self.counts: Dict[str, int] = {k: 0 for k in (
-            "picks", "banks", "banked", "digs", "chests", "tosses", "catches", "raids", "cuts",
-            "shots", "cut_kills", "shot_kills", "cannons", "cannon_hits", "drops", "twists",
+            "picks", "banks", "banked", "digs", "chests", "tosses", "catches", "raids",
+            "melee_kills", "ranged_kills", "cannons", "cannon_hits", "drops", "twists",
             "npc_hits", "npc_kills", "slams", "volleys", "bombs", "spews", "sunken", "washed",
             "idols", "lava", "stops")}
         self.events_said: Dict[str, float] = {}
@@ -399,19 +368,17 @@ class PlunderBayWorld(ArenaWorld):
             self.reset_player(player)
 
     def reset_player(self, player: Player) -> None:
-        for key in ("pb_carry", "pb_act", "pb_mind", "pb_push", "pb_toss_at", "pb_lock",
-                    "pb_loaded_at"):
+        for key in ("pb_carry", "pb_act", "pb_mind", "pb_push", "pb_toss_at", "pb_lock"):
             player.extra.pop(key, None)
 
     # ============================================================ spawning
     def on_spawned(self, player: Player) -> None:
-        for key in ("pb_act", "pb_push", "pb_loaded_at"):
+        for key in ("pb_act", "pb_push"):
             player.extra.pop(key, None)
-        self.set_loadout(player, KIT, quiet=True)
-
-    def on_player_join(self, player: Player) -> None:
-        super().on_player_join(player)
-        self.set_loadout(player, KIT, quiet=True)
+        # everybody fights with their own hotbar (a chest or the idol is the
+        # only thing the world ever puts in their hands)
+        if player.extra.get("loadout") is not None:
+            self.set_loadout(player, None, quiet=True)
 
     def on_player_ready(self, player: Player) -> None:
         super().on_player_ready(player)
@@ -630,7 +597,7 @@ class PlunderBayWorld(ArenaWorld):
         player.extra.pop("pb_carry", None)
         item["by"] = 0
         if item["kind"] in TWO_HANDS:
-            self.set_loadout(player, KIT, quiet=True)
+            self.set_loadout(player, None, quiet=True)      # their own hotbar back
         if item["kind"] == "idol":
             self.idol_state = "ground"
             self._broadcast_state()
@@ -1007,80 +974,70 @@ class PlunderBayWorld(ArenaWorld):
         return True
 
     # ============================================================= weapons
-    def custom_fire(self, player: Player, stats: Dict[str, Any],
-                    direction: List[float], origin: List[float]) -> None:
-        kind = stats.get("kind")
-        if kind == "pb_cutlass":
-            self._slash(player, direction)
-        elif kind == "pb_pistol":
-            self._shoot(player, direction, origin)
+    # Everybody fights with their own hotbar, through the engine's own
+    # hitscan, projectiles, melee and blasts; these let all of it hit the
+    # island's own as well -- the redcoats and the kraken's tentacles.
+    def _npc_targets(self) -> List["Npc"]:
+        return [n for n in self.npcs.values() if n.alive and n.state not in ("rise", "sink", "gone",
+                                                                             "down")]
 
-    def _slash(self, player: Player, direction: Sequence[float]) -> None:
-        flat = normalise([direction[0], 0.0, direction[2]])
-        best, best_d = None, CUTLASS_REACH
-        eye = [player.pos[0], player.pos[1] + EYE_HEIGHT, player.pos[2]]
-        for other in self.hostiles_for(player):
-            if isinstance(other, Npc):
-                lo, hi = other.hitbox()
-                if not (lo[1] - 1.0 < player.pos[1] + 2.6 < hi[1] + 1.0):
-                    continue
-                d = max(0.0, _flat(other.pos, player.pos) - 1.6)
-                target = [other.pos[0], max(lo[1], min(hi[1], eye[1])), other.pos[2]]
-            else:
-                if abs(other.pos[1] - player.pos[1]) > 4.5:
-                    continue
-                d = _flat(other.pos, player.pos)
-                target = [other.pos[0], other.pos[1] + 2.6, other.pos[2]]
-            if d >= best_d:
-                continue
-            dx, dz = other.pos[0] - player.pos[0], other.pos[2] - player.pos[2]
-            dl = math.hypot(dx, dz)
-            if dl > 1.0 and (dx * flat[0] + dz * flat[2]) / dl < CUTLASS_ARC:
-                continue
-            if not self.line_of_sight(eye, target):
-                continue
-            best, best_d = other, d
-        self.counts["cuts"] += 1
-        self.broadcast({"t": "pbx", "k": "cut", "id": player.pid,
-                        "hit": best.pid if best is not None else 0})
-        if best is None:
-            return
-        if isinstance(best, Npc):
-            self._hurt_npc(best, player, CUTLASS_DAMAGE, "Cutlass")
-            return
-        self.apply_damage(best, player, CUTLASS_DAMAGE, "Cutlass")
-        if best.alive:
-            self._knock(best, flat[0] * CUTLASS_KNOCK, 6.0, flat[2] * CUTLASS_KNOCK)
-
-    def _shoot(self, player: Player, direction: Sequence[float], origin: Sequence[float]) -> None:
-        moment = engine.now()
-        if moment < player.extra.get("pb_loaded_at", 0.0):
-            return
-        player.extra["pb_loaded_at"] = moment + PISTOL_RELOAD
-        wall = self.ray_world(origin, direction, PISTOL_RANGE)
-        best, best_t, head = None, wall, False
-        for other in self.hostiles_for(player):
-            if not isinstance(other, Npc) and moment < other.spawn_protect_until:
-                continue
-            lo, hi = other.hitbox()
+    def nearest_player_hit(self, shooter, origin, direction, max_dist: float):
+        best, best_d, head = super().nearest_player_hit(shooter, origin, direction, max_dist)
+        if not isinstance(shooter, Player) or shooter.pid <= 0:
+            return best, best_d, head
+        for npc in self._npc_targets():
+            lo, hi = npc.hitbox()
             t = ray_aabb(origin, direction, lo, hi)
-            if t is None or not 0.0 <= t < best_t:
+            if t is None or not 0.0 <= t < best_d:
                 continue
-            hlo, hhi = other.head_box()
-            best, best_t = other, t
+            hlo, hhi = npc.head_box()
+            best, best_d = npc, t
             head = ray_aabb(origin, direction, hlo, hhi) is not None
-        end = [origin[i] + direction[i] * best_t for i in range(3)]
-        self.counts["shots"] += 1
-        self.broadcast({"t": "pbx", "k": "shot", "id": player.pid, "a": _r(origin), "b": _r(end),
-                        "hit": best.pid if best is not None else 0})
-        player.send({"t": "pbx", "k": "cool", "s": PISTOL_RELOAD})
-        if best is None:
+        return best, best_d, head
+
+    def do_melee(self, player: Player, direction, stats: Dict[str, Any]) -> None:
+        super().do_melee(player, direction, stats)
+        reach = float(stats.get("range", 9.0))
+        arc = float(stats.get("arc", 0.55))
+        origin = [player.pos[0], player.pos[1] + 3.4, player.pos[2]]
+        weapon = (player.weapon() or {}).get("name", "Fists")
+        for npc in self._npc_targets():
+            lo, hi = npc.hitbox()
+            # the nearest point of it to the swing, at about chest height
+            target = [npc.pos[0], max(lo[1], min(hi[1], origin[1])), npc.pos[2]]
+            delta = [target[i] - origin[i] for i in range(3)]
+            distance = math.sqrt(sum(v * v for v in delta)) or 1e-6
+            if distance - (hi[0] - lo[0]) * 0.5 > reach:
+                continue
+            if sum(delta[i] / distance * direction[i] for i in range(3)) < 1.0 - arc:
+                continue
+            if not self.line_of_sight(origin, target):
+                continue
+            self._hurt_npc(npc, player, float(stats.get("damage", 30)), weapon)
+
+    def explode(self, proj) -> None:
+        super().explode(proj)
+        owner = self.players.get(proj.pid_owner)
+        if owner is None:
             return
-        damage = PISTOL_DAMAGE * (PISTOL_HEAD if head else 1.0)
-        if isinstance(best, Npc):
-            self._hurt_npc(best, player, damage, "Flintlock")
-        else:
-            self.apply_damage(best, player, damage, "Flintlock", head)
+        radius = float(proj.stats.get("splash", 8.0))
+        splash = float(proj.stats.get("splash_damage", proj.stats.get("damage", 50)))
+        for npc in self._npc_targets():
+            distance = math.dist(npc.chest(), proj.pos)
+            if distance <= radius:
+                self._hurt_npc(npc, owner, splash * (1.0 - (distance / radius) ** 1.4),
+                               proj.weapon or "Blast")
+
+    def _melee_weapon(self, player: Player, weapon: str) -> Optional[bool]:
+        """Was ``weapon`` (by name) one of ``player``'s close-quarters ones --
+        True -- or one that reaches -- False?  None for the ship's cannons and
+        the like, which are neither."""
+        for slot in range(catalog.HOTBAR_SIZE):
+            item = player.weapon(slot)
+            if item and item.get("name") == weapon:
+                stats = (item.get("data") or {}).get("stats") or {}
+                return stats.get("kind") == "melee" or bool(stats.get("melee"))
+        return None
 
     def _knock(self, player: Player, vx: float, vy: float, vz: float) -> None:
         if not player.alive:
@@ -1108,14 +1065,15 @@ class PlunderBayWorld(ArenaWorld):
         self._drop(victim, moment, "cut down")
         if killer is None or killer is victim:
             return
-        if weapon == "Cutlass":
-            self.counts["cut_kills"] += 1
-            self._stat(killer, "cutlass")
-            self.badge(killer, "pb_cutlass")
-        elif weapon == "Flintlock":
-            self.counts["shot_kills"] += 1
-            self._stat(killer, "pistol")
-            self.badge(killer, "pb_pistol")
+        close = self._melee_weapon(killer, weapon)
+        if close is True:
+            self.counts["melee_kills"] += 1
+            self._stat(killer, "melee")
+            self.badge(killer, "pb_melee")
+        elif close is False:
+            self.counts["ranged_kills"] += 1
+            self._stat(killer, "ranged")
+            self.badge(killer, "pb_ranged")
         if carried is not None:
             killer.score += STOP_POINTS
             self.counts["stops"] += 1
@@ -2208,7 +2166,7 @@ class PlunderBayWorld(ArenaWorld):
                                  ("idols", "Bearer of the idol: %s", 1),
                                  ("raids", "Scourge of the seas: %s (%d raids)", 1),
                                  ("cannon_hits", "Master gunner: %s (%d hits)", 2),
-                                 ("stops", "Sharpest cutlass: %s (%d carriers cut down)", 2)):
+                                 ("stops", "Pirate hunter: %s (%d carriers cut down)", 2)):
             amount, who = top(key)
             if who is not None and amount >= least:
                 out.append(line % ((who.username,) if line.count("%") == 1
@@ -2257,8 +2215,8 @@ class PlunderBayWorld(ArenaWorld):
             ("treasure is banked in the holds", c["banks"] >= 5,
              "%d banks, %d doubloons" % (c["banks"], c["banked"])),
             ("chests are dug up", c["digs"] >= 1, c["digs"]),
-            ("pirates fight with cutlass and flintlock", c["cut_kills"] + c["shot_kills"] >= 2,
-             "%d cuts, %d shots" % (c["cut_kills"], c["shot_kills"])),
+            ("pirates fight with their own weapons", c["melee_kills"] + c["ranged_kills"] >= 2,
+             "%d up close, %d at range" % (c["melee_kills"], c["ranged_kills"])),
             ("the cannons fire", c["cannons"] >= 1, c["cannons"]),
             ("the twist comes round", c["twists"] >= 1, c["twists"]),
             ("carriers drop what they carry", c["drops"] >= 1, c["drops"]),

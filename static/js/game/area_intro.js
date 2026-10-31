@@ -1776,7 +1776,10 @@
     current = run;
     function frame(now) {
       if (current !== run) return;
-      var t = (now - run.start) / 1000 + run.skip;
+      // (a frame's timestamp is when the frame began, which can be a moment
+      // before play() was called -- and a scene drawn at a negative time
+      // hands the canvas negative radii)
+      var t = Math.max(0, (now - run.start) / 1000 + run.skip);
       if (t >= TOTAL) { stop(); return; }
       var dpr = Math.min(1.5, window.devicePixelRatio || 1);
       var w = Math.max(1, Math.round(root.clientWidth * dpr));

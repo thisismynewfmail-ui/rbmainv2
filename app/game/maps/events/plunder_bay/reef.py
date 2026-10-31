@@ -82,16 +82,17 @@ def _sea(isle: Isle) -> None:
     m = b.margin
     whole = (-hx - m, hx + m, -hz - m, hz + m)
     for x0, x1, z0, z1 in carve(whole, [BASIN_R]):
-        slab(b, (x0, x1, z0, z1), SHALLOW, 3.0, SAND_WET)
-    slab(b, BASIN_R, BASIN, 3.0, "#c8b884")
+        slab(b, (x0, x1, z0, z1), SHALLOW, 3.0, SAND_WET, studs=True)
+    slab(b, BASIN_R, BASIN, 3.0, "#c8b884", studs=True)
     # the step down into the basin, round its edge
     x0, x1, z0, z1 = BASIN_R
     w = 4.0
     for xa, xb in ((x0, x0 + w), (x1 - w, x1)):
-        b.box([(xa + xb) / 2.0, (BASIN + RING) / 2.0, 0.0], [w, RING - BASIN, z1 - z0], SAND_WET)
+        b.box([(xa + xb) / 2.0, (BASIN + RING) / 2.0, 0.0], [w, RING - BASIN, z1 - z0], SAND_WET,
+              studs=True)
     for za, zb in ((z0, z0 + w), (z1 - w, z1)):
         b.box([0.0, (BASIN + RING) / 2.0, (za + zb) / 2.0], [x1 - x0 - 2 * w, RING - BASIN, w],
-              SAND_WET)
+              SAND_WET, studs=True)
     # the water over all of it, and the open sea beyond the reef's edge
     b.box([0.0, (BASIN + SEA_TOP) / 2.0, 0.0], [2 * hx, SEA_TOP - BASIN, 2 * hz], LAGOON,
           material="glass", alpha=0.5, collide=False)
@@ -140,14 +141,14 @@ def _key(isle: Isle, area: Tuple[float, float, float, float], colour: str = SAND
     b = isle.b
     x0, x1, z0, z1 = area
     b.box([(x0 + x1) / 2.0, (SHALLOW + ISLE) / 2.0, (z0 + z1) / 2.0],
-          [x1 - x0, ISLE - SHALLOW, z1 - z0], colour)
+          [x1 - x0, ISLE - SHALLOW, z1 - z0], colour, studs=True)
     w = 3.0
     for xa, xb in ((x0 - w, x0), (x1, x1 + w)):
         b.box([(xa + xb) / 2.0, (SHALLOW + BEACH) / 2.0, (z0 + z1) / 2.0],
-              [w, BEACH - SHALLOW, z1 - z0 + 2 * w], SAND_WET)
+              [w, BEACH - SHALLOW, z1 - z0 + 2 * w], SAND_WET, studs=True)
     for za, zb in ((z0 - w, z0), (z1, z1 + w)):
         b.box([(x0 + x1) / 2.0, (SHALLOW + BEACH) / 2.0, (za + zb) / 2.0],
-              [x1 - x0, BEACH - SHALLOW, w], SAND_WET)
+              [x1 - x0, BEACH - SHALLOW, w], SAND_WET, studs=True)
 
 
 def _walk(isle: Isle, area, broken: float = 0.0) -> None:

@@ -540,12 +540,20 @@
     return !!this.call('localFire', stats, origin, dir);
   };
 
+  /* Held at the spawn through the countdown (the server says who: ``held``
+     in the per-player state) -- you look about, and go at GO. */
+  Arena.prototype.heldStill = function () {
+    return this.phase === 'setup' && !!this.me.held && !this.me.out;
+  };
+
   Arena.prototype.moveScale = function () {
+    if (this.heldStill()) return 0;
     var v = this.call('moveScale');
     return v === undefined ? 1 : v;
   };
 
   Arena.prototype.canJump = function () {
+    if (this.heldStill()) return false;
     var v = this.call('canJump');
     return v === undefined ? true : !!v;
   };

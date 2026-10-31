@@ -69,6 +69,16 @@ CREWS = {
 }
 
 
+class _Covers(Surfaces):
+    """The island's ground covers -- beach sand, trails, the jungle floor --
+    in the classic studded finish, the same as every other floor in the
+    game (the turf under them has it too)."""
+
+    def lay(self, area: Rect, top: float, colour: str, collide: bool = True,
+            studs: bool = True, material: str = "") -> None:
+        super().lay(area, top, colour, collide=collide, studs=studs, material=material)
+
+
 class Isle:
     """One island under construction: the area, its ground covers, and the
     marks the rules and the bots read."""
@@ -76,7 +86,7 @@ class Isle:
     def __init__(self, b: ArenaArea, rng: random.Random):
         self.b = b
         self.rng = rng
-        self.s = Surfaces(b)
+        self.s = _Covers(b)
         self.digs = 0
         self.loots = 0
         self.trails: List[Rect] = []
@@ -124,7 +134,7 @@ class Isle:
                water: bool = True) -> None:
         """A stretch of seabed, solid underfoot, and the sea over it."""
         x0, x1, z0, z1 = area
-        slab(self.b, area, top, 3.0, colour)
+        slab(self.b, area, top, 3.0, colour, studs=True)
         if water and top < SEA_TOP:
             self.water(area, top)
 
@@ -153,7 +163,7 @@ class Isle:
                 r = (x0, x1, z1 + a, z1 + c)
             self.b.box([(r[0] + r[1]) / 2.0, (SEABED + top) / 2.0, (r[2] + r[3]) / 2.0],
                        [r[1] - r[0], top - SEABED, r[3] - r[2]],
-                       SAND if k == 0 else SAND_WET)
+                       SAND if k == 0 else SAND_WET, studs=True)
 
     def trail(self, points: Sequence[Tuple[float, float]], width: float = 5.0,
               top: float = 0.08, colour: str = "#c8b07a") -> None:

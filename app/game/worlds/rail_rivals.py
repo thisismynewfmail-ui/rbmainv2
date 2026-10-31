@@ -195,6 +195,7 @@ class RailRivalsWorld(ArenaWorld):
     ROUND_SECONDS = 330.0
     RESULTS_SECONDS = 15.0
     LOGO = "Rail Rivals"
+    FREEZE_COUNTDOWN = True
     respawn_seconds = 6.0
     BOT_CHATTER = ["push", "on the cart", "push the cart", "contest", "brakes",
                    "coal", "gg", "lets go", "go go", "anyone pushing"]

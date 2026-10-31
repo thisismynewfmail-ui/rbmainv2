@@ -73,7 +73,8 @@ WORLD: Dict[str, Any] = {
         {"title": "The detective",
          "text": "One revolver, one shot, a slow reload. Shoot the murderer and the case is "
                  "closed. Shoot anybody else and you are disgraced -- out of the round, the "
-                 "revolver on the floor for an innocent to pick up as the hero."},
+                 "revolver on the floor for an innocent to pick up as the hero. The guests can "
+                 "see you carry it; the murderer cannot, until you fire."},
         {"title": "The innocents",
          "text": "Live out the clock. Pick up clues: every one goes in the shared case file, "
                  "and enough of them give up a hint -- where the murderer was seen, their "

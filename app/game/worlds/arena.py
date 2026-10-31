@@ -78,6 +78,7 @@ class ArenaWorld(GameInstance):
     BALANCE = True               # even the teams up between rounds
     WARMUP_FIRE = False          # may people shoot during the countdown
     CATCHES_FALLS = False        # the world sends fallers back itself (an obby)
+    FREEZE_COUNTDOWN = False     # everybody stands still at their spawn through the countdown
     CUSTOM_KINDS: Tuple[str, ...] = ()
     HELD_TIMERS: Tuple[str, ...] = ()   # extra timers to hold with nobody here
     LOGO = ""                    # what the arrival sequence and cards say
@@ -403,11 +404,15 @@ class ArenaWorld(GameInstance):
         return 1.0
 
     def can_jump(self, player: Player) -> bool:
-        return True
+        return not self.held_still(player)
 
     def held_still(self, player: Player) -> bool:
-        """Subclass hook: a player who may not move at all right now."""
-        return False
+        """Subclass hook: a player who may not move at all right now.  By
+        default, everybody through the countdown of a world that freezes it
+        (``FREEZE_COUNTDOWN``): they look about from their spawn, and go at
+        GO.  The client is told (``held`` in the per-player state) and stops
+        its own body; a bot's brain stops its own."""
+        return self.FREEZE_COUNTDOWN and self.phase == "setup" and self.in_play(player)
 
     def handle_input(self, player: Player, message: Dict[str, Any]) -> None:
         if self.held_still(player):
@@ -785,7 +790,7 @@ class ArenaWorld(GameInstance):
         if player.ws is None:
             return
         me = {"team": player.team, "out": bool(player.extra.get("out")),
-              "role": player.extra.get("role", "")}
+              "role": player.extra.get("role", ""), "held": bool(self.held_still(player))}
         me.update(self.me_state(player))
         if not force and me == player.extra.get("_ame"):
             return

@@ -91,23 +91,24 @@ def _land(isle: Isle) -> None:
     # the seabed out by the ships and round the south shore; the lagoon's
     # floor; the channel's
     for area in (west, east, south):
-        slab(b, area, BED, 3.0, SAND_WET)
-    slab(b, LAGOON, BED, 3.0, "#c8b884")
-    slab(b, CHANNEL, MID, 6.0, SAND_WET)
+        slab(b, area, BED, 3.0, SAND_WET, studs=True)
+    slab(b, LAGOON, BED, 3.0, "#c8b884", studs=True)
+    slab(b, CHANNEL, MID, 6.0, SAND_WET, studs=True)
     # beaches going down into the sea, a step lower each strip
     for k, top in enumerate(BEACH):
         colour = SAND if k == 0 else SAND_WET
         for sgn in (-1.0, 1.0):
             xa, xb = sorted((sgn * (SHORE_X + BEACH_W * k), sgn * (SHORE_X + BEACH_W * (k + 1))))
             b.box([(xa + xb) / 2.0, (BED + top) / 2.0, (BACK + hz) / 2.0],
-                  [xb - xa, top - BED, hz - BACK], colour)
+                  [xb - xa, top - BED, hz - BACK], colour, studs=True)
         za, zb = SOUTH + BEACH_W * k, SOUTH + BEACH_W * (k + 1)
         spans = [(-SHORE_X, CHANNEL[0]), (CHANNEL[1], SHORE_X)] if k < 2 else [(-SHORE_X, SHORE_X)]
         for xa, xb in spans:
             b.box([(xa + xb) / 2.0, (BED + top) / 2.0, (za + zb) / 2.0],
-                  [xb - xa, top - BED, zb - za], colour)
+                  [xb - xa, top - BED, zb - za], colour, studs=True)
     # the channel's floor carries on out to the beach's third strip
-    b.box([0.0, (BED + MID) / 2.0, SOUTH + BEACH_W], [16.0, MID - BED, 2 * BEACH_W], SAND_WET)
+    b.box([0.0, (BED + MID) / 2.0, SOUTH + BEACH_W], [16.0, MID - BED, 2 * BEACH_W], SAND_WET,
+          studs=True)
     # the lagoon's banks: rings stepping down, the channel cutting the top one
     x0, x1, z0, z1 = LAGOON
     for k, top in enumerate(RINGS):
@@ -115,17 +116,18 @@ def _land(isle: Isle) -> None:
         colour = SAND if k == 0 else (SAND_WET if k == 1 else "#c0ae7a")
         for xa, xb in ((x0 + a, x0 + c), (x1 - c, x1 - a)):
             b.box([(xa + xb) / 2.0, (BED + top) / 2.0, (z0 + a + z1 - a) / 2.0],
-                  [xb - xa, top - BED, (z1 - a) - (z0 + a)], colour)
+                  [xb - xa, top - BED, (z1 - a) - (z0 + a)], colour, studs=True)
         b.box([0.0, (BED + top) / 2.0, z0 + (a + c) / 2.0],
-              [(x1 - c) - (x0 + c), top - BED, c - a], colour)
+              [(x1 - c) - (x0 + c), top - BED, c - a], colour, studs=True)
         spans = [(x0 + c, CHANNEL[0]), (CHANNEL[1], x1 - c)] if k == 0 else [(x0 + c, x1 - c)]
         for xa, xb in spans:
             b.box([(xa + xb) / 2.0, (BED + top) / 2.0, z1 - (a + c) / 2.0],
-                  [xb - xa, top - BED, c - a], colour)
-    b.box([0.0, (BED + MID) / 2.0, z1 - RING_W / 2.0], [16.0, MID - BED, RING_W], SAND_WET)
+                  [xb - xa, top - BED, c - a], colour, studs=True)
+    b.box([0.0, (BED + MID) / 2.0, z1 - RING_W / 2.0], [16.0, MID - BED, RING_W], SAND_WET,
+          studs=True)
     # the sandbar across the lagoon, dry from mid tide down
     inner = x1 - 3 * RING_W
-    b.box([0.0, (BED + BAR) / 2.0, -5.0], [2 * inner, BAR - BED, 6.0], SAND)
+    b.box([0.0, (BED + BAR) / 2.0, -5.0], [2 * inner, BAR - BED, 6.0], SAND, studs=True)
     # covers on the turf -- the beaches, the camp's sand, the trails, the
     # jungle floor -- kept off everything that stands on the ground itself
     s = isle.s
@@ -312,8 +314,8 @@ def _lagoon(isle: Isle) -> None:
     b.box([-6.0, deck + 0.9, -20.4], [6.0, 1.8, 1.2], "#7a4a28")
     b.box([-6.0, deck + 1.95, -20.4], [6.2, 0.3, 1.4], TRIM, material="metal")
     # an islet with a palm, rocks standing up out of the water, weed
-    b.box([26.0, (BED + 0.4) / 2.0, 12.0], [10.0, 0.4 - BED, 8.0], SAND)
-    b.box([26.0, 0.4 + 0.3, 12.0], [6.0, 0.6, 4.0], "#d8c48c")
+    b.box([26.0, (BED + 0.4) / 2.0, 12.0], [10.0, 0.4 - BED, 8.0], SAND, studs=True)
+    b.box([26.0, 0.4 + 0.3, 12.0], [6.0, 0.6, 4.0], "#d8c48c", studs=True)
     isle.palm(25.0, 12.0, 1.0, 13.0)
     for x, z, w in ((-30.0, 14.0, 6.0), (-26.0, -28.0, 4.0), (26.0, -28.0, 4.6), (12.0, 6.0, 3.0)):
         b.box([x, BED + 2.2, z], [w, 4.4, w * 0.8], ROCK)

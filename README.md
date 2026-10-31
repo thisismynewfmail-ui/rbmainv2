@@ -103,18 +103,19 @@ Basic Shotgun and a Basic Stick.
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 | **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
-| **Calamity Coast** | `/calamity_coast` | Disaster survival: two rescue teams ride out three disasters a round -- tsunamis, tornadoes, avalanches, eruptions, the great fire -- and carry the stranded to safety; no PvP | 16 |
 | **Whodunit** | `/whodunit` | Murder mystery: secret roles -- a murderer with a hidden knife, a detective with a revolver, everybody else innocent; clues fill a case file that gives up hints, and a twist in every place | 16 |
 | **Sky Sprint** | `/sky_sprint` | Obstacle-course race in the sky: two teams race pads, belts, hammers, sweepers, lasers and blinking tiles past checkpoints to the finish, a bonk glove to shove rivals off, power-ups and a twist on every course | 16 |
-| **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with cutlass, flintlock and ship's cannon, tosses and raids, and a twist on every island | 16 |
+| **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with your own weapons and the ship's cannon, tosses and raids, and a twist on every island | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
 24.
 
-**Hidden worlds.** Burger Tycoon, Capture The Flag and Fortress Team 2 are
-still in the code but switched off: `"hidden": True` in
-`app/models/worlds.py`. A hidden world has no game host (none is started),
+**Hidden worlds.** Burger Tycoon, Capture The Flag, Fortress Team 2 and the
+event world Calamity Coast are still in the code but switched off:
+`"hidden": True` in `app/models/worlds.py` (Calamity Coast's is in its own
+entry, `app/models/event_worlds/calamity_coast.py`, and its subtab is left off
+the Bots Zone). A hidden world has no game host (none is started),
 does not appear in the world browser, the home page, the help page or the
 status API, its pages are treated as missing (they send you to the home page)
 and its join endpoint refuses, and bots never pick it
@@ -282,7 +283,9 @@ Light is -- one map holding four or more separate areas, one played at a
 time, each with its own animated arrival sequence -- running a game mode of
 its own. They share one engine (`app/game/worlds/arena.py`, the client half
 in `static/js/game/arena.js`): rounds in three phases (the countdown, the
-round, the results card), a reel that lands on the next area when an area
+round, the results card) -- in the races, the murder mystery and the pirate
+battle everybody stands still at their spawn through the countdown and goes
+at **GO** (`FREEZE_COUNTDOWN`) -- a reel that lands on the next area when an area
 has had its rounds, per-area and per-team spawns that move up as the front
 moves, spectating for the fallen, a world's own kit, solids that switch on
 and off, the bots' hooks and the sleeping rounds. Each world brings its own
@@ -384,12 +387,13 @@ price of a squeak, a honk or a kazoo), two **decoys** (a copy of your
 disguise left behind; a seeker who shoots one is hurt) and a **scurry**
 (three seconds at a sprint).
 
-**Seekers** wait in the place's pen, blindfolded, through the countdown,
-then the door opens. The **popper** finds a hider in a few hits and heals the
-seeker a little; a shot into a real prop is a wrong guess that costs health.
-The **sniffer** makes the nearest hider squeak; the **glitter bomb** dusts
-everything where it lands and shows who is not what they seem. In the last
-minute the house creaks and every hider still standing squeaks on its own.
+**Seekers** wait in the place's pen through the countdown, blindfolded and
+stock still, then the door opens. The **popper** finds a hider in a few hits
+and heals the seeker a little; a shot into a real prop is a wrong guess that
+costs health. The **sniffer** makes the nearest hider squeak, once every
+thirty seconds; the **glitter bomb** dusts everything where it lands and
+shows who is not what they seem. In the last minute the house creaks and
+every hider still standing squeaks on its own.
 
 **The places**, each with a twist:
 
@@ -428,14 +432,22 @@ place).
 
 **Bots** hide by persona and settings -- still as a statue, a taunter who
 loves an audience, or a runner who moves on when the coast is clear -- pick
-a disguise that belongs in the room and fits the spot, drop decoys, dodge a
-flash sale and scurry when rumbled; seeking, they sweep the rooms, watch for
-anything that moved, follow squeaks, the cat, the price tags and the alarm,
-and take guesses. The Bots Zone's **Prop Panic** subtab sets how still they
+a disguise that belongs in the room and fits the spot, give it a turn to
+sit right, drop decoys, dodge a flash sale and scurry when rumbled (the
+nervy ones bolt when a seeker brushes past). Seeking, they play like a team
+of people rather than a herd: each takes a room nobody else is on and tours
+it -- a few steps in, a look about, a shot at what looks off -- before
+moving on, gives way to a teammate already working a spot, and calls it
+(*ill check the kitchen*, *clear*); a noise brings one or two of them, not
+everybody; anything that seemed to move is walked up to, circled and
+tested. A sweeper shoots first and runs to every noise, a methodical seeker
+takes its time, a sniffer works the sniffer, and the jumpy hop about. The
+Bots Zone's **Prop Panic** subtab sets how still they
 keep, how well they hide, how often they taunt, drop decoys, guess and sniff,
 how sharp their eyes are and how hard they play each place's twist.
 
 ### Calamity Coast
+*Hidden -- switched off with the other hidden worlds; this is how it played.*
 Disaster survival for up to sixteen, in two rescue teams -- the
 **Lifeguards** and the **Rangers**. Nobody can hurt anybody: the town does
 all the hurting. A round is three disasters, one after another, the third
@@ -526,7 +538,10 @@ a clue burns it.
 revolver, one shot, a slow reload. Shoot anybody else and the detective is
 **disgraced** on the spot -- out of the case, the revolver left on the floor
 for any innocent brave enough to pick it up and finish the job as the
-**hero**.
+**hero**. Every guest can see who carries the revolver -- except a
+murderer, who never sees it, in a hand or on the floor (it hears it clatter
+down, no more): the only way a murderer learns who is armed is to see it
+fired.
 
 **The innocents** win by living out the clock (or seeing the murderer shot).
 **Clues** turn up round the place -- a sealed letter, a bloody glove, a
@@ -575,17 +590,31 @@ revolver), Last Minute (caught with under ten seconds left), The Wrong Man
 Breathing (cases lived through) and Every Scene (a case won in each of the
 four places).
 
-**Bots** play every role. Innocents mingle, go after clues, stick together
-and run from a body or a scream; they watch who draws a knife, who was near
-whom, and what the hints say, and tell the room (*its Sam!*, *Sam has a
-knife*, *stick together*) -- and a murderer named in front of everybody
-protests (*not me!*). A detective weighs up its suspects and only fires when it is sure
-enough -- and never through somebody else; a disgraced detective's revolver
-is picked up by a brave innocent. A murderer picks a victim who is alone (a
-trusting one with the revolver, best of all), follows them, and only draws
-the knife at arm's length with nobody watching -- bolder as the clock runs
-down -- or throws it from across a room; it burns clues when it can. They
-use the stairs between floors and decks like anyone else. The Bots Zone's
+**Bots** play every role, and play it like guests rather than a herd. Each
+innocent spends a case its own way, by persona: a sleuth after every clue in
+the house, a collector, a buddy who sticks at one guest's shoulder (two to a
+pair, never a crowd), a wallflower who keeps to a quiet room, a wanderer who
+cannot keep still. They go room to room -- somewhere they have not been
+lately and everybody else is not -- and stand about looking round at the
+faces in it; each goes for a clue of its own, never one somebody nearer is
+already after; a fresh body draws a curious one or two to look from a few
+steps off before they want to be anywhere else, and the rest run -- away
+from the danger, not past it, and not all to the same corner. They watch
+who draws a knife, who was near whom, and what the hints say, and tell the
+room (*its Sam!*, *Sam has a knife*, *im watching you Sam*) -- the bold keep
+an eye on a suspect from across the room -- and a murderer named in front
+of everybody protests (*not me!*). A detective weighs up its suspects,
+shadows the doubtful from a distance and only fires when it is sure enough
+-- and never through somebody else; at a body it looks, then searches the
+rooms round it. One brave innocent at a time goes for a disgraced
+detective's revolver. A murderer mingles, picks a victim who is alone (the
+one it has seen fire the revolver, best of all, if it is not looking),
+hangs back across the room while anybody is watching, and only draws the
+knife at arm's length with nobody to see it -- bolder as the clock runs
+down -- or throws it from across a room; it burns clues when it can, and
+it runs from a gun it has seen. They use the stairs between floors and
+decks like anyone else (and keep to the ones they can see the far end
+of). The Bots Zone's
 **Whodunit** subtab sets how sure a detective has to be before firing, how
 sharp everybody's eyes are, how careful a murderer is about witnesses, how
 often it throws, how brave an innocent is about the revolver, how much
@@ -595,8 +624,9 @@ they trust what they are told, and the callouts.
 ### Sky Sprint
 An obstacle-course race for up to sixteen, in two teams -- the **Red
 Rockets** and the **Blue Comets** -- on a course hung in the sky. Everybody
-waits behind the gate on the start deck; it drops at **GO**, and the race is
-on: run the girders and the bridges, jump the gaps, ride the conveyors,
+waits behind the gate on the start deck, held where they stand through the
+countdown (nobody starts the race from the floor of the world); the gate
+drops at **GO**, and the race is on: run the girders and the bridges, jump the gaps, ride the conveyors,
 launch off the jump pads, bounce off the jelly, time the hammers, hop the
 sweeping arms and the lasers, and get across the blinking tiles while they
 are there. Fall off (into the lava, the chocolate, the grid or the clouds)
@@ -609,16 +639,21 @@ and 1 by place. Once half the field is home a **hurry-up** gives the rest
 hurry-up runs out) wins the race; two races on a course, then everybody
 moves on.
 
-**The bonk glove** is everybody's only kit: a shove, no damage, on a short
-cooldown. Bonk a rival off the course and that is a **ring-out**, two more
-points. **Power-ups** turn up on their spots round the course: **spring
+**The bonk glove** is everybody's only kit -- a red boxing glove with a
+white cuff and a blue rolled rim, a gold star on the back of the hand: a
+shove, no damage, on a short cooldown. Bonk a rival off the course and that
+is a **ring-out**, two more points. Home already, you can still swing it --
+at rivals who are home too, for no points, a scuffle on the finish while the
+rest come in (they land back on it). **Power-ups** turn up on their spots round the course: **spring
 shoes** (higher jumps), a **feather** (you fall slowly), a **bubble**
 (nothing bonks, knocks or zaps you) and a **rocket** (**E**: a dash the way
 you are facing).
 
 The hammers, sweepers, lasers and wind run on clocks the server sends many
 times a second, so what you see swing is what hits everybody -- bots
-included. A tile about to blink out flashes red first, and its ghost stays
+included -- and all of it is solid, down to the lollipop on the end of each
+Candy sweeper's arm (jump the stick near the hub, or jump high for the
+candy). A tile about to blink out flashes red first, and its ghost stays
 where it was; a tile never comes back on top of anybody. Each course has
 its own twist, with a warning first:
 
@@ -655,8 +690,14 @@ come back or the crumbled bridge to rebuild, then going, hopping the arms
 and beams as they arrive. They lean into the wind, ride the belts and pads,
 detour for a power-up, light a rocket on a long straight, bonk a rival near
 an edge, and now and then misjudge a jump (the less skilled, more often) and
-go back to their checkpoint like anybody. They shout it in quick chat
-(*bonk*, *outta my way*, *that hammer*, *nooo*). The Bots Zone's **Sky
+go back to their checkpoint like anybody. Home, they do not stand in a heap
+on the finish: each finds a spot of its own and does what its persona
+would -- watches the racers still coming, cheers its team in from the edge
+(*come on Sam*, *GO GO GO*) and hops when one makes it, shows off with hops
+and spins, squares up to a rival who is home too and bonks them off the
+finish, or (a very few) runs the course backwards for fun and comes home
+again. They shout it in quick chat (*bonk*, *outta my way*, *that hammer*,
+*nooo*). The Bots Zone's **Sky
 Sprint** subtab sets their skill, their patience at a hazard, how keen they
 are to bonk, how far they will go for a power-up, and the callouts.
 
@@ -677,22 +718,28 @@ a fresh X drawn somewhere else once one is dug; and, two minutes from the
 end, the **cursed idol** (25), rising on its altar, and shining over
 whoever carries it for everybody to chase. You carry one piece at a time:
 walk over it to pick it up. A pouch, a bar or a jewel leaves your hands
-free (a little slower); a chest or the idol takes **both hands** -- no
-cutlass, no flintlock -- and slows you right down. **R** tosses what you
+free (a little slower); a chest or the idol takes **both hands** -- your
+hotbar is put away until it goes -- and slows you right down. **R** tosses what you
 carry where you look: a crewmate can catch it in the air (so can anybody
 else), and treasure that lands on a hold's hatch is banked for that crew.
 Whoever is cut down drops what they carry where they fall. A bold raider,
 empty-handed in the other crew's hold, can hold **E** to steal a gold bar's
 worth out of it -- if the crew coming back to life beside it lets them.
 
-**Kit**: a **cutlass** (three cuts kill, close in) and a **flintlock** (one
-heavy shot, then a slow reload -- the cutlass is ready at once). Each ship
-has two deck **cannons**: stand at one of your own and a ring shows where
+**Arms**: everybody fights with **their own hotbar** -- whatever weapons
+they set on it -- against the other crew and against the island's own (the
+redcoats, the kraken's tentacles), which take a hit from anything: a blade,
+a bullet, a rocket's blast. Your own crew's health shows under their names;
+the other crew is only a name. Each ship has two deck **cannons**: stand at one of your own and a ring shows where
 the shell would land, where you are looking within its arc; **E** fires it.
 The shell lands a moment later, knocks everybody away and the treasure out
 of their hands. Wading slows you, deeper water more.
 
 Each island has its own twist, with a warning first:
+
+Every island's ground -- turf, beach sand, wet sand, the seabed under the
+water, trails and the black sand of Doubloon Isle -- has the classic
+studded top, the same as the floors everywhere else.
 
 * **Skull Cove** -- a horseshoe island round a lagoon under a rock shaped
   like a skull, a cave in its mouth and the idol in the cave: jungle, huts,
@@ -720,13 +767,15 @@ Each island has its own twist, with a warning first:
 
 **Badges** (struck on a doubloon): Jolly Roger (hauls won), Plunderer
 (doubloons banked), X Marks the Spot (chests dug up), Heavy Lifter (chests
-banked), Cursed (the idol banked), Raider (raids), Swashbuckler (cutlass
-takedowns), Dead Shot (flintlock takedowns), Broadside (cannon hits), Good
+banked), Cursed (the idol banked), Raider (raids), Swashbuckler (rival
+pirates cut down up close), Dead Shot (rival pirates brought down from
+range), Broadside (cannon hits), Good
 Catch (catches), Old Salt (taking on the sea: sunken treasure, blows on the
 kraken, redcoats downed, gold from the eruption) and Every Port (a haul won
 on each of the four islands).
 
-**Bots** are haulers, raiders or guards. Haulers go for the best treasure
+**Bots** are haulers, raiders or guards, and fight with their own hotbars
+like everybody else. Haulers go for the best treasure
 they can reach -- a live X, the idol, loot the twist brought -- without two
 of them chasing the same piece, dig, and carry it home, tossing it to a
 crewmate ahead of them when they are chased. Raiders hunt the other crew's
