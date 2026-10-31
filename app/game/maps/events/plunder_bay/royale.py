@@ -76,7 +76,7 @@ def _land(isle: Isle) -> None:
     harbour = (-SHORE_X, SHORE_X, QUAY, hz + m)
     isle.land(EARTH, holes=[west, east, harbour], soil="#7a6a54")
     for area in (west, east, harbour):
-        slab(b, area, SEABED, 3.0, SAND_WET)
+        slab(b, area, SEABED, 3.0, SAND_WET, studs=True)
     # the water, and the open sea beyond the harbour wall
     for x0, x1, z0, z1 in ((-hx, -SHORE_X, -hz, hz), (SHORE_X, hx, -hz, hz),
                            (-SHORE_X, SHORE_X, QUAY, hz)):
@@ -102,7 +102,8 @@ def _land(isle: Isle) -> None:
                       ((-16.0, 16.0, -48.0, 86.0), PAVING)):
         x0, x1, z0, z1 = r
         pieces_before = len(b.parts)
-        s.lay(rect(x0, x1, z0, z1), 0.12, colour)
+        # (the cobbles and paving carry their own pattern, not the studs)
+        s.lay(rect(x0, x1, z0, z1), 0.12, colour, studs=False)
         for part in b.parts[pieces_before:]:
             part["dec"] = "pb_cobbles"
             part["dw"] = 1

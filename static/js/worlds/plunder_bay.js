@@ -52,7 +52,7 @@
   var GRAVITY = 62, DIG_REACH = 3.6, CANNON_REACH = 5.4;
   var CANNON_MIN = 24, CANNON_MAX = 120, CANNON_ARC = 0.85, CANNON_COOL = 9;
   var BANK_PAD = 1.4, WADE = 0.4, DEEP = 2.8, WADE_SCALE = 0.78, DEEP_SCALE = 0.6;
-  var PISTOL_RELOAD = 2.5, DIG_SECONDS = 2.6, RAID_SECONDS = 2.5, EYE = 4.6;
+  var DIG_SECONDS = 2.6, RAID_SECONDS = 2.5, EYE = 4.6;
 
   function rgb(hex) {
     var n = parseInt(String(hex).slice(1), 16);
@@ -136,7 +136,7 @@
     var slams = {};               // tentacle id -> {at, t0, until}
     var aims = {};                // redcoat id -> {target, until}
     var twist = { kind: '', on: false, until: 0 };
-    var pistolReady = 0, cannonReady = {}, shakeUntil = 0, shakeK = 0;
+    var cannonReady = {}, shakeUntil = 0, shakeK = 0;
     var act = { k: '', start: 0 };
     var lastRole = '', lastSide = '', sideAt = 0, digDust = 0, splashAt = 0;
 
@@ -213,7 +213,7 @@
       ax = {};
       items = {}; liveX = []; flights = {}; shells = []; rings = []; npcs = {}; slams = {}; aims = {};
       twist = { kind: ex.twist || '', on: false, until: 0 };
-      pistolReady = 0; cannonReady = {}; shakeUntil = 0;
+      cannonReady = {}; shakeUntil = 0;
       act = { k: '', start: 0 };
       lastRole = ''; lastSide = '';
       arena.side('');
@@ -617,8 +617,6 @@
       var bits = [];
       var kind = carrying();
       if (kind && LOOT[kind]) bits.push('<b style="color:' + LOOT[kind].colour + '">CARRYING ' + LOOT[kind].short + '</b>');
-      var reload = pistolReady - now();
-      if (reload > 0.05) bits.push('<span style="opacity:.8">flintlock loading ' + reload.toFixed(1) + 's</span>');
       if (twist.on && TWISTS[twist.kind]) bits.push('<b style="color:' + TWISTS[twist.kind].colour + '">' + TWISTS[twist.kind].chip + '</b>');
       var html = '<b style="color:' + TEAM_LIGHT[team] + '">' + esc(arena.teamName(team).toUpperCase()) + '</b>' +
         (bits.length ? ' &bull; ' + bits.join(' &bull; ') : '');
@@ -833,25 +831,6 @@
           } else if (msg.s === 'back') {
             client.hud.toast('The idol is back on its altar');
           }
-        } else if (k === 'cut') {
-          pos = playerPos(msg.id);
-          if (msg.id !== me) playAt('pb_cutlass', pos, 0.7);
-          if (msg.hit) {
-            var hp = playerPos(msg.hit) || ((npcs[msg.hit] || {}).p);
-            if (hp) {
-              playAt('pb_clang', hp, 0.8);
-              if (client.particles) client.particles.burst('impact', [hp[0], hp[1] + 3, hp[2]]);
-            }
-          }
-        } else if (k === 'shot') {
-          if (msg.id !== me) {
-            client.tracers.push({ a: msg.a, b: msg.b, t: 0, c: rgb('#ffe2a0') });
-            playAt('pb_pistol', msg.a, 1);
-            if (client.particles) client.particles.burst('muzzle', msg.a);
-          }
-          if (client.particles) client.particles.burst('impact', msg.b);
-        } else if (k === 'cool') {
-          pistolReady = t + (msg.s || PISTOL_RELOAD);
         } else if (k === 'cannon') {
           shells.push({ kind: 'shell', a: msg.a, v: msg.v, T: msg.T, t0: t });
           rings.push({ at: msg.at, r: msg.r || 7.5, t0: t, until: t + msg.T, kind: 'shell', team: msg.team });
@@ -971,38 +950,10 @@
       },
       goLine: function () { return 'Haul the treasure home -- and cut down anybody who tries to take it!'; },
       canFire: function (stats) { return arena.phase === 'active' && !(stats && stats.kind === 'pb_carry'); },
-      isCustom: function (stats) { return !!(stats && String(stats.kind || '').indexOf('pb_') === 0); },
-      localFire: function (stats, origin, dir) {
-        if (stats.kind === 'pb_cutlass') {
-          client.audio.play('pb_cutlass', { volume: 0.85 });
-          client.recoil = Math.min(1.4, (client.recoil || 0) + 0.5);
-          return true;
-        }
-        if (stats.kind === 'pb_pistol') {
-          if (now() < pistolReady) {
-            client.hud.toast('Loading the flintlock -- ' + (pistolReady - now()).toFixed(1) + 's');
-            client.audio.play('pb_reload', { volume: 0.5 });
-            return true;
-          }
-          var phys = client.physics;
-          var dist = phys ? phys.rayDistance(origin, dir, stats.range || 120) : (stats.range || 120);
-          var end = [origin[0] + dir[0] * dist, origin[1] + dir[1] * dist, origin[2] + dir[2] * dist];
-          client.tracers.push({ a: origin.slice(), b: end, t: 0, c: rgb('#ffe2a0') });
-          var muzzle = [origin[0] + dir[0] * 1.8, origin[1] + dir[1] * 1.8, origin[2] + dir[2] * 1.8];
-          if (client.particles) {
-            client.particles.burst('muzzle', muzzle);
-            for (var i = 0; i < 4; i++) {
-              client.particles.spawn({ p: muzzle.slice(), v: [dir[0] * 3 + (Math.random() - 0.5), 1 + Math.random(), dir[2] * 3 + (Math.random() - 0.5)],
-                life: 1.0, size: 0.9, grow: 1.6, gravity: 0.5, spin: 1, blend: 'normal', shape: 'smoke', colors: ['#f0f0f0', '#c8c8c8'] });
-            }
-          }
-          client.audio.play('pb_pistol', { volume: 1 });
-          client.recoil = Math.min(1.6, (client.recoil || 0) + 0.7);
-          pistolReady = now() + PISTOL_RELOAD;
-          return true;
-        }
-        return true;
-      },
+      // everybody fights with their own hotbar: only a chest or the idol in
+      // both hands is the world's own (and it does not fire)
+      isCustom: function (stats) { return !!(stats && stats.kind === 'pb_carry'); },
+      localFire: function () { return true; },
       useDown: function () {
         if (!inPlay()) return false;
         var kind = carrying();
@@ -1030,9 +981,7 @@
           client.audio.play('pb_toss', { volume: 0.8 });
           return true;
         }
-        var reload = pistolReady - now();
-        if (reload > 0.05) client.hud.toast('Loading the flintlock -- ' + reload.toFixed(1) + 's');
-        return true;
+        return false;                     // R reloads your own gun as anywhere else
       },
       moveScale: moveScale,
       afterStep: afterStep,
@@ -1055,7 +1004,6 @@
         drawActors(renderer, time);
         drawVent(renderer, time);
         stepHold();
-        if (pistolReady > now() - 0.2) roleChip();
       },
       nameTag: function (player) {
         if (arena.phase !== 'active') return null;
@@ -1089,10 +1037,6 @@
       }, this);
       this.later(800, function () { this.tone({ type: 'sawtooth', freq: 147, freqEnd: 196, dur: 0.7, gain: 0.08 * vol }); });
     });
-    GA.register('pb_cutlass', function (vol) {
-      this.noise({ filter: 'bandpass', freq: 2600, freqEnd: 700, dur: 0.16, gain: 0.24 * vol });
-      this.tone({ type: 'triangle', freq: 1800, freqEnd: 1500, dur: 0.12, gain: 0.03 * vol });
-    });
     GA.register('pb_clang', function (vol) {
       this.tone({ type: 'square', freq: 1240, freqEnd: 1180, dur: 0.22, gain: 0.06 * vol });
       this.tone({ type: 'triangle', freq: 2480, dur: 0.3, gain: 0.04 * vol });
@@ -1104,10 +1048,6 @@
         this.noise({ filter: 'lowpass', freq: 1800, freqEnd: 200, dur: 0.5, gain: 0.55 * vol });
         this.tone({ type: 'sine', freq: 110, freqEnd: 40, dur: 0.35, gain: 0.35 * vol });
       });
-    });
-    GA.register('pb_reload', function (vol) {
-      this.noise({ filter: 'bandpass', freq: 3200, dur: 0.03, gain: 0.2 * vol });
-      this.later(120, function () { this.noise({ filter: 'bandpass', freq: 2400, dur: 0.04, gain: 0.18 * vol }); });
     });
     GA.register('pb_cock', function (vol) {
       this.noise({ filter: 'bandpass', freq: 2800, dur: 0.04, gain: 0.22 * vol });

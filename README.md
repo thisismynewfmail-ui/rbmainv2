@@ -105,7 +105,7 @@ Basic Shotgun and a Basic Stick.
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
 | **Whodunit** | `/whodunit` | Murder mystery: secret roles -- a murderer with a hidden knife, a detective with a revolver, everybody else innocent; clues fill a case file that gives up hints, and a twist in every place | 16 |
 | **Sky Sprint** | `/sky_sprint` | Obstacle-course race in the sky: two teams race pads, belts, hammers, sweepers, lasers and blinking tiles past checkpoints to the finish, a bonk glove to shove rivals off, power-ups and a twist on every course | 16 |
-| **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with cutlass, flintlock and ship's cannon, tosses and raids, and a twist on every island | 16 |
+| **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with your own weapons and the ship's cannon, tosses and raids, and a twist on every island | 16 |
 
 When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
@@ -718,22 +718,28 @@ a fresh X drawn somewhere else once one is dug; and, two minutes from the
 end, the **cursed idol** (25), rising on its altar, and shining over
 whoever carries it for everybody to chase. You carry one piece at a time:
 walk over it to pick it up. A pouch, a bar or a jewel leaves your hands
-free (a little slower); a chest or the idol takes **both hands** -- no
-cutlass, no flintlock -- and slows you right down. **R** tosses what you
+free (a little slower); a chest or the idol takes **both hands** -- your
+hotbar is put away until it goes -- and slows you right down. **R** tosses what you
 carry where you look: a crewmate can catch it in the air (so can anybody
 else), and treasure that lands on a hold's hatch is banked for that crew.
 Whoever is cut down drops what they carry where they fall. A bold raider,
 empty-handed in the other crew's hold, can hold **E** to steal a gold bar's
 worth out of it -- if the crew coming back to life beside it lets them.
 
-**Kit**: a **cutlass** (three cuts kill, close in) and a **flintlock** (one
-heavy shot, then a slow reload -- the cutlass is ready at once). Each ship
-has two deck **cannons**: stand at one of your own and a ring shows where
+**Arms**: everybody fights with **their own hotbar** -- whatever weapons
+they set on it -- against the other crew and against the island's own (the
+redcoats, the kraken's tentacles), which take a hit from anything: a blade,
+a bullet, a rocket's blast. Your own crew's health shows under their names;
+the other crew is only a name. Each ship has two deck **cannons**: stand at one of your own and a ring shows where
 the shell would land, where you are looking within its arc; **E** fires it.
 The shell lands a moment later, knocks everybody away and the treasure out
 of their hands. Wading slows you, deeper water more.
 
 Each island has its own twist, with a warning first:
+
+Every island's ground -- turf, beach sand, wet sand, the seabed under the
+water, trails and the black sand of Doubloon Isle -- has the classic
+studded top, the same as the floors everywhere else.
 
 * **Skull Cove** -- a horseshoe island round a lagoon under a rock shaped
   like a skull, a cave in its mouth and the idol in the cave: jungle, huts,
@@ -761,13 +767,15 @@ Each island has its own twist, with a warning first:
 
 **Badges** (struck on a doubloon): Jolly Roger (hauls won), Plunderer
 (doubloons banked), X Marks the Spot (chests dug up), Heavy Lifter (chests
-banked), Cursed (the idol banked), Raider (raids), Swashbuckler (cutlass
-takedowns), Dead Shot (flintlock takedowns), Broadside (cannon hits), Good
+banked), Cursed (the idol banked), Raider (raids), Swashbuckler (rival
+pirates cut down up close), Dead Shot (rival pirates brought down from
+range), Broadside (cannon hits), Good
 Catch (catches), Old Salt (taking on the sea: sunken treasure, blows on the
 kraken, redcoats downed, gold from the eruption) and Every Port (a haul won
 on each of the four islands).
 
-**Bots** are haulers, raiders or guards. Haulers go for the best treasure
+**Bots** are haulers, raiders or guards, and fight with their own hotbars
+like everybody else. Haulers go for the best treasure
 they can reach -- a live X, the idol, loot the twist brought -- without two
 of them chasing the same piece, dig, and carry it home, tossing it to a
 crewmate ahead of them when they are chased. Raiders hunt the other crew's

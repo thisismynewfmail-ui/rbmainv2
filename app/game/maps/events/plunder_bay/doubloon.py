@@ -95,16 +95,16 @@ def _land(isle: Isle) -> None:
     springs = [SPRING, _m(SPRING)]
     isle.land(TURF, holes=[west, east, south] + RIVERS + springs, soil="#4a3a32")
     for area in (west, east, south):
-        slab(b, area, SEABED, 3.0, "#2e2e34")
+        slab(b, area, SEABED, 3.0, "#2e2e34", studs=True)
     # the beaches down into the sea: black sand
     for k, top in enumerate((-1.0, -2.0)):
         for sgn in (-1.0, 1.0):
             xa, xb = sorted((sgn * (SHORE_X + 3.0 * k), sgn * (SHORE_X + 3.0 * (k + 1))))
             b.box([(xa + xb) / 2.0, (SEABED + top) / 2.0, (NORTH + hz) / 2.0],
-                  [xb - xa, top - SEABED, hz - NORTH], BLACK_SAND)
+                  [xb - xa, top - SEABED, hz - NORTH], BLACK_SAND, studs=True)
         za, zb = SOUTH + 3.0 * k, SOUTH + 3.0 * (k + 1)
         b.box([0.0, (SEABED + top) / 2.0, (za + zb) / 2.0], [2 * SHORE_X, top - SEABED, zb - za],
-              BLACK_SAND)
+              BLACK_SAND, studs=True)
     # the water, and the open sea beyond the reef
     for area in ((-hx, -SHORE_X, -hz, hz), (SHORE_X, hx, -hz, hz), (-SHORE_X, SHORE_X, SOUTH, hz)):
         isle.water(area, SEABED, colour="#2a6a8a")
