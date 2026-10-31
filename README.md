@@ -386,12 +386,13 @@ price of a squeak, a honk or a kazoo), two **decoys** (a copy of your
 disguise left behind; a seeker who shoots one is hurt) and a **scurry**
 (three seconds at a sprint).
 
-**Seekers** wait in the place's pen, blindfolded, through the countdown,
-then the door opens. The **popper** finds a hider in a few hits and heals the
-seeker a little; a shot into a real prop is a wrong guess that costs health.
-The **sniffer** makes the nearest hider squeak; the **glitter bomb** dusts
-everything where it lands and shows who is not what they seem. In the last
-minute the house creaks and every hider still standing squeaks on its own.
+**Seekers** wait in the place's pen through the countdown, blindfolded and
+stock still, then the door opens. The **popper** finds a hider in a few hits
+and heals the seeker a little; a shot into a real prop is a wrong guess that
+costs health. The **sniffer** makes the nearest hider squeak, once every
+thirty seconds; the **glitter bomb** dusts everything where it lands and
+shows who is not what they seem. In the last minute the house creaks and
+every hider still standing squeaks on its own.
 
 **The places**, each with a twist:
 
@@ -430,10 +431,17 @@ place).
 
 **Bots** hide by persona and settings -- still as a statue, a taunter who
 loves an audience, or a runner who moves on when the coast is clear -- pick
-a disguise that belongs in the room and fits the spot, drop decoys, dodge a
-flash sale and scurry when rumbled; seeking, they sweep the rooms, watch for
-anything that moved, follow squeaks, the cat, the price tags and the alarm,
-and take guesses. The Bots Zone's **Prop Panic** subtab sets how still they
+a disguise that belongs in the room and fits the spot, give it a turn to
+sit right, drop decoys, dodge a flash sale and scurry when rumbled (the
+nervy ones bolt when a seeker brushes past). Seeking, they play like a team
+of people rather than a herd: each takes a room nobody else is on and tours
+it -- a few steps in, a look about, a shot at what looks off -- before
+moving on, gives way to a teammate already working a spot, and calls it
+(*ill check the kitchen*, *clear*); a noise brings one or two of them, not
+everybody; anything that seemed to move is walked up to, circled and
+tested. A sweeper shoots first and runs to every noise, a methodical seeker
+takes its time, a sniffer works the sniffer, and the jumpy hop about. The
+Bots Zone's **Prop Panic** subtab sets how still they
 keep, how well they hide, how often they taunt, drop decoys, guess and sniff,
 how sharp their eyes are and how hard they play each place's twist.
 

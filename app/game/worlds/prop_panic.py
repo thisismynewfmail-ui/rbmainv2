@@ -46,7 +46,7 @@ import math
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .. import instance as engine
-from ..instance import EYE_HEIGHT, MAX_HEALTH, Player, ray_aabb
+from ..instance import EYE_HEIGHT, JUMP_SPEED, MAX_HEALTH, Player, ray_aabb
 from ..maps.events import prop_panic as pp_map
 from .arena import NEVER, ArenaWorld
 
@@ -65,7 +65,7 @@ DECOYS = 2
 SCURRY_SECONDS = 3.0
 SCURRY_COOL = 16.0
 SCURRY_SPEED = 1.6
-SNIFF_COOL = 24.0
+SNIFF_COOL = 30.0          # the sniffer works once every thirty seconds
 SNIFF_RANGE = 75.0
 GLITTER_CHARGES = 2
 GLITTER_R = 8.0
@@ -89,6 +89,8 @@ SPOT_SPEED = 10.0
 SPOT_R = 9.0
 ALARM_SECONDS = 6.0
 BOT_WALK = 14.0             # about how fast a bot covers ground, paths and all
+LEAD_SHARE = 2             # how many seeking bots go after the same noise
+SWEEP_APART = 20.0         # a room this close to a teammate's is theirs to search
 REVEAL_FIND = 9.0          # a find within this long of a reveal counts for its badge
 # what a seeking bot says when it goes after a lead, by what the lead was
 LEAD_LINES = {"cat": ["follow the cat", "the cat found one", "cats staring at something"],
@@ -469,6 +471,12 @@ class PropPanicWorld(ArenaWorld):
         player.extra["q"] = q
         self.broadcast({"t": "ppd", "id": player.pid, "k": key, "q": q})
         self._send_me(player, force=True)
+
+    def held_still(self, player: Player) -> bool:
+        """Eyes shut: the seekers stand stock still in the pen through the
+        whole countdown while the hiders find their places."""
+        return self.phase == "setup" and self.in_play(player) and not self.is_prop(player) \
+            and player.team in self.TEAMS
 
     def move_scale(self, player: Player) -> float:
         if not self.is_prop(player):
@@ -1342,6 +1350,7 @@ class PropPanicWorld(ArenaWorld):
                 return
             brain.waypoints = []
             self._bot_pick_disguise(brain, mind)
+            mind["settled"] = False
             mind["hidden"] = True
             mind["fleeing"] = False
             mind["since"] = moment
@@ -1358,6 +1367,21 @@ class PropPanicWorld(ArenaWorld):
             self._bot_flee(brain, mind)
             return
         self._bot_dodge_sale(brain, mind, moment)
+        # settling in: a fidgety hider gives its prop a quarter turn or two to
+        # sit right, while nobody is close enough to see it
+        if not mind.get("settled") and moment - mind.get("since", moment) > 1.5:
+            mind["settled"] = True
+            fidget = brain.t("jumpy", 0.2) + brain.t("chaos", 0.1) + (0.0 if brain.role == "still" else 0.2)
+            alone = all(math.dist(h.pos, p.pos) > 25.0 for h in self.players.values()
+                        if h.team == self.seekers and self.in_play(h))
+            if alone and brain.rng.random() < fidget:
+                key = p.extra.get("dis") or self.starter
+                for _ in range(brain.rng.randint(1, 2)):
+                    turned = (int(p.extra.get("q", 0)) + 1) % 4
+                    if not self.hull_fits(p.pos[0], p.pos[1], p.pos[2],
+                                          hull_size(self.kinds, key, turned)):
+                        break
+                    self.spin(p)
         if moment >= mind.get("next_taunt", NEVER):
             rate = self.pct("taunt") * (1.6 if brain.role == "taunter" else 0.6)
             hunters = [h for h in self.players.values() if h.team == self.seekers and
@@ -1447,13 +1471,20 @@ class PropPanicWorld(ArenaWorld):
         shot = moment - float(mind.get("shot_at", -99.0)) < 1.5
         exposed = moment - float(mind.get("exposed", -99.0)) < 1.5
         cat = self.cat and self.cat.get("stare") == p.pid
+        size = hull_size(self.kinds, p.extra.get("dis") or self.starter, int(p.extra.get("q", 0)))
+        small = size[0] <= 2.7 and size[2] <= 2.7
         if not (shot or exposed or cat):
             if brain.role == "runner" and moment - mind.get("since", moment) > \
                     brain.rng.uniform(40.0, 90.0) * (0.6 + still):
                 return brain.rng.random() < 0.008
+            # a seeker brushing right past: the nervy ones bolt
+            nervy = brain.t("jumpy", 0.2) * (1.2 - brain.skill) * (1.2 - still)
+            if small and nervy > 0.05:
+                for h in self.players.values():
+                    if h.team == self.seekers and self.in_play(h) and math.dist(h.pos, p.pos) < 6.0:
+                        return brain.rng.random() < 0.04 * nervy
             return False
-        size = hull_size(self.kinds, p.extra.get("dis") or self.starter, int(p.extra.get("q", 0)))
-        if size[0] > 2.7 or size[2] > 2.7:
+        if not small:
             return False              # too big to run: stay and pray
         chance = (0.75 - still * 0.55) * (1.3 if shot else 0.8)
         return brain.rng.random() < chance
@@ -1505,19 +1536,31 @@ class PropPanicWorld(ArenaWorld):
                 return
 
     # ---- seeking
+    # A seeking bot plays the way a person does: the team spreads out, each
+    # one taking a room of its own and touring it -- a few steps in, a look
+    # about, a shot at whatever looks off -- before moving on; a noise
+    # brings one or two of them, not the whole team; and anything that
+    # looked like it moved is walked up to and tested.  Its persona and its
+    # job (``seeker`` sweeps thoroughly, ``sweeper`` shoots first and runs
+    # to every noise, ``sniffer`` works the sniffer) shape all of it.
     def _bot_seek(self, brain) -> None:
         p = brain.p
         moment = engine.now()
         mind = self._mind(p)
         if self.phase == "setup":
-            self.doing(brain, "counting to forty in the pen")
+            brain.waypoints = []
+            self.doing(brain, "eyes shut in the pen, counting")
             return
         if self.phase != "active":
             return
         if moment - self.live_since < 6.0:
-            self.callout(brain, ["ready or not", "here we come", "lets find them", "spread out"],
+            self.callout(brain, ["ready or not", "here we come", "lets find them", "spread out",
+                                 "ill take upstairs", "split up"],
                          "release", chance=0.35, every=120.0)
         self._bot_perceive(brain, mind, moment)
+        self._bot_fidget(brain, moment)
+        if self._bot_suspect(brain, mind, moment):
+            return
         lead = mind.get("lead")
         if lead is not None and moment - lead["at"] > 18.0:
             mind["lead"] = lead = None
@@ -1528,11 +1571,12 @@ class PropPanicWorld(ArenaWorld):
         if lead is None and moment >= float(p.extra.get("sniff_at", 0.0)) and \
                 brain.rng.random() < sniff_rate * 0.25:
             self._sniff(p)
-            lead = self._bot_take_lead(brain, mind, moment)
+            lead = self._bot_take_lead(brain, mind, moment, own=True)
         if lead is not None:
-            d = math.hypot(p.pos[0] - lead["p"][0], p.pos[2] - lead["p"][2])
-            if d > 7.0:
-                brain.go(lead["p"], "lead%d" % int(lead["at"] * 10))
+            spot = lead.get("spot") or lead["p"]
+            d = math.hypot(p.pos[0] - spot[0], p.pos[2] - spot[2])
+            if d > 3.5 and not lead.get("arrived"):
+                brain.go(spot, "lead%d" % int(lead["at"] * 10))
                 self.callout(brain, LEAD_LINES.get(lead["why"], LEAD_LINES["taunt"]),
                              "lead" + lead["why"], chance=0.45, every=30.0, team=True)
                 self.doing(brain, "following a %s near %s" % (
@@ -1540,51 +1584,207 @@ class PropPanicWorld(ArenaWorld):
                      "sale": "price tag", "alarm": "alarm", "glitter": "glint"}.get(
                          lead["why"], "noise"), self._place(lead["p"]) or "here"))
                 return
-            # at the spot: guess at what is around, glitter it, or move on
-            self._bot_guess(brain, mind, moment, lead["p"])
-            if int(p.extra.get("glitter", 0)) > 0 and brain.rng.random() < 0.08 * (
-                    1.0 + brain.t("aggression", 0.5)):
-                self._bot_glitter(brain, lead["p"])
-            if moment - lead.get("arrived", moment) > 6.0:
-                mind["lead"] = None
+            # at the spot: look round it, guess at what is there, glitter it
             lead.setdefault("arrived", moment)
+            brain.waypoints = []
+            self._bot_look_about(brain, mind, moment, lead["p"])
+            self._bot_guess(brain, mind, moment, lead["p"])
+            if int(p.extra.get("glitter", 0)) > 0 and brain.rng.random() < 0.06 * (
+                    1.0 + brain.t("aggression", 0.5) + (0.8 if brain.role == "sweeper" else 0.0)):
+                self._bot_glitter(brain, lead["p"])
+            if moment - lead["arrived"] > 3.0 + brain.rng.uniform(0.0, 4.0):
+                mind["lead"] = None
             return
-        # nothing to go on: sweep the place, room by room
-        search = mind.get("search")
-        if search is None or search >= len(self.searches):
-            search = self._bot_pick_search(brain)
-            mind["search"] = search
-            mind["search_at"] = moment
-        if search is None:
-            return super().bot_objective(brain)
-        point, name = self.searches[search]
-        if math.dist(point, p.pos) > 8.0 and moment - mind.get("search_at", moment) < 40.0:
-            brain.go(point, "search%d" % search)
-            self.doing(brain, "searching %s" % (name or "the place"))
+        self._bot_sweep(brain, mind, moment)
+
+    def _bot_sweep(self, brain, mind: Dict[str, Any], moment: float) -> None:
+        """Nothing to go on: tour a room of its own, a few spots in it, looking
+        about at each, then on to the next room nobody else has."""
+        p = brain.p
+        sweep = mind.get("sweep")
+        if sweep is not None and moment > sweep["until"]:
+            sweep = None
+        if sweep is not None and sweep["k"] < len(sweep["tour"]) and self._crowded(p, sweep):
+            # somebody else is working this room: leave it to them
+            self.searched[sweep["i"]] = moment
+            sweep = None
+        if sweep is None:
+            i = self._bot_pick_search(brain)
+            if i is None:
+                return super().bot_objective(brain)
+            point, name = self.searches[i]
+            tour = [self._offset(point, p, 3.0)]
+            for _ in range(1 + int(brain.rng.random() < 0.5 + brain.t("explore", 0.2) * 0.5)):
+                spot = self.random_spot(brain.rng, near=point, radius=10.0)
+                if spot is not None and abs(spot[1] - point[1]) < 3.0:
+                    tour.append(spot)
+            brain.rng.shuffle(tour)
+            sweep = {"i": i, "name": name, "tour": tour, "k": 0, "until": moment + 60.0,
+                     "dwell": 0.0, "seen_any": False}
+            mind["sweep"] = sweep
+            if brain.rng.random() < 0.25:
+                self.callout(brain, ["ill check %s" % (name or "here"), "checking %s" % (name or "this room"),
+                                     "going %s" % (name or "this way")], "room", chance=0.6,
+                             every=35.0, team=True)
+        if sweep["k"] >= len(sweep["tour"]):
+            self.searched[sweep["i"]] = moment
+            mind["sweep"] = None
+            if brain.rng.random() < 0.3:
+                self.callout(brain, ["clear", "nothing here", "%s clear" % (sweep["name"] or "room"),
+                                     "not in here"], "clear", chance=0.5, every=40.0, team=True)
             return
+        target = sweep["tour"][sweep["k"]]
+        name = sweep["name"] or "the place"
+        if math.hypot(p.pos[0] - target[0], p.pos[2] - target[2]) > 3.0 and not sweep["dwell"]:
+            brain.go(target, "sweep%d_%d" % (sweep["i"], sweep["k"]))
+            self.doing(brain, "searching %s" % name)
+            return
+        # at a stop on the tour: stand and look about, prod at what looks odd
+        if not sweep["dwell"]:
+            patience = 0.5 + brain.skill * 0.6 + (0.5 if brain.role == "seeker" else 0.0) - \
+                (0.4 if brain.role == "sweeper" else 0.0)
+            sweep["dwell"] = moment + brain.rng.uniform(1.4, 3.6) * max(0.4, patience)
+        brain.waypoints = []
+        self.doing(brain, "looking round %s" % name)
+        self._bot_look_about(brain, mind, moment, p.pos)
         self._bot_guess(brain, mind, moment, p.pos)
-        if moment - mind.get("search_at", moment) > 10.0 + brain.rng.uniform(0.0, 8.0):
-            self.searched[search] = moment
-            mind["search"] = None
+        if moment >= sweep["dwell"]:
+            sweep["k"] += 1
+            sweep["dwell"] = 0.0
+
+    def _offset(self, point: Sequence[float], p: Player, radius: float) -> List[float]:
+        """Somewhere by ``point`` of this bot's own, so two of them sent to the
+        same place do not stand on the same spot."""
+        a = (p.pid * 2.399) % (2.0 * math.pi)
+        x, z = point[0] + math.sin(a) * radius, point[2] + math.cos(a) * radius
+        nav = getattr(self.host, "nav", None)
+        if nav is not None and nav.ready and nav.walkable(x, point[1], z):
+            return [x, point[1], z]
+        return list(point)
+
+    def _crowded(self, p: Player, sweep: Dict[str, Any]) -> bool:
+        """Is a teammate already working the stop this bot is heading for (and
+        is this the bot that should give way)?"""
+        target = sweep["tour"][min(sweep["k"], len(sweep["tour"]) - 1)]
+        for other in self.players.values():
+            if other is p or other.team != p.team or not self.in_play(other):
+                continue
+            if math.dist(other.pos, target) < 7.0 and math.dist(other.pos, p.pos) < 16.0:
+                return other.brain is None or other.pid < p.pid
+        return False
+
+    def _bot_look_about(self, brain, mind: Dict[str, Any], moment: float,
+                        around: Sequence[float]) -> None:
+        """Turn to look at something here -- a chair, a lamp, a corner -- the
+        way a person scans a room."""
+        p = brain.p
+        if moment < mind.get("glance_at", 0.0) or brain.target is not None:
+            return
+        mind["glance_at"] = moment + brain.rng.uniform(0.5, 1.4)
+        near = list(self._decor_near(around[0], around[2], 16.0))
+        if near:
+            entry = brain.rng.choice(near)
+            brain.look_yaw = math.atan2(entry["p"][0] - p.pos[0], entry["p"][2] - p.pos[2])
+        else:
+            brain.look_yaw = p.yaw + brain.rng.uniform(-1.4, 1.4)
+
+    def _bot_fidget(self, brain, moment: float) -> None:
+        """A hop now and then, by temperament."""
+        if brain.airborne or brain.rng.random() > 0.03 * (brain.t("jumpy", 0.2) + brain.t("chaos", 0.1)):
+            return
+        brain.airborne = True
+        brain.vy = JUMP_SPEED
+
+    def _bot_suspect(self, brain, mind: Dict[str, Any], moment: float) -> bool:
+        """Something looked like it moved: walk up to it, have a look from a
+        few steps off, circle it, and test it."""
+        p = brain.p
+        sus = mind.get("sus") or {}
+        best, best_d = None, 46.0
+        for pid, until in list(sus.items()):
+            if until < moment:
+                sus.pop(pid, None)
+                continue
+            prop = self.players.get(pid)
+            if prop is None or not self.in_play(prop) or not self.is_prop(prop):
+                continue
+            d = math.dist(prop.pos, p.pos)
+            if d < best_d:
+                best, best_d = prop, d
+        if best is None:
+            return False
+        bold = brain.t("aggression", 0.5) + (0.4 if brain.role == "sweeper" else 0.0)
+        standoff = 12.0 - 6.0 * min(1.0, bold)
+        if best_d > standoff + 2.0:
+            brain.go(self._offset(best.pos, p, standoff), "sus%d" % best.pid)
+            self.doing(brain, "going to look at something that moved")
+            return True
+        # close: face it, sidestep round it between shots, and shoot it
+        if moment >= mind.get("circle_at", 0.0):
+            mind["circle_at"] = moment + brain.rng.uniform(1.2, 2.4)
+            a = math.atan2(p.pos[0] - best.pos[0], p.pos[2] - best.pos[2]) + \
+                brain.rng.choice((-0.6, 0.6))
+            step = [best.pos[0] + math.sin(a) * standoff, best.pos[1], best.pos[2] + math.cos(a) * standoff]
+            nav = getattr(self.host, "nav", None)
+            if nav is not None and nav.ready and nav.walkable(step[0], step[1], step[2]):
+                brain.waypoints = [step]
+            else:
+                brain.waypoints = []
+        lo, hi = self._hull(best)
+        self._bot_shoot_at(brain, mind, moment, lo, hi, best.pid)
+        self.doing(brain, "checking a %s that looked wrong" % (
+            str(self.kinds.get(best.extra.get("dis") or "", {}).get("name", "prop")).lower()))
+        return True
 
     def _bot_pick_search(self, brain) -> Optional[int]:
+        """The room this bot searches next: one not looked at for a while,
+        not far, and not one a teammate is on or standing in."""
         if not self.searches:
             return None
         moment = engine.now()
+        p = brain.p
+        others = []
+        for other in self.players.values():
+            if other is p or other.team != p.team or not self.in_play(other):
+                continue
+            others.append(other.pos)
+            sweep = (other.extra.get("pp_mind") or {}).get("sweep") if other.brain else None
+            if sweep and sweep["k"] < len(sweep["tour"]):
+                others.append(sweep["tour"][sweep["k"]])
+        roam = 0.2 + brain.t("explore", 0.2) * 0.4
         best, best_s = None, -1e9
         for i, (point, _) in enumerate(self.searches):
             age = moment - self.searched.get(i, -300.0)
-            d = math.dist(point, brain.p.pos)
-            score = min(age, 240.0) - d * 0.35 + brain.rng.uniform(0.0, 40.0)
+            d = math.dist(point, p.pos)
+            score = min(age, 240.0) - d * (0.45 - roam) + brain.rng.uniform(0.0, 45.0)
+            crowd = sum(1 for o in others if math.dist(o, point) < SWEEP_APART)
+            score -= 90.0 * crowd
             if score > best_s:
                 best, best_s = i, score
         if best is not None:
             self.searched[best] = moment
         return best
 
-    def _bot_take_lead(self, brain, mind: Dict[str, Any], moment: float) -> Optional[Dict[str, Any]]:
+    def _bot_take_lead(self, brain, mind: Dict[str, Any], moment: float,
+                       own: bool = False) -> Optional[Dict[str, Any]]:
+        """A noise to go after -- unless enough teammates already are (one or
+        two answer a taunt; the rest keep to their rooms)."""
         p = brain.p
-        heard = 45.0 + self.pct("twist") * 30.0
+        keen = brain.t("aggression", 0.5) + (0.5 if brain.role == "sweeper" else 0.0) - \
+            (0.25 if brain.role == "seeker" else 0.0)
+        heard = (36.0 + self.pct("twist") * 24.0) * (0.75 + 0.5 * max(0.0, min(1.0, keen)))
+        if own:
+            heard = SNIFF_RANGE
+        taken: Dict[Tuple[str, float], int] = {}
+        mates = []
+        for other in self.players.values():
+            if other is p or other.team != p.team or not self.in_play(other):
+                continue
+            mates.append(other.pos)
+            theirs = (other.extra.get("pp_mind") or {}).get("lead") if other.brain else None
+            if theirs:
+                key = (theirs["why"], theirs["at"])
+                taken[key] = taken.get(key, 0) + 1
         best, best_d = None, heard
         for lead in self.leads:
             if moment - lead["at"] > 12.0:
@@ -1593,12 +1793,20 @@ class PropPanicWorld(ArenaWorld):
             if lead["why"] in ("cat", "sale", "alarm", "glitter") and \
                     brain.rng.random() > self.pct("twist"):
                 continue
+            if not own:
+                # a sniff or a glint is mostly the business of whoever made it
+                cap = 1 if lead["why"] in ("sniff", "glitter") else LEAD_SHARE
+                there = sum(1 for m in mates if math.dist(m, lead["p"]) < 10.0)
+                if (taken.get((lead["why"], lead["at"]), 0) >= cap or there >= cap) and d > 8.0:
+                    continue
             if d < best_d:
                 best, best_d = lead, d
         if best is None:
             return None
         lead = dict(best)
+        lead["spot"] = self._offset(best["p"], p, 4.5)
         mind["lead"] = lead
+        mind["sweep"] = None
         if best.get("seen"):
             mind.setdefault("sus", {})[best["seen"]] = moment + 8.0
         return lead
@@ -1625,6 +1833,8 @@ class PropPanicWorld(ArenaWorld):
             if not self._sees_box(eye, lo, hi):
                 continue
             chance = 0.015
+            if d < 7.0:
+                chance += 0.06          # close enough to brush against it
             if self.moving(prop):
                 chance += 0.35
             if prop.pid in self.reveals:
@@ -1675,7 +1885,27 @@ class PropPanicWorld(ArenaWorld):
         if not candidates:
             return
         pick = brain.rng.choice(candidates)
-        centre = [(pick["lo"][i] + pick["hi"][i]) / 2.0 for i in range(3)]
+        self._bot_aim_fire(brain, pick["lo"], pick["hi"])
+        if pick.get("prop"):
+            mind.setdefault("sus", {})[pick["prop"]] = moment + 6.0
+
+    def _bot_shoot_at(self, brain, mind: Dict[str, Any], moment: float, lo: Sequence[float],
+                      hi: Sequence[float], pid: int) -> None:
+        """A shot at one thing in particular (a suspect), when the popper is
+        ready and the bot can afford a wrong guess."""
+        p = brain.p
+        if moment < mind.get("guess_at", 0.0) or p.health < 30.0:
+            return
+        eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
+        if not self._sees_box(eye, lo, hi):
+            return
+        mind["guess_at"] = moment + brain.rng.uniform(0.7, 1.6) * (1.3 - brain.skill * 0.5)
+        self._bot_aim_fire(brain, lo, hi)
+
+    def _bot_aim_fire(self, brain, lo: Sequence[float], hi: Sequence[float]) -> None:
+        p = brain.p
+        eye = [p.pos[0], p.pos[1] + EYE_HEIGHT, p.pos[2]]
+        centre = [(lo[i] + hi[i]) / 2.0 for i in range(3)]
         delta = [centre[i] - eye[i] for i in range(3)]
         dist = math.sqrt(sum(v * v for v in delta)) or 1.0
         err = brain.aim_error * 0.6
@@ -1686,8 +1916,6 @@ class PropPanicWorld(ArenaWorld):
         if p.slot != 0 or p.stowed:
             self.handle_slot(p, {"i": 0})
         self.handle_fire(p, {"d": [math.sin(yaw) * cp, math.sin(pitch), math.cos(yaw) * cp]})
-        if pick.get("prop"):
-            mind.setdefault("sus", {})[pick["prop"]] = moment + 6.0
 
     def _bot_glitter(self, brain, point: Sequence[float]) -> None:
         p = brain.p

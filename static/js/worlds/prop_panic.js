@@ -327,18 +327,17 @@
           play('pp_found', msg.p, 1);
           delete dis[msg.id];
           if (msg.id === me) {
-            arena.banner('FOUND!', esc(msg.by) + ' popped your ' + esc(kindName(msg.what).toLowerCase()), 'bad', 2600);
+            arena.banner('FOUND!', '', 'bad', 2600);
             applySize();
           }
         } else if (k === 'last') {
-          arena.banner("YOU'RE THE LAST ONE", 'Everybody is looking for you now', 'bad', 3000);
+          arena.banner("YOU'RE THE LAST ONE", '', 'bad', 3000);
           client.audio.play('pp_creak', { volume: 0.9 });
         } else if (k === 'release') {
-          arena.banner(amHider() ? 'HERE THEY COME' : 'READY OR NOT!',
-                       amHider() ? 'Keep still' : 'Find every hider', 'go', 2200);
+          arena.banner(amHider() ? 'HERE THEY COME' : 'READY OR NOT!', '', 'go', 2200);
           client.audio.play('pp_release', { volume: 0.9 });
         } else if (k === 'creak') {
-          arena.banner('The house creaks...', amHider() ? 'Every hider squeaks!' : 'Listen!', 'area', 1600);
+          arena.banner('The house creaks...', '', 'area', 1600);
           client.audio.play('pp_creak', { volume: 0.8 });
         } else if (k === 'reveal') {
           reveals[msg.id] = { why: msg.why, left: msg['for'] || 5 };
@@ -361,14 +360,13 @@
           } else {
             dark = msg['for'] || 12; flicker = 0; setDark(true);
             client.audio.play('pp_dark', { volume: 0.8 });
-            arena.banner('LIGHTS OUT', amHider() ? 'Move while they cannot see' : 'Torches on', 'bad', 2200);
+            arena.banner('LIGHTS OUT', '', 'bad', 2200);
           }
         } else if (k === 'sale_warn') {
           sale = { kind: msg.kind, name: msg.name, warn: msg['in'] || 6, left: 0 };
           client.audio.play('pp_chime', { volume: 0.9 });
-          arena.banner('FLASH SALE IN ' + Math.round(msg['in'] || 6) + 'S',
-                       'Everything that is a ' + esc(String(msg.name).toLowerCase()) + ' gets a price tag' +
-                       (myDis === msg.kind && amHider() ? ' -- <b>CHANGE NOW!</b>' : ''), 'area', 3000);
+          arena.banner(myDis === msg.kind && amHider() ? 'FLASH SALE ON YOU -- CHANGE NOW!'
+                       : 'FLASH SALE: ' + esc(String(msg.name).toUpperCase()), '', 'area', 3000);
         } else if (k === 'sale_on') {
           sale = { kind: msg.kind, name: msg.name, warn: 0, left: 10 };
           client.audio.play('pp_chime', { volume: 0.6 });
@@ -611,7 +609,6 @@
         roleChip();
       },
       onPhase: function () { roleChip(); },
-      goLine: function () { return amHider() ? 'They are coming. Keep still!' : 'Find them all!'; },
       messages: messages,
       hud: hud,
       prompt: function () {
