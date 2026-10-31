@@ -1051,8 +1051,14 @@ def schema() -> Dict[str, Any]:
         elif field.options == "events":
             entry["options"] = speech_catalogue.options()
         fields.append(entry)
+    # a hidden world's subtab is left off (its settings stay stored, ready
+    # for the day the world comes back)
+    shut = {s for s, w in WORLD_SECTIONS.items() if not _world_registry.is_open(w)}
+    fields = [f for f in fields if f.get("section") not in shut]
     sections = []
     for s, l, b in SECTIONS:
+        if s in shut:
+            continue
         entry = {"id": s, "label": l, "blurb": b, "parent": SUBSECTIONS.get(s)}
         world_id = WORLD_SECTIONS.get(s)
         if world_id:

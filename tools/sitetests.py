@@ -572,15 +572,15 @@ def run(host: str, port: int, tls: bool = False) -> int:
     check("pages: every page renders", not broken, broken)
 
     print("\n== hidden worlds ==")
-    hidden = ["capture_the_flag", "burger_tycoon", "fortress_team_2"]
+    hidden = ["capture_the_flag", "burger_tycoon", "fortress_team_2", "calamity_coast"]
     still_there = []
     for world in hidden:
         for page in ("/worlds/%s" % world, "/%s" % world):
             status, html = client.get(page)
             if status == 200:
                 still_there.append(page)
-    check("hidden: Capture the Flag, Fortress Team 2 and Burger Tycoon have no pages",
-          not still_there, still_there)
+    check("hidden: Capture the Flag, Fortress Team 2, Burger Tycoon and Calamity Coast "
+          "have no pages", not still_there, still_there)
     world_status = client.get_api("/api/worlds/status").get("worlds", {})
     check("hidden: and are not in the world status",
           not (set(hidden) & set(world_status)), sorted(world_status))

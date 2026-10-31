@@ -13,6 +13,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 WORLD: Dict[str, Any] = {
     "id": "calamity_coast",
+    # Retired from the browser: no page, no host, no bots (see
+    # app/models/worlds.py HIDDEN_WORLDS); its subtab is off the Bots Zone.
+    "hidden": True,
     "prefix": "cc",
     "name": "Calamity Coast",
     "genre": "Disaster Survival",

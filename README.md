@@ -103,7 +103,6 @@ Basic Shotgun and a Basic Stick.
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 | **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
-| **Calamity Coast** | `/calamity_coast` | Disaster survival: two rescue teams ride out three disasters a round -- tsunamis, tornadoes, avalanches, eruptions, the great fire -- and carry the stranded to safety; no PvP | 16 |
 | **Whodunit** | `/whodunit` | Murder mystery: secret roles -- a murderer with a hidden knife, a detective with a revolver, everybody else innocent; clues fill a case file that gives up hints, and a twist in every place | 16 |
 | **Sky Sprint** | `/sky_sprint` | Obstacle-course race in the sky: two teams race pads, belts, hammers, sweepers, lasers and blinking tiles past checkpoints to the finish, a bonk glove to shove rivals off, power-ups and a twist on every course | 16 |
 | **Plunder Bay** | `/plunder_bay` | Treasure haul: two pirate crews race to carry an island's treasure into their own ship's hold -- loose gold, chests dug up where X marks the spot, the cursed idol -- with cutlass, flintlock and ship's cannon, tosses and raids, and a twist on every island | 16 |
@@ -112,9 +111,11 @@ When a world's instance fills up the host opens another one, so the browser can
 legitimately read "2 instances — 30 players" for a world whose round size is
 24.
 
-**Hidden worlds.** Burger Tycoon, Capture The Flag and Fortress Team 2 are
-still in the code but switched off: `"hidden": True` in
-`app/models/worlds.py`. A hidden world has no game host (none is started),
+**Hidden worlds.** Burger Tycoon, Capture The Flag, Fortress Team 2 and the
+event world Calamity Coast are still in the code but switched off:
+`"hidden": True` in `app/models/worlds.py` (Calamity Coast's is in its own
+entry, `app/models/event_worlds/calamity_coast.py`, and its subtab is left off
+the Bots Zone). A hidden world has no game host (none is started),
 does not appear in the world browser, the home page, the help page or the
 status API, its pages are treated as missing (they send you to the home page)
 and its join endpoint refuses, and bots never pick it
@@ -446,6 +447,7 @@ keep, how well they hide, how often they taunt, drop decoys, guess and sniff,
 how sharp their eyes are and how hard they play each place's twist.
 
 ### Calamity Coast
+*Hidden -- switched off with the other hidden worlds; this is how it played.*
 Disaster survival for up to sixteen, in two rescue teams -- the
 **Lifeguards** and the **Rangers**. Nobody can hurt anybody: the town does
 all the hurting. A round is three disasters, one after another, the third
