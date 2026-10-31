@@ -66,6 +66,15 @@ FEATHER_GRAVITY = 0.42
 ROCKET_SPEED = 56.0
 ROCKET_UP = 12.0
 SWEEP_KNOCK = 32.0
+# The Candy course's sweepers carry a lollipop on the end of each arm: a disc
+# stood on edge, side on to whoever it is coming at, rising well past the
+# bar -- and as solid as the bar.  Its middle sits LOLLY_AT along the arm from
+# the tip and LOLLY_UP over the bar (static/js/worlds/sky_sprint.js draws it
+# from the same numbers).
+LOLLY_AT = -0.9
+LOLLY_UP = 0.4
+LOLLY_R = 1.7
+LOLLY_T = 0.5
 HAMMER_KNOCK = 40.0
 KNOCK_UP = 16.0
 HIT_COOL = 0.7
@@ -95,11 +104,24 @@ def _item(item_id: str, name: str, kind: str, parts: List[Dict[str, Any]],
     return ArenaWorld.item(item_id, name, body, parts)
 
 
+# A cartoon boxing glove, worn rather than held: the hand's frame has +Z out
+# along the punch, +Y up the back of the hand and +X to the inside, where the
+# thumb tucks.  The round cuff is wide enough to take the arm (it shows as a
+# sleeve on the wrist), and from behind -- in first person -- as the glove's
+# dark opening inside a blue rolled rim.
+GLOVE_RED, GLOVE_SHADE, GLOVE_CUFF, GLOVE_BAND = "#e5352c", "#b9241e", "#f4f1ea", "#2a6fd6"
 GLOVE = _item("ss_glove", "Bonk Glove", "ss_bonk", [
-    {"t": "cyl", "p": [0, 0, -0.2], "s": [0.5, 0.6, 0.5], "c": "#f2f2f2", "r": [1.5708, 0, 0]},
-    {"t": "sph", "p": [0, 0.05, 0.55], "s": [1.25, 1.15, 1.35], "c": "#e83a3a"},
-    {"t": "sph", "p": [0.48, -0.05, 0.35], "s": [0.5, 0.5, 0.6], "c": "#e83a3a"},
-    {"t": "box", "p": [0, 0.05, 0.05], "s": [1.0, 0.5, 0.2], "c": "#f2f2f2"}],
+    {"t": "cyl", "p": [0, 0, -0.4], "s": [1.22, 0.56, 1.22], "c": GLOVE_CUFF, "r": [1.5708, 0, 0]},
+    {"t": "cyl", "p": [0, 0, -0.27], "s": [1.26, 0.1, 1.26], "c": GLOVE_BAND, "r": [1.5708, 0, 0]},
+    {"t": "torus", "p": [0, 0, -0.67], "s": [1.18, 0.2, 1.18], "c": GLOVE_BAND, "r": [1.5708, 0, 0]},
+    {"t": "cyl", "p": [0, 0, -0.672], "s": [1.0, 0.02, 1.0], "c": "#5a1210", "r": [1.5708, 0, 0]},
+    {"t": "cyl", "p": [0, 0.02, -0.12], "s": [1.04, 0.36, 1.1], "c": GLOVE_RED, "r": [1.5708, 0, 0],
+     "m": "glass"},
+    {"t": "sph", "p": [0, 0.06, 0.42], "s": [1.48, 1.34, 1.48], "c": GLOVE_RED, "m": "glass"},
+    {"t": "sph", "p": [0, 0.18, 0.9], "s": [1.22, 0.9, 0.66], "c": GLOVE_RED, "m": "glass"},
+    {"t": "sph", "p": [0.64, -0.16, 0.5], "s": [0.44, 0.52, 0.96], "c": GLOVE_SHADE,
+     "r": [0.2, 0, 0.25], "m": "glass"},
+    {"t": "star", "p": [0, 0.69, 0.38], "s": [0.5, 0.48, 0.1], "c": "#ffd23f", "r": [-1.2708, 0, 0]}],
     rpm=int(60.0 / BONK_COOL), range=BONK_REACH, melee=True, sound="ss_bonk")
 
 
@@ -136,15 +158,20 @@ def hammer_hit(h: Dict[str, Any], t: float, pos: Sequence[float]
 
 def sweeper_hit(sw: Dict[str, Any], t: float, pos: Sequence[float]
                 ) -> Optional[Tuple[float, float]]:
-    """Is a body at ``pos`` in the way of one of a sweeper's arms?  Returns
-    the way the arm is moving at it, or None."""
+    """Is a body at ``pos`` in the way of one of a sweeper's arms (or, on the
+    Candy course, the lollipop on the end of one)?  Returns the way the arm
+    is moving at it, or None."""
     cx, cy, cz = sw["c"]
     bar = cy + sw["h"]
     half = sw["t"] / 2.0
-    if pos[1] > bar + half or pos[1] + 5.4 < bar - half:
+    lolly = sw.get("look") == "lolly"
+    head = bar + LOLLY_UP
+    top = max(bar + half, head + LOLLY_R) if lolly else bar + half
+    low = min(bar - half, head - LOLLY_R) if lolly else bar - half
+    if pos[1] > top or pos[1] + 5.4 < low:
         return None
     dx, dz = pos[0] - cx, pos[2] - cz
-    if math.hypot(dx, dz) > sw["r"] + 1.4:
+    if math.hypot(dx, dz) > sw["r"] + (LOLLY_AT + LOLLY_R + 1.0 if lolly else 1.4):
         return None
     turn = sw["ph"] + sw["w"] * t
     sign = 1.0 if sw["w"] >= 0 else -1.0
@@ -152,11 +179,18 @@ def sweeper_hit(sw: Dict[str, Any], t: float, pos: Sequence[float]
         a = turn + k * 2.0 * math.pi / sw["arms"]
         ux, uz = math.cos(a), math.sin(a)
         along = dx * ux + dz * uz
-        if along < -1.2 or along > sw["r"] + 1.2:
-            continue
         across = -dx * uz + dz * ux
-        if abs(across) < half + 1.3:
+        # the bar
+        if -1.2 <= along <= sw["r"] + 1.2 and abs(across) < half + 1.3 and \
+                pos[1] <= bar + half and pos[1] + 5.4 >= bar - half:
             return (-uz * sign, ux * sign)
+        # the lollipop: a disc stood on edge across the arm's way, so how
+        # near the body comes to its middle, in the plane of the disc
+        if lolly and abs(across) < LOLLY_T / 2.0 + 1.3:
+            off_along = max(0.0, abs(along - (sw["r"] + LOLLY_AT)) - 1.0)
+            off_up = max(0.0, pos[1] - head, head - (pos[1] + 5.4))
+            if math.hypot(off_along, off_up) < LOLLY_R:
+                return (-uz * sign, ux * sign)
     return None
 
 
@@ -215,6 +249,7 @@ class SkySprintWorld(ArenaWorld):
     ELIMINATION = False
     CATCHES_FALLS = True
     LOGO = "Sky Sprint"
+    FREEZE_COUNTDOWN = True
     CUSTOM_KINDS = ("ss_bonk",)
     respawn_seconds = 1.0
     BOT_CHATTER = ["go go go", "gg", "so close", "nooo", "that hammer", "wait up", "lol",
@@ -256,7 +291,8 @@ class SkySprintWorld(ArenaWorld):
                                       "warned": False}
         self.round_stats: Dict[int, Dict[str, float]] = {}
         self.counts: Dict[str, int] = {"checkpoints": 0, "finishes": 0, "falls": 0, "bonks": 0,
-                                       "ring_outs": 0, "powers": 0, "rockets": 0, "hits": 0,
+                                       "home_bonks": 0, "ring_outs": 0, "powers": 0, "rockets": 0,
+                                       "hits": 0,
                                        "pads": 0, "twists": 0, "crumbles": 0, "zaps": 0}
         self.events_said: Dict[str, float] = {}
         self.landmarks: List[Tuple[List[float], str]] = []
@@ -354,8 +390,8 @@ class SkySprintWorld(ArenaWorld):
         return scale
 
     def can_fire(self, player: Player) -> bool:
-        return self.phase == "active" and self.in_play(player) and \
-            player.extra.get("ss_done") is None
+        # (home already, a racer may still swing: at rivals home too -- _bonk)
+        return self.phase == "active" and self.in_play(player)
 
     def can_hurt(self, attacker: Player, victim: Player) -> bool:
         return False
@@ -398,6 +434,14 @@ class SkySprintWorld(ArenaWorld):
         # the course runs while everybody waits at the gate
         self._clocks(dt, moment)
         self._blink_tick()
+        # and everybody waits ON the start deck: it has no rails, and the
+        # sky has ground at the bottom of it, so anybody below it now (a
+        # browser that moved before it heard it was held) goes back up --
+        # nobody starts the race from the floor of the world
+        for player in self.playing():
+            starts = self.spawn_points(player.team if player.team in self.TEAMS else "red")
+            if starts and player.pos[1] < min(s["p"][1] for s in starts) - 3.0:
+                self._send_back(player, moment)
 
     def _clocks(self, dt: float, moment: float) -> None:
         self.ht += dt
@@ -581,7 +625,8 @@ class SkySprintWorld(ArenaWorld):
 
     def _fell(self, player: Player, moment: float) -> None:
         self.counts["falls"] += 1
-        self._stat(player, "falls")
+        if player.extra.get("ss_done") is None:
+            self._stat(player, "falls")
         hit = player.extra.pop("ss_bonked_by", None)
         if hit and moment - hit[1] <= RING_OUT_SECONDS:
             bonker = self.players.get(hit[0])
@@ -625,6 +670,10 @@ class SkySprintWorld(ArenaWorld):
             mind["i"] = self._nearest_node(spot, cp + 1 if player.extra.get("ss_done") is None
                                            else len(self.cps))
             mind["wait_since"] = 0.0
+            # home, and off the finish (or out running the course backwards):
+            # back to standing about on it
+            mind.pop("back", None)
+            mind.pop("spot", None)
         else:
             player.send({"t": "tp", "p": [round(v, 2) for v in spot]})
 
@@ -698,9 +747,13 @@ class SkySprintWorld(ArenaWorld):
     def _bonk(self, player: Player, direction: Sequence[float]) -> Optional[Player]:
         moment = engine.now()
         flat = normalise([direction[0], 0.0, direction[2]])
+        # a racer bonks racers; one who is home only bonks rivals home too (a
+        # scuffle on the finish while the rest come in, for no points)
+        home = player.extra.get("ss_done") is not None
         best, best_s = None, 1e9
         for other in self.playing():
-            if other is player or other.team == player.team or other.extra.get("ss_done") is not None:
+            if other is player or other.team == player.team or \
+                    (other.extra.get("ss_done") is not None) != home:
                 continue
             hit = other.extra.get("ss_bonked_by")
             if hit and moment - hit[1] < BONK_GRACE:
@@ -723,6 +776,9 @@ class SkySprintWorld(ArenaWorld):
         dx, dz = best.pos[0] - player.pos[0], best.pos[2] - player.pos[2]
         d = math.hypot(dx, dz) or 1.0
         self._knock(best, dx / d * BONK_FORCE, BONK_UP, dz / d * BONK_FORCE, moment)
+        if home:
+            self.counts["home_bonks"] += 1
+            return best
         best.extra["ss_bonked_by"] = (player.pid, moment)
         self.counts["bonks"] += 1
         self._stat(player, "bonks")
@@ -1072,8 +1128,7 @@ class SkySprintWorld(ArenaWorld):
             self.doing(brain, "waiting at the gate")
             return
         if p.extra.get("ss_done") is not None:
-            brain.waypoints = []
-            self.doing(brain, "home, watching the others")
+            self._bot_home(brain, mind, moment)
             return
         # a rival close by on our part of the course: bonk them
         if moment >= mind.get("bonk_at", 0.0) and brain.rng.random() < 0.02 + 0.1 * self.pct("bonk"):
@@ -1113,6 +1168,266 @@ class SkySprintWorld(ArenaWorld):
         cp = int(p.extra.get("ss_cp", 0))
         nxt = self.cps[cp]["name"] if cp < len(self.cps) else "the finish"
         self.doing(brain, "racing for %s" % nxt)
+
+    # ---- home: the finish while the rest come in
+    def _post_style(self, brain, mind: Dict[str, Any]) -> str:
+        """What a racer does once it is home, from its persona: most hang about
+        and watch, the friendly cheer their team in from the edge, show-offs
+        hop and spin, the pushy square up to rivals who are home too, and now
+        and then an explorer goes back down the course for the fun of it."""
+        style = mind.get("post")
+        if style is None:
+            weights = {
+                "idle": 0.9,
+                "cheer": 0.2 + brain.t("social", 0.5) * 0.6 + brain.t("support", 0.2) * 0.8,
+                "show": 0.08 + brain.t("jumpy", 0.2) * 1.2 + brain.t("chaos", 0.08) * 1.0,
+                "bump": 0.04 + brain.t("aggression", 0.5) * 0.5 + brain.t("chaos", 0.08) * 1.4,
+                "back": 0.02 + brain.t("explore", 0.2) * 0.25 + brain.t("chaos", 0.08) * 0.3,
+            }
+            style = brain.rng.choices(list(weights), list(weights.values()))[0]
+            mind["post"] = style
+            mind["home_at"] = engine.now()
+        return style
+
+    def _floor_top(self, x: float, y: float, z: float) -> Optional[float]:
+        """The top of the solid under (x, z) within a step of ``y`` -- if a
+        body could stand there (no post or arch leg in the way above it)."""
+        top = None
+        for lo, hi in self._colliders_near([x - 0.05, y - 1.6, z - 0.05], [x + 0.05, y + 5.0, z + 0.05]):
+            if not (lo[0] <= x <= hi[0] and lo[2] <= z <= hi[2]):
+                continue
+            if hi[1] <= y + 1.0:
+                if hi[1] >= y - 1.6:
+                    top = hi[1] if top is None else max(top, hi[1])
+            elif lo[1] < y + 5.0:
+                return None
+        return top
+
+    def _home_spots(self) -> List[List[float]]:
+        """Places to stand on the finish: well in from its edges, clear of its
+        posts and of anything that would launch you (worked out once a round)."""
+        key = (self.area_id, self.round_number)
+        cached = getattr(self, "_homes", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        spots: List[List[float]] = []
+        if self.cps:
+            c = self.cps[-1]["p"]
+            for i in range(-11, 12):
+                for j in range(-11, 12):
+                    if (i * i + j * j) * 4.0 > 22.0 ** 2:
+                        continue
+                    x, z = c[0] + i * 2.0, c[2] + j * 2.0
+                    top = self._floor_top(x, c[1], z)
+                    if top is None or any(self._floor_top(x + ox, top, z + oz) is None
+                                          for ox, oz in ((2.4, 0.0), (-2.4, 0.0), (0.0, 2.4), (0.0, -2.4))):
+                        continue
+                    if any(math.hypot(x - pad["p"][0], z - pad["p"][2]) < pad["r"] + 2.0 for pad in self.pads):
+                        continue
+                    if any(_in_rect(zone["rect"], [x, top, z], 1.5)
+                           for kind in ("belts", "jelly", "wind", "taffy")
+                           for zone in self.extra.get(kind) or []):
+                        continue
+                    spots.append([x, top, z])
+        self._homes = (key, spots)
+        return spots
+
+    def _bot_home(self, brain, mind: Dict[str, Any], moment: float) -> None:
+        p = brain.p
+        style = self._post_style(brain, mind)
+        back = mind.get("back")
+        if back is not None and self._bot_back(brain, mind, back):
+            return
+        homes = [o for o in self.playing() if o is not p and o.extra.get("ss_done") is not None]
+        self._cheer_finishers(brain, mind)
+        if style == "bump" and self._bot_bump(brain, mind, homes, moment):
+            return
+        if style == "back" and not mind.get("went_back") and moment > mind.get("home_at", 0.0) + 3.0:
+            mind["went_back"] = True
+            mind["back"] = {"j": len(self.route) - 1, "left": brain.rng.randint(3, 8), "out": True}
+            self.callout(brain, ["going back for fun", "one more time", "brb", "speedrun it backwards"],
+                         "back", chance=0.4, every=120.0)
+            return
+        spots = self._home_spots()
+        if not spots:
+            brain.waypoints = []
+            self.doing(brain, "home, watching the others")
+            return
+        spot = mind.get("spot")
+        if spot is None or moment >= mind.get("spot_until", 0.0):
+            spot = self._pick_home(brain, style, spots, homes)
+            lo, hi = {"show": (3.0, 7.0), "cheer": (15.0, 40.0), "bump": (5.0, 10.0)}.get(style, (8.0, 22.0))
+            mind["spot"] = spot
+            mind["spot_until"] = moment + brain.rng.uniform(lo, hi)
+        d = math.hypot(spot[0] - p.pos[0], spot[2] - p.pos[2])
+        if d > 1.2:
+            # walking over (and if something is in the way, somewhere else)
+            best = mind.get("spot_best")
+            if best is None or best[2] is not spot or d < best[0] - 0.5:
+                mind["spot_best"] = (d, moment, spot)
+            elif moment - best[1] > 2.5:
+                mind.pop("spot", None)
+                mind.pop("spot_best", None)
+            brain.waypoints = [list(spot)]
+            self.doing(brain, "finding a spot on the finish")
+            return
+        brain.waypoints = []
+        self._watch_the_race(brain, mind, style, moment)
+
+    def _pick_home(self, brain, style: str, spots: List[List[float]], homes: List[Player]) -> List[float]:
+        """A spot of its own: the cheerers at the edge the racers come in
+        over, everybody else anywhere -- not on top of anybody."""
+        p = brain.p
+        come = self.route[max(0, len(self.route) - 4)]["p"] if self.route else p.pos
+        taken = [o.pos for o in homes] + [self._mind(o).get("spot") for o in homes if o.brain is not None]
+        best, best_s = spots[0], -1e9
+        for q in spots:
+            s = brain.rng.uniform(0.0, 10.0)
+            near = min([math.hypot(q[0] - t[0], q[2] - t[2]) for t in taken if t is not None] or [99.0])
+            s += min(near, 8.0) * 3.0
+            if style == "cheer":
+                s -= math.hypot(q[0] - come[0], q[2] - come[2]) * 1.5
+            if s > best_s:
+                best, best_s = q, s
+        return list(best)
+
+    def _watch_the_race(self, brain, mind: Dict[str, Any], style: str, moment: float) -> None:
+        """Stood on its spot: eyes on the racers still coming (the nearest of
+        its own team, for a cheerer), and whatever its temperament does with
+        its hands and feet."""
+        p = brain.p
+        racing = [o for o in self.playing() if o.extra.get("ss_done") is None and o.team in self.TEAMS]
+        mine = [o for o in racing if o.team == p.team]
+        grounded = not brain.airborne
+        if style == "show":
+            # a little show for anybody watching: hops, and spins on the spot
+            if grounded and brain.rng.random() < 0.12:
+                brain.airborne = True
+                brain.vy = JUMP_SPEED
+            if moment >= mind.get("spin_at", 0.0):
+                mind["spin_at"] = moment + brain.rng.uniform(0.25, 0.5)
+                brain.look_yaw = p.yaw + 2.2 * (1.0 if p.pid % 2 else -1.0)
+            self.doing(brain, "showing off on the finish")
+            return
+        watch = (mine if style == "cheer" and mine else racing) or []
+        if watch:
+            them = min(watch, key=lambda o: math.dist(o.pos, p.pos))
+            if moment >= mind.get("glance_at", 0.0):
+                mind["glance_at"] = moment + brain.rng.uniform(0.6, 2.0)
+                brain.look_yaw = math.atan2(them.pos[0] - p.pos[0], them.pos[2] - p.pos[2]) + \
+                    brain.rng.uniform(-0.25, 0.25)
+            if style == "cheer" and them.team == p.team and math.dist(them.pos, p.pos) < 50.0:
+                if grounded and brain.rng.random() < 0.08:
+                    brain.airborne = True
+                    brain.vy = JUMP_SPEED
+                self.callout(brain, ["come on %s" % them.username, "GO GO GO", "almost there",
+                                     "you got this %s" % them.username, "jump!!"],
+                             "cheer%d" % them.pid, chance=0.4, every=30.0)
+                self.doing(brain, "cheering %s in" % them.username)
+                return
+            self.doing(brain, "watching %s come in" % them.username if style != "cheer"
+                       else "cheering the team on")
+        else:
+            if moment >= mind.get("glance_at", 0.0):
+                mind["glance_at"] = moment + brain.rng.uniform(1.0, 3.0)
+                brain.look_yaw = p.yaw + brain.rng.uniform(-1.5, 1.5)
+            self.doing(brain, "home, watching the others")
+        # an idle hop or two, by temperament
+        if grounded and brain.rng.random() < 0.01 + 0.03 * brain.t("jumpy", 0.2):
+            brain.airborne = True
+            brain.vy = JUMP_SPEED
+
+    def _cheer_finishers(self, brain, mind: Dict[str, Any]) -> None:
+        """Somebody just got home: a teammate gets a hop and a word."""
+        seen = int(mind.get("seen_home", 0))
+        if seen >= len(self.finished):
+            return
+        mind["seen_home"] = len(self.finished)
+        p = brain.p
+        for pid in self.finished[seen:]:
+            other = self.players.get(pid)
+            if other is None or other is p or other.team != p.team:
+                continue
+            if not brain.airborne and brain.rng.random() < 0.5 + 0.4 * brain.t("social", 0.5):
+                brain.airborne = True
+                brain.vy = JUMP_SPEED
+            self.callout(brain, ["gg %s" % other.username, "nice %s" % other.username, "lets gooo",
+                                 "WOO", "welcome home"], "welcome", chance=0.35, every=20.0)
+
+    def _bot_bump(self, brain, mind: Dict[str, Any], homes: List[Player], moment: float) -> bool:
+        """A scuffle on the finish: walk up to a rival who is home too and bonk
+        them off it (it scores nothing -- they land back on the finish)."""
+        p = brain.p
+        if moment < mind.get("bump_rest", 0.0):
+            return False
+        rivals = [o for o in homes if o.team != p.team and abs(o.pos[1] - p.pos[1]) < 4.0 and
+                  math.hypot(o.pos[0] - p.pos[0], o.pos[2] - p.pos[2]) < 30.0]
+        if not rivals:
+            return False
+        them = self.players.get(mind.get("bump_on", 0))
+        if them not in rivals or moment > mind.get("bump_until", 0.0):
+            them = brain.rng.choice(rivals)
+            mind["bump_on"] = them.pid
+            mind["bump_until"] = moment + brain.rng.uniform(8.0, 16.0)
+        d = math.hypot(them.pos[0] - p.pos[0], them.pos[2] - p.pos[2])
+        yaw = math.atan2(them.pos[0] - p.pos[0], them.pos[2] - p.pos[2])
+        if d > BONK_REACH - 1.5:
+            brain.waypoints = [[them.pos[0], p.pos[1], them.pos[2]]]
+            brain.look_yaw = yaw
+            self.doing(brain, "squaring up to %s" % them.username)
+            return True
+        brain.waypoints = []
+        p.yaw = yaw
+        brain.look_yaw = yaw
+        if moment >= mind.get("bonk_at", 0.0):
+            mind["bonk_at"] = moment + BONK_COOL + brain.rng.uniform(0.6, 2.0)
+            if self._bonk(p, [math.sin(yaw), 0.0, math.cos(yaw)]):
+                mind["bump_rest"] = moment + brain.rng.uniform(4.0, 10.0)
+                self.callout(brain, ["get off my finish", "bonk", "move over", "byeee", "my spot"],
+                             "bump", chance=0.4, every=25.0)
+        self.doing(brain, "bonking %s off the finish" % them.username)
+        return True
+
+    def _bot_back(self, brain, mind: Dict[str, Any], back: Dict[str, Any]) -> bool:
+        """Back down the course a few marks for the fun of it -- only the legs
+        anybody can run either way (no pads, hazards or tiles that come and
+        go) -- and home again.  A fall just puts it back on the finish."""
+        p = brain.p
+        route = self.route
+        j = int(back["j"])
+        k = j + (-1 if back["out"] else 1)
+        if back["out"] and (back["left"] <= 0 or k < 0 or not self._two_way(route[k], route[j])):
+            back["out"] = False
+            return True
+        if k >= len(route):
+            mind.pop("back", None)
+            mind.pop("spot", None)
+            return False
+        target = route[k]["p"]
+        if not brain.airborne and math.hypot(target[0] - p.pos[0], target[2] - p.pos[2]) < 1.6 and \
+                abs(target[1] - p.pos[1]) < 2.6:
+            back["j"] = k
+            if back["out"]:
+                back["left"] -= 1
+            return True
+        here = route[j]["p"]
+        if route[min(j, k)].get("how") == 1 and not brain.airborne and \
+                math.hypot(here[0] - p.pos[0], here[2] - p.pos[2]) < 1.8:
+            brain.airborne = True
+            brain.vy = JUMP_SPEED
+        brain.waypoints = [list(target)]
+        self.doing(brain, "running the course backwards" if back["out"] else "on the way home again")
+        return True
+
+    @staticmethod
+    def _two_way(a: Dict[str, Any], b: Dict[str, Any]) -> bool:
+        """Can the leg from mark ``a`` to the next one, ``b``, be run back the
+        other way?"""
+        if a.get("how", 0) not in (0, 1) or a.get("haz") is not None or a.get("blink") is not None \
+                or a.get("crumble"):
+            return False
+        rise = a["p"][1] - b["p"][1]
+        return rise < 4.5 and math.hypot(a["p"][0] - b["p"][0], a["p"][2] - b["p"][2]) < 24.0
 
     def bot_context(self) -> List[str]:
         lines = ["You are playing Sky Sprint, an obstacle-course race in two teams: reach "

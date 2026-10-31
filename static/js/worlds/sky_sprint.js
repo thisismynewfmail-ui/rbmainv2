@@ -56,6 +56,8 @@
   var WIND_MAX = 16;          // the most a gust carries a person, who steers against it
   var CRUMBLE_AFTER = 0.6, CRUMBLE_BACK = 2.6;
   var HEIGHT = 5.4;
+  // the lollipop on the end of a Candy sweeper's arm (LOLLY_* in sky_sprint.py)
+  var LOLLY = { at: -0.9, up: 0.4, r: 1.7, t: 0.5 };
 
   function rgb(hex) {
     var n = parseInt(String(hex).slice(1), 16);
@@ -99,16 +101,26 @@
   }
   function sweeperHit(sw, t, pos) {
     var c = sw.c, bar = c[1] + sw.h, half = sw.t / 2;
-    if (pos[1] > bar + half || pos[1] + HEIGHT < bar - half) return null;
+    var lolly = sw.look === 'lolly', head = bar + LOLLY.up;
+    var top = lolly ? Math.max(bar + half, head + LOLLY.r) : bar + half;
+    var low = lolly ? Math.min(bar - half, head - LOLLY.r) : bar - half;
+    if (pos[1] > top || pos[1] + HEIGHT < low) return null;
     var dx = pos[0] - c[0], dz = pos[2] - c[2];
-    if (Math.hypot(dx, dz) > sw.r + 1.4) return null;
+    if (Math.hypot(dx, dz) > sw.r + (lolly ? LOLLY.at + LOLLY.r + 1.0 : 1.4)) return null;
     var turn = sw.ph + sw.w * t, sign = sw.w >= 0 ? 1 : -1;
     for (var k = 0; k < sw.arms; k++) {
       var a = turn + k * 2 * Math.PI / sw.arms;
       var ux = Math.cos(a), uz = Math.sin(a);
-      var along = dx * ux + dz * uz;
-      if (along < -1.2 || along > sw.r + 1.2) continue;
-      if (Math.abs(-dx * uz + dz * ux) < half + 1.3) return [-uz * sign, ux * sign];
+      var along = dx * ux + dz * uz, across = -dx * uz + dz * ux;
+      // the bar
+      if (along >= -1.2 && along <= sw.r + 1.2 && Math.abs(across) < half + 1.3 &&
+          pos[1] <= bar + half && pos[1] + HEIGHT >= bar - half) return [-uz * sign, ux * sign];
+      // the lollipop on its end: a disc stood on edge across the arm's way
+      if (lolly && Math.abs(across) < LOLLY.t / 2 + 1.3) {
+        var offAlong = Math.max(0, Math.abs(along - (sw.r + LOLLY.at)) - 1.0);
+        var offUp = Math.max(0, pos[1] - head, head - (pos[1] + HEIGHT));
+        if (Math.hypot(offAlong, offUp) < LOLLY.r) return [-uz * sign, ux * sign];
+      }
     }
     return null;
   }
@@ -395,10 +407,10 @@
         }
         // the lollipop on the end, side on to whoever it is coming at
         var tx = -uz, tz = ux;
-        var tip = len - 0.2;
-        put(r, 'cyl', c[0] + ux * tip, y + 0.4, c[2] + uz * tip, Math.PI / 2, Math.atan2(tx, tz), 0, 3.4, 0.5, 3.4, '#ff5aa0');
-        put(r, 'cyl', c[0] + ux * tip, y + 0.4, c[2] + uz * tip, Math.PI / 2, Math.atan2(tx, tz), 0, 2.2, 0.56, 2.2, '#fff0f6');
-        put(r, 'cyl', c[0] + ux * tip, y + 0.4, c[2] + uz * tip, Math.PI / 2, Math.atan2(tx, tz), 0, 1.0, 0.62, 1.0, '#ffb8d8');
+        var tip = len + LOLLY.at, hy = y + LOLLY.up, d = LOLLY.r * 2, lt = LOLLY.t;
+        put(r, 'cyl', c[0] + ux * tip, hy, c[2] + uz * tip, Math.PI / 2, Math.atan2(tx, tz), 0, d, lt, d, '#ff5aa0');
+        put(r, 'cyl', c[0] + ux * tip, hy, c[2] + uz * tip, Math.PI / 2, Math.atan2(tx, tz), 0, d * 0.65, lt + 0.06, d * 0.65, '#fff0f6');
+        put(r, 'cyl', c[0] + ux * tip, hy, c[2] + uz * tip, Math.PI / 2, Math.atan2(tx, tz), 0, d * 0.3, lt + 0.12, d * 0.3, '#ffb8d8');
       } else if (look === 'neon') {
         var hue = ['#3ad8ff', '#ff3ad8', '#ffe83a', '#7aff5a'];
         var hueNow = hue[index % hue.length];
@@ -819,7 +831,7 @@
     function prompt() {
       if (!inPlay()) return undefined;
       if ((arena.me.rocket || 0) > 0) return 'Rocket ready -- press E to blast off the way you are facing';
-      if (done()) return 'Home! Watch the rest come in';
+      if (done()) return 'Home! Watch the rest come in -- or bonk a rival off the finish';
       return '';
     }
 
@@ -998,7 +1010,8 @@
         else if (client.myTeam) client.hud.toast('You reached checkpoint ' + (arena.me.cp || 0) + ' -- the clock beat you');
       },
       goLine: function () { return 'Race to the finish -- bonk your rivals off the course!'; },
-      canFire: function () { return arena.phase === 'active' && !done(); },
+      // home already, the glove still swings -- at rivals home too (the server decides)
+      canFire: function () { return arena.phase === 'active'; },
       isCustom: function (stats) { return !!(stats && String(stats.kind || '').indexOf('ss_') === 0); },
       localFire: function (stats) {
         if (stats.kind === 'ss_bonk') {

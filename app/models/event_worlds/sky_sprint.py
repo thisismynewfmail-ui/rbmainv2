@@ -67,7 +67,8 @@ WORLD: Dict[str, Any] = {
                  "each one gets three more; the finish pays 12, 9, 7, 5, 4, 3, 2 and 1 by place."},
         {"title": "Bonk your rivals",
          "text": "Your glove (click) shoves a rival -- no damage. Knock one off the course "
-                 "and that is two points. A bubble power-up makes you unbonkable."},
+                 "and that is two points. A bubble power-up makes you unbonkable. Home "
+                 "already? Bonk the rivals home too off the finish -- just for fun."},
         {"title": "Grab the power-ups",
          "text": "Spring shoes jump higher, a feather falls slowly, a bubble shrugs off "
                  "everything, and a rocket (press E) is a dash when you need one."},

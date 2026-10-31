@@ -624,8 +624,9 @@ they trust what they are told, and the callouts.
 ### Sky Sprint
 An obstacle-course race for up to sixteen, in two teams -- the **Red
 Rockets** and the **Blue Comets** -- on a course hung in the sky. Everybody
-waits behind the gate on the start deck; it drops at **GO**, and the race is
-on: run the girders and the bridges, jump the gaps, ride the conveyors,
+waits behind the gate on the start deck, held where they stand through the
+countdown (nobody starts the race from the floor of the world); the gate
+drops at **GO**, and the race is on: run the girders and the bridges, jump the gaps, ride the conveyors,
 launch off the jump pads, bounce off the jelly, time the hammers, hop the
 sweeping arms and the lasers, and get across the blinking tiles while they
 are there. Fall off (into the lava, the chocolate, the grid or the clouds)
@@ -638,16 +639,21 @@ and 1 by place. Once half the field is home a **hurry-up** gives the rest
 hurry-up runs out) wins the race; two races on a course, then everybody
 moves on.
 
-**The bonk glove** is everybody's only kit: a shove, no damage, on a short
-cooldown. Bonk a rival off the course and that is a **ring-out**, two more
-points. **Power-ups** turn up on their spots round the course: **spring
+**The bonk glove** is everybody's only kit -- a red boxing glove with a
+white cuff and a blue rolled rim, a gold star on the back of the hand: a
+shove, no damage, on a short cooldown. Bonk a rival off the course and that
+is a **ring-out**, two more points. Home already, you can still swing it --
+at rivals who are home too, for no points, a scuffle on the finish while the
+rest come in (they land back on it). **Power-ups** turn up on their spots round the course: **spring
 shoes** (higher jumps), a **feather** (you fall slowly), a **bubble**
 (nothing bonks, knocks or zaps you) and a **rocket** (**E**: a dash the way
 you are facing).
 
 The hammers, sweepers, lasers and wind run on clocks the server sends many
 times a second, so what you see swing is what hits everybody -- bots
-included. A tile about to blink out flashes red first, and its ghost stays
+included -- and all of it is solid, down to the lollipop on the end of each
+Candy sweeper's arm (jump the stick near the hub, or jump high for the
+candy). A tile about to blink out flashes red first, and its ghost stays
 where it was; a tile never comes back on top of anybody. Each course has
 its own twist, with a warning first:
 
@@ -684,8 +690,14 @@ come back or the crumbled bridge to rebuild, then going, hopping the arms
 and beams as they arrive. They lean into the wind, ride the belts and pads,
 detour for a power-up, light a rocket on a long straight, bonk a rival near
 an edge, and now and then misjudge a jump (the less skilled, more often) and
-go back to their checkpoint like anybody. They shout it in quick chat
-(*bonk*, *outta my way*, *that hammer*, *nooo*). The Bots Zone's **Sky
+go back to their checkpoint like anybody. Home, they do not stand in a heap
+on the finish: each finds a spot of its own and does what its persona
+would -- watches the racers still coming, cheers its team in from the edge
+(*come on Sam*, *GO GO GO*) and hops when one makes it, shows off with hops
+and spins, squares up to a rival who is home too and bonks them off the
+finish, or (a very few) runs the course backwards for fun and comes home
+again. They shout it in quick chat (*bonk*, *outta my way*, *that hammer*,
+*nooo*). The Bots Zone's **Sky
 Sprint** subtab sets their skill, their patience at a hazard, how keen they
 are to bonk, how far they will go for a power-up, and the callouts.
 

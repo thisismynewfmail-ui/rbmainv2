@@ -722,6 +722,9 @@
     inked(ctx, poly([[96, 34], [104, 50], [122, 52], [108, 62], [112, 80], [96, 70], [82, 80], [86, 62], [72, 52], [90, 50]]),
           SS_GOLD, 3);
     inked(ctx, function (g) { g.rect(10, 54, 24, 30); }, CREAM);
+    // the cuff's blue rolled rim, and the band where it meets the glove
+    inked(ctx, function (g) { g.rect(8, 52, 7, 34); }, '#2a6fd6', 3);
+    inked(ctx, function (g) { g.rect(25, 54, 5, 30); }, '#2a6fd6', 3);
     inked(ctx, function (g) {
       g.moveTo(32, 46); g.quadraticCurveTo(48, 30, 72, 38); g.quadraticCurveTo(90, 46, 86, 70);
       g.quadraticCurveTo(82, 94, 58, 94); g.quadraticCurveTo(38, 94, 32, 84); g.closePath();
