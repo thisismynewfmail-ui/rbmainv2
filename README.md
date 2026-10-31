@@ -282,7 +282,9 @@ Light is -- one map holding four or more separate areas, one played at a
 time, each with its own animated arrival sequence -- running a game mode of
 its own. They share one engine (`app/game/worlds/arena.py`, the client half
 in `static/js/game/arena.js`): rounds in three phases (the countdown, the
-round, the results card), a reel that lands on the next area when an area
+round, the results card) -- in the races, the murder mystery and the pirate
+battle everybody stands still at their spawn through the countdown and goes
+at **GO** (`FREEZE_COUNTDOWN`) -- a reel that lands on the next area when an area
 has had its rounds, per-area and per-team spawns that move up as the front
 moves, spectating for the fallen, a world's own kit, solids that switch on
 and off, the bots' hooks and the sleeping rounds. Each world brings its own
