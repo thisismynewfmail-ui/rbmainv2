@@ -130,6 +130,7 @@
     var wd = { case: 0, goal: 0, prev: 0, hints: [], alive: 0, guests: 0, twist: '', on: false,
                left: 0, gun: false };
     var ax = {};
+    var gunAt = null;                        // where the dropped revolver lies (never told to a murderer)
     var role = '', partners = [];
     var bodyNames = {};                      // body id -> name
     var flying = {};                         // knife id -> {p, v, at, by}
@@ -288,7 +289,7 @@
       glimpse = { ids: [], until: 0 }; seen = null; suspects = [];
       tw = { on: false, kind: twistKind, until: 0, warnUntil: 0 };
       dark = 0; fogK = 0; lastCase = 0;
-      ax = {};
+      ax = {}; gunAt = null;
       if (maskVeil) maskVeil.style.opacity = '0';
     }
 
@@ -376,11 +377,15 @@
           }
           play(msg.w === 'knife' ? 'wd_scream' : 'wd_bang', msg.p, 1);
         } else if (k === 'gun') {
+          gunAt = msg.p || null;
+          if (msg.late) return;
           arena.banner('THE REVOLVER IS DOWN', armed() || amMurderer() ? '' : 'Pick it up and be the hero', 'area', 3000);
-          play('wd_clink', msg.p, 1);
+          play('wd_clink', msg.p || null, msg.p ? 1 : 0.5);
         } else if (k === 'gun_taken') {
+          gunAt = null;
           client.hud.toast('Somebody picked up the revolver');
         } else if (k === 'armed') {
+          gunAt = null;
           role = 'hero';
           arena.banner('YOU ARE THE HERO', 'Shoot the murderer -- and only the murderer', 'go', 3600);
           play('wd_chime', null, 1);
@@ -454,8 +459,8 @@
       });
     }
     function drawGun(renderer, time) {
-      if (!ax.gn) return;
-      var p = ax.gn;
+      if (!gunAt || amMurderer()) return;
+      var p = gunAt;
       drawParts(renderer, GUN_PARTS, p, time * 0.8);
       renderer.pushRaw('cyl', p[0], p[1] + 5, p[2], 0, 0, 0, 1.8, 10, 1.8, rgb('#ffd27a'),
                        0.16 + 0.06 * Math.sin(time * 5), 0, 2, 0, null);
@@ -648,8 +653,8 @@
     function prompt() {
       if (!inPlay()) return undefined;
       var me = myPos();
-      if (ax.gn && !amMurderer() && !armed()) {
-        var g = ax.gn;
+      if (gunAt && !amMurderer() && !armed()) {
+        var g = gunAt;
         var d = Math.hypot(g[0] - me[0], g[2] - me[2]);
         if (d < 18) return d < GUN_REACH + 1 ? 'Picking up the revolver...' : 'The revolver -- walk over it to be the hero';
       }

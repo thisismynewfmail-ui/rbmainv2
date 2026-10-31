@@ -538,7 +538,10 @@ a clue burns it.
 revolver, one shot, a slow reload. Shoot anybody else and the detective is
 **disgraced** on the spot -- out of the case, the revolver left on the floor
 for any innocent brave enough to pick it up and finish the job as the
-**hero**.
+**hero**. Every guest can see who carries the revolver -- except a
+murderer, who never sees it, in a hand or on the floor (it hears it clatter
+down, no more): the only way a murderer learns who is armed is to see it
+fired.
 
 **The innocents** win by living out the clock (or seeing the murderer shot).
 **Clues** turn up round the place -- a sealed letter, a bloody glove, a
@@ -587,17 +590,31 @@ revolver), Last Minute (caught with under ten seconds left), The Wrong Man
 Breathing (cases lived through) and Every Scene (a case won in each of the
 four places).
 
-**Bots** play every role. Innocents mingle, go after clues, stick together
-and run from a body or a scream; they watch who draws a knife, who was near
-whom, and what the hints say, and tell the room (*its Sam!*, *Sam has a
-knife*, *stick together*) -- and a murderer named in front of everybody
-protests (*not me!*). A detective weighs up its suspects and only fires when it is sure
-enough -- and never through somebody else; a disgraced detective's revolver
-is picked up by a brave innocent. A murderer picks a victim who is alone (a
-trusting one with the revolver, best of all), follows them, and only draws
-the knife at arm's length with nobody watching -- bolder as the clock runs
-down -- or throws it from across a room; it burns clues when it can. They
-use the stairs between floors and decks like anyone else. The Bots Zone's
+**Bots** play every role, and play it like guests rather than a herd. Each
+innocent spends a case its own way, by persona: a sleuth after every clue in
+the house, a collector, a buddy who sticks at one guest's shoulder (two to a
+pair, never a crowd), a wallflower who keeps to a quiet room, a wanderer who
+cannot keep still. They go room to room -- somewhere they have not been
+lately and everybody else is not -- and stand about looking round at the
+faces in it; each goes for a clue of its own, never one somebody nearer is
+already after; a fresh body draws a curious one or two to look from a few
+steps off before they want to be anywhere else, and the rest run -- away
+from the danger, not past it, and not all to the same corner. They watch
+who draws a knife, who was near whom, and what the hints say, and tell the
+room (*its Sam!*, *Sam has a knife*, *im watching you Sam*) -- the bold keep
+an eye on a suspect from across the room -- and a murderer named in front
+of everybody protests (*not me!*). A detective weighs up its suspects,
+shadows the doubtful from a distance and only fires when it is sure enough
+-- and never through somebody else; at a body it looks, then searches the
+rooms round it. One brave innocent at a time goes for a disgraced
+detective's revolver. A murderer mingles, picks a victim who is alone (the
+one it has seen fire the revolver, best of all, if it is not looking),
+hangs back across the room while anybody is watching, and only draws the
+knife at arm's length with nobody to see it -- bolder as the clock runs
+down -- or throws it from across a room; it burns clues when it can, and
+it runs from a gun it has seen. They use the stairs between floors and
+decks like anyone else (and keep to the ones they can see the far end
+of). The Bots Zone's
 **Whodunit** subtab sets how sure a detective has to be before firing, how
 sharp everybody's eyes are, how careful a murderer is about witnesses, how
 often it throws, how brave an innocent is about the revolver, how much
