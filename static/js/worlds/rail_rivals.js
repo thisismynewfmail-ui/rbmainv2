@@ -184,7 +184,9 @@
       return lanes[cart.lane].at(shown[team] === undefined ? cart.d : shown[team]);
     }
 
-    function say(key, title, sub, kind, sound) {
+    /* A popup across the middle of the screen: the headline alone (the
+       E prompt and the panel carry the rest), save for the stoker's name. */
+    function say(key, title, kind, sound, sub) {
       var now = performance.now();
       if (lastSaid[key] && now - lastSaid[key] < 1500) return;
       lastSaid[key] = now;
@@ -202,7 +204,7 @@
           client.audio.play('rr_coal', { volume: 0.6 });
         } else if (k === 'stoke') {
           var mineS = msg.team === me;
-          if (mineS) say('stoke', 'STOKED!', esc(msg.by) + ' shovelled coal in &bull; full steam', 'go', 'rr_whistle');
+          if (mineS) say('stoke', 'STOKED!', 'go', 'rr_whistle', esc(msg.by) + ' shovelled coal in &bull; full steam');
           var pos = cartPos(msg.team);
           if (pos) puff(pos, 8);
         } else if (k === 'brake') {
@@ -211,31 +213,27 @@
           var mineB = msg.team === me;
           if (msg.on) {
             client.audio.play('rr_brake', { volume: mineB ? 0.8 : 0.5 });
-            if (mineB) say('brake', 'BRAKES ON!', esc(msg.by) + ' pulled a lever on your cart &bull; go release it', 'bad');
-            else say('brake', 'BRAKES PULLED', esc(msg.by) + ' locked their cart', 'go');
+            if (mineB) say('brake', 'BRAKES ON!', 'bad');
+            else say('brake', 'BRAKES PULLED', 'go');
           } else if (msg.by) {
             client.audio.play('rr_release', { volume: 0.5 });
-            if (mineB) say('brake', 'BRAKES OFF', esc(msg.by) + ' freed your cart', 'go');
+            if (mineB) say('brake', 'BRAKES OFF', 'go');
           }
         } else if (k === 'depot') {
           var mineD = msg.team === me;
-          say('depot' + msg.team, mineD ? 'DEPOT!' : 'THEY PASSED A DEPOT',
-              esc(msg.name) + (mineD ? ' &bull; you respawn here now' : ''), mineD ? 'go' : 'bad',
-              'rr_bell');
+          say('depot' + msg.team, mineD ? 'DEPOT!' : 'THEY PASSED A DEPOT', mineD ? 'go' : 'bad', 'rr_bell');
         } else if (k === 'signal') {
           if (msg.team) {
             var ours = msg.team === me;
-            say('signal', ours ? 'SIGNAL IS OURS' : 'SIGNAL AGAINST YOU',
-                ours ? 'Their cart is held at the diamond' : 'Your cart stops at the diamond &bull; take the cabin back',
-                ours ? 'go' : 'bad', 'rr_signal');
+            say('signal', ours ? 'SIGNAL IS OURS' : 'SIGNAL AGAINST YOU', ours ? 'go' : 'bad', 'rr_signal');
           }
         } else if (k === 'drift') {
           if (msg.d >= 0) {
             drifts[msg.lane] = { d: msg.d, left: 1 };
-            if (msg.lane === laneOf[me]) say('drift', 'SNOWDRIFT AHEAD', 'Hold E by it to dig your cart through', 'bad', 'rr_wind');
+            if (msg.lane === laneOf[me]) say('drift', 'SNOWDRIFT AHEAD', 'bad', 'rr_wind');
           } else {
             delete drifts[msg.lane];
-            if (msg.lane === laneOf[me]) say('drift', 'DUG OUT!', esc(msg.by || '') + ' cleared the drift', 'go');
+            if (msg.lane === laneOf[me]) say('drift', 'DUG OUT!', 'go');
             var lane = lanes[msg.lane];
             if (lane) dustAt(lane, msg.lane);
           }
@@ -244,10 +242,10 @@
           if (msg.state === 'warn') {
             client.audio.play('rr_bell', { volume: 0.7 });
             client.audio.later(500, function () { this.play('rr_bell', { volume: 0.7 }); });
-            say('bridge', mineBr ? 'YOUR BRIDGE IS LIFTING' : 'BRIDGE LIFTING', 'Get off the deck!', 'bad');
+            say('bridge', mineBr ? 'YOUR BRIDGE IS LIFTING' : 'BRIDGE LIFTING', 'bad');
           } else if (msg.state === 'up') {
             client.audio.play('rr_lift', { volume: 0.7 });
-            if (mineBr) say('bridge2', 'BRIDGE UP', 'Your cart waits at the bank until it comes down', 'bad');
+            if (mineBr) say('bridge2', 'BRIDGE UP', 'bad');
           } else if (msg.state === 'down') {
             client.audio.play('rr_lift', { volume: 0.4 });
           }
@@ -257,7 +255,7 @@
             var mp = client.local.pos;
             var near = Math.hypot(mp[0] - msg.p[0], mp[2] - msg.p[2]) < 40;
             client.audio.play('rr_hiss', { volume: near ? 0.8 : 0.25 });
-            if (near) say('gas', 'FIREDAMP!', 'Get clear before it goes up', 'bad');
+            if (near) say('gas', 'FIREDAMP!', 'bad');
           } else {
             gasWarn = null;
             blasts.push({ p: msg.p, t: 0 });
@@ -312,26 +310,37 @@
           }
         }
       }
-      // frame, bucket and ore
+      // the frame, and on it a little engine leading the way (+z is the way
+      // the cart runs): the boiler with its smokebox door and headlamp, the
+      // stack, the cowcatcher and buffer beam, the firebox glowing under the
+      // back of the boiler -- and the ore bucket behind it like a tender
       local(renderer, 'box', base, yaw, [0, 1.5, 0], [4.2, 0.6, 7.8], '#3a3632', { m: 1 });
-      local(renderer, 'box', base, yaw, [0, 3.2, 1.7], [4.6, 2.8, 4.0], colour, { st: 1 });
-      local(renderer, 'box', base, yaw, [0, 4.7, 1.7], [4.9, 0.3, 4.3], '#2a2826', { m: 1 });
-      local(renderer, 'box', base, yaw, [0, 4.75, 1.7], [4.0, 0.5, 3.4], GOLD, { m: 1 });
-      local(renderer, 'sph', base, yaw, [-0.8, 5.1, 1.2], [1.4, 1.0, 1.3], '#ffd24a', { m: 1 });
-      local(renderer, 'sph', base, yaw, [0.9, 5.2, 2.2], [1.2, 1.1, 1.2], '#f2c03a', { m: 1 });
-      local(renderer, 'box', base, yaw, [0, 3.2, 3.72], [3.0, 1.2, 0.06], '#fff4d6');
-      // the little boiler at the back, its stack and its firebox
-      local(renderer, 'cyl', base, yaw, [0, 3.0, -2.0], [2.6, 3.4, 2.6], '#2e2c2a', { r: [Math.PI / 2, 0, 0], m: 1 });
-      local(renderer, 'cyl', base, yaw, [0, 5.3, -2.6], [0.9, 2.2, 0.9], '#1e1c1a', { m: 1 });
-      local(renderer, 'cyl', base, yaw, [0, 6.5, -2.6], [1.4, 0.4, 1.4], GOLD, { m: 1 });
+      local(renderer, 'cyl', base, yaw, [0, 3.0, 2.0], [2.6, 3.4, 2.6], '#2e2c2a', { r: [Math.PI / 2, 0, 0], m: 1 });
+      local(renderer, 'cyl', base, yaw, [0, 3.0, 3.73], [2.1, 0.06, 2.1], '#1a1816', { r: [Math.PI / 2, 0, 0], m: 1 });
+      local(renderer, 'cyl', base, yaw, [0, 3.0, 3.77], [0.5, 0.06, 0.5], GOLD, { r: [Math.PI / 2, 0, 0], m: 1 });
+      local(renderer, 'cyl', base, yaw, [0, 4.35, 1.0], [1.1, 0.7, 1.1], GOLD, { m: 1 });
+      local(renderer, 'cyl', base, yaw, [0, 5.3, 2.6], [0.9, 2.2, 0.9], '#1e1c1a', { m: 1 });
+      local(renderer, 'cyl', base, yaw, [0, 6.5, 2.6], [1.4, 0.4, 1.4], GOLD, { m: 1 });
+      local(renderer, 'box', base, yaw, [0, 4.55, 3.45], [0.9, 0.8, 0.5], '#3a3632', { m: 1 });
+      local(renderer, 'box', base, yaw, [0, 4.55, 3.72], [0.7, 0.6, 0.06], '#fff3c4', { m: 2, e: 0.8 });
+      local(renderer, 'box', base, yaw, [0, 1.6, 3.95], [4.4, 0.5, 0.3], colour);
+      local(renderer, 'box', base, yaw, [0, 0.95, 4.25], [3.6, 0.9, 0.5], '#5a5e66', { r: [0.6, 0, 0], m: 1 });
+      local(renderer, 'box', base, yaw, [0, 2.3, 0.85], [2.4, 1.0, 1.1], '#2a2826', { m: 1 });
       var fire = stoked ? 0.9 : 0.35 + 0.15 * Math.sin(time * 6);
-      local(renderer, 'box', base, yaw, [0, 2.2, -3.75], [1.6, 0.8, 0.08], [1, 0.45 + fire * 0.3, 0.1],
-            { m: 2, e: fire });
-      // the lamp, the pennant
-      local(renderer, 'box', base, yaw, [0, 2.4, 3.95], [0.9, 0.9, 0.2], '#fff3c4', { m: 2, e: 0.8 });
-      local(renderer, 'box', base, yaw, [2.0, 5.4, -0.6], [0.14, 3.2, 0.14], '#5a3a22');
+      for (var fs = -1; fs <= 1; fs += 2) {
+        local(renderer, 'box', base, yaw, [fs * 1.22, 2.3, 0.85], [0.06, 0.55, 0.75], [1, 0.45 + fire * 0.3, 0.1],
+              { m: 2, e: fire });
+      }
+      local(renderer, 'box', base, yaw, [0, 3.2, -1.7], [4.6, 2.8, 4.0], colour, { st: 1 });
+      local(renderer, 'box', base, yaw, [0, 4.7, -1.7], [4.9, 0.3, 4.3], '#2a2826', { m: 1 });
+      local(renderer, 'box', base, yaw, [0, 4.75, -1.7], [4.0, 0.5, 3.4], GOLD, { m: 1 });
+      local(renderer, 'sph', base, yaw, [0.8, 5.1, -1.2], [1.4, 1.0, 1.3], '#ffd24a', { m: 1 });
+      local(renderer, 'sph', base, yaw, [-0.9, 5.2, -2.2], [1.2, 1.1, 1.2], '#f2c03a', { m: 1 });
+      local(renderer, 'box', base, yaw, [0, 3.2, -3.72], [3.0, 1.2, 0.06], '#fff4d6');
+      // the pennant, streaming back off its pole beside the boiler
+      local(renderer, 'box', base, yaw, [2.0, 5.4, 0.7], [0.14, 3.2, 0.14], '#5a3a22');
       var flap = Math.sin(time * 5 + (team === 'red' ? 0 : 2)) * 0.25;
-      local(renderer, 'box', base, yaw, [2.0, 6.5, -1.4], [0.06, 1.0, 1.6], colour, { r: [0, flap, 0] });
+      local(renderer, 'box', base, yaw, [2.0, 6.5, -0.1], [0.06, 1.0, 1.6], colour, { r: [0, flap, 0] });
       // the push ring: grey idle, team colour pushing, red contested
       var ring = cart.contest ? [1, 0.3, 0.25] : (cart.push > 0 ? rgb(TEAM_LIGHT[team]) : [0.75, 0.75, 0.78]);
       var pulse = 1 + 0.03 * Math.sin(time * (cart.push ? 6 : 2));
@@ -340,7 +349,7 @@
       // smoke from the stack, thicker when stoked
       if (Math.random() < (stoked ? 0.5 : (moving ? 0.12 : 0.03))) {
         var c = Math.cos(yaw), s = Math.sin(yaw);
-        smoke.push({ x: at[0] + (-2.6) * s, y: base[1] + 7.0, z: at[1] + (-2.6) * c, t: 0,
+        smoke.push({ x: at[0] + 2.6 * s, y: base[1] + 7.0, z: at[1] + 2.6 * c, t: 0,
                      life: 1.4 + Math.random(), s: stoked ? 1.4 : 0.9, dark: stoked });
       }
       if (client.settings.showNames) {
@@ -605,10 +614,6 @@
                         '</b> &bull; ' + esc(names[me.lane] || 'your line') +
                         (me.coal ? ' &bull; <b>carrying coal</b>' : ''), team);
         }
-      },
-      goLine: function () {
-        var team = client.myTeam;
-        return team ? 'Push the ' + arena.teamName(team) + "'s cart down " + (names[laneOf[team]] || 'the line') + '!' : '';
       },
       messages: messages,
       hud: function (state) {
