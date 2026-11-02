@@ -108,18 +108,21 @@ def _item(item_id: str, name: str, kind: str, parts: List[Dict[str, Any]],
 # along the punch, +Y up the back of the hand and +X to the inside, where the
 # thumb tucks.  The round cuff is wide enough to take the arm (it shows as a
 # sleeve on the wrist), and from behind -- in first person -- as the glove's
-# dark opening inside a blue rolled rim.
+# dark opening inside a blue rolled rim.  Nothing at the back shares a plane:
+# the cuff stops short inside the rim, and the opening is a disc set well
+# behind the cuff's end (a first-person view shrinks the glove, and a hair's
+# gap there fought for the same pixels).
 GLOVE_RED, GLOVE_SHADE, GLOVE_CUFF, GLOVE_BAND = "#e5352c", "#b9241e", "#f4f1ea", "#2a6fd6"
 GLOVE = _item("ss_glove", "Bonk Glove", "ss_bonk", [
-    {"t": "cyl", "p": [0, 0, -0.4], "s": [1.22, 0.56, 1.22], "c": GLOVE_CUFF, "r": [1.5708, 0, 0]},
+    {"t": "cyl", "p": [0, 0, -0.37], "s": [1.22, 0.5, 1.22], "c": GLOVE_CUFF, "r": [1.5708, 0, 0]},
     {"t": "cyl", "p": [0, 0, -0.27], "s": [1.26, 0.1, 1.26], "c": GLOVE_BAND, "r": [1.5708, 0, 0]},
-    {"t": "torus", "p": [0, 0, -0.67], "s": [1.18, 0.2, 1.18], "c": GLOVE_BAND, "r": [1.5708, 0, 0]},
-    {"t": "cyl", "p": [0, 0, -0.672], "s": [1.0, 0.02, 1.0], "c": "#5a1210", "r": [1.5708, 0, 0]},
+    {"t": "torus", "p": [0, 0, -0.66], "s": [1.2, 0.22, 1.2], "c": GLOVE_BAND, "r": [1.5708, 0, 0]},
+    {"t": "cyl", "p": [0, 0, -0.72], "s": [0.98, 0.04, 0.98], "c": "#17141a", "r": [1.5708, 0, 0]},
     {"t": "cyl", "p": [0, 0.02, -0.12], "s": [1.04, 0.36, 1.1], "c": GLOVE_RED, "r": [1.5708, 0, 0],
      "m": "glass"},
     {"t": "sph", "p": [0, 0.06, 0.42], "s": [1.48, 1.34, 1.48], "c": GLOVE_RED, "m": "glass"},
     {"t": "sph", "p": [0, 0.18, 0.9], "s": [1.22, 0.9, 0.66], "c": GLOVE_RED, "m": "glass"},
-    {"t": "sph", "p": [0.64, -0.16, 0.5], "s": [0.44, 0.52, 0.96], "c": GLOVE_SHADE,
+    {"t": "sph", "p": [0.6, -0.16, 0.6], "s": [0.44, 0.52, 0.9], "c": GLOVE_SHADE,
      "r": [0.2, 0, 0.25], "m": "glass"},
     {"t": "star", "p": [0, 0.69, 0.38], "s": [0.5, 0.48, 0.1], "c": "#ffd23f", "r": [-1.2708, 0, 0]}],
     rpm=int(60.0 / BONK_COOL), range=BONK_REACH, melee=True, sound="ss_bonk")

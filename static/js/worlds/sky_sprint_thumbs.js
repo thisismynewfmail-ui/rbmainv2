@@ -14,13 +14,13 @@
   // the same glove the game hands out (app/game/worlds/sky_sprint.py GLOVE)
   var H = Math.PI / 2, GR = '#e5352c', GB = '#2a6fd6';
   var GLOVE = { data: { parts: [
-    { t: 'cyl', p: [0, 0, -0.4], s: [1.22, 0.56, 1.22], c: '#f4f1ea', r: [H, 0, 0] },
+    { t: 'cyl', p: [0, 0, -0.37], s: [1.22, 0.5, 1.22], c: '#f4f1ea', r: [H, 0, 0] },
     { t: 'cyl', p: [0, 0, -0.27], s: [1.26, 0.1, 1.26], c: GB, r: [H, 0, 0] },
-    { t: 'torus', p: [0, 0, -0.67], s: [1.18, 0.2, 1.18], c: GB, r: [H, 0, 0] },
+    { t: 'torus', p: [0, 0, -0.66], s: [1.2, 0.22, 1.2], c: GB, r: [H, 0, 0] },
     { t: 'cyl', p: [0, 0.02, -0.12], s: [1.04, 0.36, 1.1], c: GR, r: [H, 0, 0], m: 'glass' },
     { t: 'sph', p: [0, 0.06, 0.42], s: [1.48, 1.34, 1.48], c: GR, m: 'glass' },
     { t: 'sph', p: [0, 0.18, 0.9], s: [1.22, 0.9, 0.66], c: GR, m: 'glass' },
-    { t: 'sph', p: [0.64, -0.16, 0.5], s: [0.44, 0.52, 0.96], c: '#b9241e', r: [0.2, 0, 0.25], m: 'glass' },
+    { t: 'sph', p: [0.6, -0.16, 0.6], s: [0.44, 0.52, 0.9], c: '#b9241e', r: [0.2, 0, 0.25], m: 'glass' },
     { t: 'star', p: [0, 0.69, 0.38], s: [0.5, 0.48, 0.1], c: '#ffd23f', r: [-H + 0.3, 0, 0] }] } };
 
   /* a team cap, bill forward (the player's own space: +Z ahead, the top of
