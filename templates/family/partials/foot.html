@@ -1,9 +1,20 @@
+{% if not no_footer %}
+<div class="fam-foot">
+  <div class="f-wrap">
+    <img class="fam-foot-brand" src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}">
+    <a href="/parent_signup_l">For parents</a> | {% if parent %}<a href="{{ home }}">My family</a> | <a href="/parent-signout">Sign out</a>{% else %}<a href="/parent-signin">Parent sign in</a> | <a href="/parent-signup">Create a family account</a>{% endif %} |
+    <a href="/">The kids&rsquo; site</a> | <a href="/help">Help</a>
+    <div style="margin-top:6px">&copy; {{ year }} {{ brand }} &middot; A safe place to play, with parents in charge</div>
+  </div>
+</div>
+{% endif %}
 <div class="f-toasts" id="f-toasts" aria-live="polite"></div>
 {% if boot %}<script type="application/json" id="fam-boot">{{& to_json(boot) }}</script>{% endif %}
 <script>window.FAM = { csrf: "{{ csrf }}", home: "{{ home }}", pixel: {{ 'true' if pixel else 'false' }} };</script>
 <script src="{{ asset('/static/js/family/app.js') }}"></script>
+{% if haven %}<script type="application/json" id="haven-wardrobe">{{& to_json(haven_wardrobe) }}</script>{% endif %}
 {% if engine %}
-{# the site's own 3D character renderer, for the live avatars #}
+{# the site's own 3D engine: the live avatars, and the dome (haven.js) #}
 <script src="{{ asset('/static/js/engine/gl.js') }}"></script>
 <script src="{{ asset('/static/js/engine/geometry.js') }}"></script>
 <script src="{{ asset('/static/js/engine/shapes.js') }}"></script>

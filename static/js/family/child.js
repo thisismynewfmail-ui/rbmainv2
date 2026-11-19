@@ -88,7 +88,7 @@
         if (!res.ok) { FAM.toast(res.error, 'bad'); return; }
         var now = !!res.paused;
         pauseBtn.setAttribute('data-paused', now ? '1' : '0');
-        pauseBtn.className = 'f-btn f-btn-sm ' + (now ? 'f-btn-good' : 'f-btn-glass');
+        pauseBtn.className = 'f-btn f-btn-sm' + (now ? ' f-btn-good' : '');
         pauseBtn.innerHTML = '<svg class="f-ic sm"><use href="#i-' + (now ? 'play' : 'pause') + '"/></svg> <span>' +
           (now ? 'Resume account' : 'Pause account') + '</span>';
         if (statusEl) {

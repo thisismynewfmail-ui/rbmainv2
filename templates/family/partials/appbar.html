@@ -1,22 +1,28 @@
-{# The signed-in parent's header: their family, the theme, and signing out. #}
-<header class="ap-bar">
-  <div class="f-wrap ap-in">
-    <a class="f-brand" href="{{ home }}" aria-label="Your family dashboard">
-      <img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}">
-      <span class="f-brand-tag">Family</span>
+{# The signed-in parent's header: the site's own top bar and tab strip, with
+   their family, each child, the theme, and signing out. #}
+<div class="topbar">
+  <div class="wrap">
+    <a class="brand" href="{{ home }}" aria-label="Your family dashboard">
+      <img class="brand-logo" src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}" decoding="async">
+      <span class="brand-fam">Family</span>
     </a>
-    <nav class="ap-nav" aria-label="Family">
-      <a href="{{ home }}" class="{{ 'on' if path == home else '' }}"><svg class="f-ic sm"><use href="#i-users"/></svg><span>My family</span></a>
-    </nav>
-    <div class="ap-right">
-      <button class="ap-icon" type="button" data-theme-toggle aria-label="Switch between light and dark" title="Light / dark">
+    <div class="topnav">
+      <a class="who" href="{{ home }}#account" title="Your account"><i>{{ (parent.display_name or parent.username)[:1].upper() }}</i><span class="hide-sm">{{ parent.display_name or parent.username }}</span></a>
+      <button class="fam-theme" type="button" data-theme-toggle aria-label="Switch between light and dark" title="Light / dark">
         <svg class="f-ic sm ap-moon"><use href="#i-moon"/></svg><svg class="f-ic sm ap-sun"><use href="#i-sun"/></svg>
       </button>
-      <a class="ap-who" href="{{ home }}#account" title="Your account">
-        <span class="ap-avatar">{{ (parent.display_name or parent.username)[:1].upper() }}</span>
-        <span class="ap-name">{{ parent.display_name or parent.username }}</span>
-      </a>
-      <a class="ap-icon" href="/parent-signout" aria-label="Sign out" title="Sign out"><svg class="f-ic sm"><use href="#i-logout"/></svg></a>
+      <a href="/parent-signout">Sign out</a>
     </div>
   </div>
-</header>
+</div>
+<div class="tabbar">
+  <div class="wrap">
+    <a href="{{ home }}" class="{{ 'on' if path == home else '' }}">My family</a>
+    {% for k in (nav_kids or []) %}
+    <a href="{{ home }}/child/{{ k.username }}" class="{{ 'on' if path.endswith('/child/' + k.username) else '' }}">{{ k.first_name or k.username }}</a>
+    {% endfor %}
+    <a href="{{ home }}/setup" class="{{ 'on' if path.endswith('/setup') else '' }}">+ Add a child</a>
+    <a href="{{ home }}#account">Account</a>
+    <a class="kids" href="/">The kids&rsquo; site &raquo;</a>
+  </div>
+</div>

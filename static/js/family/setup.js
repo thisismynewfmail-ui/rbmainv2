@@ -42,11 +42,14 @@
      the steps go by -- a home, their name on the sign, them, a lock, the
      dome -- and the sky behind it moves from dawn to night. */
   var build = $('#build');
-  var world = build && build.haven;
+  // haven.js mounts its worlds once the page has loaded; this script runs
+  // before that, so it mounts this one itself (mount() returns the world
+  // already there, if any)
+  var world = build ? (build.haven || (window.Haven && Haven.mount(build)) || null) : null;
   var caption = $('#wz-build-caption span');
   var sky = $('#wz-sky');
   var SKY = ['dawn', 'dawn', 'day', 'day', 'gold', 'gold', 'night', 'night'];
-  var brandName = (document.querySelector('.f-brand img') || {}).alt || 'NoogBlock';
+  var brandName = (document.querySelector('.brand-logo, .f-brand img') || {}).alt || 'NoogBlock';
   function captionFor(step) {
     var name = state.first || 'them';
     return [

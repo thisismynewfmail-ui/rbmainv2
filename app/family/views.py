@@ -103,6 +103,7 @@ def context(req: Request, fam: Optional[Dict[str, Any]] = None, **extra: Any) ->
         "theme": _theme(req),
         "path": req.path,
         "now": int(time.time()),
+        "year": time.gmtime().tm_year,
         "max_children": config.FAMILY_MAX_CHILDREN,
         "pixel": "",
         "flash": base.current_flash(req),
@@ -116,11 +117,58 @@ def context(req: Request, fam: Optional[Dict[str, Any]] = None, **extra: Any) ->
         "scripts": [],
         "boot": None,
         "engine": False,
+        "haven": False,
+        # the shared header and footer (partials/pubbar.html, foot.html)
+        "tabs": "",
+        "signup_href": "/parent-signup",
+        "no_footer": False,
+        "nav_kids": [],
     }
     ctx.update(extra)
+    if parent and "nav_kids" not in extra:
+        # the parent's tab strip lists each child
+        try:
+            ctx["nav_kids"] = [{"username": k.get("username", ""), "first_name": k.get("first_name", "")}
+                               for k in children.list_for(int(parent["id"]))]
+        except Exception:
+            ctx["nav_kids"] = []
+    if ctx.get("haven"):
+        # the dome draws with the game's own engine, and dresses its kids
+        # from a small wardrobe of real catalogue items
+        ctx["engine"] = True
+        ctx["haven_wardrobe"] = haven_wardrobe()
     # the pixel id goes into a script, so only ever digits
     ctx["pixel"] = re.sub(r"[^0-9]", "", str(ctx.get("pixel") or ""))[:20]
     return ctx
+
+
+# The dome's kids (static/js/family/haven.js) wear real catalogue items: the
+# classic faces, caps and hair, a few shirts and trousers.  Only these ride
+# along with the page, not the whole catalogue.
+HAVEN_WARDROBE = {
+    "face": ["face_smile", "face_grin", "face_wink", "face_cool", "face_derp"],
+    "hat": ["hat_red_cap", "hat_beanie", "hat_bucket", "hat_headphones", "hat_propeller", "hat_hard_hat",
+            "hat_visor", "hat_cowboy"],
+    "hair": ["hair_crop", "hair_spikes", "hair_swept", "hair_flattop", "hair_ponytail", "hair_bob",
+             "hair_bunches", "hair_buns", "hair_quiff"],
+    "shirt": ["shirt_tee_red", "shirt_hoodie_blue", "shirt_stripes", "shirt_hawaiian", "shirt_hivis"],
+    "pants": ["pants_jeans", "pants_cargo", "pants_shorts"],
+    "back": ["back_backpack"],
+}
+
+
+@functools.lru_cache(maxsize=1)
+def haven_wardrobe() -> Dict[str, Any]:
+    from ..models import catalog
+    out: Dict[str, Any] = {}
+    for slot, ids in HAVEN_WARDROBE.items():
+        items = []
+        for item_id in ids:
+            item = catalog.get(item_id)
+            if item and item.get("slot") == slot and item.get("data"):
+                items.append({"id": item["id"], "data": item["data"]})
+        out[slot] = items
+    return out
 
 
 def render(req: Request, template: str, fam: Optional[Dict[str, Any]] = None,
@@ -186,6 +234,7 @@ def landing(req: Request):
                   year=time.gmtime().tm_year,
                   pixel=config.FAMILY_FB_PIXEL,
                   extra_css=["/static/css/family/haven.css", "/static/css/family/landing.css"],
+                  haven=True,
                   scripts=["/static/js/family/haven.js", "/static/js/family/landing.js"])
 
 
@@ -198,7 +247,7 @@ def signup(req: Request):
         return R.redirect(_home_of(parent) + ("" if kids else "/setup"))
     if req.method == "GET":
         return render(req, "signup.html", None, page_title="Create your family account",
-                      page_class="fam-signup", extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"], error="", field="", values={
+                      page_class="fam-signup", extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"], haven=True, error="", field="", values={
                           "email": req.query.get("email", "")[:120]},
                       utm=_utm(req), pixel=config.FAMILY_FB_PIXEL,
                       password_min=config.FAMILY_PASSWORD_MIN,
@@ -211,7 +260,7 @@ def signup(req: Request):
         if req.wants_json:
             return R.json_response({"ok": False, "error": message, "field": field}, status)
         return render(req, "signup.html", None, status, page_title="Create your family account",
-                      page_class="fam-signup", extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"], error=message, field=field, values=values,
+                      page_class="fam-signup", extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"], haven=True, error=message, field=field, values=values,
                       utm=_utm(req), pixel=config.FAMILY_FB_PIXEL,
                       password_min=config.FAMILY_PASSWORD_MIN,
                       scripts=["/static/js/family/haven.js", "/static/js/family/signup.js"])
@@ -363,7 +412,7 @@ def setup(req: Request, fam: Dict[str, Any], name: str = ""):
     from ..models import avatars
     return render(req, "setup.html", fam, page_title="Set up your child's account",
                   page_class="fam-app fam-setup",
-                  extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"],
+                  extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"], haven=True,
                   engine=True,
                   welcome=req.query.get("welcome") == "1",
                   kids=kids, slot_number=len(kids) + 1,

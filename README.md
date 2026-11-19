@@ -1730,7 +1730,11 @@ days, friends, alerts and approvals waiting, with Pause and Open dashboard
 buttons. Below that sit everything waiting for an OK across the family, and
 the parent's own account settings. It refreshes itself every 15 seconds.
 
-**A child's dashboard**:
+**A child's dashboard** opens like a profile page: their character (drag to
+spin it), name, status and a few numbers, with today's play time on a classic
+glossy progress meter, then a tab strip for its sections. Every meter in the
+family pages (and the play-time strip a child sees on the site) is the same
+bevelled bar: green while there's time left, amber near the limit.
 
 * **Overview**: this week against the same point last week, the daily
   average, days played, friends, messages, how often Safe Chat stepped in; the
@@ -1755,11 +1759,23 @@ the arrow keys move between hours and days), and every chart has a table view.
 
 ### The landing page, sign-up and setup
 
-The landing page is a twilight "haven" with stars, fireflies, an aurora and
-floating islands, a storm-versus-haven story, a dashboard demo, a working
-**Try Safe Chat** phone that runs the real filter
-(`/api/family/safechat-demo`), the four family slots, the worlds with a live
-3D character, and a FAQ.
+Every family page wears the site's own classic chrome (`static/css/site.css`
+loads first, then `family.css`): the glossy blue top bar, the red tab strip,
+the orange parents' notice, gradient-headed panels on the light weave,
+bevelled buttons, the big glossy green call to action, and Verdana. The
+public pages share one header (`partials/pubbar.html`); the parent's own
+pages share another (`partials/appbar.html`) with a tab for each child.
+
+The landing page speaks to one parent above all: the one whose child loves
+block games and who wants a safer place for them to play. It names no other
+platform and makes no claim about any one of them. Under a blue banner hero
+with the live dome come a "switching from another block game?" comparison
+(what parents worry about, on many open platforms, and on NoogBlock), the
+same scary messages bouncing off a small dome, the three steps, the eight
+protections, a working **Try Safe Chat** phone that runs the real filter
+(`/api/family/safechat-demo`) with the list of what it stops, flags and
+blanks out, a dashboard demo with a classic progress meter, the four family
+slots, the worlds with a live 3D character, the promise and a FAQ.
 
 The live character dresses in a new look every few seconds, always in the
 brand's own colours: a few close shades of the classic yellow for the skin
@@ -1769,41 +1785,50 @@ page's character keeps the full palette.
 
 **The dome** is a live little world everywhere it appears: the landing page's
 hero, the comparison card, the sign-up page and the set-up wizard
-(`static/js/family/haven.js`). It's a floating island of studded plastic
-bricks, lit like the game.
+(`static/js/family/haven.js`). It is drawn by the game's own 3D engine
+(`Renderer`, `Avatar`, `Particles`), so it looks like a place in the game: a
+floating island of studded plastic parts with roads and crossings, a
+fountain plaza with a flag, a house, a glass tower, an apartment block or a
+lighthouse, a playground, a pond with a dock, a campfire, a lemonade stand, a
+boombox and a build plate, all under a glass shield.
 
-* **Who's there.** Yellow blocky kids swing, slide, ride the seesaw, fish off
-  the dock, build towers, dance by the boombox, fly kites, play catch, sit
-  round the campfire, visit the lemonade stand and pet the dog. Ducks paddle
-  round the pond, a stream runs off the edge as a waterfall, and a cat naps
-  on the roof.
-* **New every visit.** A fresh seed picks the island, the buildings (a
-  windmill or a lighthouse on the hill, a stall, tent or well), the layout
-  (mirrored or not), who is playing and what they wear.
-* **The season.** It follows the real month: cherry blossom and petals in
-  spring, sunflowers in summer, red and gold trees, pumpkins and falling
-  leaves in autumn. In winter it's a snow globe, with snow on every brick, a
-  snowman, a lit pine and snow falling inside the glass.
-* **Events.** Fireworks, lanterns, balloons that bump against the inside of
-  the glass, a dance party, soap bubbles, and a storm outside. Its rain slides
-  off the dome, its lightning hits the shield, and a rainbow follows.
-* **What it stops.** Messages fly at the dome and bounce off. Each one fires a
-  `haven:blocked` event, and the landing page turns it into the note a parent
-  would get.
-* **Tapping it.** A kid jumps, the grass grows a flower, the pond splashes (and
-  a fish might jump), the house lights up and a kid comes out, the windmill
-  spins up, the campfire sparks, the shield makes everyone wave, and the open
-  sky sets off a firework.
+* **Who's there.** Blocky kids with the classic yellow skin, dressed from a
+  small wardrobe of real catalogue faces, hats, hair, shirts and trousers
+  (`views.HAVEN_WARDROBE`, sent with the page). They walk the paths between
+  spots and swing, slide, ride the seesaw, bounce on the trampoline, fish off
+  the dock, build towers on the plate, dance by the boombox, fly kites, play
+  catch, sit round the campfire, visit the lemonade stand and wave. A dog
+  trots about, ducks paddle round the pond, a cat naps and a car drives the
+  roads.
+* **New every visit.** A fresh seed picks the house colours, the building at
+  the back, the layout (mirrored or not), who is playing and what they wear.
+* **The season and the light.** The season follows the real month:
+  blossom and falling petals in spring, flowers and fireflies in summer, red
+  and gold trees, falling leaves and pumpkins in autumn, snow and a snowman
+  in winter. The landing page is in daylight, the sign-up page at golden
+  hour, and the wizard's world goes from dawn to night, when the windows and
+  lamps light up.
+* **Events.** Fireworks, lanterns, balloons, soap bubbles, a dance party, a
+  fish jumping and a storm outside the glass: the rain slides off the shield,
+  the lightning hits it, and a rainbow follows.
+* **What it stops.** Messages fly at the shield and bounce off. Each one fires
+  a `haven:blocked` event, and the landing page turns it into the note a
+  parent would get. On the comparison card, the same three messages bounce
+  off and a friend the parent approved gets through.
+* **Tapping it.** Drag to turn it. A tapped kid jumps and says hi, the grass
+  grows a flower, and the open sky sets off a firework.
 * **In the wizard** it builds itself step by step: a home, the child's
-  username on a sign, the child in their chosen colours, a lock, the dome
-  rising, lights at night, and friends arriving to say hello.
+  username on a sign, the child in their chosen colours, a padlock, the
+  shield rising, lights at night, and friends arriving to say hello.
 
-The terrain and every prop that stays still are painted once and reused. The
-loop stops off screen and in a hidden tab, a slow device drops its resolution,
-and `prefers-reduced-motion` gets one still frame. Without JavaScript, the
-landing and sign-up pages show a still picture instead. To preview a season or a particular world, add
-`?haven-season=winter` (or `spring`, `summer`, `autumn`) or `?haven-seed=42`
-to the page address.
+The island and every prop that stays still are built once and reused. The
+loop stops off screen and in a hidden tab, a slow device drops its
+resolution, and `prefers-reduced-motion` gets one still frame. Until the
+world is up, and without WebGL or JavaScript, the page shows a still picture
+of it (`static/img/family/haven-hero.jpg`). To preview a season, a light or
+a particular world, add `?haven-season=winter` (or `spring`, `summer`,
+`autumn`), `?haven-light=night` (or `dawn`, `day`, `gold`, `dusk`) or
+`?haven-seed=42` to the page address.
 
 The copy only promises what the code does: no testimonials and no numbers that
 aren't real (there's a marked spot in the template for real quotes once there

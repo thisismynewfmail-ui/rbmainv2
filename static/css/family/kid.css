@@ -4,7 +4,7 @@
 .kidbar {
   display: flex; align-items: center; gap: 10px;
   margin: 0 0 10px; padding: 7px 12px;
-  border: 1px solid var(--info-edge); border-radius: 8px;
+  border: 1px solid var(--info-edge); border-radius: 4px;
   background: linear-gradient(180deg, var(--info-bg), var(--panel));
   color: var(--info-ink); font-size: 12px; line-height: 1.35;
   box-shadow: 0 1px 0 var(--shadow);
@@ -13,16 +13,23 @@
 .kidbar-text { flex: 1 1 auto; min-width: 0; }
 .kidbar-text b { color: var(--ink-strong); }
 .kidbar-meter {
-  flex: 0 0 120px; height: 8px; border-radius: 99px; overflow: hidden;
-  background: var(--sunken); border: 1px solid var(--line-soft);
+  flex: 0 0 120px; height: 12px; border-radius: 3px; overflow: hidden;
+  background: linear-gradient(#dfe6ed, #f5f8fa); border: 1px solid #8ba5bb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .15) inset;
 }
+/* the classic glossy progress bar, as on the parent's dashboard */
 .kidbar-meter i {
-  display: block; height: 100%; border-radius: inherit;
-  background: linear-gradient(90deg, #3fbf4a, #f5cd30);
+  display: block; height: 100%; border-radius: 2px 0 0 2px;
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .16) 0 6px, transparent 6px 12px), linear-gradient(#a8e88e, #5cbf43 50%, #3f9d47);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .55) inset;
   transition: width .6s ease;
 }
+:root[data-theme="dark"] .kidbar-meter { background: linear-gradient(#0f1821, #18232e); border-color: #3b4f66; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .kidbar-meter { background: linear-gradient(#0f1821, #18232e); border-color: #3b4f66; }
+}
 .kidbar.is-low { border-color: var(--warn-edge); background: linear-gradient(180deg, var(--warn-bg), var(--panel)); color: var(--warn-ink); }
-.kidbar.is-low .kidbar-meter i { background: linear-gradient(90deg, #f5cd30, #e2621b); }
+.kidbar.is-low .kidbar-meter i { background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .16) 0 6px, transparent 6px 12px), linear-gradient(#ffd98a, #f0a020 50%, #d4850c); }
 .kidbar.is-quiet { border-color: #6b5fb3; background: linear-gradient(180deg, #ece9fb, var(--panel)); color: #3b3270; }
 :root[data-theme="dark"] .kidbar.is-quiet { background: linear-gradient(180deg, #2a2550, var(--panel)); color: #d9d3ff; }
 @media (prefers-color-scheme: dark) {

@@ -6,21 +6,22 @@
   nothing is saved until the review pane's button, which posts the lot to
   /api/family/children in one go.
 #}
-<div class="wz-sky" id="wz-sky" aria-hidden="true">
-  <i class="sky dawn on"></i><i class="sky day"></i><i class="sky gold"></i><i class="sky night"></i>
-  <i class="sky-stars"></i>
-</div>
-<main id="main" class="ob-main">
-  <div class="f-wrap">
-    <div class="wz-build" aria-hidden="true">
-      <div class="wz-haven haven-host" id="build" data-haven="build"></div>
-      <div class="wz-build-caption" id="wz-build-caption"><svg class="f-ic sm"><use href="#i-sparkle"/></svg> <span>Their world starts here</span></div>
-    </div>
+<main id="main" class="wrap ob-main">
+  <div class="ob-crumbs"><a href="{{ home }}">My family</a> &raquo; {% if kids %}Add another child{% else %}Set up your child&rsquo;s account{% endif %}</div>
+  <div class="wz-layout">
+    <aside class="panel wz-side" aria-hidden="true">
+      <div class="panel-head green"><svg class="f-ic sm"><use href="#i-sparkle"/></svg> Their world <span class="head-links">it builds as you go</span></div>
+      <div class="wz-build">
+        <div class="wz-haven haven-host" id="build" data-haven="build"></div>
+      </div>
+      <div class="panel-foot wz-build-caption" id="wz-build-caption"><svg class="f-ic sm"><use href="#i-sparkle"/></svg> <span>Their world starts here</span></div>
+    </aside>
     <div class="wz" id="wz">
-      <div class="wz-shell">
+      <div class="wz-shell panel">
+        <div class="panel-head wz-title">Set up your child&rsquo;s account <span class="head-links">Child {{ slot_number }} of up to {{ max_children }}</span></div>
         <div class="wz-head">
-          <div class="wz-steps" id="wz-steps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="wz-meta"><span id="wz-meta-step">Before we start</span><span>Child <b>{{ slot_number }}</b> of up to {{ max_children }}</span></div>
+          <div class="wz-meta"><span id="wz-meta-step">Before we start</span></div>
+          <div class="wz-steps" id="wz-steps" aria-hidden="true"><i>Who</i><i>Name</i><i>Look</i><i>Password</i><i>Rules</i><i>Check</i></div>
         </div>
 
         <div class="wz-body">
@@ -42,8 +43,8 @@
               <li><svg class="f-ic"><use href="#i-palette"/></svg><span><b>Let them design their character</b> while you look over the rules.</span></li>
             </ul>
             <div class="wz-hello-actions">
-              <button class="f-btn f-btn-primary f-btn-xl" type="button" data-go="1">My child is here &mdash; let&rsquo;s go! <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
-              <button class="f-btn f-btn-ghost f-btn-lg" type="button" id="wz-later">I&rsquo;ll do this later</button>
+              <button class="f-btn f-btn-sun f-btn-xl" type="button" data-go="1">My child is here &mdash; let&rsquo;s go! <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
+              <button class="f-btn f-btn-lg" type="button" id="wz-later">I&rsquo;ll do this later</button>
             </div>
             <p class="wz-later-note">Doing it later? It&rsquo;ll be waiting for you on your family dashboard.</p>
           </section>
@@ -170,9 +171,9 @@
           </section>
         </div>
 
-        <div class="wz-foot" id="wz-foot" hidden>
-          <button class="f-btn f-btn-ghost" type="button" id="wz-back"><svg class="f-ic sm"><use href="#i-back"/></svg> Back</button>
-          <button class="f-btn f-btn-primary f-btn-lg" type="button" id="wz-next">Next <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></button>
+        <div class="wz-foot panel-foot" id="wz-foot" hidden>
+          <button class="f-btn" type="button" id="wz-back"><svg class="f-ic sm"><use href="#i-back"/></svg> Back</button>
+          <button class="f-btn f-btn-sun f-btn-lg" type="button" id="wz-next">Next <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></button>
         </div>
       </div>
     </div>
