@@ -1,40 +1,19 @@
 {% include "family/partials/head.html" %}
 {# /parent-signup -- the one place a parent account can be made. #}
-<header class="ob-top ob-top-night">
-  <div class="f-wrap ob-top-in">
-    <a class="f-brand" href="/parent_signup_l"><img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}"><span class="f-brand-tag">For families</span></a>
-    <span class="ob-top-link">Have an account? <a href="/parent-signin">Sign in</a></span>
-  </div>
-</header>
+{% include "family/partials/pubbar.html" %}
 
-<main id="main" class="ob-main su-main">
-  <div class="su-night" aria-hidden="true"><i class="su-stars"></i><i class="su-aurora"></i></div>
-  <div class="f-wrap su-grid">
-    <aside class="su-panel">
-      <div class="su-scene">
-        <span class="su-moon"></span>
-        <div class="su-haven haven-host" data-haven="panel"><noscript>{% include "family/partials/haven.svg.html" %}</noscript></div>
-      </div>
-      <div class="su-glass">
-        <h2>Three steps to a safer place to play</h2>
-        <ol class="ob-timeline">
-          <li class="now"><span class="ob-tl-dot">1</span><span><b>Your family account</b><small>Right now &middot; about a minute</small></span></li>
-          <li><span class="ob-tl-dot">2</span><span><b>Your child&rsquo;s account &mdash; together</b><small>Username, password, their look and your rules</small></span></li>
-          <li><span class="ob-tl-dot">3</span><span><b>Your dashboard</b><small>See what they play, who they talk to, and for how long</small></span></li>
-        </ol>
-        <ul class="ob-side-ticks">
-          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Free, with no credit card</li>
-          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Nothing costs real money</li>
-          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Up to {{ max_children }} kids, each with their own rules</li>
-          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Change or delete anything, any time</li>
-        </ul>
-      </div>
-    </aside>
-
-    <section class="ob-card f-card su-card" aria-labelledby="ob-title">
-      <div class="ob-progress" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
-      <p class="ob-step-label">Step 1 of 3 &middot; You</p>
-      <h1 id="ob-title">Create your family account</h1>
+<main id="main" class="wrap ob-main su-main">
+  <div class="ob-crumbs"><a href="/parent_signup_l">Parents</a> &raquo; Create your family account</div>
+  <div class="su-grid">
+    <section class="panel su-card" aria-labelledby="ob-title">
+      <div class="panel-head">Create your family account <span class="head-links">Free &middot; about a minute</span></div>
+      <div class="panel-body su-body">
+      <ol class="ob-progress" aria-label="Step 1 of 3">
+        <li class="on"><b>1</b> You</li>
+        <li><b>2</b> Your child</li>
+        <li><b>3</b> Your dashboard</li>
+      </ol>
+      <h1 id="ob-title">First, your account</h1>
       <p class="ob-sub">This account is just for you &mdash; it&rsquo;s how you&rsquo;ll set up and look after your child&rsquo;s account.</p>
 
       {% if error %}<div class="f-notice bad ob-error" role="alert"><svg class="f-ic sm"><use href="#i-alert"/></svg><span>{{ error }}</span></div>{% endif %}
@@ -102,10 +81,36 @@
           <span class="f-fieldmsg"></span>
         </div>
 
-        <button class="f-btn f-btn-primary f-btn-xl f-btn-block" type="submit" id="signup-btn">Create my family account <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
+        <button class="f-btn f-btn-sun f-btn-xl f-btn-block" type="submit" id="signup-btn">Create my family account <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
         <p class="ob-fine"><svg class="f-ic sm"><use href="#i-heart"/></svg> Next, you&rsquo;ll set up your child&rsquo;s account &mdash; it&rsquo;s best done together.</p>
       </form>
+      </div>
+      <div class="panel-foot su-foot"><svg class="f-ic sm"><use href="#i-lock"/></svg> Free &mdash; no credit card, and nothing on {{ brand }} costs real money.</div>
     </section>
+
+    <aside class="su-side">
+      <div class="panel su-world">
+        <div class="panel-head green"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> Your child&rsquo;s safe little world</div>
+        <div class="su-haven haven-host" data-haven="panel"><noscript><img class="haven-poster" src="{{ asset('/static/img/family/haven-hero.jpg') }}" alt=""></noscript></div>
+        <div class="panel-foot">Messages from strangers bounce off the shield. Tap a kid to say hi!</div>
+      </div>
+      <div class="panel su-steps">
+        <div class="panel-head">Three steps to a safer place to play</div>
+        <div class="panel-body">
+          <ol class="ob-timeline">
+            <li class="now"><span class="ob-tl-dot">1</span><span><b>Your family account</b><small>Right now &middot; about a minute</small></span></li>
+            <li><span class="ob-tl-dot">2</span><span><b>Your child&rsquo;s account &mdash; together</b><small>Username, password, their look and your rules</small></span></li>
+            <li><span class="ob-tl-dot">3</span><span><b>Your dashboard</b><small>See what they play, who they talk to, and for how long</small></span></li>
+          </ol>
+          <ul class="ob-side-ticks">
+            <li><svg class="f-ic sm"><use href="#i-check"/></svg> Free, with no credit card</li>
+            <li><svg class="f-ic sm"><use href="#i-check"/></svg> Nothing costs real money</li>
+            <li><svg class="f-ic sm"><use href="#i-check"/></svg> Up to {{ max_children }} kids, each with their own rules</li>
+            <li><svg class="f-ic sm"><use href="#i-check"/></svg> Change or delete anything, any time</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
   </div>
 </main>
 {% include "family/partials/foot.html" %}

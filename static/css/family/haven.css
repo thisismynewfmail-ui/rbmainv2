@@ -1,59 +1,20 @@
 /* ==========================================================================
-   The haven: the island under its dome (templates/family/partials/
-   haven.svg.html), shared by the landing page and the sign-up page.
-   Every moving part is a class; positions live on outer groups, so these
-   transforms never fight an SVG transform attribute.
+   The haven: the little world under its shield (static/js/family/haven.js),
+   drawn by the game's own 3D engine on the landing, sign-up and set-up
+   pages.  The host keeps the proportions; the 3D canvas and a 2D overlay on
+   top of it (speech bubbles, the messages that bounce off, the name sign)
+   both fill it, and the overlay takes the taps and drags.  Until the world
+   is up -- or without WebGL or JavaScript -- the host shows a still picture
+   of the same world.
    ========================================================================== */
-/* the live world (static/js/family/haven.js) draws into a canvas that fills
-   its host; the host keeps the drawing's proportions */
-.haven-host { position: relative; display: block; width: 100%; }
-.haven-host[data-haven="hero"], .haven-host[data-haven="panel"] { aspect-ratio: 600 / 620; }
+.haven-host { position: relative; display: block; width: 100%; overflow: hidden; user-select: none; -webkit-user-select: none;
+  background: linear-gradient(#3a86d6, #a8d3f4 72%, #d4ecfa); }
+.haven-host[data-haven="hero"], .haven-host[data-haven="panel"] { aspect-ratio: 1 / 1;
+  background: url("/static/img/family/haven-hero.jpg") center / cover no-repeat, linear-gradient(#3a86d6, #a8d3f4 72%, #d4ecfa); }
 .haven-host[data-haven="build"] { aspect-ratio: 520 / 380; }
-.haven-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.haven-host noscript .haven { position: absolute; inset: 0; }
-.haven { display: block; width: 100%; height: auto; overflow: visible; }
-.hv-float { animation: hv-float 7s ease-in-out infinite; transform-box: fill-box; }
-@keyframes hv-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
-.hv-shadow { animation: hv-shadow 7s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes hv-shadow { 0%, 100% { transform: scale(1); opacity: .5; } 50% { transform: scale(.88); opacity: .32; } }
-.hv-aura { animation: hv-aura 6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
-@keyframes hv-aura { from { opacity: .75; transform: scale(.97); } to { opacity: 1; transform: scale(1.03); } }
-.hv-kid { transform-box: fill-box; transform-origin: 50% 100%; animation: hv-hop 1.9s cubic-bezier(.3, 0, .3, 1) infinite; }
-.hv-kid-1 { animation-delay: -.4s; }
-.hv-kid-2 { animation-duration: 2.3s; animation-delay: -1.1s; }
-.hv-kid-3 { animation: hv-sway 3.4s ease-in-out infinite; }
-.hv-kid-4 { animation-duration: 3.1s; animation-delay: -2s; }
-@keyframes hv-hop { 0%, 55%, 100% { transform: translateY(0) scaleY(1); } 62% { transform: translateY(0) scaleY(.93); } 76% { transform: translateY(-9px) scaleY(1.04); } 90% { transform: translateY(0) scaleY(.97); } }
-@keyframes hv-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-.hv-ball { transform-box: fill-box; transform-origin: center; animation: hv-ball 1.9s ease-in-out infinite; animation-delay: -.4s; }
-@keyframes hv-ball { 0%, 100% { transform: translate(-12px, 0); } 25% { transform: translate(-3px, -20px); } 50% { transform: translate(11px, 0); } 75% { transform: translate(2px, -20px); } }
-.hv-kite { transform-box: fill-box; transform-origin: 50% 90%; animation: hv-kite 4.6s ease-in-out infinite; }
-@keyframes hv-kite { 0%, 100% { transform: rotate(-8deg) translate(0, 0); } 50% { transform: rotate(9deg) translate(6px, -8px); } }
-.hv-tail { animation: hv-tail 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0; }
-@keyframes hv-tail { 0%, 100% { transform: skewX(-12deg); } 50% { transform: skewX(12deg); } }
-.hv-lamp { transform-box: fill-box; transform-origin: center; animation: hv-lamp 3.2s ease-in-out infinite; }
-@keyframes hv-lamp { 0%, 100% { opacity: .78; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
-.hv-gem { transform-box: fill-box; transform-origin: center; animation: hv-gem 4s ease-in-out infinite; }
-@keyframes hv-gem { 0%, 100% { opacity: .7; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
-.hv-stream { animation: hv-stream 1.1s linear infinite; animation-delay: calc(var(--i) * -.17s); }
-@keyframes hv-stream { to { stroke-dashoffset: -36; } }
-.hv-mist { transform-box: fill-box; transform-origin: center; animation: hv-mist 2.6s ease-in-out infinite; }
-.hv-mist.m2 { animation-duration: 3.4s; animation-delay: -1s; }
-@keyframes hv-mist { 0%, 100% { transform: scale(.9); opacity: .4; } 50% { transform: scale(1.1); opacity: .65; } }
-.hv-spark { transform-box: fill-box; transform-origin: center; animation: hv-spark 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -.55s); }
-@keyframes hv-spark { 0%, 100% { opacity: .2; transform: scale(.5) rotate(0deg); } 50% { opacity: 1; transform: scale(1.1) rotate(45deg); } }
-.hv-glint { animation: hv-glint 6s ease-in-out infinite; }
-@keyframes hv-glint { 0%, 100% { opacity: .3; } 50% { opacity: .75; } }
-.hv-rim { animation: hv-rim 5s ease-in-out infinite; transition: stroke-width .25s; }
-@keyframes hv-rim { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
-.hv-dome.hit .hv-rim { stroke-width: 6; opacity: 1; }
-.hv-badge { animation: hv-badge 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-.hv-badge.hit { animation: hv-badge-hit .7s var(--f-spring); }
-@keyframes hv-badge { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.05); } }
-@keyframes hv-badge-hit { 0% { transform: scale(1); } 35% { transform: scale(1.28); } 100% { transform: scale(1); } }
-.hv-window { animation: hv-window 5s ease-in-out infinite; }
-@keyframes hv-window { 0%, 100% { opacity: 1; } 50% { opacity: .82; } }
-/* the messages that fly at the dome, and what happens when they hit it */
-.th-ring { fill: none; stroke: #cfe0ff; }
-.th-spark { stroke: #ffe08a; stroke-linecap: round; }
-
+.haven-host[data-haven="mini"] { min-height: 160px; }
+.haven-canvas, .haven-overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.haven-overlay { cursor: grab; -webkit-tap-highlight-color: transparent; }
+.haven-overlay:active { cursor: grabbing; }
+.haven-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.haven-host.haven-live .haven-poster { display: none; }

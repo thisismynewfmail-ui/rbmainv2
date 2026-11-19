@@ -9,44 +9,43 @@
 {% set st = report.status %}
 {% set play = report.play %}
 {% set today = st.today %}
-<main id="main" class="db-main">
-  <section class="db-band kid-band">
-    <div class="db-band-sky" aria-hidden="true"><i class="db-stars"></i><i class="db-aurora"></i></div>
-    <div class="f-wrap kid-band-in">
-      {% if len(siblings) > 1 %}
-      <nav class="kid-switch" aria-label="Your children">
-        {% for s in siblings %}<a href="{{ home }}/child/{{ s.username }}" class="{{ 'on' if s.current else '' }}">{{ s.first_name }}</a>{% endfor %}
-      </nav>
-      {% endif %}
-      <div class="kid-hero">
-        <div class="kid-ava avatar-view" data-avatar="{{ to_json(avatar) }}" aria-label="{{ child.first_name }}'s character"><span class="kid-ava-hint">drag to spin</span></div>
-        <div class="kid-id">
-          <h1>{{ child.first_name }}{% if report.age %}<span class="kid-age">{{ report.age }}</span>{% endif %}</h1>
-          <p class="kid-user">@{{ child.username }} &middot; joined {{ report.joined }}</p>
-          <span class="db-status big {{ st.state }}{{ ' paused' if child.paused else '' }}" id="kid-status"><span class="f-dot {{ 'live' if st.state == 'playing' else ('on' if st.state == 'online' else '') }}"></span><span data-live="label">{{ 'Paused' if child.paused else st.label }}</span>{% if st.since %}<small data-live="since">&middot; {{ st.since }}</small>{% endif %}</span>
-          {% if st.state == 'offline' and st.last_seen %}<p class="kid-seen" data-live="seen">Last seen {{ st.last_seen }}</p>{% endif %}
-          <div class="kid-actions">
-            <button class="f-btn f-btn-sm {{ 'f-btn-good' if child.paused else 'f-btn-glass' }}" type="button" id="kid-pause" data-paused="{{ 1 if child.paused else 0 }}"><svg class="f-ic sm"><use href="#i-{{ 'play' if child.paused else 'pause' }}"/></svg> <span>{{ 'Resume account' if child.paused else 'Pause account' }}</span></button>
-            <a class="f-btn f-btn-sm f-btn-glass" href="#rules"><svg class="f-ic sm"><use href="#i-sliders"/></svg> Rules</a>
-          </div>
+<main id="main" class="wrap db-main">
+  <div class="ob-crumbs db-crumbs"><a href="{{ home }}">My family</a> &raquo; {{ child.first_name }}</div>
+  <section class="panel kid-head" aria-labelledby="kid-name">
+    <div class="panel-head">{{ child.first_name }}&rsquo;s dashboard <span class="head-links">@{{ child.username }} &middot; joined {{ report.joined }}</span></div>
+    <div class="kid-hero">
+      <div class="kid-ava avatar-view" data-avatar="{{ to_json(avatar) }}" aria-label="{{ child.first_name }}'s character"><span class="kid-ava-hint">drag to spin</span></div>
+      <div class="kid-id">
+        <h1 id="kid-name">{{ child.first_name }}{% if report.age %}<span class="kid-age">{{ report.age }}</span>{% endif %}</h1>
+        <p class="kid-user">@{{ child.username }}</p>
+        <span class="db-status big {{ st.state }}{{ ' paused' if child.paused else '' }}" id="kid-status"><span class="f-dot {{ 'live' if st.state == 'playing' else ('on' if st.state == 'online' else '') }}"></span><span data-live="label">{{ 'Paused' if child.paused else st.label }}</span>{% if st.since %}<small data-live="since">&middot; {{ st.since }}</small>{% endif %}</span>
+        {% if st.state == 'offline' and st.last_seen %}<p class="kid-seen" data-live="seen">Last seen {{ st.last_seen }}</p>{% endif %}
+        <div class="kid-numbers">
+          <span><b>{{ play.week_label }}</b><small>this week</small></span>
+          <span><b>{{ report.social.count }}</b><small>friend{{ '' if report.social.count == 1 else 's' }}</small></span>
+          <span><b>{{ report.achievements.badge_count }}</b><small>badge{{ '' if report.achievements.badge_count == 1 else 's' }}</small></span>
         </div>
-        <div class="kid-today" aria-live="polite">
-          <span class="kid-today-label">Played today</span>
-          <span class="kid-today-big" data-live="used">{{ today.used_label }}</span>
-          {% if today.limit is not None %}
-          <span class="db-meter on-dark{{ ' low' if today.pct >= 85 else '' }}" role="meter" aria-label="Play time used today" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ today.pct }}"><i data-live="meter" style="width:{{ today.pct }}%"></i></span>
-          <span class="kid-today-note" data-live="note">{% if today.quiet_now %}Quiet hours until {{ today.quiet_end }}{% else %}{{ today.left_label }} left of {{ today.limit_label }}{% endif %}</span>
-          {% else %}
-          <span class="kid-today-note" data-live="note">No daily limit {{ 'on weekends' if today.weekend else 'on school days' }}</span>
-          {% endif %}
-          {% if today.quiet %}<span class="kid-today-quiet"><svg class="f-ic sm"><use href="#i-moon"/></svg> Quiet hours {{ today.quiet_start }} &ndash; {{ today.quiet_end }}</span>{% endif %}
+        <div class="kid-actions">
+          <button class="f-btn f-btn-sm {{ 'f-btn-good' if child.paused else '' }}" type="button" id="kid-pause" data-paused="{{ 1 if child.paused else 0 }}"><svg class="f-ic sm"><use href="#i-{{ 'play' if child.paused else 'pause' }}"/></svg> <span>{{ 'Resume account' if child.paused else 'Pause account' }}</span></button>
+          <a class="f-btn f-btn-sm" href="#rules"><svg class="f-ic sm"><use href="#i-sliders"/></svg> Rules</a>
         </div>
+      </div>
+      <div class="kid-today" aria-live="polite">
+        <span class="kid-today-label">Played today</span>
+        <span class="kid-today-big" data-live="used">{{ today.used_label }}</span>
+        {% if today.limit is not None %}
+        <span class="db-meter big{{ ' low' if today.pct >= 85 else '' }}" role="meter" aria-label="Play time used today" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ today.pct }}"><i data-live="meter" style="width:{{ today.pct }}%"></i></span>
+        <span class="kid-today-note" data-live="note">{% if today.quiet_now %}Quiet hours until {{ today.quiet_end }}{% else %}{{ today.left_label }} left of {{ today.limit_label }}{% endif %}</span>
+        {% else %}
+        <span class="kid-today-note" data-live="note">No daily limit {{ 'on weekends' if today.weekend else 'on school days' }}</span>
+        {% endif %}
+        {% if today.quiet %}<span class="kid-today-quiet"><svg class="f-ic sm"><use href="#i-moon"/></svg> Quiet hours {{ today.quiet_start }} &ndash; {{ today.quiet_end }}</span>{% endif %}
       </div>
     </div>
   </section>
 
   <nav class="kid-tabs" id="kid-tabs" aria-label="Dashboard sections">
-    <div class="f-wrap kid-tabs-in">
+    <div class="kid-tabs-in">
       <a href="#overview" class="on">Overview</a>
       <a href="#activity">Activity</a>
       <a href="#friends">Friends{% if report.social.waiting %} <span class="tab-badge warn">{{ len(report.social.waiting) }}</span>{% endif %}</a>
@@ -58,7 +57,7 @@
     </div>
   </nav>
 
-  <div class="f-wrap db-body">
+  <div class="db-body">
     {% if flash %}<div class="f-notice {{ 'bad' if flash.kind == 'bad' else 'good' }}" style="margin:16px 0"><span>{{ flash.text }}</span></div>{% endif %}
 
     <!-- ===================================================== OVERVIEW -->

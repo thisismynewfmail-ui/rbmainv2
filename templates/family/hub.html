@@ -5,38 +5,32 @@
   needs their OK, and their account.  Private to them; nothing here is ever
   reachable by anybody else (app/family/views.py).
 #}
-<main id="main" class="db-main">
-  <section class="db-band">
-    <div class="db-band-sky" aria-hidden="true"><i class="db-stars"></i><i class="db-aurora"></i></div>
-    <div class="db-band-isles" aria-hidden="true">
-      <i class="db-moon"></i>
-      <span class="db-isle i1">{% include "family/partials/islet.svg.html" %}</span>
-      <span class="db-isle i2">{% include "family/partials/islet.svg.html" %}</span>
-      <span class="db-isle i3">{% include "family/partials/islet.svg.html" %}</span>
-      <i class="db-spark s1"></i><i class="db-spark s2"></i><i class="db-spark s3"></i>
-    </div>
-    <div class="f-wrap db-band-in">
-      <div class="db-hello">
-        <p class="db-hello-kicker">{{ greeting }}, {{ parent.display_name }}</p>
-        <h1>{% if kids %}Here&rsquo;s your family today{% else %}Welcome to your family dashboard{% endif %}</h1>
-        {% if kids %}
-        <div class="db-band-stats" id="hub-stats">
-          <span class="db-stat-chip"><span class="f-dot live"></span> <b data-hub="online">{{ len([k for k in kids if k.status.state != 'offline']) }}</b> of {{ len(kids) }} online now</span>
-          <span class="db-stat-chip"><svg class="f-ic sm"><use href="#i-clock"/></svg> <b data-hub="today">&mdash;</b> played today</span>
-          <span class="db-stat-chip"><svg class="f-ic sm"><use href="#i-bell"/></svg> <b data-hub="attention">{{ len(attention) }}</b> waiting for you</span>
-        </div>
-        {% endif %}
+<main id="main" class="wrap db-main">
+  <section class="panel db-hello" aria-labelledby="hello-h">
+    <div class="panel-head">My family <span class="head-links">{{ len(kids) }} of {{ max_children }} child accounts</span></div>
+    <div class="db-hello-in">
+      <div class="db-hello-text">
+        <p class="db-hello-kicker">{{ greeting }}, {{ parent.display_name }}!</p>
+        <h1 id="hello-h">{% if kids %}Here&rsquo;s your family today{% else %}Welcome to your family dashboard{% endif %}</h1>
       </div>
+      {% if kids %}
+      <div class="db-band-stats" id="hub-stats">
+        <span class="db-stat"><b data-hub="online">{{ len([k for k in kids if k.status.state != 'offline']) }}</b><small><span class="f-dot live"></span> of {{ len(kids) }} online now</small></span>
+        <span class="db-stat"><b data-hub="today">&mdash;</b><small>played today</small></span>
+        <span class="db-stat"><b data-hub="attention">{{ len(attention) }}</b><small>waiting for you</small></span>
+      </div>
+      {% endif %}
     </div>
   </section>
 
-  <div class="f-wrap db-lift">
+  <div class="db-lift">
     {% if flash %}<div class="f-notice {{ 'bad' if flash.kind == 'bad' else 'good' }}" style="margin-bottom:16px"><span>{{ flash.text }}</span></div>{% endif %}
 
     {% if kids %}
     <div class="hub-kids">
       {% for kid in kids %}
       <article class="hub-kid f-reveal{{ ' is-paused' if kid.paused else '' }}" style="--d:{{ loop.index0 * 0.08 }}s" data-kid="{{ kid.id }}">
+        <div class="panel-head">{{ kid.first_name }}&rsquo;s account <span class="head-links"><a href="{{ home }}/child/{{ kid.username }}">Dashboard &raquo;</a></span></div>
         <a class="hub-kid-top" href="{{ home }}/child/{{ kid.username }}">
           <span class="hub-ava"><canvas class="avatar-thumb" width="160" height="160" data-user="{{ kid.username }}"></canvas></span>
           <span class="hub-kid-who">

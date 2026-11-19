@@ -1,10 +1,10 @@
 /* /parent_signup_l -- the landing page's living parts.
 
-   The hero is a haven at dusk: stars and shooting stars on a canvas,
-   fireflies round the island, and the live little world under its dome
-   (haven.js), where the messages that fly at the dome bounce off it, each
-   one answered here by the note a parent would get.  Below it: the dashboard demo, the live
-   character, and "be the stranger", which runs the real Safe Chat filter.
+   The hero is the live little world under its shield (haven.js): the
+   messages that fly at the shield bounce off it, and each one is answered
+   here by the note a parent would get.  Below it: the dashboard demo, the
+   live character, and "be the stranger", which runs the real Safe Chat
+   filter.
 
    None of it is needed to read the page or to sign up: every call to
    action is a plain link, the questions are <details>, the 3D character
@@ -16,7 +16,6 @@
   var FAM = window.FAM;
   var $ = FAM.$;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var DPR = Math.min(2, window.devicePixelRatio || 1);
 
   /* ------------------------------------------------- the bar and the CTA */
   var nav = $('#lp-nav');
@@ -66,129 +65,14 @@
   }
   function running() { return heroVisible && !document.hidden; }
 
-  /* ---------------------------------------------------------- the stars */
-  var starCanvas = $('#lp-stars');
-  var stars = [];
-  var shooting = null;
-  var nextShoot = 0;
-  function sizeCanvas(c) {
-    var r = c.getBoundingClientRect();
-    c.width = Math.max(1, Math.round(r.width * DPR));
-    c.height = Math.max(1, Math.round(r.height * DPR));
-    return r;
-  }
-  function seedStars() {
-    if (!starCanvas) return;
-    var r = sizeCanvas(starCanvas);
-    var count = Math.round(Math.min(220, (r.width * r.height) / 5200));
-    stars = [];
-    for (var i = 0; i < count; i++) {
-      var big = Math.random() < 0.08;
-      stars.push({
-        x: Math.random() * starCanvas.width,
-        y: Math.pow(Math.random(), 1.5) * starCanvas.height * 0.82,
-        r: (big ? 1.3 + Math.random() * 0.9 : 0.35 + Math.random() * 0.9) * DPR,
-        p: Math.random() * Math.PI * 2,
-        s: 0.6 + Math.random() * 1.8,
-        warm: Math.random() < 0.18,
-        big: big
-      });
-    }
-  }
-  function drawStars(t) {
-    if (!starCanvas) return;
-    var ctx = starCanvas.getContext('2d');
-    ctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
-    for (var i = 0; i < stars.length; i++) {
-      var st = stars[i];
-      var a = reduce ? 0.8 : 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(st.p + t * 0.001 * st.s));
-      ctx.globalAlpha = a;
-      ctx.fillStyle = st.warm ? '#ffe8b8' : '#ffffff';
-      ctx.beginPath();
-      ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
-      ctx.fill();
-      if (st.big) {
-        ctx.globalAlpha = a * 0.35;
-        ctx.fillRect(st.x - st.r * 4, st.y - 0.5 * DPR, st.r * 8, DPR);
-        ctx.fillRect(st.x - 0.5 * DPR, st.y - st.r * 4, DPR, st.r * 8);
-      }
-    }
-    ctx.globalAlpha = 1;
-    if (reduce) return;
-    if (!shooting && t > nextShoot) {
-      shooting = { x: Math.random() * starCanvas.width * 0.7 + starCanvas.width * 0.15,
-                   y: Math.random() * starCanvas.height * 0.3, t0: t,
-                   dx: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 3) * DPR,
-                   dy: (2.2 + Math.random() * 1.5) * DPR };
-      nextShoot = t + 5000 + Math.random() * 7000;
-    }
-    if (shooting) {
-      var k = (t - shooting.t0) / 16.7;
-      var hx = shooting.x + shooting.dx * k;
-      var hy = shooting.y + shooting.dy * k;
-      var life = 1 - k / 70;
-      if (life <= 0) { shooting = null; return; }
-      var grad = ctx.createLinearGradient(hx, hy, hx - shooting.dx * 18, hy - shooting.dy * 18);
-      grad.addColorStop(0, 'rgba(255,255,255,' + (0.9 * life) + ')');
-      grad.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 1.6 * DPR;
-      ctx.beginPath();
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx - shooting.dx * 18, hy - shooting.dy * 18);
-      ctx.stroke();
-    }
-  }
-
-  /* ------------------------------------------------------ the fireflies */
-  var flyCanvas = $('#lp-flies');
-  var flies = [];
-  function seedFlies() {
-    if (!flyCanvas) return;
-    sizeCanvas(flyCanvas);
-    var n = window.innerWidth < 700 ? 16 : 26;
-    flies = [];
-    for (var i = 0; i < n; i++) {
-      flies.push({ x: Math.random(), y: 0.2 + Math.random() * 0.7, a: Math.random() * 6.28,
-                   sp: 0.00015 + Math.random() * 0.00025, r: (1.2 + Math.random() * 1.8) * DPR,
-                   ph: Math.random() * 6.28, turn: (Math.random() - 0.5) * 0.002 });
-    }
-  }
-  function drawFlies(t, dt) {
-    if (!flyCanvas) return;
-    var ctx = flyCanvas.getContext('2d');
-    var w = flyCanvas.width, h = flyCanvas.height;
-    ctx.clearRect(0, 0, w, h);
-    for (var i = 0; i < flies.length; i++) {
-      var f = flies[i];
-      if (!reduce) {
-        f.a += f.turn * dt + Math.sin(t * 0.0007 + f.ph) * 0.01;
-        f.x += Math.cos(f.a) * f.sp * dt;
-        f.y += Math.sin(f.a) * f.sp * dt * 0.7;
-        if (f.x < 0.02 || f.x > 0.98) f.a = Math.PI - f.a;
-        if (f.y < 0.12 || f.y > 0.95) f.a = -f.a;
-      }
-      var glow = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 0.003 + f.ph));
-      var px = f.x * w, py = f.y * h;
-      var g = ctx.createRadialGradient(px, py, 0, px, py, f.r * 6);
-      g.addColorStop(0, 'rgba(255,240,170,' + (0.9 * glow) + ')');
-      g.addColorStop(0.3, 'rgba(255,214,107,' + (0.35 * glow) + ')');
-      g.addColorStop(1, 'rgba(255,200,90,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(px, py, f.r * 6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
   /* ------------------------------------------------------------ the notes
-     The world under the dome (haven.js) turns away the messages that fly at
-     it; each one it stops comes here as a "haven:blocked" event and gets the
-     note a parent would see.  Friendly notes come in between. */
+     The world under the shield (haven.js) turns away the messages that fly
+     at it; each one it stops comes here as a "haven:blocked" event and gets
+     the note a parent would see.  Friendly notes come in between. */
   var notesBox = $('#lp-notes');
   var havenHost = hero ? hero.querySelector('[data-haven]') : null;
   var GOOD = [
-    { ic: 'good', icon: 'user-check', title: 'You approved Leo', sub: 'Mia’s new friend · just now' },
+    { ic: 'good', icon: 'user-check', title: 'You approved Leo', sub: 'Mia\u2019s new friend \u00b7 just now' },
     { ic: 'sun', icon: 'clock', title: '42 of 60 minutes today', meter: true },
     { ic: 'grape', icon: 'moon', title: 'Quiet hours at 8:00 pm', sub: 'Games rest until morning' },
     { ic: 'good', icon: 'pulse', title: 'Mia is playing Sky Sprint', sub: 'With 2 approved friends' }
@@ -219,62 +103,19 @@
       if (now - lastBlocked < 1800) return;
       lastBlocked = now;
       note(spec.storm
-        ? { ic: 'blue', icon: 'shield-check', title: spec.title, sub: 'Rain outside, sunshine in · nothing got through' }
-        : { ic: 'blue', icon: 'shield-check', title: spec.title, sub: 'Mia never saw it · you’ve been told' });
+        ? { ic: 'blue', icon: 'shield-check', title: spec.title, sub: 'Rain outside, sunshine in \u00b7 nothing got through' }
+        : { ic: 'blue', icon: 'shield-check', title: spec.title, sub: 'Mia never saw it \u00b7 you\u2019ve been told' });
     });
   }
 
-  /* --------------------------------------------------------- parallax */
-  var layers = hero ? Array.prototype.slice.call(hero.querySelectorAll('.lp-layer[data-depth]')) : [];
-  var fine = window.matchMedia && matchMedia('(pointer: fine)').matches;
-  if (hero && fine && !reduce) {
-    hero.addEventListener('pointermove', function (e) {
-      var r = hero.getBoundingClientRect();
-      var dx = (e.clientX - r.left) / r.width - 0.5;
-      var dy = (e.clientY - r.top) / r.height - 0.5;
-      layers.forEach(function (layer) {
-        var d = parseFloat(layer.getAttribute('data-depth')) || 0;
-        layer.style.transform = 'translate3d(' + (-dx * 40 * d).toFixed(1) + 'px,' + (-dy * 24 * d).toFixed(1) + 'px,0)';
-      });
-    });
-    hero.addEventListener('pointerleave', function () {
-      layers.forEach(function (layer) { layer.style.transform = ''; });
-    });
-  }
-
-  /* --------------------------------------------------------- the loop */
-  var last = performance.now();
-  var nextGood = performance.now() + 900;
-  var frame = 0;
-  function loop(now) {
-    requestAnimationFrame(loop);
-    var dt = Math.min(64, now - last);
-    last = now;
-    if (!running()) return;
-    frame++;
-    if (frame % 2 === 0) drawStars(now);
-    drawFlies(now, dt);
-    if (now > nextGood) {
-      note(GOOD[goodIndex++ % GOOD.length]);
-      nextGood = now + 6800 + Math.random() * 1200;
-    }
-  }
+  /* -------------------------------------------- the friendly notes' clock */
   function boot() {
-    seedStars();
-    seedFlies();
-    if (reduce) {
-      drawStars(0);
-      drawFlies(0, 0);
-      note(GOOD[0]);
-      return;
-    }
-    requestAnimationFrame(loop);
+    if (reduce) { note(GOOD[0]); return; }
+    setTimeout(function tick() {
+      if (running()) note(GOOD[goodIndex++ % GOOD.length]);
+      setTimeout(tick, 6800 + Math.random() * 1200);
+    }, 900);
   }
-  var resizeTimer = 0;
-  window.addEventListener('resize', function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { seedStars(); seedFlies(); if (reduce) { drawStars(0); drawFlies(0, 0); } }, 200);
-  });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
@@ -388,6 +229,8 @@
     } catch (e) { return false; }
   }
   function loadScripts(list) {
+    // the page may already carry the engine (the dome draws with it)
+    if (window.Renderer && window.Thumbs && window.Avatar) return Promise.resolve();
     return list.reduce(function (chain, src) {
       return chain.then(function () {
         return new Promise(function (resolve, reject) {

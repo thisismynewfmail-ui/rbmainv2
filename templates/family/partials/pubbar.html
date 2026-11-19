@@ -1,0 +1,44 @@
+{# The public family pages' header: the site's own top bar and tab strip,
+   then the orange parents' notice.  ``tabs`` picks the strip: the landing
+   page's anchors, or plain links back to it. #}
+<div class="topbar" id="lp-nav">
+  <div class="wrap">
+    <a class="brand" href="/parent_signup_l" aria-label="{{ brand }} for families">
+      <img class="brand-logo" src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}" decoding="async">
+      <span class="brand-fam">For families</span>
+    </a>
+    <div class="topnav">
+      {% if parent %}
+      <a href="{{ home }}">My family</a>
+      {% else %}
+      <a class="hide-sm" href="/">The kids&rsquo; site</a>
+      <a href="/parent-signin"><span class="hide-sm">Parent sign in</span><span class="only-sm">Sign in</span></a>
+      {% endif %}
+    </div>
+    {% if not parent %}<a class="f-btn f-btn-sun f-btn-sm" href="{{ signup_href or '/parent-signup' }}" data-cta="nav">Create free account</a>{% endif %}
+  </div>
+</div>
+<div class="tabbar">
+  <div class="wrap">
+    {% if tabs == 'landing' %}
+    <a href="#main" class="on">Parents</a>
+    <a href="#switch">Switching platforms?</a>
+    <a href="#how">How it works</a>
+    <a href="#safety">Safety</a>
+    <a href="#dashboard">Your dashboard</a>
+    <a href="#fun">Worlds</a>
+    <a href="#faq">Questions</a>
+    {% else %}
+    <a href="/parent_signup_l">Parents</a>
+    <a href="/parent_signup_l#how">How it works</a>
+    <a href="/parent_signup_l#safety">Safety</a>
+    <a href="/parent_signup_l#faq">Questions</a>
+    {% endif %}
+    <a class="kids" href="/">Kids: play now &raquo;</a>
+  </div>
+</div>
+<div class="fam-notice">
+  <div class="wrap"><svg class="f-ic sm"><use href="#i-shield-check"/></svg>
+    <span>Parents: every new friend waits for <u>your</u> OK, and Safe Chat stops phone numbers, addresses and &ldquo;add me on&hellip;&rdquo; invites. Free for every family.</span>
+  </div>
+</div>

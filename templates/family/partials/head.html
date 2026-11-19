@@ -8,7 +8,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{ page_title }} | {{ brand }} for families</title>
-<meta name="theme-color" content="#f5f7fc">
+<meta name="theme-color" content="#14548e">
 {% if page_class.startswith('fam-landing') %}
 <meta name="description" content="{{ brand }} is a free blocky game world for kids, with a parent dashboard: you create their account, approve every new friend, set daily time limits and see who they talk to.">
 <meta property="og:title" content="Let them play. Know they're safe. | {{ brand }} for families">
@@ -19,6 +19,7 @@
 <meta name="robots" content="noindex, nofollow">
 {% endif %}
 <link rel="icon" href="{{ asset('/static/img/favicon.svg') }}" type="image/svg+xml">
+<link rel="stylesheet" href="{{ asset('/static/css/site.css') }}">
 <link rel="stylesheet" href="{{ asset('/static/css/family/family.css') }}">
 {% for sheet in extra_css %}<link rel="stylesheet" href="{{ asset(sheet) }}">
 {% endfor %}
