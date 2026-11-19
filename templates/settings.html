@@ -9,12 +9,24 @@
           <input type="hidden" name="action" value="profile">
           <div class="field"><label>About me</label>
             <textarea name="blurb" rows="4" maxlength="400">{{ user.blurb }}</textarea></div>
+          {% if not family_kid %}
           <div class="field"><label>Location</label>
             <input type="text" name="location" value="{{ user.location }}" maxlength="60"></div>
+          {% else %}
+          <small class="muted">Keep it fun: Safe Chat keeps phone numbers, emails and addresses out of your About Me.</small>
+          {% endif %}
           <button class="btn primary">Save profile</button>
         </form>
       </div>
     </div>
+    {% if family_kid %}
+    <div class="panel">
+      <div class="panel-head green">Your password</div>
+      <div class="panel-body">
+        <p style="margin:0">Your grown-up looks after your password. If you need a new one, ask them &mdash; they can change it in a few seconds.</p>
+      </div>
+    </div>
+    {% else %}
     <div class="panel">
       <div class="panel-head red">Change password</div>
       <div class="panel-body">
@@ -28,6 +40,7 @@
         </form>
       </div>
     </div>
+    {% endif %}
   </div>
   <div class="col-narrow">
     <div class="panel">

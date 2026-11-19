@@ -1,0 +1,111 @@
+{% include "family/partials/head.html" %}
+{# /parent-signup -- the one place a parent account can be made. #}
+<header class="ob-top ob-top-night">
+  <div class="f-wrap ob-top-in">
+    <a class="f-brand" href="/parent_signup_l"><img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}"><span class="f-brand-tag">For families</span></a>
+    <span class="ob-top-link">Have an account? <a href="/parent-signin">Sign in</a></span>
+  </div>
+</header>
+
+<main id="main" class="ob-main su-main">
+  <div class="su-night" aria-hidden="true"><i class="su-stars"></i><i class="su-aurora"></i></div>
+  <div class="f-wrap su-grid">
+    <aside class="su-panel">
+      <div class="su-scene">
+        <span class="su-moon"></span>
+        {% include "family/partials/haven.svg.html" %}
+      </div>
+      <div class="su-glass">
+        <h2>Three steps to a safer place to play</h2>
+        <ol class="ob-timeline">
+          <li class="now"><span class="ob-tl-dot">1</span><span><b>Your family account</b><small>Right now &middot; about a minute</small></span></li>
+          <li><span class="ob-tl-dot">2</span><span><b>Your child&rsquo;s account &mdash; together</b><small>Username, password, their look and your rules</small></span></li>
+          <li><span class="ob-tl-dot">3</span><span><b>Your dashboard</b><small>See what they play, who they talk to, and for how long</small></span></li>
+        </ol>
+        <ul class="ob-side-ticks">
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Free, with no credit card</li>
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Nothing costs real money</li>
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Up to {{ max_children }} kids, each with their own rules</li>
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Change or delete anything, any time</li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="ob-card f-card su-card" aria-labelledby="ob-title">
+      <div class="ob-progress" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+      <p class="ob-step-label">Step 1 of 3 &middot; You</p>
+      <h1 id="ob-title">Create your family account</h1>
+      <p class="ob-sub">This account is just for you &mdash; it&rsquo;s how you&rsquo;ll set up and look after your child&rsquo;s account.</p>
+
+      {% if error %}<div class="f-notice bad ob-error" role="alert"><svg class="f-ic sm"><use href="#i-alert"/></svg><span>{{ error }}</span></div>{% endif %}
+      <div class="f-notice bad ob-error f-hidden" id="ob-error" role="alert"><svg class="f-ic sm"><use href="#i-alert"/></svg><span></span></div>
+
+      <form method="post" action="/parent-signup" id="signup-form" novalidate>
+        <input type="hidden" name="timezone" id="tz" value="">
+        <input type="hidden" name="tz_offset" id="tz-offset" value="0">
+        {% for key in utm %}<input type="hidden" name="{{ key }}" value="{{ utm[key] }}">{% endfor %}
+
+        <div class="su-row">
+          <div class="f-field{{ ' is-bad' if field == 'display_name' else '' }}" data-field="display_name">
+            <label class="f-label" for="display_name">What should we call you?</label>
+            <input class="f-input" id="display_name" name="display_name" type="text" maxlength="40" autocomplete="given-name" placeholder="e.g. Sam" value="{{ values.get('display_name', '') }}" required>
+            <span class="f-fieldmsg"></span>
+          </div>
+          <div class="f-field" data-field="relation">
+            <span class="f-label">I&rsquo;m their&hellip;</span>
+            <div class="f-seg su-seg" role="radiogroup" aria-label="Relationship">
+              <label><input type="radio" name="relation" value="parent" {{ 'checked' if values.get('relation', 'parent') != 'guardian' else '' }}><span>Parent</span></label>
+              <label><input type="radio" name="relation" value="guardian" {{ 'checked' if values.get('relation') == 'guardian' else '' }}><span>Guardian</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="f-field{{ ' is-bad' if field == 'email' else '' }}" data-field="email">
+          <label class="f-label" for="email">Your email</label>
+          <input class="f-input" id="email" name="email" type="email" inputmode="email" maxlength="254" autocomplete="email" placeholder="you@example.com" value="{{ values.get('email', '') }}" required>
+          <span class="f-help">Only used for your family account. You can sign in with it too.</span>
+          <span class="f-fieldmsg"></span>
+        </div>
+
+        <div class="f-field{{ ' is-bad' if field == 'username' else '' }}" data-field="username">
+          <label class="f-label" for="username">Choose a username <span class="f-opt">for signing in</span></label>
+          <input class="f-input" id="username" name="username" type="text" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. TheParkerFamily" value="{{ values.get('username', '') }}" required>
+          <span class="f-help">Private to you &mdash; players never see it. Letters, numbers and underscores.</span>
+          <span class="f-fieldmsg" id="username-msg"></span>
+        </div>
+
+        <div class="f-field{{ ' is-bad' if field == 'password' else '' }}" data-field="password">
+          <label class="f-label" for="password">Create a password</label>
+          <div class="su-pass">
+            <div class="f-inputwrap">
+              <input class="f-input" id="password" name="password" type="password" minlength="{{ password_min }}" maxlength="128" autocomplete="new-password" placeholder="At least {{ password_min }} characters" required>
+              <button class="f-peek" type="button" data-peek="password" aria-label="Show password" aria-pressed="false"><svg class="f-ic sm"><use href="#i-eye"/></svg></button>
+            </div>
+            <span class="pw-shield" id="pw-shield" data-score="0" aria-hidden="true">
+              <svg viewBox="0 0 40 46">
+                <defs><clipPath id="pw-clip"><path d="M20 2.5 L36 8.5 V21 C36 32 29 39.5 20 43.5 C11 39.5 4 32 4 21 V8.5 Z"/></clipPath></defs>
+                <path class="pw-base" d="M20 2.5 L36 8.5 V21 C36 32 29 39.5 20 43.5 C11 39.5 4 32 4 21 V8.5 Z"/>
+                <g clip-path="url(#pw-clip)"><g class="pw-liquid"><path class="pw-wave" d="M-40 6 Q -30 0 -20 6 T 0 6 T 20 6 T 40 6 T 60 6 T 80 6 V60 H-40 Z"/></g></g>
+                <path class="pw-edge" d="M20 2.5 L36 8.5 V21 C36 32 29 39.5 20 43.5 C11 39.5 4 32 4 21 V8.5 Z"/>
+                <path class="pw-check" d="M12.5 23 L18 28.5 L28 17.5"/>
+              </svg>
+            </span>
+          </div>
+          <span class="f-strength" id="strength" data-score="0" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="f-fieldmsg" id="password-msg"></span>
+          <span class="f-help su-lock"><svg class="f-ic sm"><use href="#i-lock"/></svg> Stored encrypted &mdash; never in plain text.</span>
+        </div>
+
+        <div class="f-field{{ ' is-bad' if field == 'guardian' else '' }}" data-field="guardian">
+          <label class="f-check"><input type="checkbox" name="guardian" value="1" required>
+            <span>I&rsquo;m 18 or older, and I&rsquo;m the parent or legal guardian of the child (or children) I&rsquo;ll set up.</span></label>
+          <span class="f-fieldmsg"></span>
+        </div>
+
+        <button class="f-btn f-btn-primary f-btn-xl f-btn-block" type="submit" id="signup-btn">Create my family account <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
+        <p class="ob-fine"><svg class="f-ic sm"><use href="#i-heart"/></svg> Next, you&rsquo;ll set up your child&rsquo;s account &mdash; it&rsquo;s best done together.</p>
+      </form>
+    </section>
+  </div>
+</main>
+{% include "family/partials/foot.html" %}

@@ -55,6 +55,12 @@ def add_to_profile(profile_id: int, author_id: int, body: str) -> int:
         raise CommentError("Write something first.")
     if db.query_one("SELECT 1 FROM users WHERE id=?", (profile_id,)) is None:
         raise CommentError("No such profile.")
+    # A child's wall rule and Safe Chat (app/family/guard.py).
+    from ..family import guard as family_guard
+    try:
+        body = family_guard.filter_wall_comment(profile_id, author_id, body)
+    except family_guard.Refused as exc:
+        raise CommentError(str(exc))
     if not db.rate_limit("profcomment:%d" % author_id, 20, 300):
         raise CommentError("You are commenting too quickly.")
     cur = db.execute(

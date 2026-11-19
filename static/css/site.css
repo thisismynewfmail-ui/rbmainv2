@@ -2243,3 +2243,10 @@ table.bz-mod-table td, table.bz-mod-table th { font-size: 11px; vertical-align: 
   background: var(--panel-alt, rgba(127,127,127,.06)); }
 .ev-step b { display: block; font-size: 12px; margin-bottom: 2px; }
 .ev-step p { margin: 0; }
+
+/* The welcome page's link for parents (the family accounts, app/family). */
+.hero-parents {
+  display: inline-block; margin-top: 12px; font-size: 12px; font-weight: bold;
+  color: #fff6c9; text-decoration: none; border-bottom: 1px dashed rgba(255, 246, 201, .55);
+}
+.hero-parents:hover { color: #fff; border-bottom-color: #fff; }

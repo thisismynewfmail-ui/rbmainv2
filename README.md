@@ -14,6 +14,10 @@ library only)** and **vanilla JavaScript**. It has two halves:
 * **The Game View** — press **Load** on a world and you drop into a first- or
   third-person block shooter running in your browser, served from the same
   port on its own sub-page (`/blackout_relay`, `/last_light`).
+* **Family accounts.** A parent signs up from their own landing page and
+  creates up to four child accounts. They watch over them from a dashboard
+  (play time, friends, messages, Safe Chat alerts, spending) and set the
+  rules, which the servers enforce. See [Family accounts](#family-accounts).
 
 Around both runs an optional population of **synthetic players** — accounts
 with personas that log in on a daily curve, make friends, comment, answer
@@ -1558,6 +1562,179 @@ tiles still open the item preview when clicked.
   out of the live catalogue with the same 3D rig the profile and the game use,
   so a hat added to the catalogue can turn up on the front page the same day.
 
+## Family accounts
+
+Parents get an account of their own, and up to **four child accounts** that
+they create and watch over. The brand parents see is one setting
+(`BLOCKHAVEN_BRAND`, default `NoogBlock`).
+
+| Page | What it is |
+| --- | --- |
+| `/parent_signup_l` | The landing page for advertising (a Facebook ad, say). |
+| `/parent-signup` | Creating a parent account. This is the only way one is made. |
+| `/parent-signin`, `/parent-signout` | A parent's own sign-in. The ordinary `/login` also accepts a parent's details and sends them to the right place. |
+| `/parent_<name>` | The family page: every child at a glance, things waiting for an OK, the account. |
+| `/parent_<name>/setup` | Setting up a child's account, best done with the child sitting alongside. |
+| `/parent_<name>/child/<username>` | One child's dashboard. |
+
+Every `/parent_<name>` page belongs to that parent alone. Anybody else, signed
+in or not, is sent away from it, and none of the pages behind sign-in can be
+indexed by search engines.
+
+### Two kinds of account, one connection nobody can see
+
+A parent account is not a player. It lives in its own table
+(`family_parents`), signs in with its own cookie (`bh_family`) and its own
+sessions, cannot play, and has no profile. Parent and player usernames share
+one namespace, so nobody can take a parent's name as a player name, or a
+player's name as a parent name.
+
+A child account *is* an ordinary player, so everything on the site works for
+it. Alongside it sits one private row (`family_children`): who the parent
+is, the child's first name and birth year, and the rules. Nothing a stranger
+can reach mentions that row:
+
+* Child accounts are left out of every list a stranger browses: search, the
+  username type-ahead, newest players, who's online, the activity feed and the
+  world player lists. A child can still be found by their **exact** username,
+  so a friend from school who knows it can send a request.
+* When the rules stop something, the message never says the account is a
+  child's: a stranger messaging a child is told it couldn't be delivered, the
+  same words used for any other undeliverable message.
+* A child can make their profile more private than the parent's rules, never
+  less, and has no location line. Their About Me goes through Safe Chat.
+  Their first name, birth year and parent are only ever shown on the parent's
+  dashboard.
+* Bots never message, befriend or comment on a child account.
+
+The code keeps to the same separation: the server side is in `app/family/`,
+the pages in `templates/family/`, the styles in `static/css/family/` and the
+scripts in `static/js/family/`. The existing code calls into it at a handful
+of points, each one a no-op for anyone who isn't a child:
+
+| Module | Job |
+| --- | --- |
+| `app/family/store.py` | The tables. |
+| `app/family/accounts.py` | Parent accounts, their sessions, the family's time zone. |
+| `app/family/children.py` | Creating child accounts (four at most), their rules, approvals, pause, password, deletion; a 20-second cache so checks on everybody else cost one dictionary lookup. |
+| `app/family/controls.py` | The rules, their defaults by age and the parent's guide to each world. |
+| `app/family/guard.py` | Enforcement, called from messages, friends, profile comments, privacy, the market, world joins and the bots. |
+| `app/family/shield.py` | Safe Chat (below). No site imports, because the game hosts run it too. |
+| `app/family/activity.py` | Play time, metered from the game hosts' heartbeats; the warnings and the friendly kick. |
+| `app/family/insights.py` | What the dashboards show. |
+| `app/family/views.py` | The pages and `/api/family/*`. |
+
+### The rules
+
+The defaults depend on the child's age. They are a starting point, and the
+parent can change any of them during setup or later from the dashboard. A
+change applies straight away, even in the middle of a round.
+
+* **Play time.** One daily limit for school days and another for weekends, by
+  the family's own clock. Five minutes and one minute before the end the
+  child gets a warning in the game; at the end they are sent back to the
+  lobby with a friendly card. Play time is what the game hosts report from
+  inside a round, not time spent on the website.
+* **Quiet hours.** No games at bedtime: from the time the parent sets until
+  the morning.
+* **New friends.** *I approve each one* (the default) holds every friendship,
+  asked for or accepted, until the parent says yes on the dashboard. The
+  alternatives are *they choose* and *no new friends*.
+* **Private messages**: friends only (the default), off, or anyone. **In-game
+  chat**: Safe Chat, or off. **Profile comments** and **who sees them online**
+  can be set too.
+* **Worlds.** Each world has a short parent's guide and an intensity (gentle,
+  action, intense), and can be switched off one by one. Under 10s start with
+  the intense ones off.
+* **Spending and crates.** Noogets are play money, and nothing on the site
+  costs real money. Spending can still be switched off, and so can crates
+  (random rewards), which are off below 13.
+* **Pause** signs the child out everywhere, including any game they're in,
+  until the parent resumes the account.
+
+### Safe Chat
+
+`app/family/shield.py` checks every line that involves a child, in both
+directions: private messages, profile comments, the about-me box and in-game
+chat (where the host's own process runs it).
+
+| It does | With |
+| --- | --- |
+| **Blocks**, and tells the parent | phone numbers (also written in words), email addresses (also "name at gmail dot com"), home addresses, links, invites to other apps ("add me on snap", spelled out or in leetspeak), asking to meet up, asking to keep secrets, asking for photos, bullying |
+| **Flags**, delivers and tells the parent | words that can be a sign of distress; questions about age |
+| **Masks** | strong language |
+
+A few phrases are judged by where they are said. "Are you alone?" and "meet
+me at the flag" are everyday talk in a game round; "meet me at the park" is
+stopped in a private message.
+
+The child is told kindly why their line wasn't sent. The parent's alert
+quotes it with the details themselves blanked out ("my number is ••• text
+me"), so the dashboard shows what was tried without storing the number.
+It's a pattern filter, not a person, and the pages say so. That's also why
+parents can read their child's conversations.
+
+### The dashboards
+
+The **family page** shows each child's live status (playing which world, on
+the site, or offline), today's play time against the limit, the last seven
+days, friends, alerts and approvals waiting, with Pause and Open dashboard
+buttons. Below that sit everything waiting for an OK across the family, and
+the parent's own account settings. It refreshes itself every 15 seconds.
+
+**A child's dashboard**:
+
+* **Overview**: this week against the same point last week, the daily
+  average, days played, friends, messages, how often Safe Chat stepped in; the
+  last 14 days of play against each day's limit; the worlds they play; and a
+  day-by-hour heat map of when they play.
+* **Activity**: every game session (and whether a limit ended it), where they
+  are signed in now, recent sign-ins, *sign out everywhere*.
+* **Friends**: requests waiting for approval, friends (each with *remove*),
+  requests sent and received.
+* **Messages**: messages per day, every conversation (tap to read it), comments
+  on their profile and comments they wrote.
+* **Safety**: every alert, with the excerpt.
+* **Spending**: balance, spent and earned this week, the Noogets ledger,
+  crates opened, newest items.
+* **Achievements**: badges, rounds, wins and score.
+* **Rules**: the editor, which saves as you go.
+* **Account**: first name and birth year, a new password (children can't
+  change their own), *sign them in on this device*, and deletion.
+
+The charts follow the dataviz rules used across the dashboard. They are drawn
+at the size of their box, so their text stays 11px on any screen. Every
+column and cell has a tooltip for the mouse and the keyboard (on the heat map
+the arrow keys move between hours and days), and every chart has a table view.
+
+### The landing page, sign-up and setup
+
+The landing page is a twilight "haven" with stars, fireflies, an aurora and
+floating islands, a storm-versus-haven story, a dashboard demo, a working
+**Try Safe Chat** phone that runs the real filter
+(`/api/family/safechat-demo`), the four family slots, the worlds with a live
+3D character, and a FAQ.
+
+The copy only promises what the code does: no testimonials and no numbers that
+aren't real (there's a marked spot in the template for real quotes once there
+are some), and it says plainly that other players can talk in public game
+chat and that no filter is perfect.
+
+UTM parameters from the ad ride through to sign-up and are kept on the parent
+account. `BLOCKHAVEN_FB_PIXEL=<pixel id>` loads the Meta pixel, on the landing
+and sign-up pages only, with automatic event collection off; without the
+setting no tracking code is sent.
+
+Setup opens by asking the parent to fetch their child: *"For this section,
+you'll want your child. Talk to your child during setup for usernames, and
+help with account setup. You can also complete this later"*, and *later* is a
+button. It then walks through who the child is, a username (with suggestions,
+and gentle warnings about real names, birth years and long numbers), their
+character, a password the two of them can remember, the rules and a review.
+The child's world builds itself in the background as each step is done.
+
+---
+
 ## The admin dashboard
 
 `/admin-dashboard` has three tabs. **Overview** is the live numbers: worlds,
@@ -2023,6 +2200,7 @@ tools/mapcheck.py lastlight             # each Last Light area on its own, route
 tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
 tools/pettests.py                       # pets: shop rules, Edit Pet, the descriptor, Pet Zone care (no server)
+tools/familytests.py                    # family accounts: rules, Safe Chat, privacy, metering, pages (no server)
 node tools/pettests.js                  # the pet rig, the follower AI and the Pet Zone's acts, headless
 node tools/petsheet.js --scale          # render the pets to a contact sheet
 tools/bottests.py                       # bot unit tests, headless rounds, scale
@@ -2061,6 +2239,17 @@ unreliable, `--think separate|inline|forced|forced-inline|harmony` to make it
 behave like a reasoning model, `--strict` to make it refuse fields it does
 not know, and `--efforts low,medium,high` to make it refuse other efforts the
 way vLLM does.
+
+`familytests.py` needs no server either. Its groups prove the rules rather
+than assume them: Safe Chat against a list of lines it must stop and lines it
+must let through; parent accounts, sessions and the shared username space;
+friend approval in both directions; Safe Chat on messages and profile comments
+both ways; child accounts missing from every stranger-facing list but
+findable by exact username; daily limits, the warnings, the kick and quiet
+hours from simulated heartbeats; the market and crate switches; bots never
+reaching a child; in-game chat masking; the dashboard reports; and every
+family page and API over HTTP, including the CSRF check
+(`tools/familytests.py shield play` runs just those groups).
 
 `gametests.py` asserts exact outcomes in empty rounds — a flag captured, a
 cart pushed — so run it against a server started with `--no-bots` (or

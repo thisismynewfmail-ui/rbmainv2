@@ -52,6 +52,15 @@ def request(from_id: int, to_id: int) -> str:
         raise FriendError("You cannot befriend yourself. Try a hobby.")
     if db.query_one("SELECT 1 FROM users WHERE id=?", (to_id,)) is None:
         raise FriendError("No such player.")
+    # A child account's friend rule (app/family/guard.py): it may stop the
+    # request, or hold it for a parent's OK ("awaiting_parent").
+    from ..family import guard as family_guard
+    try:
+        held = family_guard.on_friend_request(from_id, to_id)
+    except family_guard.Refused as exc:
+        raise FriendError(str(exc))
+    if held:
+        return held
     if count_friends(from_id) >= MAX_FRIENDS:
         raise FriendError("Your friends list is full.")
     if not db.rate_limit("friendreq:%d" % from_id, 30, 3600):
@@ -65,15 +74,16 @@ def request(from_id: int, to_id: int) -> str:
         if existing["requester_id"] == from_id:
             return "pending_out"
         # They already asked us -- treat this as an accept.
-        accept(from_id, to_id)
-        return "friends"
+        return accept(from_id, to_id) or "friends"
     db.execute("INSERT INTO friendships(user_low,user_high,requester_id,status,"
                "created_at,updated_at) VALUES(?,?,?,'pending',?,?)",
                (low, high, from_id, now, now))
     return "pending_out"
 
 
-def accept(user_id: int, other_id: int) -> None:
+def accept(user_id: int, other_id: int) -> str:
+    """Accept ``other_id``'s request.  Returns "friends", or
+    "awaiting_parent" when a child's acceptance is waiting on their parent."""
     rel = relationship(user_id, other_id)
     if not rel or rel["status"] != "pending":
         raise FriendError("There is no pending request from that player.")
@@ -81,8 +91,16 @@ def accept(user_id: int, other_id: int) -> None:
         raise FriendError("You cannot accept your own request.")
     if count_friends(user_id) >= MAX_FRIENDS:
         raise FriendError("Your friends list is full.")
+    from ..family import guard as family_guard
+    try:
+        held = family_guard.on_friend_accept(user_id, other_id)
+    except family_guard.Refused as exc:
+        raise FriendError(str(exc))
+    if held:
+        return held
     db.execute("UPDATE friendships SET status='accepted', updated_at=?"
                " WHERE id=?", (_now(), rel["id"]))
+    return "friends"
 
 
 def decline(user_id: int, other_id: int) -> None:

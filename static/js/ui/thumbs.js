@@ -1976,6 +1976,9 @@
 
   Thumbs.paint = paint;
   Thumbs.rescan = observe;
+  // For pages that load the engine after the fact (the family pages) and so
+  // mount their previews themselves rather than on DOMContentLoaded.
+  Thumbs.LivePreview = LivePreview;
 
   /* Hand a hero stage a freshly rolled look.  The character itself dissolves
      and settles back in -- nothing else on the stage is touched -- and the

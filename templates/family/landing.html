@@ -1,0 +1,496 @@
+{% include "family/partials/head.html" %}
+{#
+  /parent_signup_l -- the parent landing page (made to be the destination of
+  an ad).  Everything it promises is something the family system actually
+  does; see app/family/.  It shows no testimonials and no "trusted by"
+  numbers on purpose: there are none yet that are real, and invented ones are
+  both unlawful in an ad and the fastest way to lose a careful parent.  Real,
+  attributable quotes can be added later in the marked spot.
+#}
+{% set engine_scripts = [asset('/static/js/engine/gl.js'), asset('/static/js/engine/geometry.js'), asset('/static/js/engine/shapes.js'), asset('/static/js/engine/textures.js'), asset('/static/js/engine/world_emblems.js'), asset('/static/js/engine/renderer.js'), asset('/static/js/engine/avatar.js'), asset('/static/js/engine/pet.js'), asset('/static/js/engine/zombies.js'), asset('/static/js/engine/particles.js'), asset('/static/js/ui/thumbs.js')] %}
+
+<header class="lp-nav" id="lp-nav">
+  <div class="f-wrap lp-nav-in">
+    <a class="f-brand" href="/parent_signup_l" aria-label="{{ brand }} for families">
+      <img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}">
+      <span class="f-brand-tag">For families</span>
+    </a>
+    <nav class="lp-links" aria-label="On this page">
+      <a href="#how">How it works</a>
+      <a href="#dashboard">Your dashboard</a>
+      <a href="#safety">Safety</a>
+      <a href="#faq">Questions</a>
+    </nav>
+    <div class="lp-nav-cta">
+      {% if parent %}
+      <a class="f-btn f-btn-sm f-btn-soft" href="{{ home }}">Your family dashboard</a>
+      {% else %}
+      <a class="lp-signin" href="/parent-signin">Sign in</a>
+      <a class="f-btn f-btn-sm f-btn-primary" href="{{ signup_href }}" data-cta="nav">Get started free</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============================================================ HERO -->
+<section class="lp-hero" id="hero">
+  <div class="lp-sky" aria-hidden="true">
+    <div class="lp-layer" data-depth="0.15"><canvas class="lp-stars" id="lp-stars"></canvas></div>
+    <div class="lp-layer lp-aurora-wrap" data-depth="0.3">
+      <svg class="lp-aurora" viewBox="0 0 1440 640" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="au-a" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#3ee8c4" stop-opacity="0"/>
+            <stop offset=".25" stop-color="#3ee8c4" stop-opacity=".55"/>
+            <stop offset=".55" stop-color="#5b8cff" stop-opacity=".6"/>
+            <stop offset=".8" stop-color="#b06bff" stop-opacity=".5"/>
+            <stop offset="1" stop-color="#ff7ab6" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="au-b" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#7a5af8" stop-opacity="0"/>
+            <stop offset=".35" stop-color="#7a5af8" stop-opacity=".45"/>
+            <stop offset=".7" stop-color="#3fb8f5" stop-opacity=".45"/>
+            <stop offset="1" stop-color="#3ee8c4" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="au au1" d="M-40 250 C 220 120 470 330 730 210 S 1180 110 1480 230 L1480 330 C 1190 230 960 420 720 310 S 240 260 -40 360 Z" fill="url(#au-a)"/>
+        <path class="au au2" d="M-40 140 C 260 60 520 230 820 140 S 1220 40 1480 120 L1480 180 C 1230 120 980 300 760 210 S 260 150 -40 210 Z" fill="url(#au-b)"/>
+      </svg>
+    </div>
+    <div class="lp-layer" data-depth="0.35"><span class="lp-moon"><i></i><i></i><i></i></span></div>
+    <div class="lp-layer lp-islets" data-depth="0.55">
+      <span class="islet-wrap w1">{% include "family/partials/islet.svg.html" %}</span>
+      <span class="islet-wrap w2">{% include "family/partials/islet.svg.html" %}</span>
+      <span class="islet-wrap w3">{% include "family/partials/islet.svg.html" %}</span>
+    </div>
+  </div>
+
+  <div class="f-wrap lp-hero-grid">
+    <div class="lp-hero-copy">
+      <span class="lp-eyebrow"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> Made for parents &middot; Free for every family</span>
+      <h1>Let them play.<br><span class="lp-grad">Know they&rsquo;re safe.</span></h1>
+      <p class="lp-lede">{{ brand }} is a blocky game world kids love &mdash; with a parent dashboard that puts <em>you</em> in charge. You create their account, approve every new friend, and see who they talk to and how long they play.</p>
+      <div class="lp-cta-row" id="hero-cta">
+        <a class="f-btn f-btn-sun f-btn-xl" href="{{ signup_href }}" data-cta="hero">Create my free family account <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></a>
+        <a class="lp-watch" href="#story"><span class="lp-watch-ic"><svg class="f-ic sm"><use href="#i-play"/></svg></span> See how it keeps them safe</a>
+      </div>
+      <ul class="lp-assure">
+        <li><svg class="f-ic sm"><use href="#i-check"/></svg> Free &mdash; no credit card</li>
+        <li><svg class="f-ic sm"><use href="#i-check"/></svg> Ready in about 2 minutes</li>
+        <li><svg class="f-ic sm"><use href="#i-check"/></svg> Up to {{ max_children }} kids</li>
+      </ul>
+    </div>
+
+    <div class="lp-hero-art lp-layer" data-depth="-0.4" aria-label="An illustration: a glowing block island where kids play, under a protective dome that stops unwanted messages">
+      <canvas class="lp-flies" id="lp-flies" aria-hidden="true"></canvas>
+      <div class="lp-haven">{% include "family/partials/haven.svg.html" %}</div>
+      <div class="lp-notes" id="lp-notes" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div class="f-wrap lp-trust-wrap">
+    <ul class="lp-trust">
+      <li><span class="lp-trust-ic blue"><svg class="f-ic"><use href="#i-user-check"/></svg></span><span><b>Friend approval</b><small>New friends wait for your OK</small></span></li>
+      <li><span class="lp-trust-ic mint"><svg class="f-ic"><use href="#i-chat-shield"/></svg></span><span><b>Safe Chat</b><small>Personal details stay private</small></span></li>
+      <li><span class="lp-trust-ic sun"><svg class="f-ic"><use href="#i-clock"/></svg></span><span><b>Time limits</b><small>School days &amp; weekends</small></span></li>
+      <li><span class="lp-trust-ic grape"><svg class="f-ic"><use href="#i-chart"/></svg></span><span><b>Live dashboard</b><small>See it all, anytime</small></span></li>
+    </ul>
+  </div>
+  <div class="lp-cloudsea" aria-hidden="true"><i class="l1"></i><i class="l2"></i><i class="l3"></i></div>
+</section>
+
+<!-- ======================================================= THE STORY -->
+<section class="lp-sec lp-story" id="story">
+  <div class="f-wrap">
+    <div class="lp-head f-reveal">
+      <p class="lp-kicker">Why parents choose {{ brand }}</p>
+      <h2>Out there, anyone can <span class="f-nw">reach them.</span><br><span class="lp-hl">In here, you hold <span class="f-nw">the keys.</span></span></h2>
+    </div>
+    <div class="lp-versus">
+      <article class="lp-vs storm f-reveal">
+        <header class="lp-vs-head"><span class="lp-tag bad"><svg class="f-ic sm"><use href="#i-alert"/></svg> Many open platforms</span><h3>Strangers get straight through</h3></header>
+        <div class="lp-vs-stage" aria-hidden="true">
+          <span class="vs-rain"></span><span class="vs-flash"></span>
+          <span class="vs-kid"><i class="h"></i><i class="b"></i></span>
+          <span class="vs-msg m1">hey how old r u?</span>
+          <span class="vs-msg m2">add me on my other app</span>
+          <span class="vs-msg m3">what school do u go to?</span>
+          <span class="vs-msg m4">don&rsquo;t tell ur mom ok?</span>
+        </div>
+        <ul class="lp-vs-list">
+          <li><svg class="f-ic sm"><use href="#i-x"/></svg> Anyone can send a friend request or a private message</li>
+          <li><svg class="f-ic sm"><use href="#i-x"/></svg> Chats you can&rsquo;t see &mdash; and invites to other apps</li>
+          <li><svg class="f-ic sm"><use href="#i-x"/></svg> One more round turns into ten, and bedtime slips by</li>
+        </ul>
+      </article>
+      <span class="lp-vs-or" aria-hidden="true">vs</span>
+      <article class="lp-vs haven f-reveal" style="--d:.12s">
+        <header class="lp-vs-head"><span class="lp-tag good"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> {{ brand }}</span><h3>You&rsquo;re part of every friendship</h3></header>
+        <div class="lp-vs-stage" aria-hidden="true">
+          <span class="vs-sun"></span>
+          <span class="vs-dome"></span>
+          <span class="vs-kid"><i class="h"></i><i class="b"></i></span>
+          <span class="vs-msg m1">hey how old r u?</span>
+          <span class="vs-msg m2">add me on my other app</span>
+          <span class="vs-msg m3">what school do u go to?</span>
+          <span class="vs-msg ok">gg! wanna team up? &#128578;</span>
+          <span class="vs-ripple r1"></span><span class="vs-ripple r2"></span><span class="vs-ripple r3"></span>
+          <span class="vs-approve"><svg class="f-ic sm"><use href="#i-user-check"/></svg> You approved Leo</span>
+        </div>
+        <ul class="lp-vs-list">
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> New friends wait for your OK &mdash; then they can chat</li>
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Safe Chat stops personal details and outside invites, both ways</li>
+          <li><svg class="f-ic sm"><use href="#i-check"/></svg> Daily limits and quiet hours, then a friendly goodbye</li>
+        </ul>
+      </article>
+    </div>
+    <div class="lp-turn f-reveal">
+      <span class="lp-turn-mark"><svg class="f-ic lg"><use href="#i-shield-check"/></svg></span>
+      <p><b>Every family that joins means one more kid playing somewhere safer.</b> Your child&rsquo;s account starts with you &mdash; and stays connected to your dashboard, so you&rsquo;re part of every new friendship, every rule and every bedtime.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== HOW IT WORKS -->
+<section class="lp-sec lp-how" id="how">
+  <div class="f-wrap">
+    <div class="lp-head f-reveal">
+      <p class="lp-kicker">How it works</p>
+      <h2>Three simple steps to a safer place to play</h2>
+    </div>
+    <ol class="lp-steps">
+      <li class="lp-step f-reveal" style="--d:.05s">
+        <div class="lp-step-art art-1" aria-hidden="true">
+          <div class="mini-form">
+            <span class="mf-row"><i style="width:44%"></i></span>
+            <span class="mf-row"><i style="width:68%"></i></span>
+            <span class="mf-row"><i style="width:56%"></i></span>
+            <span class="mf-btn">Create</span>
+          </div>
+        </div>
+        <span class="lp-step-n">1</span>
+        <h3>Create your family account</h3>
+        <p>Your name, your email and a password. No details about your child yet &mdash; it takes about a minute.</p>
+      </li>
+      <li class="lp-step f-reveal" style="--d:.15s">
+        <div class="lp-step-art art-2" aria-hidden="true">
+          <span class="duo d-parent"><i class="h"></i><i class="b"></i></span>
+          <span class="duo d-kid"><i class="h"></i><i class="b"></i></span>
+          <span class="duo-heart"><svg class="f-ic fill"><use href="#i-heart"/></svg></span>
+        </div>
+        <span class="lp-step-n">2</span>
+        <h3>Set up their account &mdash; together</h3>
+        <p>Grab your child: you&rsquo;ll pick a username and a password side by side, let them design their character, then choose the rules. Up to {{ max_children }} kids.</p>
+      </li>
+      <li class="lp-step f-reveal" style="--d:.25s">
+        <div class="lp-step-art art-3" aria-hidden="true">
+          <div class="mini-dash">
+            <span class="md-ring"></span>
+            <span class="md-bars"><i style="--h:40%"></i><i style="--h:70%"></i><i style="--h:55%"></i><i style="--h:85%"></i><i style="--h:45%"></i></span>
+          </div>
+        </div>
+        <span class="lp-step-n">3</span>
+        <h3>Relax &mdash; and check in anytime</h3>
+        <p>Your dashboard shows what they&rsquo;re playing, who they&rsquo;re talking to, and how long &mdash; on your phone or your computer.</p>
+      </li>
+    </ol>
+    <div class="lp-mid-cta f-reveal">
+      <a class="f-btn f-btn-primary f-btn-lg" href="{{ signup_href }}" data-cta="how">Start step 1 &mdash; it&rsquo;s free <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================= DASHBOARD -->
+<section class="lp-sec lp-dash" id="dashboard">
+  <div class="f-wrap lp-dash-grid">
+    <div class="lp-dash-copy f-reveal">
+      <p class="lp-kicker">Your parent dashboard</p>
+      <h2>See everything.<br>Change anything <span class="f-nw">in a tap.</span></h2>
+      <ul class="lp-ticks">
+        <li><svg class="f-ic"><use href="#i-pulse"/></svg><span><b>Live status</b> &mdash; online, offline, or which world they&rsquo;re in right now.</span></li>
+        <li><svg class="f-ic"><use href="#i-chart"/></svg><span><b>Play time by day, week and hour</b> &mdash; and which worlds it goes to.</span></li>
+        <li><svg class="f-ic"><use href="#i-message"/></svg><span><b>Every friend and every message</b> &mdash; read their conversations whenever you like.</span></li>
+        <li><svg class="f-ic"><use href="#i-bell"/></svg><span><b>Alerts that matter</b> &mdash; when Safe Chat steps in, or a friend is waiting for your OK.</span></li>
+        <li><svg class="f-ic"><use href="#i-sliders"/></svg><span><b>Every rule in one place</b> &mdash; limits, bedtime, worlds, chat and spending.</span></li>
+      </ul>
+    </div>
+
+    <div class="lp-device f-reveal" id="demo" aria-label="A preview of the parent dashboard">
+      <div class="lp-device-bar"><i></i><i></i><i></i><span>{{ brand }} &middot; Family dashboard</span></div>
+      <div class="lp-demo">
+        <div class="lp-demo-kid">
+          <span class="lp-demo-face"><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></span>
+          <span class="lp-demo-who"><b>Mia</b><small><span class="f-dot live"></span> Playing Sky Sprint</small></span>
+        </div>
+        <div class="lp-demo-today">
+          <span class="lp-demo-label">Played today</span>
+          <span class="lp-demo-big"><b data-demo-count="42">0</b> min <small>of 60</small></span>
+          <span class="lp-demo-meter"><i></i></span>
+        </div>
+        <div class="lp-demo-week">
+          <span class="lp-demo-label">This week</span>
+          <div class="lp-demo-bars">
+            <i style="--h:46%" data-d="Mon"></i><i style="--h:72%" data-d="Tue"></i><i style="--h:38%" data-d="Wed"></i><i style="--h:64%" data-d="Thu"></i><i style="--h:58%" data-d="Fri"></i><i style="--h:92%" data-d="Sat"></i><i style="--h:70%" class="today" data-d="Sun"></i>
+          </div>
+        </div>
+        <div class="lp-demo-feed">
+          <div class="lp-demo-item ask">
+            <span class="lp-note-ic good"><svg class="f-ic sm"><use href="#i-user-plus"/></svg></span>
+            <span class="lp-demo-text"><b>Leo wants to be friends</b><small>Waiting for your OK</small></span>
+            <span class="lp-demo-actions"><span class="lp-demo-yes">Approve</span><span class="lp-demo-no">Decline</span><span class="lp-demo-done"><svg class="f-ic sm"><use href="#i-check"/></svg> Approved</span></span>
+          </div>
+          <div class="lp-demo-item">
+            <span class="lp-note-ic blue"><svg class="f-ic sm"><use href="#i-shield-check"/></svg></span>
+            <span class="lp-demo-text"><b>Safe Chat blocked a phone number</b><small>In a message to Mia &middot; she never saw it</small></span>
+          </div>
+          <div class="lp-demo-item">
+            <span class="lp-note-ic grape"><svg class="f-ic sm"><use href="#i-moon"/></svg></span>
+            <span class="lp-demo-text"><b>Quiet hours 8:00 pm &ndash; 7:00 am</b><small>Games rest overnight</small></span>
+          </div>
+        </div>
+      </div>
+      <p class="lp-device-cap">An example of what you&rsquo;ll see. Your dashboard fills in as your child plays.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================== SAFETY -->
+<section class="lp-sec lp-safety" id="safety">
+  <div class="f-wrap">
+    <div class="lp-head f-reveal">
+      <p class="lp-kicker">Safety, built in</p>
+      <h2>Every protection is on from day one.<br><span class="lp-soft">You decide how much to loosen as they grow.</span></h2>
+    </div>
+    <div class="lp-feat-grid">
+      <article class="lp-feat f-reveal" style="--d:.0s"><span class="lp-feat-ic blue"><svg class="f-ic lg"><use href="#i-user-check"/></svg></span><h3>Friend approval</h3><p>New friends wait for your OK on your dashboard. Nobody joins their list without you.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.06s"><span class="lp-feat-ic mint"><svg class="f-ic lg"><use href="#i-chat-shield"/></svg></span><h3>Safe Chat, both ways</h3><p>Phone numbers, emails, home addresses, links and &ldquo;add me on&hellip;&rdquo; invites are stopped before they&rsquo;re seen &mdash; in messages, comments and game chat.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.12s"><span class="lp-feat-ic sky"><svg class="f-ic lg"><use href="#i-message"/></svg></span><h3>Read every message</h3><p>Private messages are friends-only by default, and you can read their conversations any time.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.18s"><span class="lp-feat-ic sun"><svg class="f-ic lg"><use href="#i-clock"/></svg></span><h3>Time limits &amp; quiet hours</h3><p>Separate school-day and weekend limits, a five-minute heads-up, then a friendly goodbye. No games at bedtime.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.24s"><span class="lp-feat-ic grape"><svg class="f-ic lg"><use href="#i-globe"/></svg></span><h3>Choose their worlds</h3><p>Every world comes with a parent&rsquo;s guide and an intensity rating. Switch off anything that isn&rsquo;t right yet.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.30s"><span class="lp-feat-ic coral"><svg class="f-ic lg"><use href="#i-coin"/></svg></span><h3>No real money</h3><p>Nothing on {{ brand }} costs real money. You choose whether they can spend their play money &mdash; or open surprise crates.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.36s"><span class="lp-feat-ic ink"><svg class="f-ic lg"><use href="#i-eye-off"/></svg></span><h3>Hard for strangers to find</h3><p>Child accounts never show up in &ldquo;new players&rdquo; or &ldquo;who&rsquo;s online&rdquo; lists. Friends find them only by their exact username.</p></article>
+      <article class="lp-feat f-reveal" style="--d:.42s"><span class="lp-feat-ic rose"><svg class="f-ic lg"><use href="#i-pause"/></svg></span><h3>Pause in one tap</h3><p>Pause their account and they&rsquo;re signed out everywhere, mid-game included. Resume whenever you&rsquo;re ready.</p></article>
+    </div>
+    <p class="lp-honest f-reveal"><svg class="f-ic sm"><use href="#i-info"/></svg> No filter is perfect. Safe Chat catches the common ways personal details get shared &mdash; even spelled-out numbers &mdash; and your dashboard lets you read conversations yourself.</p>
+  </div>
+</section>
+
+<!-- ===================================================== TRY SAFE CHAT -->
+<section class="lp-sec lp-try" id="try">
+  <div class="lp-try-glow" aria-hidden="true"></div>
+  <div class="f-wrap lp-try-grid">
+    <div class="lp-try-copy f-reveal">
+      <p class="lp-kicker light">Try it yourself</p>
+      <h2>Be the stranger.<br>See what gets through.</h2>
+      <p>This is the real Safe Chat filter &mdash; the same one that checks every message, profile comment and game-chat line on a child&rsquo;s account. Tap an example or type your own.</p>
+      <div class="lp-try-chips" id="try-chips">
+        <button type="button" class="lp-try-chip good" data-try="nice build! wanna team up?">nice build! wanna team up?</button>
+        <button type="button" class="lp-try-chip" data-try="add me on my other app">add me on my other app</button>
+        <button type="button" class="lp-try-chip" data-try="my number is 555 012 3344">my number is 555 012 3344</button>
+        <button type="button" class="lp-try-chip" data-try="what school do u go to?">what school do u go to?</button>
+        <button type="button" class="lp-try-chip" data-try="send me a pic">send me a pic</button>
+        <button type="button" class="lp-try-chip" data-try="five five five, one two three four">five five five, one two three four</button>
+      </div>
+      <p class="lp-try-note"><svg class="f-ic sm"><use href="#i-info"/></svg> Nothing you type here is saved or sent to anyone.</p>
+    </div>
+    <div class="lp-phone f-reveal" style="--d:.1s">
+      <div class="lp-phone-notch"></div>
+      <div class="lp-phone-head">
+        <span class="lp-phone-ava"><i></i></span>
+        <span><b>Mia&rsquo;s messages</b><small><svg class="f-ic sm"><use href="#i-shield-check"/></svg> Protected by Safe Chat</small></span>
+      </div>
+      <div class="lp-phone-thread" id="try-thread">
+        <div class="lp-bubble them"><b>Leo</b>gg that was so fun</div>
+        <div class="lp-bubble me">same!! rematch tomorrow?</div>
+      </div>
+      <div class="lp-shieldline" id="try-shield" aria-hidden="true"><span><svg class="f-ic sm"><use href="#i-shield-check"/></svg> Safe Chat</span></div>
+      <form class="lp-phone-input" id="try-form" autocomplete="off">
+        <label class="f-sr" for="try-text">Type a message as a stranger</label>
+        <input id="try-text" type="text" maxlength="160" placeholder="Type as a stranger&hellip;">
+        <button type="submit" aria-label="Send"><svg class="f-ic sm"><use href="#i-arrow"/></svg></button>
+      </form>
+      <div class="lp-alert-card" id="try-alert" aria-live="polite">
+        <span class="lp-note-ic blue"><svg class="f-ic sm"><use href="#i-bell"/></svg></span>
+        <span><b>Parent alert</b><small id="try-alert-text">Safe Chat blocked something sent to Mia.</small></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================== FAMILY -->
+<section class="lp-sec lp-family">
+  <div class="f-wrap lp-family-grid">
+    <div class="lp-family-art f-reveal" aria-hidden="true">
+      <div class="lp-slot s1"><span class="lp-slot-face" style="--c:#2b67f6"></span><b>Mia, 9</b><small>60 min a day</small></div>
+      <div class="lp-slot s2"><span class="lp-slot-face" style="--c:#ff5b4d"></span><b>Leo, 12</b><small>90 min a day</small></div>
+      <div class="lp-slot s3"><span class="lp-slot-face" style="--c:#18b06f"></span><b>Ava, 7</b><small>45 min a day</small></div>
+      <div class="lp-slot s4 add"><span class="lp-slot-plus"><svg class="f-ic lg"><use href="#i-plus"/></svg></span><b>Add a child</b><small>Up to {{ max_children }}</small></div>
+    </div>
+    <div class="lp-family-copy f-reveal">
+      <p class="lp-kicker">The whole crew</p>
+      <h2>One dashboard.<br>Up to {{ max_children }} kids.</h2>
+      <p>Every child gets their own account, their own rules and their own page on your dashboard &mdash; because a 7-year-old and a 12-year-old need different things. We suggest starting rules from their age, and you can change any of them whenever you like.</p>
+      <a class="f-btn f-btn-soft f-btn-lg" href="{{ signup_href }}" data-cta="family">Set up my family <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FUN -->
+<section class="lp-sec lp-fun" id="fun">
+  <div class="f-wrap">
+    <div class="lp-head f-reveal">
+      <p class="lp-kicker">The part they&rsquo;ll love</p>
+      <h2>A world that&rsquo;s fun <span class="f-nw">for them &mdash;</span><br>and makes sense <span class="f-nw">to you.</span></h2>
+    </div>
+    <div class="lp-fun-grid">
+      <div class="lp-stage-card f-reveal">
+        <div class="lp-stage" id="lp-stage" data-engine="{{ to_json(engine_scripts) }}">
+          <div class="lp-stage-poster" aria-hidden="true">
+            <span class="poster-kid"><i class="h"></i><i class="t"></i><i class="l"></i></span>
+          </div>
+          <span class="lp-stage-hint">drag to spin</span>
+        </div>
+        <div class="lp-stage-cap">
+          <b>A character that&rsquo;s all theirs</b>
+          <span id="lp-look">Hats, faces, outfits and pets to mix and match &mdash; this one changes every few seconds.</span>
+        </div>
+      </div>
+      <div class="lp-worlds f-reveal" style="--d:.1s">
+        <h3 class="lp-worlds-title">Worlds to explore <span class="f-chip blue">{{ len(worlds) }} and counting</span></h3>
+        <ul class="lp-world-list">
+          {% for w in worlds %}
+          <li class="lp-world">
+            <span class="lp-world-swatch" style="--a:{{ w.colors[0] }};--b:{{ w.colors[1] if len(w.colors) > 1 else w.colors[0] }}">
+              <canvas class="world-shot" width="192" height="128" data-world="{{ w.thumb }}" data-world-script="{{ w.thumb_script }}" data-colors="{{ to_json(w.colors) }}" data-name="{{ w.name }}"></canvas>
+            </span>
+            <span class="lp-world-text"><b>{{ w.name }}</b><small>{{ w.kind }}</small></span>
+            <span class="f-chip {{ 'good' if w.intensity == 'gentle' else ('grape' if w.intensity == 'intense' else 'blue') }}">{{ w.intensity_label }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="lp-worlds-note"><svg class="f-ic sm"><use href="#i-info"/></svg> Every world has a short parent&rsquo;s guide on your dashboard, and you can switch any of them off.</p>
+      </div>
+    </div>
+    <ul class="lp-perks f-reveal">
+      <li><svg class="f-ic"><use href="#i-coin"/></svg> 2,000 Noogets of play money to start</li>
+      <li><svg class="f-ic"><use href="#i-heart"/></svg> Pets to adopt and look after</li>
+      <li><svg class="f-ic"><use href="#i-trophy"/></svg> Badges to earn in every world</li>
+      <li><svg class="f-ic"><use href="#i-monitor"/></svg> Plays in the browser &mdash; nothing to install</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ======================================================== PROMISE -->
+<section class="lp-sec lp-promise">
+  <div class="f-wrap">
+    <div class="lp-promise-card f-reveal">
+      <div class="lp-promise-head">
+        <span class="lp-promise-seal"><svg class="f-ic xl"><use href="#i-shield-check"/></svg></span>
+        <div>
+          <p class="lp-kicker light">Our promise to parents</p>
+          <h2>Straight answers, and you in control.</h2>
+        </div>
+      </div>
+      <ul class="lp-promise-list">
+        <li><svg class="f-ic"><use href="#i-coin"/></svg><span><b>No real-money purchases.</b> Nothing here costs real money, and there are no payment details to hand over.</span></li>
+        <li><svg class="f-ic"><use href="#i-lock"/></svg><span><b>Their details stay with you.</b> Your child&rsquo;s first name and birth year are only for your dashboard &mdash; never shown to anyone else, and nothing links their profile to yours.</span></li>
+        <li><svg class="f-ic"><use href="#i-sliders"/></svg><span><b>You&rsquo;re always in charge.</b> Change any rule, pause their account or delete it for good &mdash; any time, in a tap.</span></li>
+        <li><svg class="f-ic"><use href="#i-eye"/></svg><span><b>Honest about filters.</b> Safe Chat is strong, not magic &mdash; so we show you the conversations too.</span></li>
+      </ul>
+      {# Real, attributable parent quotes go here once there are some -- never
+         invented ones. #}
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FAQ -->
+<section class="lp-sec lp-faq" id="faq">
+  <div class="f-wrap lp-faq-wrap">
+    <div class="lp-head f-reveal">
+      <p class="lp-kicker">Questions parents ask</p>
+      <h2>Good questions. Straight answers.</h2>
+    </div>
+    <div class="lp-faq-list f-reveal">
+      <details class="lp-q" open>
+        <summary>Is it really free?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>Yes. Your family account and your children&rsquo;s accounts cost nothing, and nothing on {{ brand }} can be bought with real money &mdash; Noogets are play money. There&rsquo;s no credit card to enter, ever asked for.</p></div>
+      </details>
+      <details class="lp-q">
+        <summary>Can strangers talk to my child?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>Only in the ways you allow. New friends wait for your approval, private messages are friends-only by default, and Safe Chat stops personal details and &ldquo;add me on&hellip;&rdquo; invites in both directions. In a game round, other players can see what your child types in the round&rsquo;s chat &mdash; filtered by Safe Chat &mdash; and you can switch in-game chat off completely.</p></div>
+      </details>
+      <details class="lp-q">
+        <summary>What will I see on my dashboard?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>What they&rsquo;re doing right now, play time by day and by hour, each game session, the worlds they play most, their friends and friend requests, their private messages and profile comments, anything Safe Chat stepped in on, their play-money balance and purchases, and the badges they&rsquo;ve earned.</p></div>
+      </details>
+      <details class="lp-q">
+        <summary>Do I need my child there to set it up?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>For the second step, it&rsquo;s best if they are. You&rsquo;ll choose their username and a password they&rsquo;ll remember together, and they get to design their character. If they&rsquo;re not around, create your account now and finish later &mdash; it&rsquo;ll be waiting on your dashboard.</p></div>
+      </details>
+      <details class="lp-q">
+        <summary>How old should my child be?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>{{ brand }} is made for school-age kids, and you decide when yours is ready. Tell us their birth year and we&rsquo;ll suggest age-appropriate starting rules &mdash; shorter limits, an earlier bedtime and gentler worlds for younger children &mdash; which you can adjust any time.</p></div>
+      </details>
+      <details class="lp-q">
+        <summary>What devices does it work on?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>The site and your dashboard work on phones, tablets and computers. The games themselves run in the browser on a computer with a keyboard and mouse &mdash; there&rsquo;s nothing to download or install.</p></div>
+      </details>
+      <details class="lp-q">
+        <summary>Can I change the rules, or delete the account later?<svg class="f-ic"><use href="#i-plus"/></svg></summary>
+        <div class="lp-a"><p>Any time. Every rule changes in a tap, pausing an account signs your child out everywhere at once, and you can delete a child&rsquo;s account &mdash; or your whole family account &mdash; for good.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================= FINAL CTA -->
+<section class="lp-final" id="start">
+  <div class="lp-final-sky" aria-hidden="true">
+    <i class="lp-final-stars"></i><i class="lp-final-stars s2"></i>
+    <i class="lp-final-aurora"></i><i class="lp-final-aurora a2"></i>
+    <i class="lp-final-moon"></i>
+    <span class="lp-final-isle i1">{% include "family/partials/islet.svg.html" %}</span>
+    <span class="lp-final-isle i2">{% include "family/partials/islet.svg.html" %}</span>
+    <span class="lp-final-isle i3">{% include "family/partials/islet.svg.html" %}</span>
+    <span class="lp-final-isle i4">{% include "family/partials/islet.svg.html" %}</span>
+    <i class="lp-final-fly f1"></i><i class="lp-final-fly f2"></i><i class="lp-final-fly f3"></i>
+    <i class="lp-final-fly f4"></i><i class="lp-final-fly f5"></i><i class="lp-final-fly f6"></i>
+    <i class="lp-final-horizon"></i>
+  </div>
+  <div class="f-wrap lp-final-in f-reveal">
+    <span class="lp-final-badge"><i></i><i></i><svg class="f-ic lg"><use href="#i-shield-check"/></svg></span>
+    <h2>Give them a place <span class="f-nw">to play.</span><br>Give yourself <span class="f-nw">peace of mind.</span></h2>
+    <p>It takes about two minutes. Your child&rsquo;s adventure starts with you.</p>
+    <form class="lp-final-form" action="/parent-signup" method="get" data-cta-form="final">
+      {% for key in utm %}<input type="hidden" name="{{ key }}" value="{{ utm[key] }}">{% endfor %}
+      <label class="f-sr" for="final-email">Your email</label>
+      <input class="f-input" id="final-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="Your email address">
+      <button class="f-btn f-btn-sun f-btn-lg" type="submit">Get started free <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
+    </form>
+    <ul class="lp-assure center">
+      <li><svg class="f-ic sm"><use href="#i-check"/></svg> No credit card</li>
+      <li><svg class="f-ic sm"><use href="#i-check"/></svg> No real-money purchases</li>
+      <li><svg class="f-ic sm"><use href="#i-check"/></svg> Up to {{ max_children }} kids</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<footer class="lp-foot">
+  <div class="f-wrap lp-foot-in">
+    <a class="f-brand" href="/parent_signup_l"><img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}"></a>
+    <nav aria-label="Footer">
+      <a href="/parent-signin">Parent sign in</a>
+      <a href="{{ signup_href }}">Create a family account</a>
+      <a href="/">The kids&rsquo; site</a>
+    </nav>
+    <p class="f-muted f-tiny">&copy; {{ year }} {{ brand }}. A safe place to play.</p>
+  </div>
+</footer>
+
+<div class="lp-sticky" id="lp-sticky" aria-hidden="true">
+  <a class="f-btn f-btn-primary f-btn-lg f-btn-block" href="{{ signup_href }}" data-cta="sticky" tabindex="-1">Create my free family account <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></a>
+</div>
+{% include "family/partials/foot.html" %}

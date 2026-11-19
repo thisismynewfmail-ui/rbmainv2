@@ -1,0 +1,35 @@
+{% include "family/partials/head.html" %}
+<header class="ob-top ob-top-night">
+  <div class="f-wrap ob-top-in">
+    <a class="f-brand" href="/parent_signup_l"><img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}"><span class="f-brand-tag">For families</span></a>
+    <span class="ob-top-link">New here? <a href="/parent-signup">Create a family account</a></span>
+  </div>
+</header>
+
+<main id="main" class="ob-main ob-center su-main">
+  <div class="su-night" aria-hidden="true"><i class="su-stars"></i><i class="su-aurora"></i></div>
+  <section class="ob-card f-card ob-narrow" aria-labelledby="si-title">
+    <span class="ob-signin-seal"><svg class="f-ic xl"><use href="#i-shield-check"/></svg></span>
+    <h1 id="si-title">Welcome back</h1>
+    <p class="ob-sub">Sign in to your family dashboard.</p>
+    {% if flash %}<div class="f-notice {{ 'bad' if flash.kind == 'bad' else 'good' }}" role="status"><span>{{ flash.text }}</span></div>{% endif %}
+    {% if error %}<div class="f-notice bad ob-error" role="alert"><svg class="f-ic sm"><use href="#i-alert"/></svg><span>{{ error }}</span></div>{% endif %}
+    <form method="post" action="/parent-signin">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <div class="f-field">
+        <label class="f-label" for="login">Username or email</label>
+        <input class="f-input" id="login" name="login" type="text" maxlength="254" autocomplete="username" autocapitalize="off" spellcheck="false" value="{{ login }}" required autofocus>
+      </div>
+      <div class="f-field">
+        <label class="f-label" for="password">Password</label>
+        <div class="f-inputwrap">
+          <input class="f-input" id="password" name="password" type="password" autocomplete="current-password" required>
+          <button class="f-peek" type="button" data-peek="password" aria-label="Show password" aria-pressed="false"><svg class="f-ic sm"><use href="#i-eye"/></svg></button>
+        </div>
+      </div>
+      <button class="f-btn f-btn-primary f-btn-lg f-btn-block" type="submit">Sign in <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></button>
+    </form>
+    <p class="ob-fine center">Is your child signing in to play? <a href="/login">Player sign in &rarr;</a></p>
+  </section>
+</main>
+{% include "family/partials/foot.html" %}

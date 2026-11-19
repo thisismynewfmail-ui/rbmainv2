@@ -1,0 +1,181 @@
+{% include "family/partials/head.html" %}
+{% include "family/partials/appbar.html" %}
+{#
+  /parent_<name>/setup -- setting up a child's account, meant to be done with
+  the child sitting there.  Eight panes driven by static/js/family/setup.js;
+  nothing is saved until the review pane's button, which posts the lot to
+  /api/family/children in one go.
+#}
+<div class="wz-sky" id="wz-sky" aria-hidden="true">
+  <i class="sky dawn on"></i><i class="sky day"></i><i class="sky gold"></i><i class="sky night"></i>
+  <i class="sky-stars"></i>
+</div>
+<main id="main" class="ob-main">
+  <div class="f-wrap">
+    <div class="wz-build" aria-hidden="true">
+      {% include "family/partials/build.svg.html" %}
+      <div class="wz-build-caption" id="wz-build-caption"><svg class="f-ic sm"><use href="#i-sparkle"/></svg> <span>Their world starts here</span></div>
+    </div>
+    <div class="wz" id="wz">
+      <div class="wz-shell">
+        <div class="wz-head">
+          <div class="wz-steps" id="wz-steps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="wz-meta"><span id="wz-meta-step">Before we start</span><span>Child <b>{{ slot_number }}</b> of up to {{ max_children }}</span></div>
+        </div>
+
+        <div class="wz-body">
+          <!-- 0 ------------------------------------------- go and get them -->
+          <section class="wz-pane wz-hello on" data-step="0" data-title="Before we start" aria-labelledby="wz-h0">
+            {% if welcome %}<span class="wz-celebrate"><svg class="f-ic sm"><use href="#i-check"/></svg> Your family account is ready, {{ parent.display_name }}!</span>{% endif %}
+            <h1 id="wz-h0">{% if kids %}Let&rsquo;s set up another child&rsquo;s account{% else %}Now let&rsquo;s set up your child&rsquo;s account{% endif %}</h1>
+            <div class="wz-scene" aria-hidden="true">
+              <span class="sc-ground"></span>
+              <span class="wz-bubble">Can you come here a sec?</span>
+              <span class="wz-bubble kid-says">Coming!</span>
+              <span class="wz-person grown"><span class="h"><i></i></span><span class="b"></span></span>
+              <span class="wz-person kid"><span class="h"><i></i></span><span class="b"></span></span>
+            </div>
+            <p class="wz-lead"><b>For this section, you&rsquo;ll want your child.</b> Talk to your child during setup for usernames, and help with account setup. You can also complete this later.</p>
+            <ul class="wz-tip-list">
+              <li><svg class="f-ic"><use href="#i-smile"/></svg><span><b>Pick a username together</b> &mdash; something fun that doesn&rsquo;t give away their real name.</span></li>
+              <li><svg class="f-ic"><use href="#i-key"/></svg><span><b>Choose a password they&rsquo;ll remember</b> &mdash; we can help you make one up.</span></li>
+              <li><svg class="f-ic"><use href="#i-palette"/></svg><span><b>Let them design their character</b> while you look over the rules.</span></li>
+            </ul>
+            <div class="wz-hello-actions">
+              <button class="f-btn f-btn-primary f-btn-xl" type="button" data-go="1">My child is here &mdash; let&rsquo;s go! <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
+              <button class="f-btn f-btn-ghost f-btn-lg" type="button" id="wz-later">I&rsquo;ll do this later</button>
+            </div>
+            <p class="wz-later-note">Doing it later? It&rsquo;ll be waiting for you on your family dashboard.</p>
+          </section>
+
+          <!-- 1 ------------------------------------------------- who -->
+          <section class="wz-pane" data-step="1" data-title="Who&rsquo;s playing" aria-labelledby="wz-h1">
+            <h2 id="wz-h1">Who&rsquo;s going to be playing?</h2>
+            <p class="wz-lead">Just for you: their first name and age help us suggest the right rules, and they&rsquo;re never shown to other players.</p>
+            <div class="f-field" data-field="first_name">
+              <label class="f-label" for="wz-first">Their first name</label>
+              <input class="f-input" id="wz-first" type="text" maxlength="30" autocomplete="off" placeholder="e.g. Mia">
+              <span class="f-fieldmsg"></span>
+            </div>
+            <div class="f-field" data-field="birth_year">
+              <label class="f-label" for="wz-year">Year they were born</label>
+              <select class="f-select" id="wz-year">
+                <option value="">Choose a year&hellip;</option>
+                {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+              </select>
+              <span class="f-help" id="wz-age"></span>
+              <span class="f-fieldmsg"></span>
+            </div>
+            <div class="f-notice"><svg class="f-ic sm"><use href="#i-lock"/></svg><span>Private: only you see this, on your dashboard.</span></div>
+          </section>
+
+          <!-- 2 -------------------------------------------- the username -->
+          <section class="wz-pane" data-step="2" data-title="Their username" aria-labelledby="wz-h2">
+            <h2 id="wz-h2">Pick a username together</h2>
+            <p class="wz-lead">This is the name other players will see. Ask <b class="wz-kid">your child</b> what they&rsquo;d like to be called!</p>
+            <div class="f-field" data-field="username">
+              <label class="f-sr" for="wz-user">Username</label>
+              <input class="f-input wz-name-input" id="wz-user" type="text" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. PixelPanda42">
+              <span class="wz-avail" id="wz-avail" aria-live="polite"></span>
+            </div>
+            <div class="wz-ideas" id="wz-ideas"></div>
+            <div style="text-align:center"><button class="f-btn f-btn-soft f-btn-sm" type="button" id="wz-idea-btn"><svg class="f-ic sm"><use href="#i-dice"/></svg> Need ideas?</button></div>
+            <div class="wz-coach">
+              <h3><svg class="f-ic sm"><use href="#i-shield-check"/></svg> Keep it safe</h3>
+              <ul id="wz-coach">
+                <li>No real names &mdash; first or last.</li>
+                <li>No birthdays, ages or years.</li>
+                <li>No school, town or street names.</li>
+                <li>Nothing they&rsquo;d mind a stranger seeing.</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- 3 ------------------------------------------------- the look -->
+          <section class="wz-pane" data-step="3" data-title="Their look" aria-labelledby="wz-h3">
+            <h2 id="wz-h3">Now <span class="wz-kid">they</span> pick their look!</h2>
+            <p class="wz-lead">Hand over the mouse. Everything here can be changed later in the avatar editor, with hats, faces and outfits too.</p>
+            <div class="wz-look">
+              <div class="wz-preview" id="wz-preview">
+                <div class="wz-poster" aria-hidden="true"><span class="poster-kid"><i class="h"></i><i class="t"></i><i class="l"></i></span></div>
+                <span class="wz-preview-name" id="wz-preview-name">New player</span>
+              </div>
+              <div class="wz-picker">
+                <h3><svg class="f-ic sm"><use href="#i-smile"/></svg> Build</h3>
+                <div class="f-seg" role="radiogroup" aria-label="Build" style="margin-bottom:16px">
+                  <label><input type="radio" name="wz-body" value="male" checked><span>Broader</span></label>
+                  <label><input type="radio" name="wz-body" value="female"><span>Slighter</span></label>
+                </div>
+                <h3><svg class="f-ic sm"><use href="#i-palette"/></svg> Skin</h3>
+                <div class="wz-swatches" data-part="skin" role="radiogroup" aria-label="Skin colour"></div>
+                <h3><svg class="f-ic sm"><use href="#i-palette"/></svg> Shirt</h3>
+                <div class="wz-swatches" data-part="shirt" role="radiogroup" aria-label="Shirt colour"></div>
+                <h3><svg class="f-ic sm"><use href="#i-palette"/></svg> Pants</h3>
+                <div class="wz-swatches" data-part="pants" role="radiogroup" aria-label="Pants colour"></div>
+                <button class="f-btn f-btn-soft f-btn-sm wz-shuffle" type="button" id="wz-shuffle"><svg class="f-ic sm"><use href="#i-dice"/></svg> Surprise me</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 4 --------------------------------------------- the password -->
+          <section class="wz-pane" data-step="4" data-title="Their password" aria-labelledby="wz-h4">
+            <h2 id="wz-h4">Make a secret password</h2>
+            <p class="wz-lead">Something <b class="wz-kid">your child</b> will remember but nobody else would guess &mdash; at least {{ 6 }} characters.</p>
+            <div class="f-field" data-field="password">
+              <label class="f-label" for="wz-pass">Password</label>
+              <div class="f-inputwrap">
+                <input class="f-input wz-pass" id="wz-pass" type="text" maxlength="64" autocomplete="new-password" autocapitalize="off" spellcheck="false" placeholder="e.g. Tiger-Pancake-42">
+                <button class="f-peek" type="button" data-peek="wz-pass" aria-label="Hide password" aria-pressed="true"><svg class="f-ic sm"><use href="#i-eye-off"/></svg></button>
+              </div>
+              <span class="f-fieldmsg"></span>
+            </div>
+            <button class="f-btn f-btn-soft f-btn-sm" type="button" id="wz-make-pass"><svg class="f-ic sm"><use href="#i-sparkle"/></svg> Make one up for us</button>
+            <div class="wz-pass-card"><svg class="f-ic"><use href="#i-info"/></svg><span>Write it down somewhere safe at home. If it&rsquo;s ever forgotten, you can set a new one from your dashboard in seconds &mdash; and your child can&rsquo;t change it without you.</span></div>
+          </section>
+
+          <!-- 5 ------------------------------------------------ the rules -->
+          <section class="wz-pane" data-step="5" data-title="Your rules" aria-labelledby="wz-h5">
+            <h2 id="wz-h5">Your family rules</h2>
+            <p class="wz-lead">We&rsquo;ve filled in suggestions. Change anything you like &mdash; you can adjust every rule later from your dashboard.</p>
+            <div class="wz-age-note" id="wz-age-note"><svg class="f-ic sm"><use href="#i-sparkle"/></svg><span>Suggested starting rules</span></div>
+            <div class="wz-rules" id="wz-rules"></div>
+          </section>
+
+          <!-- 6 ----------------------------------------------- the review -->
+          <section class="wz-pane" data-step="6" data-title="Check and create" aria-labelledby="wz-h6">
+            <h2 id="wz-h6">All set? Take a quick look</h2>
+            <p class="wz-lead">Tap any card to go back and change it.</p>
+            <div class="wz-review" id="wz-review"></div>
+            <div class="f-notice bad f-hidden" id="wz-error" role="alert" style="margin-top:14px"><svg class="f-ic sm"><use href="#i-alert"/></svg><span></span></div>
+          </section>
+
+          <!-- 7 ------------------------------------------------- all done -->
+          <section class="wz-pane wz-done" data-step="7" data-title="Ready to play" aria-labelledby="wz-h7">
+            <span class="wz-done-badge"><svg class="f-ic xl"><use href="#i-check"/></svg></span>
+            <h1 id="wz-h7" style="margin-top:16px"><span class="wz-kid">Their</span> account is ready!</h1>
+            <p class="wz-lead">Here&rsquo;s how they sign in. Keep this somewhere safe &mdash; or print it for the fridge.</p>
+            <div class="wz-card-print" id="wz-card">
+              <h3><svg class="f-ic sm"><use href="#i-key"/></svg> <span id="wz-card-title">Signing in to {{ brand }}</span></h3>
+              <div class="wz-cred"><span>Website</span><b id="wz-card-site"></b></div>
+              <div class="wz-cred"><span>Username</span><b id="wz-card-user"></b></div>
+              <div class="wz-cred"><span>Password</span><b id="wz-card-pass"></b></div>
+            </div>
+            <div class="wz-done-actions">
+              <button class="f-btn f-btn-primary f-btn-lg" type="button" id="wz-signin-here"><svg class="f-ic"><use href="#i-play"/></svg> <span id="wz-signin-label">Sign them in on this computer</span></button>
+              <button class="f-btn f-btn-lg" type="button" id="wz-print"><svg class="f-ic"><use href="#i-key"/></svg> Print this sign-in card</button>
+              <a class="f-btn f-btn-soft f-btn-lg f-hidden" id="wz-another" href="{{ home }}/setup"><svg class="f-ic"><use href="#i-user-plus"/></svg> Set up another child</a>
+              <a class="f-btn f-btn-ghost f-btn-lg" id="wz-dashboard" href="{{ home }}">Go to my family dashboard <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></a>
+            </div>
+            <p class="wz-later-note">Signing them in here keeps you signed in to your dashboard too.</p>
+          </section>
+        </div>
+
+        <div class="wz-foot" id="wz-foot" hidden>
+          <button class="f-btn f-btn-ghost" type="button" id="wz-back"><svg class="f-ic sm"><use href="#i-back"/></svg> Back</button>
+          <button class="f-btn f-btn-primary f-btn-lg" type="button" id="wz-next">Next <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% include "family/partials/foot.html" %}

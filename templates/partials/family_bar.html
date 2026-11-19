@@ -1,0 +1,23 @@
+{# A child account's own strip: today's play time and quiet hours.  Only ever
+   rendered for the child themselves (family_kid is None for everybody else),
+   and it never names or links to the parent. #}
+{% set fk = family_kid %}
+<div class="kidbar{{ ' is-quiet' if fk.quiet_now else '' }}{{ ' is-low' if (fk.left is not None and fk.left <= 600 and not fk.quiet_now) else '' }}" role="status">
+  <span class="kidbar-icon" aria-hidden="true">{% if fk.quiet_now %}&#127769;{% else %}&#9200;{% endif %}</span>
+  <span class="kidbar-text">
+    {% if fk.quiet_now %}
+      <b>Quiet time</b> until {{ fk.quiet_end }} &mdash; games are resting. You can still visit your profile and avatar.
+    {% elif fk.limit is None %}
+      <b>{{ fk.used_label }}</b> played today{% if fk.quiet %} &middot; quiet time from {{ fk.quiet_start }}{% endif %}
+    {% elif fk.limit == 0 %}
+      <b>No games today</b> &mdash; that&rsquo;s your family&rsquo;s rule for {{ 'weekends' if fk.weekend else 'school days' }}.
+    {% elif fk.left == 0 %}
+      <b>All done for today!</b> You played {{ fk.used_label }}. See you tomorrow.
+    {% else %}
+      <b>{{ fk.left_label }}</b> of play left today{% if fk.quiet %} &middot; quiet time from {{ fk.quiet_start }}{% endif %}
+    {% endif %}
+  </span>
+  {% if fk.limit and not fk.quiet_now %}
+  <span class="kidbar-meter" aria-hidden="true"><i style="width:{{ fk.pct }}%"></i></span>
+  {% endif %}
+</div>

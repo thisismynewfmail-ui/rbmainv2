@@ -44,7 +44,7 @@ def create_user(username: str, password: str, is_admin: bool = False,
     if not (config.PASSWORD_MIN <= len(password or "") <= config.PASSWORD_MAX):
         raise AuthError("Passwords must be at least %d characters."
                         % config.PASSWORD_MIN)
-    if exists(username):
+    if exists(username) or _parent_name(username):
         raise AuthError("That username is already taken.")
 
     now = _now()
@@ -83,12 +83,33 @@ def _json(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"))
 
 
+def _parent_name(username: str) -> bool:
+    """Parent accounts (app/family) share the username namespace with
+    players, so one name can never mean two different accounts."""
+    try:
+        from ..family import accounts as family_accounts
+        return family_accounts.parent_name_exists(username)
+    except Exception:
+        return False
+
+
+# Child accounts made by a parent (app/family) are left out of every list
+# that lets somebody *browse* for players -- the newest arrivals, who is
+# online, a partial-name search.  Somebody who knows a child's exact
+# username still finds them, which is how two friends from school connect.
+NOT_A_CHILD = "id NOT IN (SELECT user_id FROM family_children)"
+
+
 def authenticate(username: str, password: str) -> Dict[str, Any]:
     user = get_by_username(username)
     if not user or not security.verify_password(password, user["password_hash"]):
         raise AuthError("Incorrect username or password.")
     if user["is_banned"]:
         raise AuthError("This account has been suspended.")
+    from ..family import guard as family_guard
+    blocked = family_guard.login_block(user)
+    if blocked:
+        raise AuthError(blocked)
     db.execute("UPDATE users SET last_login=?, last_seen=? WHERE id=?",
                (_now(), _now(), user["id"]))
     from .. import console
@@ -218,13 +239,17 @@ def presence_label(user: Dict[str, Any]) -> str:
 # ------------------------------------------------------------------- profile
 
 def update_profile(user_id: int, blurb: str, location: str) -> None:
+    from ..family import guard as family_guard
+    blurb = security.clean_text(blurb, 400)
+    location = security.clean_text(location, 60, False)
+    # a child's About Me never carries contact details, and has no location
+    blurb, location = family_guard.scrub_profile(user_id, blurb, location)
     db.execute("UPDATE users SET blurb=?, location=? WHERE id=?",
-               (security.clean_text(blurb, 400), security.clean_text(location, 60, False),
-                user_id))
+               (blurb, location, user_id))
 
 
 def search(term: str, limit: int = 40,
-           order: str = "joined") -> List[Dict[str, Any]]:
+           order: str = "joined", include_children: bool = False) -> List[Dict[str, Any]]:
     """Player lookup.
 
     ``order`` is "joined" (newest accounts first, which is what the People
@@ -233,14 +258,18 @@ def search(term: str, limit: int = 40,
     """
     column = "created_at" if order == "joined" else "last_seen"
     term = (term or "").strip().lower()
+    # the admin dashboard sees everybody; the public search does not list
+    # child accounts unless the name typed is theirs exactly
+    hide = "" if include_children else (" AND (%s OR username_lower=?)" % NOT_A_CHILD)
     if term:
+        params = ["%" + term.replace("%", "") + "%"] + ([term] if hide else []) + [limit]
         rows = db.query(
-            "SELECT * FROM users WHERE username_lower LIKE ?"
-            " ORDER BY %s DESC, id DESC LIMIT ?" % column,
-            ("%" + term.replace("%", "") + "%", limit))
+            "SELECT * FROM users WHERE username_lower LIKE ?%s"
+            " ORDER BY %s DESC, id DESC LIMIT ?" % (hide, column), params)
     else:
-        rows = db.query("SELECT * FROM users ORDER BY %s DESC, id DESC"
-                        " LIMIT ?" % column, (limit,))
+        hide = "" if include_children else " WHERE " + NOT_A_CHILD
+        rows = db.query("SELECT * FROM users%s ORDER BY %s DESC, id DESC"
+                        " LIMIT ?" % (hide, column), (limit,))
     return live_seen(db.rows_to_dicts(rows))
 
 
@@ -252,9 +281,9 @@ def suggest(term: str, limit: int = 8,
         return []
     rows = db.query(
         "SELECT id, username, last_seen, is_bot FROM users"
-        " WHERE username_lower LIKE ? AND id<>?"
-        " ORDER BY (username_lower LIKE ?) DESC, last_seen DESC LIMIT ?",
-        ("%" + term + "%", exclude_id, term + "%", limit))
+        " WHERE username_lower LIKE ? AND id<>? AND (%s OR username_lower=?)"
+        " ORDER BY (username_lower LIKE ?) DESC, last_seen DESC LIMIT ?" % NOT_A_CHILD,
+        ("%" + term + "%", exclude_id, term, term + "%", limit))
     out = live_seen(db.rows_to_dicts(rows))
     for row in out:
         row.pop("is_bot", None)
@@ -263,15 +292,16 @@ def suggest(term: str, limit: int = 8,
 
 def recent(limit: int = 12) -> List[Dict[str, Any]]:
     return live_seen(db.rows_to_dicts(db.query(
-        "SELECT * FROM users ORDER BY created_at DESC LIMIT ?", (limit,))))
+        "SELECT * FROM users WHERE %s ORDER BY created_at DESC LIMIT ?" % NOT_A_CHILD,
+        (limit,))))
 
 
 def online_users(limit: int = 30) -> List[Dict[str, Any]]:
     """Who is online: people first (most recently active), then bots."""
     cutoff = _now() - ONLINE_WINDOW
     people = db.rows_to_dicts(db.query(
-        "SELECT * FROM users WHERE last_seen > ? AND is_bot=0"
-        " ORDER BY last_seen DESC LIMIT ?", (cutoff, limit)))
+        "SELECT * FROM users WHERE last_seen > ? AND is_bot=0 AND %s"
+        " ORDER BY last_seen DESC LIMIT ?" % NOT_A_CHILD, (cutoff, limit)))
     director = _bots()
     if director is None or len(people) >= limit:
         return people[:limit]
@@ -482,6 +512,9 @@ def set_privacy(user_id: int, settings: Dict[str, Any]) -> Dict[str, str]:
     for key, value in (settings or {}).items():
         if key in PRIVACY_FIELDS and value in VISIBILITIES:
             merged[key] = value
+    # a child can be more private than their parent's rules, never less
+    from ..family import guard as family_guard
+    merged = family_guard.clamp_privacy(user_id, merged)
     db.execute("UPDATE users SET privacy=? WHERE id=?", (_json(merged), user_id))
     return merged
 

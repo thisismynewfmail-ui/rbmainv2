@@ -862,7 +862,15 @@
       var loading = document.getElementById('loading');
       if (loading) loading.classList.remove('hide');
       var body = document.getElementById('load-msg');
-      if (body) {
+      if (body && msg && msg.kind === 'family') {
+        /* A child account's family rule ended the round for them: the daily
+           play time is used up, quiet hours began, or the world was switched
+           off.  A goodbye, not an error -- and no "play here instead". */
+        body.innerHTML =
+          '<b>' + self.hud.escape(msg.reason || 'That’s all for now!') + '</b><br>' +
+          'Thanks for playing! Your character and everything you earned are saved.<br>' +
+          '<a href="/" style="color:#ffd95e">Back to the home page</a>';
+      } else if (body) {
         body.innerHTML =
           '<b>' + self.hud.escape(msg && msg.reason
             ? msg.reason : 'You started playing in another window.') + '</b><br>' +

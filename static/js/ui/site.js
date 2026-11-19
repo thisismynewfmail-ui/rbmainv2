@@ -830,6 +830,14 @@
             button.disabled = false;
             if (!res.ok) { Site.toast(res.error, 'bad'); return; }
             Site.toast(labelFor(res.state, username));
+            if (res.state === 'awaiting_parent' && button.dataset.friendInline === undefined &&
+                button.id !== 'friend-btn') {
+              button.textContent = 'Waiting for a grown-up';
+              button.disabled = true;
+              var row = button.parentNode;
+              if (row) row.querySelectorAll('[data-friend]').forEach(function (b) { b.disabled = true; });
+              return;
+            }
             if (button.id === 'friend-btn') updateFriendButton(button, res.state);
             else if (button.dataset.friendInline) updateInlineFriend(button, res.state);
             else setTimeout(function () { location.reload(); }, 400);
@@ -868,6 +876,9 @@
   function labelFor(state, username) {
     if (state === 'friends') return 'You are now friends with ' + username + '!';
     if (state === 'pending_out') return 'Friend request sent to ' + username + '.';
+    // a child account whose new friends need a parent's OK (app/family)
+    if (state === 'awaiting_parent') return 'Sent to your grown-up for an OK! You and ' +
+        username + ' will be friends once they say yes.';
     if (state === 'none') return 'Updated.';
     return 'Updated.';
   }
@@ -890,6 +901,10 @@
       button.textContent = 'Accept request';
       button.dataset.friend = 'accept';
       button.classList.add('go');
+    } else if (state === 'awaiting_parent') {
+      button.textContent = 'Waiting for a grown-up\u2019s OK';
+      button.title = 'Your grown-up gets to say yes to new friends';
+      button.disabled = true;
     } else {
       button.textContent = 'Add friend';
       button.dataset.friend = 'request';
@@ -901,6 +916,7 @@
   function updateInlineFriend(button, state) {
     button.classList.remove('go', 'danger');
     if (state === 'friends') { button.textContent = 'Friends'; button.disabled = true; }
+    else if (state === 'awaiting_parent') { button.textContent = 'Asked a grown-up'; button.disabled = true; }
     else if (state === 'pending_out') {
       button.textContent = 'Request sent';
       button.classList.add('danger');

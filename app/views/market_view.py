@@ -189,6 +189,10 @@ def buy(req: Request):
     item_id = str(data.get("item_id", ""))
     if not db.rate_limit("buy:%d" % int(req.user["id"]), 60, 60):
         return api_error("Slow down a little -- the till is still ringing.")
+    from ..family import guard as family_guard
+    refused = family_guard.check_spend(int(req.user["id"]), item_id)
+    if refused:
+        return api_error(refused, 403)
     try:
         result = market.purchase(int(req.user["id"]), item_id, data.get("qty", 1))
     except market.MarketError as exc:
@@ -199,6 +203,11 @@ def buy(req: Request):
 @router.post("/api/market/bundle")
 @login_required
 def buy_bundle(req: Request):
+    # every bundle is crates and keys, so a child needs both switches on
+    from ..family import guard as family_guard
+    refused = family_guard.check_crates(int(req.user["id"]), buying=True)
+    if refused:
+        return api_error(refused, 403)
     try:
         result = crates.buy_offer(int(req.user["id"]), str(req.data().get("offer_id", "")))
     except crates.CrateError as exc:
@@ -248,6 +257,10 @@ def crate_open(req: Request):
     uid = int(req.user["id"])
     if not db.rate_limit("open:%d" % uid, 40, 60):
         return api_error("Let the last one finish opening first.")
+    from ..family import guard as family_guard
+    refused = family_guard.check_crates(uid)
+    if refused:
+        return api_error(refused, 403)
     try:
         crate_inv = int(data.get("crate_inv", 0) or 0)
         key_inv = int(data.get("key_inv", 0) or 0)

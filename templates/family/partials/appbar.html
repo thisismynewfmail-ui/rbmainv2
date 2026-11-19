@@ -1,0 +1,22 @@
+{# The signed-in parent's header: their family, the theme, and signing out. #}
+<header class="ap-bar">
+  <div class="f-wrap ap-in">
+    <a class="f-brand" href="{{ home }}" aria-label="Your family dashboard">
+      <img src="{{ asset('/static/img/logo.png') }}" width="720" height="195" alt="{{ brand }}">
+      <span class="f-brand-tag">Family</span>
+    </a>
+    <nav class="ap-nav" aria-label="Family">
+      <a href="{{ home }}" class="{{ 'on' if path == home else '' }}"><svg class="f-ic sm"><use href="#i-users"/></svg><span>My family</span></a>
+    </nav>
+    <div class="ap-right">
+      <button class="ap-icon" type="button" data-theme-toggle aria-label="Switch between light and dark" title="Light / dark">
+        <svg class="f-ic sm ap-moon"><use href="#i-moon"/></svg><svg class="f-ic sm ap-sun"><use href="#i-sun"/></svg>
+      </button>
+      <a class="ap-who" href="{{ home }}#account" title="Your account">
+        <span class="ap-avatar">{{ (parent.display_name or parent.username)[:1].upper() }}</span>
+        <span class="ap-name">{{ parent.display_name or parent.username }}</span>
+      </a>
+      <a class="ap-icon" href="/parent-signout" aria-label="Sign out" title="Sign out"><svg class="f-ic sm"><use href="#i-logout"/></svg></a>
+    </div>
+  </div>
+</header>

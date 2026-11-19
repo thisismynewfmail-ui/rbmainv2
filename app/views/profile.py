@@ -51,6 +51,11 @@ def profile(req: Request, username: str = ""):
     rest = [row for row in inv if int(row["inv_id"]) not in pinned_ids]
 
     shown_badges = badges.showcase(profile_user)
+    friend_status = friends.status_for(viewer, pid) if viewer else "none"
+    if viewer and friend_status in ("none", "pending_in"):
+        from ..family import guard as family_guard
+        if family_guard.waiting_approval(viewer, pid):
+            friend_status = "awaiting_parent"
     return render(
         req, "profile.html",
         profile=profile_user,
@@ -65,7 +70,7 @@ def profile(req: Request, username: str = ""):
         online=users.is_online(profile_user) and show_online,
         show_online=show_online,
         playing=playing,
-        friend_status=friends.status_for(viewer, pid) if viewer else "none",
+        friend_status=friend_status,
         following=follows.is_following(viewer, pid) if viewer else False,
         follow_counts=follows.counts(pid),
         # The panel shows PROFILE_FRIENDS_SHOWN and folds the rest away behind
@@ -164,8 +169,8 @@ def friend_action(req: Request):
         if action == "request":
             state = friends.request(uid, tid)
         elif action == "accept":
-            friends.accept(uid, tid)
-            state = "friends"
+            # "awaiting_parent" when a child's new friend needs a grown-up's OK
+            state = friends.accept(uid, tid) or "friends"
         elif action == "decline":
             friends.decline(uid, tid)
             state = "none"

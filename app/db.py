@@ -459,11 +459,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 
 def init_db() -> None:
+    # The family tables (parents, the children they made, play-time
+    # metering) live in their own package; they hang off ``users``, so they
+    # are created straight after it.
+    from .family import store as family_store
     conn = connect()
     with _write_lock:
         conn.executescript(SCHEMA)
         _migrate(conn)
         conn.executescript(POST_MIGRATION)
+        conn.executescript(family_store.SCHEMA)
 
 
 def query(sql: str, params: Iterable[Any] = ()) -> List[sqlite3.Row]:

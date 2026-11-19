@@ -65,10 +65,12 @@
           <label for="blurb">About me</label>
           <textarea id="blurb" name="blurb" rows="4" maxlength="400">{{ user.blurb }}</textarea>
         </div>
+        {% if not family_kid %}
         <div class="field">
           <label for="location">Location</label>
           <input type="text" id="location" name="location" value="{{ user.location }}" maxlength="60">
         </div>
+        {% endif %}
       </div>
     </div>
 

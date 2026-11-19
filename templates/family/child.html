@@ -1,0 +1,357 @@
+{% include "family/partials/head.html" %}
+{% include "family/partials/appbar.html" %}
+{#
+  /parent_<name>/child/<kid> -- one child's dashboard.  Everything is drawn
+  from app/family/insights.child_report; the charts are drawn by
+  static/js/family/charts.js from the same report (in the boot data), and
+  the live parts refresh from /api/family/child/<id>/live.
+#}
+{% set st = report.status %}
+{% set play = report.play %}
+{% set today = st.today %}
+<main id="main" class="db-main">
+  <section class="db-band kid-band">
+    <div class="db-band-sky" aria-hidden="true"><i class="db-stars"></i><i class="db-aurora"></i></div>
+    <div class="f-wrap kid-band-in">
+      {% if len(siblings) > 1 %}
+      <nav class="kid-switch" aria-label="Your children">
+        {% for s in siblings %}<a href="{{ home }}/child/{{ s.username }}" class="{{ 'on' if s.current else '' }}">{{ s.first_name }}</a>{% endfor %}
+      </nav>
+      {% endif %}
+      <div class="kid-hero">
+        <div class="kid-ava avatar-view" data-avatar="{{ to_json(avatar) }}" aria-label="{{ child.first_name }}'s character"><span class="kid-ava-hint">drag to spin</span></div>
+        <div class="kid-id">
+          <h1>{{ child.first_name }}{% if report.age %}<span class="kid-age">{{ report.age }}</span>{% endif %}</h1>
+          <p class="kid-user">@{{ child.username }} &middot; joined {{ report.joined }}</p>
+          <span class="db-status big {{ st.state }}{{ ' paused' if child.paused else '' }}" id="kid-status"><span class="f-dot {{ 'live' if st.state == 'playing' else ('on' if st.state == 'online' else '') }}"></span><span data-live="label">{{ 'Paused' if child.paused else st.label }}</span>{% if st.since %}<small data-live="since">&middot; {{ st.since }}</small>{% endif %}</span>
+          {% if st.state == 'offline' and st.last_seen %}<p class="kid-seen" data-live="seen">Last seen {{ st.last_seen }}</p>{% endif %}
+          <div class="kid-actions">
+            <button class="f-btn f-btn-sm {{ 'f-btn-good' if child.paused else 'f-btn-glass' }}" type="button" id="kid-pause" data-paused="{{ 1 if child.paused else 0 }}"><svg class="f-ic sm"><use href="#i-{{ 'play' if child.paused else 'pause' }}"/></svg> <span>{{ 'Resume account' if child.paused else 'Pause account' }}</span></button>
+            <a class="f-btn f-btn-sm f-btn-glass" href="#rules"><svg class="f-ic sm"><use href="#i-sliders"/></svg> Rules</a>
+          </div>
+        </div>
+        <div class="kid-today" aria-live="polite">
+          <span class="kid-today-label">Played today</span>
+          <span class="kid-today-big" data-live="used">{{ today.used_label }}</span>
+          {% if today.limit is not None %}
+          <span class="db-meter on-dark{{ ' low' if today.pct >= 85 else '' }}" role="meter" aria-label="Play time used today" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ today.pct }}"><i data-live="meter" style="width:{{ today.pct }}%"></i></span>
+          <span class="kid-today-note" data-live="note">{% if today.quiet_now %}Quiet hours until {{ today.quiet_end }}{% else %}{{ today.left_label }} left of {{ today.limit_label }}{% endif %}</span>
+          {% else %}
+          <span class="kid-today-note" data-live="note">No daily limit {{ 'on weekends' if today.weekend else 'on school days' }}</span>
+          {% endif %}
+          {% if today.quiet %}<span class="kid-today-quiet"><svg class="f-ic sm"><use href="#i-moon"/></svg> Quiet hours {{ today.quiet_start }} &ndash; {{ today.quiet_end }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="kid-tabs" id="kid-tabs" aria-label="Dashboard sections">
+    <div class="f-wrap kid-tabs-in">
+      <a href="#overview" class="on">Overview</a>
+      <a href="#activity">Activity</a>
+      <a href="#friends">Friends{% if report.social.waiting %} <span class="tab-badge warn">{{ len(report.social.waiting) }}</span>{% endif %}</a>
+      <a href="#messages">Messages</a>
+      <a href="#safety">Safety{% if report.alerts.unseen %} <span class="tab-badge bad" id="tab-alerts">{{ report.alerts.unseen }}</span>{% endif %}</a>
+      <a href="#spending">Spending</a>
+      <a href="#achievements">Achievements</a>
+      <a href="#rules">Rules</a>
+      <a href="#account">Account</a>
+    </div>
+  </nav>
+
+  <div class="f-wrap db-body">
+    {% if flash %}<div class="f-notice {{ 'bad' if flash.kind == 'bad' else 'good' }}" style="margin:16px 0"><span>{{ flash.text }}</span></div>{% endif %}
+
+    <!-- ===================================================== OVERVIEW -->
+    <section class="db-sec" id="overview" aria-labelledby="ov-h">
+      <h2 class="db-sec-h" id="ov-h">Overview</h2>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">Play this week</span><span class="kpi-val">{{ play.week_label }}</span>
+          <span class="kpi-delta">{% if play.week_change is None %}First week on {{ brand }}{% else %}{{ '↑' if play.week_change > 0 else ('↓' if play.week_change < 0 else '→') }} {{ abs(play.week_change) }}% vs this point last week ({{ play.last_week_label }}){% endif %}</span></div>
+        <div class="kpi"><span class="kpi-label">Daily average</span><span class="kpi-val">{{ play.avg_label }}</span><span class="kpi-delta">Over the last 7 days</span></div>
+        <div class="kpi"><span class="kpi-label">Days played</span><span class="kpi-val">{{ play.active_days }}<small>/7</small></span><span class="kpi-delta">{% if play.peak_label %}Mostly around {{ play.peak_label }}{% else %}No play yet{% endif %}</span></div>
+        <div class="kpi"><span class="kpi-label">Friends</span><span class="kpi-val">{{ report.social.count }}</span><span class="kpi-delta">{% if report.social.waiting %}{{ len(report.social.waiting) }} waiting for your OK{% else %}All approved by you{% endif %}</span></div>
+        <div class="kpi"><span class="kpi-label">Messages this week</span><span class="kpi-val">{{ report.messages.week }}</span><span class="kpi-delta">With {{ report.messages.partners }} {{ 'person' if report.messages.partners == 1 else 'people' }}</span></div>
+        <div class="kpi{{ ' attn' if report.alerts.blocked_week else '' }}"><span class="kpi-label">Safe Chat stepped in</span><span class="kpi-val">{{ report.alerts.blocked_week }}</span><span class="kpi-delta">{{ 'time' if report.alerts.blocked_week == 1 else 'times' }} this week</span></div>
+      </div>
+
+      <div class="db-grid-2">
+        <figure class="db-card chart-card" id="chart-days">
+          <header class="db-card-head"><h3>Play time, last 14 days</h3><button class="chip-btn" type="button" data-table-toggle="chart-days">Table</button></header>
+          <div class="chart" data-chart="days" aria-label="Minutes played each day for the last 14 days, with the daily limit marked"></div>
+          <figcaption class="chart-note"><span class="key-bar"></span> Minutes played <span class="key-tick"></span> Daily limit</figcaption>
+          <div class="chart-table" hidden>
+            <table class="db-table"><thead><tr><th>Day</th><th class="num">Played</th><th class="num">Limit</th></tr></thead><tbody>
+            {% for d in play.chart %}<tr><td>{{ d.label }}</td><td class="num">{{ int(d.minutes) }} min</td><td class="num">{{ ('No limit' if d.limit is None else (str(d.limit) + ' min')) }}</td></tr>{% endfor %}
+            </tbody></table>
+          </div>
+        </figure>
+        <figure class="db-card chart-card" id="chart-worlds">
+          <header class="db-card-head"><h3>Worlds they play</h3><span class="f-muted f-tiny">Last 30 days</span></header>
+          {% if play.worlds %}
+          <ul class="meter-list">
+            {% for w in play.worlds %}
+            <li><span class="ml-name"><i style="background:{{ w.color }}"></i>{{ w.name }} <span class="f-chip {{ 'good' if w.intensity == 'gentle' else ('grape' if w.intensity == 'intense' else 'blue') }}">{{ w.intensity_label }}</span></span>
+                <span class="ml-bar"><i style="width:{{ max(2, w.share) }}%"></i></span><span class="ml-val">{{ w.label }}</span></li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-globe"/></svg></span><b>No games played yet</b><small>The worlds {{ child.first_name }} plays will appear here.</small></div>
+          {% endif %}
+        </figure>
+      </div>
+
+      <figure class="db-card chart-card" id="chart-heat">
+        <header class="db-card-head"><h3>When {{ child.first_name }} plays</h3><span class="db-head-tools"><span class="f-muted f-tiny">Last 4 weeks, by day and hour</span><button class="chip-btn" type="button" data-table-toggle="chart-heat">Table</button></span></header>
+        <div class="chart heat" data-chart="heat" aria-label="A grid of days and hours, darker where more time was played. Use the arrow keys to move between hours and days."></div>
+        <div class="chart-table" hidden></div>
+        <figcaption class="chart-note heat-key"><span>Less</span><i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i><i style="background:var(--heat-5)"></i><span>More</span></figcaption>
+      </figure>
+    </section>
+
+    <!-- ===================================================== ACTIVITY -->
+    <section class="db-sec" id="activity" aria-labelledby="ac-h">
+      <h2 class="db-sec-h" id="ac-h">Activity</h2>
+      <div class="db-grid-2 wide-left">
+        <div class="db-card">
+          <header class="db-card-head"><h3>Game sessions</h3><span class="f-muted f-tiny">Most recent first</span></header>
+          {% if report.sessions %}
+          <ol class="timeline" id="sessions">
+            {% for s in report.sessions %}
+            <li class="tl-item{{ ' live' if s.live else '' }}">
+              <span class="tl-dot" style="--c:{{ s.color }}"></span>
+              <span class="tl-main"><b>{{ s.world_name }}</b>{% if s.live %} <span class="f-chip good"><span class="f-dot live"></span> Playing now</span>{% endif %}{% if s.ended_by %} <span class="f-chip warn">{{ s.ended_by }}</span>{% endif %}<small>{{ s.start }}{% if not s.live %} &ndash; {{ s.end }}{% endif %}</small></span>
+              <span class="tl-dur">{{ s.duration }}</span>
+            </li>
+            {% endfor %}
+          </ol>
+          {% else %}
+          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-gamepad"/></svg></span><b>No game sessions yet</b><small>Every round {{ child.first_name }} plays shows up here, with how long it lasted.</small></div>
+          {% endif %}
+        </div>
+        <div class="db-card">
+          <header class="db-card-head"><h3>Sign-ins</h3></header>
+          <h4 class="db-sub">Signed in now</h4>
+          {% if report.signins.active %}
+          <ul class="mini-list">{% for a in report.signins.active %}<li><svg class="f-ic sm"><use href="#i-monitor"/></svg><span>{{ a.device }}<small>since {{ a.when }}</small></span></li>{% endfor %}</ul>
+          {% else %}<p class="f-muted f-small">Not signed in anywhere right now.</p>{% endif %}
+          <h4 class="db-sub">Recent sign-ins</h4>
+          {% if report.signins.history %}
+          <ul class="mini-list">{% for h in report.signins.history %}<li><svg class="f-ic sm"><use href="#i-key"/></svg><span>{{ h.when }}{% if h.by_parent %}<small>Signed in by you</small>{% endif %}</span></li>{% endfor %}</ul>
+          {% else %}<p class="f-muted f-small">No sign-ins yet.</p>{% endif %}
+          <button class="f-btn f-btn-sm f-btn-ghost" type="button" id="kid-signout" style="margin-top:10px"><svg class="f-ic sm"><use href="#i-logout"/></svg> Sign out everywhere</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== FRIENDS -->
+    <section class="db-sec" id="friends" aria-labelledby="fr-h">
+      <h2 class="db-sec-h" id="fr-h">Friends</h2>
+      {% if report.social.waiting %}
+      <div class="db-card approvals">
+        <header class="db-card-head"><h3><svg class="f-ic"><use href="#i-user-plus"/></svg> Waiting for your OK</h3></header>
+        <ul class="appr-list">
+          {% for a in report.social.waiting %}
+          <li class="appr" data-approval="{{ a.id }}">
+            <canvas class="avatar-thumb appr-ava" width="96" height="96" data-user="{{ a.username }}"></canvas>
+            <span class="appr-text"><b>{{ a.username }}</b><small>{% if a.direction == 'in' %}Asked to be friends with {{ child.first_name }} &middot; {{ child.first_name }} said yes{% else %}{{ child.first_name }} wants to add them{% endif %} &middot; {{ a.when }}</small><small>Joined {{ a.joined }}{% if a.mutual %} &middot; {{ a.mutual }} mutual friend{{ '' if a.mutual == 1 else 's' }}{% endif %}</small></span>
+            <span class="appr-actions"><button class="f-btn f-btn-sm f-btn-good" type="button" data-decide="approve"><svg class="f-ic sm"><use href="#i-check"/></svg> Approve</button><button class="f-btn f-btn-sm f-btn-ghost" type="button" data-decide="decline">Decline</button></span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <div class="db-grid-2 wide-left">
+        <div class="db-card">
+          <header class="db-card-head"><h3>{{ child.first_name }}&rsquo;s friends <span class="f-muted">({{ report.social.count }})</span></h3></header>
+          {% if report.social.friends %}
+          <ul class="friend-grid">
+            {% for f in report.social.friends %}
+            <li class="friend" data-friend="{{ f.username }}">
+              <canvas class="avatar-thumb" width="96" height="96" data-user="{{ f.username }}"></canvas>
+              <span class="friend-text"><b>{{ f.username }}{% if f.online %} <span class="f-dot live" title="Online"></span>{% endif %}</b><small>{% if f.since %}Friends since {{ f.since }}{% endif %}{% if f.messages %} &middot; {{ f.messages }} message{{ '' if f.messages == 1 else 's' }}{% endif %}</small></span>
+              <button class="icon-btn" type="button" data-unfriend="{{ f.username }}" title="Remove friend" aria-label="Remove {{ f.username }} as a friend"><svg class="f-ic sm"><use href="#i-x"/></svg></button>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-users"/></svg></span><b>No friends yet</b><small>{% if report.controls['values'].friends == 'approve' %}When someone asks, you&rsquo;ll be asked to approve them here first.{% else %}Friends {{ child.first_name }} adds will appear here.{% endif %}</small></div>
+          {% endif %}
+        </div>
+        <div class="db-card">
+          <header class="db-card-head"><h3>Requests</h3></header>
+          <h4 class="db-sub">Asking {{ child.first_name }}</h4>
+          {% if report.social.incoming %}<ul class="mini-list">{% for r in report.social.incoming %}<li><svg class="f-ic sm"><use href="#i-user-plus"/></svg><span>{{ r.username }}<small>{{ r.when }}</small></span></li>{% endfor %}</ul>{% else %}<p class="f-muted f-small">None right now.</p>{% endif %}
+          <h4 class="db-sub">Sent by {{ child.first_name }}</h4>
+          {% if report.social.outgoing %}<ul class="mini-list">{% for r in report.social.outgoing %}<li><svg class="f-ic sm"><use href="#i-arrow"/></svg><span>{{ r.username }}<small>{{ r.when }}</small></span></li>{% endfor %}</ul>{% else %}<p class="f-muted f-small">None right now.</p>{% endif %}
+          {% if report.social.decided %}
+          <h4 class="db-sub">Your recent decisions</h4>
+          <ul class="mini-list">{% for d in report.social.decided %}<li><svg class="f-ic sm"><use href="#i-{{ 'check' if d.status == 'approved' else 'x' }}"/></svg><span>{{ d.username }}<small>{{ 'Approved' if d.status == 'approved' else 'Declined' }}</small></span></li>{% endfor %}</ul>
+          {% endif %}
+          <p class="f-muted f-tiny" style="margin-top:12px">{{ report.social.follows.followers }} follower{{ '' if report.social.follows.followers == 1 else 's' }} &middot; following {{ report.social.follows.following }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== MESSAGES -->
+    <section class="db-sec" id="messages" aria-labelledby="ms-h">
+      <h2 class="db-sec-h" id="ms-h">Messages</h2>
+      <div class="db-grid-2">
+        <figure class="db-card chart-card" id="chart-msgs">
+          <header class="db-card-head"><h3>Messages per day</h3><button class="chip-btn" type="button" data-table-toggle="chart-msgs">Table</button></header>
+          <div class="chart" data-chart="messages" aria-label="Messages sent and received each day for the last 14 days"></div>
+          <figcaption class="chart-note"><span class="key-bar"></span> Sent by {{ child.first_name }} <span class="key-bar b2"></span> Received</figcaption>
+          <div class="chart-table" hidden>
+            <table class="db-table"><thead><tr><th>Day</th><th class="num">Sent</th><th class="num">Received</th></tr></thead><tbody>
+            {% for d in report.messages.daily %}<tr><td>{{ d.label }}</td><td class="num">{{ d.sent }}</td><td class="num">{{ d.received }}</td></tr>{% endfor %}
+            </tbody></table>
+          </div>
+        </figure>
+        <div class="db-card">
+          <header class="db-card-head"><h3>Conversations</h3><span class="f-muted f-tiny">Tap one to read it</span></header>
+          {% if report.messages.threads %}
+          <ul class="convo-list">
+            {% for t in report.messages.threads %}
+            <li><button class="convo" type="button" data-convo="{{ t.username }}">
+              <canvas class="avatar-thumb" width="88" height="88" data-user="{{ t.username }}"></canvas>
+              <span class="convo-text"><b>{{ t.username }}</b><small>{{ (child.first_name + ': ') if t.last_mine else '' }}{{ t.preview }}</small></span>
+              <span class="convo-meta"><small>{{ t.when }}</small><span class="f-chip">{{ t.total }}</span></span>
+            </button></li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-message"/></svg></span><b>No messages yet</b><small>{% if report.controls['values'].messages == 'off' %}Private messages are switched off.{% else %}Conversations with {{ child.first_name }}&rsquo;s friends will appear here, and you can read them.{% endif %}</small></div>
+          {% endif %}
+        </div>
+      </div>
+      {% if report.wall.received or report.wall.written %}
+      <div class="db-grid-2">
+        <div class="db-card"><header class="db-card-head"><h3>Comments on {{ child.first_name }}&rsquo;s profile</h3></header>
+          {% if report.wall.received %}<ul class="wall-list">{% for c in report.wall.received %}<li><b>{{ c.username }}</b><span>{{ c.body }}</span><small>{{ c.when }}</small></li>{% endfor %}</ul>{% else %}<p class="f-muted f-small">None yet.</p>{% endif %}</div>
+        <div class="db-card"><header class="db-card-head"><h3>Comments {{ child.first_name }} wrote</h3></header>
+          {% if report.wall.written %}<ul class="wall-list">{% for c in report.wall.written %}<li><b>On {{ c.username }}&rsquo;s profile</b><span>{{ c.body }}</span><small>{{ c.when }}</small></li>{% endfor %}</ul>{% else %}<p class="f-muted f-small">None yet.</p>{% endif %}</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- ======================================================= SAFETY -->
+    <section class="db-sec" id="safety" aria-labelledby="sf-h">
+      <h2 class="db-sec-h" id="sf-h">Safety</h2>
+      <div class="db-grid-2 wide-left">
+        <div class="db-card">
+          <header class="db-card-head"><h3><svg class="f-ic"><use href="#i-shield-check"/></svg> Safe Chat &amp; alerts</h3>{% if report.alerts.unseen %}<button class="chip-btn" type="button" id="alerts-seen">Mark all as reviewed</button>{% endif %}</header>
+          {% if report.alerts.rows %}
+          <ul class="alert-list">
+            {% for a in report.alerts.rows %}
+            <li class="alert {{ a.severity }}{{ ' unseen' if a.unseen else '' }}">
+              <span class="alert-ic"><svg class="f-ic sm"><use href="#i-{{ 'alert' if a.severity == 'high' else ('shield-check' if a.kind.startswith('blocked') else ('heart' if a.kind == 'wellbeing' else ('clock' if a.kind in ('limit_reached', 'quiet_hours') else 'info'))) }}"/></svg></span>
+              <span class="alert-text"><b>{{ a.title }}</b><span class="alert-sev">{{ 'Important' if a.severity == 'high' else ('Worth a look' if a.severity == 'warn' else 'For your info') }}</span><small>{{ a.detail }}</small>{% if a.excerpt %}<q>{{ a.excerpt }}</q>{% endif %}<small class="alert-when">{{ a.when }}</small></span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="db-empty"><span class="db-empty-ic good"><svg class="f-ic lg"><use href="#i-shield-check"/></svg></span><b>Nothing to worry about</b><small>When Safe Chat stops a message, or a limit kicks in, you&rsquo;ll see it here.</small></div>
+          {% endif %}
+        </div>
+        <div class="db-card safe-explain">
+          <header class="db-card-head"><h3>How Safe Chat works</h3></header>
+          <ul class="mini-list roomy">
+            <li><svg class="f-ic sm"><use href="#i-phone"/></svg><span>Stops phone numbers, emails and home addresses &mdash; even spelled-out numbers.</span></li>
+            <li><svg class="f-ic sm"><use href="#i-at"/></svg><span>Stops &ldquo;add me on&hellip;&rdquo; invites to other apps, and links.</span></li>
+            <li><svg class="f-ic sm"><use href="#i-camera"/></svg><span>Stops requests to meet up, for photos, or to keep secrets.</span></li>
+            <li><svg class="f-ic sm"><use href="#i-chat-shield"/></svg><span>Works both ways: what {{ child.first_name }} sends, and what&rsquo;s sent to them.</span></li>
+            <li><svg class="f-ic sm"><use href="#i-heart"/></svg><span>Tells you gently if {{ child.first_name }} writes something that can be a sign of feeling low.</span></li>
+          </ul>
+          <p class="f-muted f-tiny">No filter is perfect &mdash; that&rsquo;s why you can read the conversations above.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== SPENDING -->
+    <section class="db-sec" id="spending" aria-labelledby="sp-h">
+      <h2 class="db-sec-h" id="sp-h">Spending <span class="f-chip good">Play money only</span></h2>
+      <div class="kpis three">
+        <div class="kpi"><span class="kpi-label">Noogets balance</span><span class="kpi-val"><span class="coin-dot"></span>{{ fmt_num(report.spending.balance) }}</span><span class="kpi-delta">Play money &mdash; never real money</span></div>
+        <div class="kpi"><span class="kpi-label">Spent this week</span><span class="kpi-val">{{ fmt_num(report.spending.spent_week) }}</span><span class="kpi-delta">Earned {{ fmt_num(report.spending.earned_week) }}</span></div>
+        <div class="kpi"><span class="kpi-label">Crates opened</span><span class="kpi-val">{{ report.spending.crates_opened }}</span><span class="kpi-delta">Crates are {{ 'allowed' if report.controls['values'].crates else 'switched off' }}</span></div>
+      </div>
+      <div class="db-grid-2 wide-left">
+        <div class="db-card">
+          <header class="db-card-head"><h3>Recent Noogets activity</h3></header>
+          {% if report.spending.ledger %}
+          <div class="table-scroll"><table class="db-table"><thead><tr><th>What</th><th>When</th><th class="num">Change</th></tr></thead><tbody>
+          {% for l in report.spending.ledger %}<tr><td>{{ l.reason }}</td><td class="f-muted">{{ l.when }}</td><td class="num {{ 'up' if l.delta > 0 else 'down' }}">{{ ('+' if l.delta > 0 else '') + fmt_num(l.delta) }}</td></tr>{% endfor %}
+          </tbody></table></div>
+          {% else %}<p class="f-muted f-small">Nothing yet.</p>{% endif %}
+        </div>
+        <div class="db-card">
+          <header class="db-card-head"><h3>Newest things they own</h3></header>
+          {% if report.spending['items'] %}
+          <ul class="mini-list">{% for i in report.spending['items'] %}<li><svg class="f-ic sm"><use href="#i-sparkle"/></svg><span>{{ i.name }}<small>{{ i.slot }} &middot; {{ i.rarity }}{{ ' · Unusual' if i.tier == 'unusual' else '' }} &middot; {{ i.when }}</small></span></li>{% endfor %}</ul>
+          {% else %}<p class="f-muted f-small">Nothing yet.</p>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================== ACHIEVEMENTS -->
+    <section class="db-sec" id="achievements" aria-labelledby="aw-h">
+      <h2 class="db-sec-h" id="aw-h">Achievements</h2>
+      <div class="kpis three">
+        <div class="kpi"><span class="kpi-label">Badges earned</span><span class="kpi-val">{{ report.achievements.badge_count }}<small>/{{ report.achievements.badge_total }}</small></span><span class="kpi-delta">Across every world</span></div>
+        <div class="kpi"><span class="kpi-label">Rounds played</span><span class="kpi-val">{{ fmt_num(report.achievements.rounds) }}</span><span class="kpi-delta">{{ fmt_num(report.achievements.wins) }} won</span></div>
+        <div class="kpi"><span class="kpi-label">Score</span><span class="kpi-val">{{ fmt_num(report.achievements.score) }}</span><span class="kpi-delta">All worlds together</span></div>
+      </div>
+      <div class="db-card">
+        {% if report.achievements.badges %}
+        <ul class="badge-grid">{% for b in report.achievements.badges %}<li class="badge-tile"><span class="badge-medal" style="--c:{{ b.color }}"><svg class="f-ic"><use href="#i-star"/></svg></span><b>{{ b.name }}</b><small>{{ b.rank }} &middot; {{ b.game }}</small></li>{% endfor %}</ul>
+        {% else %}
+        <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-trophy"/></svg></span><b>No badges yet</b><small>Badges are earned by playing &mdash; the first one usually comes quickly!</small></div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- ======================================================== RULES -->
+    <section class="db-sec" id="rules" aria-labelledby="ru-h">
+      <h2 class="db-sec-h" id="ru-h">Rules <span class="save-state" id="save-state" aria-live="polite"></span></h2>
+      <p class="db-sec-sub">Changes save as you make them and apply straight away &mdash; even mid-game.</p>
+      <div class="rules-grid" id="rules-editor"></div>
+    </section>
+
+    <!-- ====================================================== ACCOUNT -->
+    <section class="db-sec" id="account" aria-labelledby="ka-h">
+      <h2 class="db-sec-h" id="ka-h">{{ child.first_name }}&rsquo;s account</h2>
+      <div class="db-grid-2">
+        <form class="db-card acct-form" id="kid-details">
+          <h3>About {{ child.first_name }} <span class="f-muted f-tiny">&middot; only you see this</span></h3>
+          <div class="f-field"><label class="f-label" for="k-first">First name</label><input class="f-input" id="k-first" name="first_name" maxlength="30" value="{{ child.first_name }}"></div>
+          <div class="f-field"><label class="f-label" for="k-year">Birth year</label><input class="f-input" id="k-year" name="birth_year" inputmode="numeric" maxlength="4" value="{{ child.birth_year or '' }}"></div>
+          <button class="f-btn f-btn-primary" type="submit">Save</button>
+        </form>
+        <div class="db-card acct-form">
+          <h3>Sign-in</h3>
+          <form id="kid-pass">
+            <div class="f-field"><label class="f-label" for="k-pass">Set a new password</label>
+              <div class="f-inputwrap"><input class="f-input" id="k-pass" name="password" type="text" minlength="6" maxlength="64" autocomplete="new-password" placeholder="At least 6 characters"><button class="f-peek" type="button" data-peek="k-pass" aria-label="Hide password" aria-pressed="true"><svg class="f-ic sm"><use href="#i-eye-off"/></svg></button></div>
+              <span class="f-help">They&rsquo;ll be signed out everywhere and use the new one next time.</span></div>
+            <div class="acct-row"><button class="f-btn f-btn-primary" type="submit">Change password</button><button class="f-btn f-btn-soft" type="button" id="kid-signin-here"><svg class="f-ic sm"><use href="#i-play"/></svg> Sign {{ child.first_name }} in here</button></div>
+          </form>
+          <div class="acct-danger">
+            <h3>Delete {{ child.first_name }}&rsquo;s account</h3>
+            <p>Removes @{{ child.username }} for good: their character, items, friends and messages. This can&rsquo;t be undone.</p>
+            <button class="f-btn f-btn-sm f-btn-danger" type="button" id="kid-delete"><svg class="f-ic sm"><use href="#i-trash"/></svg> Delete this account</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="drawer" id="convo-drawer" hidden>
+  <div class="drawer-scrim" data-close></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="convo-title">
+    <header class="drawer-head"><h3 id="convo-title">Conversation</h3><button class="icon-btn" type="button" data-close aria-label="Close"><svg class="f-ic sm"><use href="#i-x"/></svg></button></header>
+    <p class="drawer-note"><svg class="f-ic sm"><use href="#i-eye"/></svg> Reading here doesn&rsquo;t mark anything as read for {{ child.first_name }}.</p>
+    <div class="drawer-body" id="convo-body"></div>
+  </aside>
+</div>
+{% include "family/partials/foot.html" %}

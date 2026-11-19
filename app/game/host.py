@@ -178,7 +178,7 @@ class GameHost:
             if len(keep) != len(self.instances):
                 self.instances = keep or self.instances[:1]
 
-    def drop_user(self, user_id: int, reason: str = "") -> int:
+    def drop_user(self, user_id: int, reason: str = "", kind: str = "") -> int:
         """Pull one account out of every instance this host is running."""
         if user_id <= 0:
             return 0
@@ -187,7 +187,7 @@ class GameHost:
         dropped = 0
         for instance in instances:
             try:
-                dropped += instance.drop_user(user_id, reason)
+                dropped += instance.drop_user(user_id, reason, kind=kind)
             except Exception:
                 if config.DEBUG:
                     traceback.print_exc()
@@ -412,6 +412,8 @@ class GameHost:
             self.bot_cfg_version = int(reply["cfg"].get("v", -1))
         if reply.get("badges"):
             self.announce_badges(reply["badges"])
+        if isinstance(reply.get("family"), dict):
+            self.apply_family(reply["family"])
         reserve = int(reply.get("reserve", 0) or 0)
         if reserve:
             with self.lock:
@@ -422,6 +424,34 @@ class GameHost:
             except Exception:
                 if config.DEBUG:
                     traceback.print_exc()
+
+    def apply_family(self, family: Dict[str, Any]) -> None:
+        """A child's play-time rules, from the web server: kicks for a used-up
+        limit, quiet hours, a paused account or a world switched off, and the
+        five- and one-minute warnings before a limit."""
+        for kick in family.get("kick") or []:
+            try:
+                self.drop_user(int(kick.get("uid", 0) or 0),
+                               str(kick.get("reason", ""))[:200], kind="family")
+            except (TypeError, ValueError):
+                continue
+        notices = family.get("notice") or []
+        if not notices:
+            return
+        with self.lock:
+            instances = list(self.instances)
+        for notice in notices:
+            try:
+                uid = int(notice.get("uid", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            text = str(notice.get("text", ""))[:200]
+            for instance in instances:
+                for player in list(instance.players.values()):
+                    if player.user_id == uid and player.brain is None:
+                        player.send({"t": "chat", "kind": "system", "from": "",
+                                     "id": 0, "m": "\u23f0 " + text,
+                                     "at": time.time()})
 
     def apply_op(self, op: Dict[str, Any]) -> None:
         kind = op.get("op")
@@ -574,7 +604,9 @@ class GameHost:
         player = instance.add_player(
             int(ticket.get("uid", 0)), str(ticket.get("name", "Player")),
             expand_avatar(ticket.get("avatar") or {}), ws,
-            bool(ticket.get("admin")))
+            bool(ticket.get("admin")),
+            # a child account's chat setting (app/family), signed with the rest
+            family=ticket.get("fam") if isinstance(ticket.get("fam"), dict) else None)
         self.connections += 1
         try:
             while True:

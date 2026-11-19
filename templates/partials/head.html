@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="{{ asset('/static/css/badges.css') }}">
 <link rel="stylesheet" href="{{ asset('/static/css/pets.css') }}">
 {% if season %}<link rel="stylesheet" href="{{ asset('/static/css/season.css') }}">{% endif %}
+{% if family_kid %}<link rel="stylesheet" href="{{ asset('/static/css/family/kid.css') }}">{% endif %}
 <link rel="icon" href="{{ asset('/static/img/favicon.svg') }}" type="image/svg+xml">
 <script>
 window.BH = {
@@ -142,4 +143,5 @@ window.BH = {
 </div>
 
 <div class="wrap" style="padding-top:12px">
+{% if family_kid %}{% include "partials/family_bar.html" %}{% endif %}
 {% if flash %}<div class="notice {{ flash.kind }}">{{ flash.text }}</div>{% endif %}

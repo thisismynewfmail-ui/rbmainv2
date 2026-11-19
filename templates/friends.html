@@ -18,8 +18,11 @@
           <td><a href="/profile/{{ r.username }}">{{ r.username }}</a></td>
           <td class="muted">{{ ago(r.requested_at) }}</td>
           <td class="right">
+            {% if r.waiting %}<span class="muted">Waiting for a grown-up&rsquo;s OK</span>
+            {% else %}
             <button class="btn small go" data-friend="accept" data-username="{{ r.username }}">Accept</button>
             <button class="btn small" data-friend="decline" data-username="{{ r.username }}">Decline</button>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -27,6 +30,9 @@
       {% if not incoming %}<p class="muted">No pending requests.</p>{% endif %}
 
     {% elif tab == 'sent' %}
+      {% if waiting %}
+      <div class="notice">Waiting for a grown-up&rsquo;s OK: {% for w in waiting %}<a href="/profile/{{ w.username }}">{{ w.username }}</a>{% if not loop.last %}, {% endif %}{% endfor %}. Once they say yes, your request goes out.</div>
+      {% endif %}
       <div class="tablewrap"><table class="grid">
         <tr><th>Player</th><th>Sent</th><th class="right">Action</th></tr>
         {% for r in outgoing %}
