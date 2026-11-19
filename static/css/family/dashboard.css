@@ -214,7 +214,6 @@
 .kpi-val { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; color: var(--f-ink); display: flex; align-items: center; gap: 7px; }
 .kpi-val small { font-size: 16px; color: var(--f-ink-4); }
 .kpi-delta { font-size: 12.5px; font-weight: 600; color: var(--f-ink-3); }
-.coin-dot { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff2b8, #ffbf1f 55%, #c28100); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .35); }
 
 /* charts */
 .chart-card { margin: 0; }

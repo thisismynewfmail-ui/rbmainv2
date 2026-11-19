@@ -237,7 +237,7 @@
 .fam-setup .ap-bar { background: color-mix(in srgb, var(--f-card) 72%, transparent); }
 
 .wz-build { position: relative; max-width: 520px; margin: -6px auto -26px; z-index: 1; }
-.wz-build .build { display: block; width: 100%; height: auto; overflow: visible; }
+.wz-build .wz-haven { width: 100%; }
 .wz-build-caption {
   /* centred by margins, not a transform: the pop-in animation owns transform */
   position: absolute; left: 0; right: 0; bottom: 34px; margin: 0 auto; width: max-content; display: flex; align-items: center; gap: 7px;
@@ -251,22 +251,6 @@
 .k-skin { fill: var(--k-skin, #f5cd30); transition: fill .45s; }
 .k-shirt { fill: var(--k-shirt, #0d69ac); transition: fill .45s; }
 .k-pants { fill: var(--k-pants, #a4bd47); transition: fill .45s; }
-.bh-float { animation: hv-float 6.5s ease-in-out infinite; transform-box: fill-box; }
-.bh-part { opacity: 0; transform: translateY(-34px) scale(.6); transform-box: fill-box; transform-origin: 50% 100%; transition: opacity .45s var(--f-ease), transform .8s var(--f-spring); }
-.bh-part.on { opacity: 1; transform: none; }
-.bh-s0 { transform: none; transition: opacity .8s; }
-.bh-s5 { transform: scale(.94); transform-origin: 50% 90%; }
-.bh-s5 .bh-rim { stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 1.6s var(--f-ease) .15s; }
-.bh-s5.on .bh-rim { stroke-dashoffset: 0; }
-.bh-kid { transform-box: fill-box; transform-origin: 50% 100%; animation: hv-hop 2.2s cubic-bezier(.3, 0, .3, 1) infinite; }
-.bh-lamp { transform-box: fill-box; transform-origin: center; animation: hv-lamp 3s ease-in-out infinite; }
-.bh-badge { transform-box: fill-box; transform-origin: center; animation: hv-badge 3.6s ease-in-out infinite; }
-.bh-lock { transform-box: fill-box; transform-origin: center; animation: bh-lock 2.6s ease-in-out infinite; }
-@keyframes bh-lock { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px) rotate(-4deg); } }
-.bh-window { animation: hv-window 4s ease-in-out infinite; }
-.bh-burst line { stroke-linecap: round; stroke-width: 3; transform-box: fill-box; }
-.bh-burst { transform-box: fill-box; transform-origin: center; animation: bh-burst 1.3s cubic-bezier(.2, .8, .2, 1) forwards; }
-@keyframes bh-burst { 0% { transform: scale(.1); opacity: 1; } 70% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
 /* the island's own keyframes (shared with the landing page) */
 @keyframes hv-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes hv-hop { 0%, 55%, 100% { transform: translateY(0) scaleY(1); } 62% { transform: translateY(0) scaleY(.93); } 76% { transform: translateY(-9px) scaleY(1.04); } 90% { transform: translateY(0) scaleY(.97); } }

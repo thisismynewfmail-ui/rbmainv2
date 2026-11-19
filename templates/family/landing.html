@@ -85,7 +85,7 @@
 
     <div class="lp-hero-art lp-layer" data-depth="-0.4" aria-label="An illustration: a glowing block island where kids play, under a protective dome that stops unwanted messages">
       <canvas class="lp-flies" id="lp-flies" aria-hidden="true"></canvas>
-      <div class="lp-haven">{% include "family/partials/haven.svg.html" %}</div>
+      <div class="lp-haven haven-host" data-haven="hero"><noscript>{% include "family/partials/haven.svg.html" %}</noscript></div>
       <div class="lp-notes" id="lp-notes" aria-hidden="true"></div>
     </div>
   </div>
@@ -130,14 +130,8 @@
         <header class="lp-vs-head"><span class="lp-tag good"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> {{ brand }}</span><h3>You&rsquo;re part of every friendship</h3></header>
         <div class="lp-vs-stage" aria-hidden="true">
           <span class="vs-sun"></span>
-          <span class="vs-dome"></span>
-          <span class="vs-kid"><i class="h"></i><i class="b"></i></span>
-          <span class="vs-msg m1">hey how old r u?</span>
-          <span class="vs-msg m2">add me on my other app</span>
-          <span class="vs-msg m3">what school do u go to?</span>
-          <span class="vs-msg ok">gg! wanna team up? &#128578;</span>
-          <span class="vs-ripple r1"></span><span class="vs-ripple r2"></span><span class="vs-ripple r3"></span>
-          <span class="vs-approve"><svg class="f-ic sm"><use href="#i-user-check"/></svg> You approved Leo</span>
+          <div class="vs-world haven-host" data-haven="mini" data-bad-1="hey how old r u?" data-bad-2="add me on my other app"
+               data-bad-3="what school do u go to?" data-good="gg! wanna team up?" data-approve="You approved Leo"></div>
         </div>
         <ul class="lp-vs-list">
           <li><svg class="f-ic sm"><use href="#i-check"/></svg> New friends wait for your OK &mdash; then they can chat</li>

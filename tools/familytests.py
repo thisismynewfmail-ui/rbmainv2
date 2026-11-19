@@ -514,7 +514,7 @@ def test_insights():
                " VALUES(?,?,?,?,?)", (cid, time.strftime("%Y-%m-%d"), 16, "prop_panic", 1500))
     report = insights.child_report(children.get(int(p["id"]), cid))
     for key in ("status", "play", "sessions", "signins", "social", "messages", "wall",
-                "alerts", "spending", "achievements", "controls"):
+                "alerts", "achievements", "controls"):
         check(key in report, "report has %s" % key)
     check(len(report["play"]["chart"]) == 14, "fourteen days charted")
     check(report["social"]["count"] == 1, "one friend")

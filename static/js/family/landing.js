@@ -1,9 +1,9 @@
 /* /parent_signup_l -- the landing page's living parts.
 
    The hero is a haven at dusk: stars and shooting stars on a canvas,
-   fireflies round the island, and -- the point of the whole picture -- the
-   messages that fly at the dome and bounce off it, each one answered by the
-   note a parent would get.  Below it: the dashboard demo, the live
+   fireflies round the island, and the live little world under its dome
+   (haven.js), where the messages that fly at the dome bounce off it, each
+   one answered here by the note a parent would get.  Below it: the dashboard demo, the live
    character, and "be the stranger", which runs the real Safe Chat filter.
 
    None of it is needed to read the page or to sign up: every call to
@@ -17,7 +17,6 @@
   var $ = FAM.$;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var DPR = Math.min(2, window.devicePixelRatio || 1);
-  var SVGNS = 'http://www.w3.org/2000/svg';
 
   /* ------------------------------------------------- the bar and the CTA */
   var nav = $('#lp-nav');
@@ -182,20 +181,12 @@
     }
   }
 
-  /* ---------------------------------------------- the notes and threats */
-  var svg = hero ? hero.querySelector('svg.haven') : null;
-  var threatLayer = svg ? svg.querySelector('.hv-threats') : null;
-  var domeG = svg ? svg.querySelector('.hv-dome') : null;
-  var badge = svg ? svg.querySelector('.hv-badge') : null;
-  var dome = (svg && svg.getAttribute('data-dome') || '300,284,262,250').split(',').map(Number);
+  /* ------------------------------------------------------------ the notes
+     The world under the dome (haven.js) turns away the messages that fly at
+     it; each one it stops comes here as a "haven:blocked" event and gets the
+     note a parent would see.  Friendly notes come in between. */
   var notesBox = $('#lp-notes');
-  var THREATS = [
-    { icon: 'at', what: 'an invite to another app', title: 'Safe Chat stopped an invite' },
-    { icon: 'phone', what: 'a phone number', title: 'Safe Chat blocked a phone number' },
-    { icon: 'pin', what: 'a home address', title: 'Safe Chat blocked an address' },
-    { icon: 'camera', what: 'a request for photos', title: 'Safe Chat blocked a photo request' },
-    { icon: 'link', what: 'a link to another site', title: 'Safe Chat blocked a link' }
-  ];
+  var havenHost = hero ? hero.querySelector('[data-haven]') : null;
   var GOOD = [
     { ic: 'good', icon: 'user-check', title: 'You approved Leo', sub: 'Mia’s new friend · just now' },
     { ic: 'sun', icon: 'clock', title: '42 of 60 minutes today', meter: true },
@@ -203,8 +194,8 @@
     { ic: 'good', icon: 'pulse', title: 'Mia is playing Sky Sprint', sub: 'With 2 approved friends' }
   ];
   var goodIndex = 0;
-  var threatIndex = 0;
   var side = 0;
+  var lastBlocked = 0;
 
   function note(spec) {
     if (!notesBox) return;
@@ -221,107 +212,16 @@
       setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, 460);
     }, 3800);
   }
-
-  var active = [];
-  function el(name, attrs, parent) {
-    var node = document.createElementNS(SVGNS, name);
-    for (var k in attrs) node.setAttribute(k, attrs[k]);
-    if (parent) parent.appendChild(node);
-    return node;
-  }
-  function launch() {
-    if (!threatLayer) return;
-    var spec = THREATS[threatIndex++ % THREATS.length];
-    var cx = dome[0], cy = dome[1], rx = dome[2], ry = dome[3];
-    /* on a phone the haven sits under the copy, so threats come in low from
-       the sides and from close by, never down across the words above it */
-    var narrow = window.innerWidth < 760;
-    var deg = narrow ? (Math.random() < 0.5 ? 18 + Math.random() * 38 : 124 + Math.random() * 38)
-                     : 24 + Math.random() * 132;
-    var theta = deg * Math.PI / 180;
-    var px = cx + rx * Math.cos(theta);
-    var py = cy - ry * Math.sin(theta);
-    var nx = Math.cos(theta) / rx, ny = -Math.sin(theta) / ry;
-    var len = Math.sqrt(nx * nx + ny * ny);
-    nx /= len; ny /= len;
-    var g = el('g', { 'class': 'th' }, threatLayer);
-    var body = el('g', {}, g);
-    el('rect', { x: -19, y: -15, width: 38, height: 30, rx: 10, fill: '#ff5b4d' }, body);
-    el('path', { d: 'M-8 14 L-13 23 L2 14 Z', fill: '#ff5b4d' }, body);
-    el('rect', { x: -19, y: -15, width: 38, height: 30, rx: 10, fill: 'none', stroke: '#ffffff', 'stroke-opacity': '.35' }, body);
-    var use = el('use', { href: '#i-' + spec.icon, x: -9, y: -9, width: 18, height: 18,
-                          fill: 'none', stroke: '#ffffff', 'stroke-width': 2.4,
-                          'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, body);
-    use.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#i-' + spec.icon);
-    active.push({ g: g, body: body, spec: spec, px: px, py: py, nx: nx, ny: ny,
-                  sx: px + nx * (narrow ? 120 : 250), sy: py + ny * (narrow ? 120 : 250), t0: performance.now(), hit: false });
-  }
-  function impact(a) {
-    var ring = el('g', { transform: 'translate(' + a.px.toFixed(1) + ' ' + a.py.toFixed(1) + ')' }, threatLayer);
-    var c1 = el('circle', { 'class': 'th-ring', r: 2, 'stroke-width': 3 }, ring);
-    var c2 = el('circle', { 'class': 'th-ring', r: 2, 'stroke-width': 2 }, ring);
-    var sparks = [];
-    for (var i = 0; i < 7; i++) {
-      var ang = Math.atan2(a.ny, a.nx) + (i - 3) * 0.42;
-      sparks.push({ line: el('line', { 'class': 'th-spark', 'stroke-width': 2.4 }, ring), ang: ang });
-    }
-    var t0 = performance.now();
-    (function step(now) {
-      var k = Math.min(1, (now - t0) / 650);
-      c1.setAttribute('r', (4 + 38 * k).toFixed(1));
-      c1.setAttribute('stroke-opacity', (1 - k).toFixed(2));
-      var k2 = Math.max(0, Math.min(1, (now - t0 - 120) / 650));
-      c2.setAttribute('r', (4 + 56 * k2).toFixed(1));
-      c2.setAttribute('stroke-opacity', (0.8 * (1 - k2)).toFixed(2));
-      sparks.forEach(function (s) {
-        var r1 = 6 + 26 * k, r2 = r1 + 8 * (1 - k);
-        s.line.setAttribute('x1', (Math.cos(s.ang) * r1).toFixed(1));
-        s.line.setAttribute('y1', (Math.sin(s.ang) * r1).toFixed(1));
-        s.line.setAttribute('x2', (Math.cos(s.ang) * r2).toFixed(1));
-        s.line.setAttribute('y2', (Math.sin(s.ang) * r2).toFixed(1));
-        s.line.setAttribute('stroke-opacity', (1 - k).toFixed(2));
-      });
-      if (k2 < 1) requestAnimationFrame(step);
-      else ring.remove();
-    })(t0);
-    if (domeG) {
-      domeG.classList.add('hit');
-      setTimeout(function () { domeG.classList.remove('hit'); }, 260);
-    }
-    if (badge) {
-      badge.classList.remove('hit');
-      void badge.getBoundingClientRect();
-      badge.classList.add('hit');
-      setTimeout(function () { badge.classList.remove('hit'); }, 720);
-    }
-    note({ ic: 'blue', icon: 'shield-check', title: a.spec.title,
-           sub: 'Mia never saw it · you’ve been told' });
-  }
-  function stepThreats(now) {
-    for (var i = active.length - 1; i >= 0; i--) {
-      var a = active[i];
-      var t = (now - a.t0) / 1150;
-      var x, y, s = 1, o = 1, rot = 0;
-      if (t < 1) {
-        var e = t * t * (3 - 2 * t);
-        x = a.sx + (a.px - a.sx) * e;
-        y = a.sy + (a.py - a.sy) * e;
-        o = Math.min(1, t * 4);
-        rot = Math.sin(t * 9) * 6;
-      } else {
-        if (!a.hit) { a.hit = true; impact(a); }
-        var b = Math.min(1, (t - 1) / 0.55);
-        x = a.px + a.nx * 70 * b;
-        y = a.py + a.ny * 70 * b + 30 * b * b;
-        s = 1 - 0.5 * b;
-        o = 1 - b;
-        rot = -30 * b;
-        if (b >= 1) { a.g.remove(); active.splice(i, 1); continue; }
-      }
-      a.g.setAttribute('transform', 'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')');
-      a.body.setAttribute('transform', 'rotate(' + rot.toFixed(1) + ') scale(' + s.toFixed(3) + ')');
-      a.g.setAttribute('opacity', o.toFixed(2));
-    }
+  if (havenHost) {
+    havenHost.addEventListener('haven:blocked', function (e) {
+      var spec = e.detail || {};
+      var now = performance.now();
+      if (now - lastBlocked < 1800) return;
+      lastBlocked = now;
+      note(spec.storm
+        ? { ic: 'blue', icon: 'shield-check', title: spec.title, sub: 'Rain outside, sunshine in · nothing got through' }
+        : { ic: 'blue', icon: 'shield-check', title: spec.title, sub: 'Mia never saw it · you’ve been told' });
+    });
   }
 
   /* --------------------------------------------------------- parallax */
@@ -344,7 +244,6 @@
 
   /* --------------------------------------------------------- the loop */
   var last = performance.now();
-  var nextThreat = performance.now() + 1600;
   var nextGood = performance.now() + 900;
   var frame = 0;
   function loop(now) {
@@ -355,11 +254,6 @@
     frame++;
     if (frame % 2 === 0) drawStars(now);
     drawFlies(now, dt);
-    stepThreats(now);
-    if (now > nextThreat) {
-      if (active.length < 2) launch();
-      nextThreat = now + 3400 + Math.random() * 1600;
-    }
     if (now > nextGood) {
       note(GOOD[goodIndex++ % GOOD.length]);
       nextGood = now + 6800 + Math.random() * 1200;

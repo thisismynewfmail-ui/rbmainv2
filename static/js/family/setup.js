@@ -38,10 +38,11 @@
   };
 
   /* ------------------------------------------------------- the world
-     The island above the card builds itself as the steps go by, and the
-     sky behind it moves from dawn to night. */
+     The little world above the card (haven.js, build mode) builds itself as
+     the steps go by -- a home, their name on the sign, them, a lock, the
+     dome -- and the sky behind it moves from dawn to night. */
   var build = $('#build');
-  var buildParts = build ? $$('.bh-part', build) : [];
+  var world = build && build.haven;
   var caption = $('#wz-build-caption span');
   var sky = $('#wz-sky');
   var SKY = ['dawn', 'dawn', 'day', 'day', 'gold', 'gold', 'night', 'night'];
@@ -51,18 +52,19 @@
     return [
       'Their world starts here',
       state.first ? 'A home for ' + state.first : 'A home of their own',
-      state.username ? state.username + ' \u2014 that\u2019s them!' : 'Their name goes on the sign',
+      state.username ? state.username + ' — that’s them!' : 'Their name goes on the sign',
       state.first ? state.first + ', in their own colours' : 'Now they design themselves',
       'Locked with their own secret password',
-      'Your rules \u2014 and up goes the shield',
+      'Your rules — and up goes the shield',
       'Lights on. Ready when you are.',
       'Welcome to ' + brandName + ', ' + name + '!'
     ][step];
   }
   function paintWorld(step) {
-    var stage = Math.min(step, 6);
-    buildParts.forEach(function (part, i) { part.classList.toggle('on', i <= stage); });
-    if (build) build.setAttribute('data-stage', String(stage));
+    if (world) {
+      world.setStage(Math.min(step, 6));
+      world.setLight(SKY[step]);
+    }
     if (caption) {
       var text = captionFor(step);
       if (caption.textContent !== text) {
@@ -79,42 +81,13 @@
     }
   }
   function paintSign() {
-    var sign = $('#bh-name');
-    if (sign) sign.textContent = state.username || 'Your name here';
+    if (world) world.setName(state.username || '');
   }
   function paintKid() {
-    if (!build) return;
-    build.style.setProperty('--k-skin', state.look.colors.head || '#f5cd30');
-    build.style.setProperty('--k-shirt', state.look.colors.torso || '#0d69ac');
-    build.style.setProperty('--k-pants', state.look.colors.left_leg || '#a4bd47');
+    if (world) world.setLook({ shirt: state.look.colors.torso || '#0d69ac', pants: state.look.colors.left_leg || '#a4bd47' });
   }
   function fireworks() {
-    var fx = $('#bh-fx');
-    if (!fx || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    var colors = ['#ffd25e', '#ff8fb6', '#8fd0ff', '#8af0b6', '#c4a5ff'];
-    var NS = 'http://www.w3.org/2000/svg';
-    function burst(b) {
-      var g = document.createElementNS(NS, 'g');
-      g.setAttribute('transform', 'translate(' + (90 + Math.random() * 340).toFixed(0) + ' ' +
-                     (30 + Math.random() * 110).toFixed(0) + ')');
-      var inner = document.createElementNS(NS, 'g');
-      inner.setAttribute('class', 'bh-burst');
-      var color = colors[b % colors.length];
-      for (var i = 0; i < 12; i++) {
-        var a = i / 12 * Math.PI * 2;
-        var line = document.createElementNS(NS, 'line');
-        line.setAttribute('x1', (Math.cos(a) * 10).toFixed(1));
-        line.setAttribute('y1', (Math.sin(a) * 10).toFixed(1));
-        line.setAttribute('x2', (Math.cos(a) * 34).toFixed(1));
-        line.setAttribute('y2', (Math.sin(a) * 34).toFixed(1));
-        line.setAttribute('stroke', color);
-        inner.appendChild(line);
-      }
-      g.appendChild(inner);
-      fx.appendChild(g);
-      setTimeout(function () { fx.removeChild(g); }, 1400);
-    }
-    for (var b = 0; b < 6; b++) setTimeout(burst.bind(null, b), b * 380);
+    if (world) world.setStage(7);
   }
 
   /* -------------------------------------------------------- the names */

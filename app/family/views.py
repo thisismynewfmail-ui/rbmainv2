@@ -186,7 +186,7 @@ def landing(req: Request):
                   year=time.gmtime().tm_year,
                   pixel=config.FAMILY_FB_PIXEL,
                   extra_css=["/static/css/family/haven.css", "/static/css/family/landing.css"],
-                  scripts=["/static/js/family/landing.js"])
+                  scripts=["/static/js/family/haven.js", "/static/js/family/landing.js"])
 
 
 @router.route("/parent-signup", ("GET", "POST"))
@@ -202,7 +202,7 @@ def signup(req: Request):
                           "email": req.query.get("email", "")[:120]},
                       utm=_utm(req), pixel=config.FAMILY_FB_PIXEL,
                       password_min=config.FAMILY_PASSWORD_MIN,
-                      scripts=["/static/js/family/signup.js"])
+                      scripts=["/static/js/family/haven.js", "/static/js/family/signup.js"])
     form = req.data()
     values = {k: str(form.get(k, ""))[:160] for k in
               ("display_name", "email", "username", "relation")}
@@ -214,7 +214,7 @@ def signup(req: Request):
                       page_class="fam-signup", extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"], error=message, field=field, values=values,
                       utm=_utm(req), pixel=config.FAMILY_FB_PIXEL,
                       password_min=config.FAMILY_PASSWORD_MIN,
-                      scripts=["/static/js/family/signup.js"])
+                      scripts=["/static/js/family/haven.js", "/static/js/family/signup.js"])
 
     if not db.rate_limit("family.signup:%s" % req.remote_addr, 12, 3600):
         return fail("Too many sign-ups from this connection -- try again in a little while.",
@@ -363,12 +363,12 @@ def setup(req: Request, fam: Dict[str, Any], name: str = ""):
     from ..models import avatars
     return render(req, "setup.html", fam, page_title="Set up your child's account",
                   page_class="fam-app fam-setup",
-                  extra_css=["/static/css/family/onboard.css"],
+                  extra_css=["/static/css/family/haven.css", "/static/css/family/onboard.css"],
                   engine=True,
                   welcome=req.query.get("welcome") == "1",
                   kids=kids, slot_number=len(kids) + 1,
                   years=list(range(this_year - 4, this_year - 19, -1)),
-                  scripts=["/static/js/family/setup.js"],
+                  scripts=["/static/js/family/haven.js", "/static/js/family/setup.js"],
                   pixel=config.FAMILY_FB_PIXEL if req.query.get("welcome") == "1" else "",
                   boot={
                       "csrf": fam["csrf"], "home": _home_of(parent),

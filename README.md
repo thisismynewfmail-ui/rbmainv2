@@ -16,7 +16,7 @@ library only)** and **vanilla JavaScript**. It has two halves:
   port on its own sub-page (`/blackout_relay`, `/last_light`).
 * **Family accounts.** A parent signs up from their own landing page and
   creates up to four child accounts. They watch over them from a dashboard
-  (play time, friends, messages, Safe Chat alerts, spending) and set the
+  (play time, friends, messages, Safe Chat alerts) and set the
   rules, which the servers enforce. See [Family accounts](#family-accounts).
 
 Around both runs an optional population of **synthetic players** — accounts
@@ -1695,8 +1695,6 @@ the parent's own account settings. It refreshes itself every 15 seconds.
 * **Messages**: messages per day, every conversation (tap to read it), comments
   on their profile and comments they wrote.
 * **Safety**: every alert, with the excerpt.
-* **Spending**: balance, spent and earned this week, the Noogets ledger,
-  crates opened, newest items.
 * **Achievements**: badges, rounds, wins and score.
 * **Rules**: the editor, which saves as you go.
 * **Account**: first name and birth year, a new password (children can't
@@ -1714,6 +1712,44 @@ floating islands, a storm-versus-haven story, a dashboard demo, a working
 **Try Safe Chat** phone that runs the real filter
 (`/api/family/safechat-demo`), the four family slots, the worlds with a live
 3D character, and a FAQ.
+
+**The dome** is a live little world everywhere it appears: the landing page's
+hero, the comparison card, the sign-up page and the set-up wizard
+(`static/js/family/haven.js`). It's a floating island of studded plastic
+bricks, lit like the game.
+
+* **Who's there.** Yellow blocky kids swing, slide, ride the seesaw, fish off
+  the dock, build towers, dance by the boombox, fly kites, play catch, sit
+  round the campfire, visit the lemonade stand and pet the dog. Ducks paddle
+  round the pond, a stream runs off the edge as a waterfall, and a cat naps
+  on the roof.
+* **New every visit.** A fresh seed picks the island, the buildings (a
+  windmill or a lighthouse on the hill, a stall, tent or well), the layout
+  (mirrored or not), who is playing and what they wear.
+* **The season.** It follows the real month: cherry blossom and petals in
+  spring, sunflowers in summer, red and gold trees, pumpkins and falling
+  leaves in autumn. In winter it's a snow globe, with snow on every brick, a
+  snowman, a lit pine and snow falling inside the glass.
+* **Events.** Fireworks, lanterns, balloons that bump against the inside of
+  the glass, a dance party, soap bubbles, and a storm outside. Its rain slides
+  off the dome, its lightning hits the shield, and a rainbow follows.
+* **What it stops.** Messages fly at the dome and bounce off. Each one fires a
+  `haven:blocked` event, and the landing page turns it into the note a parent
+  would get.
+* **Tapping it.** A kid jumps, the grass grows a flower, the pond splashes (and
+  a fish might jump), the house lights up and a kid comes out, the windmill
+  spins up, the campfire sparks, the shield makes everyone wave, and the open
+  sky sets off a firework.
+* **In the wizard** it builds itself step by step: a home, the child's
+  username on a sign, the child in their chosen colours, a lock, the dome
+  rising, lights at night, and friends arriving to say hello.
+
+The terrain and every prop that stays still are painted once and reused. The
+loop stops off screen and in a hidden tab, a slow device drops its resolution,
+and `prefers-reduced-motion` gets one still frame. Without JavaScript, the
+landing and sign-up pages show a still picture instead. To preview a season or a particular world, add
+`?haven-season=winter` (or `spring`, `summer`, `autumn`) or `?haven-seed=42`
+to the page address.
 
 The copy only promises what the code does: no testimonials and no numbers that
 aren't real (there's a marked spot in the template for real quotes once there
