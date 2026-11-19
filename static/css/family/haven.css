@@ -4,6 +4,13 @@
    Every moving part is a class; positions live on outer groups, so these
    transforms never fight an SVG transform attribute.
    ========================================================================== */
+/* the live world (static/js/family/haven.js) draws into a canvas that fills
+   its host; the host keeps the drawing's proportions */
+.haven-host { position: relative; display: block; width: 100%; }
+.haven-host[data-haven="hero"], .haven-host[data-haven="panel"] { aspect-ratio: 600 / 620; }
+.haven-host[data-haven="build"] { aspect-ratio: 520 / 380; }
+.haven-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.haven-host noscript .haven { position: absolute; inset: 0; }
 .haven { display: block; width: 100%; height: auto; overflow: visible; }
 .hv-float { animation: hv-float 7s ease-in-out infinite; transform-box: fill-box; }
 @keyframes hv-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }

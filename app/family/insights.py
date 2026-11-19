@@ -478,44 +478,6 @@ def mark_alerts_seen(uid: int) -> None:
                (int(time.time()), uid))
 
 
-# ---------------------------------------------------------------- spending
-
-def spending(child: Dict[str, Any]) -> Dict[str, Any]:
-    from ..models import catalog, economy, inventory
-    uid = int(child["id"])
-    info = _info(child)
-    week_ago = int(time.time()) - 7 * 86400
-    spent = int(db.scalar("SELECT COALESCE(-SUM(delta),0) FROM credit_ledger WHERE"
-                          " user_id=? AND delta<0 AND created_at>?", (uid, week_ago)))
-    earned = int(db.scalar("SELECT COALESCE(SUM(delta),0) FROM credit_ledger WHERE"
-                           " user_id=? AND delta>0 AND created_at>?", (uid, week_ago)))
-    ledger = [{"delta": int(r["delta"]), "reason": r["reason"],
-               "balance": int(r["balance_after"]), "when": _when(info, r["created_at"])}
-              for r in economy.history(uid, 20)]
-    openings = db.rows_to_dicts(db.query(
-        "SELECT item_id, grade, tier, created_at FROM crate_openings WHERE user_id=?"
-        " ORDER BY id DESC LIMIT 6", (uid,)))
-    crates_opened = int(db.scalar("SELECT COUNT(*) FROM crate_openings WHERE user_id=?",
-                                  (uid,)))
-    recent_items = []
-    for row in inventory.list_for_user(uid)[:10]:
-        if row["slot"] in ("crate", "key"):
-            continue
-        recent_items.append({"name": row["name"], "slot": row["slot_label"],
-                             "rarity": row["rarity"], "tier": row["tier"],
-                             "item_id": row["item_id"], "source": row["source"],
-                             "when": _when(info, row["acquired_at"])})
-    return {
-        "balance": economy.balance(uid), "spent_week": spent, "earned_week": earned,
-        "ledger": ledger, "crates_opened": crates_opened,
-        "openings": [{"name": (catalog.get(r["item_id"]) or {}).get("name", r["item_id"]),
-                      "grade": r["grade"], "unusual": r["tier"] == "unusual",
-                      "when": _when(info, r["created_at"])} for r in openings],
-        "items": recent_items[:8],
-        "summary": inventory.summary(uid),
-    }
-
-
 # ----------------------------------------------------------- achievements
 
 def achievements(child: Dict[str, Any]) -> Dict[str, Any]:
@@ -577,7 +539,6 @@ def child_report(child: Dict[str, Any]) -> Dict[str, Any]:
         "messages": conversations(child),
         "wall": wall(child),
         "alerts": alerts(child),
-        "spending": spending(child),
         "achievements": achievements(child),
         "controls": controls_view(child),
         "joined": _when(info, child["created_at"]).split(",")[0],

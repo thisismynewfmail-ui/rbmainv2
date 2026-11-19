@@ -52,7 +52,6 @@
       <a href="#friends">Friends{% if report.social.waiting %} <span class="tab-badge warn">{{ len(report.social.waiting) }}</span>{% endif %}</a>
       <a href="#messages">Messages</a>
       <a href="#safety">Safety{% if report.alerts.unseen %} <span class="tab-badge bad" id="tab-alerts">{{ report.alerts.unseen }}</span>{% endif %}</a>
-      <a href="#spending">Spending</a>
       <a href="#achievements">Achievements</a>
       <a href="#rules">Rules</a>
       <a href="#account">Account</a>
@@ -263,32 +262,6 @@
             <li><svg class="f-ic sm"><use href="#i-heart"/></svg><span>Tells you gently if {{ child.first_name }} writes something that can be a sign of feeling low.</span></li>
           </ul>
           <p class="f-muted f-tiny">No filter is perfect &mdash; that&rsquo;s why you can read the conversations above.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================================================== SPENDING -->
-    <section class="db-sec" id="spending" aria-labelledby="sp-h">
-      <h2 class="db-sec-h" id="sp-h">Spending <span class="f-chip good">Play money only</span></h2>
-      <div class="kpis three">
-        <div class="kpi"><span class="kpi-label">Noogets balance</span><span class="kpi-val"><span class="coin-dot"></span>{{ fmt_num(report.spending.balance) }}</span><span class="kpi-delta">Play money &mdash; never real money</span></div>
-        <div class="kpi"><span class="kpi-label">Spent this week</span><span class="kpi-val">{{ fmt_num(report.spending.spent_week) }}</span><span class="kpi-delta">Earned {{ fmt_num(report.spending.earned_week) }}</span></div>
-        <div class="kpi"><span class="kpi-label">Crates opened</span><span class="kpi-val">{{ report.spending.crates_opened }}</span><span class="kpi-delta">Crates are {{ 'allowed' if report.controls['values'].crates else 'switched off' }}</span></div>
-      </div>
-      <div class="db-grid-2 wide-left">
-        <div class="db-card">
-          <header class="db-card-head"><h3>Recent Noogets activity</h3></header>
-          {% if report.spending.ledger %}
-          <div class="table-scroll"><table class="db-table"><thead><tr><th>What</th><th>When</th><th class="num">Change</th></tr></thead><tbody>
-          {% for l in report.spending.ledger %}<tr><td>{{ l.reason }}</td><td class="f-muted">{{ l.when }}</td><td class="num {{ 'up' if l.delta > 0 else 'down' }}">{{ ('+' if l.delta > 0 else '') + fmt_num(l.delta) }}</td></tr>{% endfor %}
-          </tbody></table></div>
-          {% else %}<p class="f-muted f-small">Nothing yet.</p>{% endif %}
-        </div>
-        <div class="db-card">
-          <header class="db-card-head"><h3>Newest things they own</h3></header>
-          {% if report.spending['items'] %}
-          <ul class="mini-list">{% for i in report.spending['items'] %}<li><svg class="f-ic sm"><use href="#i-sparkle"/></svg><span>{{ i.name }}<small>{{ i.slot }} &middot; {{ i.rarity }}{{ ' · Unusual' if i.tier == 'unusual' else '' }} &middot; {{ i.when }}</small></span></li>{% endfor %}</ul>
-          {% else %}<p class="f-muted f-small">Nothing yet.</p>{% endif %}
         </div>
       </div>
     </section>
