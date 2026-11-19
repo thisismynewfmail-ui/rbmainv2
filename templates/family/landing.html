@@ -106,7 +106,7 @@
   <div class="f-wrap">
     <div class="lp-head f-reveal">
       <p class="lp-kicker">Why parents choose {{ brand }}</p>
-      <h2>Out there, anyone can reach them.<br><span class="lp-hl">In here, you hold the keys.</span></h2>
+      <h2>Out there, anyone can <span class="f-nw">reach them.</span><br><span class="lp-hl">In here, you hold <span class="f-nw">the keys.</span></span></h2>
     </div>
     <div class="lp-versus">
       <article class="lp-vs storm f-reveal">
@@ -207,7 +207,7 @@
   <div class="f-wrap lp-dash-grid">
     <div class="lp-dash-copy f-reveal">
       <p class="lp-kicker">Your parent dashboard</p>
-      <h2>See everything.<br>Change anything in a tap.</h2>
+      <h2>See everything.<br>Change anything <span class="f-nw">in a tap.</span></h2>
       <ul class="lp-ticks">
         <li><svg class="f-ic"><use href="#i-pulse"/></svg><span><b>Live status</b> &mdash; online, offline, or which world they&rsquo;re in right now.</span></li>
         <li><svg class="f-ic"><use href="#i-chart"/></svg><span><b>Play time by day, week and hour</b> &mdash; and which worlds it goes to.</span></li>
@@ -342,7 +342,7 @@
   <div class="f-wrap">
     <div class="lp-head f-reveal">
       <p class="lp-kicker">The part they&rsquo;ll love</p>
-      <h2>A world that&rsquo;s fun for them &mdash;<br>and makes sense to you.</h2>
+      <h2>A world that&rsquo;s fun <span class="f-nw">for them &mdash;</span><br>and makes sense <span class="f-nw">to you.</span></h2>
     </div>
     <div class="lp-fun-grid">
       <div class="lp-stage-card f-reveal">
@@ -447,16 +447,27 @@
 
 <!-- ======================================================= FINAL CTA -->
 <section class="lp-final" id="start">
-  <div class="lp-final-glow" aria-hidden="true"></div>
+  <div class="lp-final-sky" aria-hidden="true">
+    <i class="lp-final-stars"></i><i class="lp-final-stars s2"></i>
+    <i class="lp-final-aurora"></i><i class="lp-final-aurora a2"></i>
+    <i class="lp-final-moon"></i>
+    <span class="lp-final-isle i1">{% include "family/partials/islet.svg.html" %}</span>
+    <span class="lp-final-isle i2">{% include "family/partials/islet.svg.html" %}</span>
+    <span class="lp-final-isle i3">{% include "family/partials/islet.svg.html" %}</span>
+    <span class="lp-final-isle i4">{% include "family/partials/islet.svg.html" %}</span>
+    <i class="lp-final-fly f1"></i><i class="lp-final-fly f2"></i><i class="lp-final-fly f3"></i>
+    <i class="lp-final-fly f4"></i><i class="lp-final-fly f5"></i><i class="lp-final-fly f6"></i>
+    <i class="lp-final-horizon"></i>
+  </div>
   <div class="f-wrap lp-final-in f-reveal">
-    <span class="lp-final-badge"><svg class="f-ic lg"><use href="#i-shield-check"/></svg></span>
-    <h2>Give them a place to play.<br>Give yourself peace of mind.</h2>
+    <span class="lp-final-badge"><i></i><i></i><svg class="f-ic lg"><use href="#i-shield-check"/></svg></span>
+    <h2>Give them a place <span class="f-nw">to play.</span><br>Give yourself <span class="f-nw">peace of mind.</span></h2>
     <p>It takes about two minutes. Your child&rsquo;s adventure starts with you.</p>
     <form class="lp-final-form" action="/parent-signup" method="get" data-cta-form="final">
       {% for key in utm %}<input type="hidden" name="{{ key }}" value="{{ utm[key] }}">{% endfor %}
       <label class="f-sr" for="final-email">Your email</label>
       <input class="f-input" id="final-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="Your email address">
-      <button class="f-btn f-btn-primary f-btn-lg" type="submit">Get started free <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
+      <button class="f-btn f-btn-sun f-btn-lg" type="submit">Get started free <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg><span class="f-shine"></span></button>
     </form>
     <ul class="lp-assure center">
       <li><svg class="f-ic sm"><use href="#i-check"/></svg> No credit card</li>

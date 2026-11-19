@@ -239,7 +239,8 @@
 .wz-build { position: relative; max-width: 520px; margin: -6px auto -26px; z-index: 1; }
 .wz-build .build { display: block; width: 100%; height: auto; overflow: visible; }
 .wz-build-caption {
-  position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 7px;
+  /* centred by margins, not a transform: the pop-in animation owns transform */
+  position: absolute; left: 0; right: 0; bottom: 34px; margin: 0 auto; width: max-content; display: flex; align-items: center; gap: 7px;
   padding: 8px 14px; border-radius: 99px; white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis;
   background: rgba(255, 255, 255, .88); color: var(--f-ink); font: 800 13.5px/1.2 var(--f-font);
   box-shadow: 0 14px 34px -16px rgba(20, 40, 90, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);

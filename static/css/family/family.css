@@ -191,6 +191,7 @@ body.fam {
   line-height: 1.12; color: var(--f-ink); text-wrap: balance;
 }
 :where(.fam) p { margin: 0; text-wrap: pretty; }
+.f-nw { white-space: nowrap; }   /* keeps a heading's last words together */
 :where(.fam) :focus-visible { outline: none; box-shadow: var(--f-focus); border-radius: 10px; }
 .f-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .f-wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 16px; }
