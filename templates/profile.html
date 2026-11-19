@@ -49,13 +49,15 @@
             {% endif %}
             {% if user %}
             <a class="btn block" href="/messages/compose?to={{ profile.username }}">Send message</a>
-            <button class="btn block {{ 'danger' if friend_status in ('friends', 'pending_out') else 'go' }}"
+            <button class="btn block {{ 'danger' if friend_status in ('friends', 'pending_out') else ('' if friend_status == 'awaiting_parent' else 'go') }}"
+                    {% if friend_status == 'awaiting_parent' %}disabled{% endif %}
                     id="friend-btn" data-username="{{ profile.username }}" data-state="{{ friend_status }}"
                     data-friend="{{ 'remove' if friend_status in ('friends', 'pending_out') else ('accept' if friend_status == 'pending_in' else 'request') }}"
                     title="{{ 'Click to cancel the request' if friend_status == 'pending_out' else '' }}">
               {% if friend_status == 'friends' %}Remove friend
               {% elif friend_status == 'pending_out' %}Request sent
               {% elif friend_status == 'pending_in' %}Accept request
+              {% elif friend_status == 'awaiting_parent' %}Waiting for a grown-up&rsquo;s OK
               {% else %}Add friend{% endif %}
             </button>
             <button class="btn block" id="follow-btn" data-username="{{ profile.username }}" data-state="{{ 1 if following else 0 }}">

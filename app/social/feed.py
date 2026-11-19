@@ -41,6 +41,8 @@ def recent_activity(limit: int = 18) -> List[Dict[str, Any]]:
             "SELECT f.updated_at, a.username AS ua, b.username AS ub"
             " FROM friendships f JOIN users a ON a.id=f.user_low"
             " JOIN users b ON b.id=f.user_high WHERE f.status='accepted'"
+            " AND f.user_low NOT IN (SELECT user_id FROM family_children)"
+            " AND f.user_high NOT IN (SELECT user_id FROM family_children)"
             " ORDER BY f.updated_at DESC LIMIT ?", (limit,)):
         events.append({"kind": "friend", "username": row["ua"],
                        "text": "is now friends with %s" % row["ub"],

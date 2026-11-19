@@ -1,0 +1,14 @@
+{# Optional Meta pixel (config.FAMILY_FB_PIXEL / BLOCKHAVEN_FB_PIXEL).  Only
+   ever on the landing and sign-up pages.  autoConfig is off, so the pixel
+   does not read the page's forms or buttons on its own: the only events it
+   sends are the ones named here and in the page scripts. #}
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('set', 'autoConfig', false, '{{ pixel }}');
+fbq('init', '{{ pixel }}');
+fbq('track', 'PageView');
+</script>

@@ -50,8 +50,10 @@
         <div class="spread" style="margin-bottom:6px">
           <a href="/profile/{{ r.username }}">{{ r.username }}</a>
           <span>
+            {% if r.waiting %}<span class="muted tiny">Asked a grown-up</span>{% else %}
             <button class="btn small go" data-friend="accept" data-username="{{ r.username }}">Accept</button>
             <button class="btn small" data-friend="decline" data-username="{{ r.username }}">No</button>
+            {% endif %}
           </span>
         </div>
         {% endfor %}

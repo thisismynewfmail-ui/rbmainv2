@@ -15,9 +15,18 @@ from .base import (api_error, api_ok, flash_redirect, login_required, render,
 def friends_page(req: Request):
     uid = int(req.user["id"])
     tab = req.query.get("tab", "friends")
+    # A child account's friendships waiting on their parent (app/family);
+    # an empty list for everybody else.
+    from ..family import guard as family_guard
+    waiting = family_guard.waiting_for(uid)
+    held = {row["username"] for row in waiting}
+    incoming = friends.incoming_requests(uid)
+    for row in incoming:
+        row["waiting"] = row["username"] in held
     return render(req, "friends.html", tab=tab,
                   friends_list=friends.list_friends(uid, 200),
-                  incoming=friends.incoming_requests(uid),
+                  incoming=incoming,
+                  waiting=[w for w in waiting if w["direction"] == "out"],
                   outgoing=friends.outgoing_requests(uid),
                   followers=follows.followers(uid, 100),
                   following=follows.following(uid, 100),

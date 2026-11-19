@@ -21,6 +21,8 @@ router = R.Router()
 templating.register_global("season", None)
 # The same goes for the Pet Zone tab, which only a pet owner sees.
 templating.register_global("nav_pet", False)
+# ...and the family play-time strip, which only a child account sees.
+templating.register_global("family_kid", None)
 
 
 def flash_redirect(location: str, message: str = "", kind: str = "ok") -> Response:
@@ -162,6 +164,17 @@ def _season(path: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _family_banner(user: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not user:
+        return None
+    try:
+        from ..family import guard as family_guard
+        return family_guard.banner(user)
+    except Exception:
+        logging.getLogger(__name__).exception("family banner failed")
+        return None
+
+
 def context(req: Request, **extra: Any) -> Dict[str, Any]:
     user = req.user
     ctx: Dict[str, Any] = {
@@ -183,6 +196,9 @@ def context(req: Request, **extra: Any) -> Dict[str, Any]:
         "is_admin": bool(user and user["is_admin"]),
         "prefs": users.prefs_of(user) if user else dict(users.PREF_DEFAULTS),
         "theme": theme_for(req),
+        # A child account's own play-time strip (app/family): today's time
+        # left and quiet hours.  None for every other account.
+        "family_kid": _family_banner(user),
         "season": _season(req.path),
         "fmt_time": fmt_time,
         "fmt_date": fmt_date,

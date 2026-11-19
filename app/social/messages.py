@@ -31,6 +31,13 @@ def send(sender_id: int, recipient_name: str, subject: str, body: str,
     body = security.clean_text(body, BODY_MAX)
     if not body:
         raise MessageError("Your message is empty.")
+    # A child account's messaging rules and Safe Chat (app/family/guard.py);
+    # a no-op for everybody else.
+    from ..family import guard as family_guard
+    try:
+        subject, body = family_guard.filter_message(sender_id, recipient, subject, body)
+    except family_guard.Refused as exc:
+        raise MessageError(str(exc))
     if not db.rate_limit("msg:%d" % sender_id, 20, 600):
         raise MessageError("You are sending messages too quickly.")
     cur = db.execute(

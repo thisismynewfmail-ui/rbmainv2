@@ -1,0 +1,22 @@
+<div class="f-toasts" id="f-toasts" aria-live="polite"></div>
+{% if boot %}<script type="application/json" id="fam-boot">{{& to_json(boot) }}</script>{% endif %}
+<script>window.FAM = { csrf: "{{ csrf }}", home: "{{ home }}", pixel: {{ 'true' if pixel else 'false' }} };</script>
+<script src="{{ asset('/static/js/family/app.js') }}"></script>
+{% if engine %}
+{# the site's own 3D character renderer, for the live avatars #}
+<script src="{{ asset('/static/js/engine/gl.js') }}"></script>
+<script src="{{ asset('/static/js/engine/geometry.js') }}"></script>
+<script src="{{ asset('/static/js/engine/shapes.js') }}"></script>
+<script src="{{ asset('/static/js/engine/textures.js') }}"></script>
+<script src="{{ asset('/static/js/engine/world_emblems.js') }}"></script>
+<script src="{{ asset('/static/js/engine/renderer.js') }}"></script>
+<script src="{{ asset('/static/js/engine/avatar.js') }}"></script>
+<script src="{{ asset('/static/js/engine/pet.js') }}"></script>
+<script src="{{ asset('/static/js/engine/zombies.js') }}"></script>
+<script src="{{ asset('/static/js/engine/particles.js') }}"></script>
+<script src="{{ asset('/static/js/ui/thumbs.js') }}"></script>
+{% endif %}
+{% for script in scripts %}<script src="{{ asset(script) }}"></script>
+{% endfor %}
+</body>
+</html>

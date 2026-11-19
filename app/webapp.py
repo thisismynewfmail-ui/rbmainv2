@@ -15,6 +15,9 @@ from .models import users
 from .views import base as views_base
 from .views import (admin, auth, avatar_view, bots_admin, home, internal,  # noqa: F401
                     market_view, pets_view, profile, social_views, worlds_view)
+# Family accounts: the parent landing page, onboarding, dashboards (app/family)
+from .family import guard as family_guard
+from .family import views as family_views
 
 router = views_base.router
 worlds_view.register_world_routes()
@@ -31,7 +34,8 @@ def _load_session(req: Request) -> None:
         req.user = None
         return
     user = users.get_by_id(int(session["user_id"]))
-    if user is None or user["is_banned"]:
+    # A child account its parent has paused is signed out wherever it is.
+    if user is None or user["is_banned"] or not family_guard.session_ok(user):
         users.end_session(token)
         req.session = None
         req.user = None
@@ -49,6 +53,11 @@ def _csrf_ok(req: Request) -> bool:
         return True
     if any(req.path.startswith(prefix) for prefix in CSRF_EXEMPT_PREFIXES):
         return True
+    # The family pages answer to the parent's session, not a player's: a
+    # parent and their child can be signed in on one computer at once, and a
+    # parent's form must not be judged against the child's token.
+    if family_views.is_family_path(req.path):
+        return family_views.csrf_ok(req)
     if req.session is None:
         # Unauthenticated POSTs (login / register) are protected by their own
         # rate limits; there is no session state to forge yet.

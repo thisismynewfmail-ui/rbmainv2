@@ -40,13 +40,18 @@ def home(req: Request):
     # home page (or coming back to it from a profile) does not re-serve it.
     show_spotlight = users.claim_spotlight(
         req.session["token"] if req.session else "")
+    from ..family import guard as family_guard
+    held = {row["username"] for row in family_guard.waiting_for(uid)}
+    requests = friends.incoming_requests(uid)[:5]
+    for row in requests:
+        row["waiting"] = row["username"] in held
     return render(
         req, "home.html",
         show_spotlight=show_spotlight,
         worlds=world_rows,
         friends_list=friends.list_friends(uid, 12),
         friend_count=friends.count_friends(uid),
-        requests=friends.incoming_requests(uid)[:5],
+        requests=requests,
         activity=feed.recent_activity(14),
         site_stats=feed.stats_snapshot(),
         online=users.online_users(12),

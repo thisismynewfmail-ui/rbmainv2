@@ -40,6 +40,14 @@ def login(req: Request):
     try:
         user = users.authenticate(username, password)
     except users.AuthError as exc:
+        # A parent who typed their family account into the players' sign-in
+        # goes on to their dashboard: the two share one username namespace,
+        # so the name cannot mean anybody else.
+        from ..family import accounts as family_accounts
+        from ..family import views as family_views
+        parent = family_accounts.try_authenticate(username, password)
+        if parent is not None:
+            return family_views.sign_parent_in(parent, req)
         db.audit(None, "auth.fail", username, {"ip": ip})
         return render(req, "login.html", next_url=next_url, error=str(exc),
                       status=401)
@@ -107,6 +115,10 @@ def settings(req: Request):
         return remember_theme(
             flash_redirect("/settings", "Appearance saved."), theme)
     if action == "password":
+        from ..family import guard as family_guard
+        if not family_guard.may_change_password(int(user["id"])):
+            return flash_redirect("/settings", "Your grown-up looks after your "
+                                  "password -- ask them if you need a new one.", "bad")
         try:
             users.change_password(int(user["id"]),
                                   str(form.get("current", "")),

@@ -1,0 +1,43 @@
+{# The family pages' own shell.  The conversion pages (landing, sign-up,
+   sign-in) are always light -- they are a first impression -- and the
+   signed-in pages follow the visitor's theme like the rest of the site. #}
+{% set light_only = page_class.split(' ')[0] in ('fam-landing', 'fam-signup', 'fam-signin') %}
+<!DOCTYPE html>
+<html lang="en" class="no-js" data-theme="{{ 'light' if light_only else theme }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ page_title }} | {{ brand }} for families</title>
+<meta name="theme-color" content="#f5f7fc">
+{% if page_class.startswith('fam-landing') %}
+<meta name="description" content="{{ brand }} is a free blocky game world for kids, with a parent dashboard: you create their account, approve every new friend, set daily time limits and see who they talk to.">
+<meta property="og:title" content="Let them play. Know they're safe. | {{ brand }} for families">
+<meta property="og:description" content="A free game world for kids where you hold the keys: friend approval, Safe Chat, time limits and a real-time parent dashboard. Up to {{ max_children }} kids per family.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="{{ asset('/static/img/logo.png') }}">
+{% else %}
+<meta name="robots" content="noindex, nofollow">
+{% endif %}
+<link rel="icon" href="{{ asset('/static/img/favicon.svg') }}" type="image/svg+xml">
+<link rel="stylesheet" href="{{ asset('/static/css/family/family.css') }}">
+{% for sheet in extra_css %}<link rel="stylesheet" href="{{ asset(sheet) }}">
+{% endfor %}
+<script>
+/* Theme before first paint, the same three places the main site keeps it:
+   the cookie (already on <html>), then localStorage, then the OS. */
+(function () {
+  var root = document.documentElement;
+  root.className = root.className.replace('no-js', 'js');
+  if (root.getAttribute('data-theme') === 'auto') {
+    try {
+      var t = localStorage.getItem('blockhaven.theme');
+      if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
+    } catch (e) {}
+  }
+})();
+</script>
+{% if pixel %}{% include "family/partials/pixel.html" %}{% endif %}
+</head>
+<body class="fam {{ page_class }}">
+<a class="f-sr" href="#main">Skip to content</a>
+{% include "family/partials/icons.html" %}

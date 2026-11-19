@@ -84,6 +84,13 @@ def heartbeat(req: Request):
                 import traceback
                 traceback.print_exc()
     reply: Dict[str, Any] = {"ok": True, "at": int(time.time())}
+    # Play-time metering for child accounts (app/family/activity.py): the
+    # time limit, quiet hours and switched-off worlds come back as kicks and
+    # countdown notices for the host to deliver.
+    from ..family import activity as family_activity
+    family = family_activity.on_heartbeat(world_id, payload)
+    if family:
+        reply["family"] = family
     if earned:
         # the host tells the players: a toast in game, a line in the chat
         reply["badges"] = earned
@@ -115,6 +122,11 @@ def _apply_report(world_id: str, report: Dict[str, Any]) -> List[Dict[str, Any]]
     kind = str(report.get("kind", ""))
     user_id = int(report.get("user_id", 0) or 0)
     if user_id <= 0:
+        return []
+    if kind == "family":
+        # Safe Chat acted on a child's in-game chat; their parent hears of it
+        from ..family import guard as family_guard
+        family_guard.on_game_report(world_id, user_id, report)
         return []
     if kind == "badges":
         from ..models import badges

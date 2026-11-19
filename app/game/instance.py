@@ -28,6 +28,7 @@ import time
 import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..family import shield
 from ..models import catalog
 from .gear import GEAR_KINDS, Gear, Minion
 
@@ -130,7 +131,8 @@ class Player:
                  "vote", "extra", "last_damage_from", "last_damage_at",
                  "seq", "corrections", "ping", "streak", "last_seen_alive",
                  "last_message",
-                 "coins", "plot", "session_key", "flags", "admin", "brain")
+                 "coins", "plot", "session_key", "flags", "admin", "brain",
+                 "family")
 
     def __init__(self, pid: int, user_id: int, username: str,
                  avatar: Dict[str, Any], ws, admin: bool = False):
@@ -200,6 +202,10 @@ class Player:
         # for every person.  Everything else about a bot is an ordinary
         # Player going through the ordinary paths.
         self.brain = None
+        # A child account's family settings from the signed join ticket
+        # ({"chat": "safe" | "off"}), or None for everybody else.  Never in
+        # public(): nobody else in the round is told.
+        self.family: Optional[Dict[str, Any]] = None
 
     # ------------------------------------------------------------- weapons
     def held_slot(self) -> int:
@@ -619,11 +625,14 @@ class GameInstance:
 
     # -------------------------------------------------------------- players
     def add_player(self, user_id: int, username: str, avatar: Dict[str, Any],
-                   ws, admin: bool = False) -> Player:
+                   ws, admin: bool = False,
+                   family: Optional[Dict[str, Any]] = None) -> Player:
         with self.lock:
             pid = self.next_pid
             self.next_pid += 1
             player = Player(pid, user_id, username, avatar, ws, admin)
+            if isinstance(family, dict):
+                player.family = {"chat": "off" if family.get("chat") == "off" else "safe"}
             player.team = self.pick_team(player)
             self.players[pid] = player
             self.spawn_player(player)
@@ -648,7 +657,7 @@ class GameInstance:
                     "gravity": GRAVITY, "walk": WALK_SPEED, "jump": JUMP_SPEED,
                     "size": list(PLAYER_SIZE), "respawn": self.respawn_seconds,
                 },
-                "chat": self.chat_log[-25:],
+                "chat": self.chat_history_for(player),
             }
             player.send(payload)
             self.broadcast({"t": "join", "player": player.public()},
@@ -686,7 +695,7 @@ class GameInstance:
             return player
 
     def drop_user(self, user_id: int, reason: str = "",
-                  keep_pid: int = 0) -> int:
+                  keep_pid: int = 0, kind: str = "") -> int:
         """Disconnect every connection belonging to one account.
 
         Used to enforce one live session per player: opening a world in a
@@ -700,8 +709,13 @@ class GameInstance:
                       if p.user_id == user_id and p.pid != keep_pid]
         for player in doomed:
             try:
-                player.send({"t": "kicked", "reason": reason or
-                             "You opened this game in another window."})
+                message = {"t": "kicked", "reason": reason or
+                           "You opened this game in another window."}
+                if kind:
+                    # "family": a child's limit or quiet hours, which the
+                    # client words as a goodbye rather than a takeover
+                    message["kind"] = kind
+                player.send(message)
             except Exception:
                 pass
             player.connected = False
@@ -1315,13 +1329,16 @@ class GameInstance:
                          "m": "You are talking too fast.", "at": time.time()})
             return
         player.chat_times.append(moment)
+        text = self.family_gate(player, text)
+        if text is None:
+            return
         team_only = bool(message.get("team"))
         entry = {"t": "chat", "from": player.username, "id": player.pid,
                  "uid": player.user_id, "team": player.team, "m": text,
                  "kind": "team" if team_only else "all", "at": time.time(),
                  "admin": player.admin}
         if team_only:
-            self.broadcast(entry, team=player.team)
+            self.deliver_chat(entry, team=player.team)
             if self.bots is not None:
                 # the team's bots read team chat too
                 self.bots.on_team_chat(entry)
@@ -1333,13 +1350,101 @@ class GameInstance:
         else:
             self.chat_log.append(entry)
             del self.chat_log[:-120]
-            self.broadcast(entry)
+            self.deliver_chat(entry)
         if self.bots is not None and player.brain is None and not team_only:
             # somebody real said something: let the bots hear it promptly
             self.bots.wants_report = True
             wake = getattr(self.host, "wake_heartbeat", None)
             if wake is not None:
                 wake()
+
+    # ------------------------------------------------- Safe Chat (app/family)
+    # A child account carries its chat setting in the signed join ticket.
+    # What a child says is checked before anybody hears it; what anybody
+    # says to a child is checked per child on the way out, so the rest of
+    # the round's chat is untouched.  Lines a child was kept from are told to
+    # the web server, which tells that child's parent.
+
+    def family_gate(self, player: Player, text: str) -> Optional[str]:
+        """The line a child may say (possibly with words blanked), or None
+        when it is not to be said at all.  Everybody else's goes through."""
+        fam = player.family
+        if fam is None:
+            return text
+        if fam.get("chat") == "off":
+            player.send({"t": "chat", "kind": "system", "from": "", "id": 0,
+                         "m": "Chat is switched off on your account.",
+                         "at": time.time()})
+            return None
+        verdict = shield.scan(text, author_is_child=True, channel="game")
+        if verdict.flagged:
+            self._family_report(player, "said", verdict, text)
+        if verdict.blocked:
+            player.send({"t": "chat", "kind": "system", "from": "", "id": 0,
+                         "m": shield.kid_notice(verdict), "at": time.time()})
+            return None
+        if verdict.action == "mask":
+            return verdict.masked
+        return text
+
+    def _family_report(self, player: Player, event: str, verdict: Any,
+                       text: str, other: str = "") -> None:
+        report = getattr(self.host, "queue_report", None)
+        if report is None:
+            return
+        report({"kind": "family", "world": self.world_id,
+                "user_id": player.user_id, "event": event,
+                "categories": list(verdict.categories),
+                "excerpt": shield.excerpt(text), "other": other})
+
+    def chat_for(self, recipient: Player, entry: Dict[str, Any],
+                 cache: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """``entry`` as ``recipient`` should see it: unchanged for most,
+        blanked or withheld for a child.  ``cache`` holds the verdict so one
+        line is scanned once however many children are listening."""
+        fam = recipient.family
+        if fam is None or entry.get("kind") == "system":
+            return entry
+        if fam.get("chat") == "off":
+            return None
+        if int(entry.get("uid", 0) or 0) == recipient.user_id:
+            return entry
+        if "verdict" not in cache:
+            cache["verdict"] = shield.scan(str(entry.get("m", "")),
+                                           author_is_child=False, channel="game")
+        verdict = cache["verdict"]
+        if verdict.blocked:
+            if verdict.severity == "high" or "contact" in verdict.categories:
+                self._family_report(recipient, "heard", verdict,
+                                    str(entry.get("m", "")), str(entry.get("from", "")))
+            return None
+        if verdict.action == "mask":
+            masked = dict(entry)
+            masked["m"] = verdict.masked
+            return masked
+        return entry
+
+    def deliver_chat(self, entry: Dict[str, Any], team: Optional[str] = None) -> None:
+        """``broadcast`` for player chat lines, with Safe Chat for children."""
+        cache: Dict[str, Any] = {}
+        for player in list(self.players.values()):
+            if team is not None and player.team != team:
+                continue
+            shown = self.chat_for(player, entry, cache)
+            if shown is not None:
+                player.send(shown)
+
+    def chat_history_for(self, player: Player) -> List[Dict[str, Any]]:
+        """The recent public chat a joining player is shown."""
+        recent = self.chat_log[-25:]
+        if player.family is None:
+            return recent
+        out = []
+        for entry in recent:
+            shown = self.chat_for(player, entry, {})
+            if shown is not None:
+                out.append(shown)
+        return out
 
     # ------------------------------------------------------------- vote/round
     def handle_vote(self, player: Player, message: Dict[str, Any]) -> None:

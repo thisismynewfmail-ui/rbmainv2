@@ -836,12 +836,18 @@ class WhodunitWorld(ArenaWorld):
             text = " ".join(text.split())[:200]
             if not text:
                 return
+            text = self.family_gate(player, text)
+            if text is None:
+                return
             entry = {"t": "chat", "from": player.username, "id": player.pid,
                      "uid": player.user_id, "team": player.team, "m": "[dead] " + text,
                      "kind": "team", "at": time.time(), "admin": player.admin}
+            cache: Dict[str, Any] = {}
             for other in self.players.values():
                 if other.extra.get("out") or not other.alive or other.pid not in self.roles:
-                    other.send(entry)
+                    shown = self.chat_for(other, entry, cache)
+                    if shown is not None:
+                        other.send(shown)
             return
         super().handle_chat(player, message)
         if self.phase == "active" and player.brain is None and player.alive:

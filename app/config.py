@@ -87,6 +87,26 @@ SESSION_TTL = 60 * 60 * 24 * 30  # 30 days
 
 PBKDF2_ROUNDS = 120_000
 
+# ---------------------------------------------------------------- families
+# Parent accounts (app/family/).  A parent is a separate kind of account --
+# its own table, its own sign-in and its own cookie, never a player -- that
+# creates and watches over up to FAMILY_MAX_CHILDREN player accounts.
+#
+# The name parents see on the family pages.  The topbar logo reads
+# "NoogBlock", so that is what the landing page and the dashboard call the
+# site; change it here (or with BLOCKHAVEN_BRAND) and every family page
+# follows.
+FAMILY_BRAND = os.environ.get("BLOCKHAVEN_BRAND", "NoogBlock")
+FAMILY_MAX_CHILDREN = 4
+FAMILY_COOKIE = "bh_family"
+FAMILY_SESSION_TTL = 60 * 60 * 24 * 30
+FAMILY_PASSWORD_MIN = 8
+# Optional Meta (Facebook) pixel for measuring the parent ad campaign.  Empty
+# means off.  When set it is loaded on the parent landing page and the parent
+# sign-up page ONLY -- never on a page a child sees -- with automatic form
+# scraping switched off (autoConfig false).
+FAMILY_FB_PIXEL = os.environ.get("BLOCKHAVEN_FB_PIXEL", "").strip()
+
 # ---------------------------------------------------------------- gameplay
 VISIT_THRESHOLD_SECONDS = 30  # 30s of playtime == one recorded visit
 TICK_RATE = 20                # server simulation / broadcast rate

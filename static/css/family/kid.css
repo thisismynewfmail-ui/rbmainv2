@@ -1,0 +1,34 @@
+/* A child account's play-time strip (templates/partials/family_bar.html).
+   Drawn in the site's own chrome -- a panel-ish bar with a bevel -- so it
+   reads as part of the page, in both palettes. */
+.kidbar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 10px; padding: 7px 12px;
+  border: 1px solid var(--info-edge); border-radius: 8px;
+  background: linear-gradient(180deg, var(--info-bg), var(--panel));
+  color: var(--info-ink); font-size: 12px; line-height: 1.35;
+  box-shadow: 0 1px 0 var(--shadow);
+}
+.kidbar-icon { font-size: 18px; line-height: 1; flex: none; }
+.kidbar-text { flex: 1 1 auto; min-width: 0; }
+.kidbar-text b { color: var(--ink-strong); }
+.kidbar-meter {
+  flex: 0 0 120px; height: 8px; border-radius: 99px; overflow: hidden;
+  background: var(--sunken); border: 1px solid var(--line-soft);
+}
+.kidbar-meter i {
+  display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #3fbf4a, #f5cd30);
+  transition: width .6s ease;
+}
+.kidbar.is-low { border-color: var(--warn-edge); background: linear-gradient(180deg, var(--warn-bg), var(--panel)); color: var(--warn-ink); }
+.kidbar.is-low .kidbar-meter i { background: linear-gradient(90deg, #f5cd30, #e2621b); }
+.kidbar.is-quiet { border-color: #6b5fb3; background: linear-gradient(180deg, #ece9fb, var(--panel)); color: #3b3270; }
+:root[data-theme="dark"] .kidbar.is-quiet { background: linear-gradient(180deg, #2a2550, var(--panel)); color: #d9d3ff; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .kidbar.is-quiet { background: linear-gradient(180deg, #2a2550, var(--panel)); color: #d9d3ff; }
+}
+@media (max-width: 640px) {
+  .kidbar { flex-wrap: wrap; }
+  .kidbar-meter { flex: 1 1 100%; }
+}

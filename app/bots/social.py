@@ -27,6 +27,14 @@ def _now() -> int:
     return int(time.time())
 
 
+def _child(uid: int) -> bool:
+    """A child account made by a parent (app/family).  Bots share rounds
+    and public chat with children like with anybody, but they never reach a
+    child in private: no friend requests, no messages, no profile comments."""
+    from ..family import guard as family_guard
+    return not family_guard.bot_may_contact(uid)
+
+
 # ---------------------------------------------------------------- friends
 def relationship(a: int, b: int) -> Optional[Dict[str, Any]]:
     return friends_model.relationship(a, b)
@@ -36,6 +44,8 @@ def request_friend(from_id: int, to_id: int, max_friends: int = 200) -> str:
     """A bot asks another account to be friends.  Returns the new state."""
     if from_id == to_id:
         return "self"
+    if _child(to_id) or _child(from_id):
+        return "blocked"
     existing = friends_model.relationship(from_id, to_id)
     if existing:
         if existing["status"] == "accepted":
@@ -55,6 +65,8 @@ def request_friend(from_id: int, to_id: int, max_friends: int = 200) -> str:
 
 
 def accept(user_id: int, other_id: int) -> bool:
+    if _child(other_id) or _child(user_id):
+        return False
     rel = friends_model.relationship(user_id, other_id)
     if not rel or rel["status"] != "pending" or int(rel["requester_id"]) == user_id:
         return False
@@ -129,6 +141,8 @@ def wall(profile_id: int, limit: int = 14) -> List[Dict[str, Any]]:
 
 
 def comment(author: int, profile: int, body: str) -> Optional[int]:
+    if _child(profile):
+        return None
     body = security.clean_text(body, comments_model.MAX_LEN)
     if not body:
         return None
@@ -140,6 +154,8 @@ def comment(author: int, profile: int, body: str) -> Optional[int]:
 
 def wall_open_to(owner: Dict[str, Any], author_id: int) -> bool:
     from ..models import users
+    if _child(int(owner["id"])):
+        return False
     return users.can_view(owner, "wall", author_id, False)
 
 
@@ -185,7 +201,7 @@ def dm(sender: int, recipient_name: str, body: str, subject: str = "") -> Option
         return None
     from ..models import users
     target = users.get_by_username(recipient_name)
-    if target is None:
+    if target is None or _child(int(target["id"])):
         return None
     subject = subject or "Re: hey"
     cur = db.execute(

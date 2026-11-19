@@ -41,15 +41,22 @@ def world_detail(req: Request, world_id: str = ""):
         return R.not_found("That world does not exist.")
     viewer = int(req.user["id"]) if req.user else 0
     status = game_registry.world_status(world_id)
+    # Who is playing right now, and who visited lately, are public lists:
+    # child accounts (app/family) are left off them.
+    from ..family import children as family_children
+    kids = family_children.directory.ids()
+    players = [p for p in game_registry.players_in(world_id, 60)
+               if int(p.get("user_id", 0) or 0) not in kids]
     return render(req, "world_detail.html", world=world, status=status,
                   stats=worlds.stats(world_id),
                   favourite=worlds.is_favourite(world_id, viewer) if viewer else False,
                   vote=worlds.user_vote(world_id, viewer) if viewer else 0,
                   leaderboard=worlds.leaderboard(world_id, 10),
-                  players=game_registry.players_in(world_id, 60),
+                  players=players,
                   recent_visits=db.rows_to_dicts(db.query(
                       "SELECT v.created_at, u.username FROM world_visits v"
                       " JOIN users u ON u.id=v.user_id WHERE v.world_id=?"
+                      " AND v.user_id NOT IN (SELECT user_id FROM family_children)"
                       " ORDER BY v.id DESC LIMIT 10", (world_id,))))
 
 
@@ -99,6 +106,12 @@ def join_ticket(req: Request):
     uid = int(req.user["id"])
     if not db.rate_limit("join:%d" % uid, 40, 300):
         return api_error("You are joining servers too quickly.")
+    # A child account's family rules (app/family): play-time limit, quiet
+    # hours, worlds their parent has switched off, a paused account.
+    from ..family import guard as family_guard
+    refused = family_guard.check_join(uid, world_id)
+    if refused:
+        return api_error(refused, 403)
     # One live game session per account.  If this player is already in a
     # world -- the same one in another tab, or a different one entirely --
     # that session is pulled first, so the two windows can never both be
@@ -118,6 +131,8 @@ def join_ticket(req: Request):
         "world": world_id,
         "avatar": avatar,
         "admin": bool(req.user["is_admin"]),
+        # a child's chat setting, for the host's Safe Chat (None for others)
+        "fam": family_guard.ticket_flags(uid),
     }, config.GAME_TICKET_TTL)
     instance = str(data.get("instance", "") or "")
     # Where to seat them.  With bots about, the director picks: another

@@ -1,0 +1,149 @@
+{% include "family/partials/head.html" %}
+{% include "family/partials/appbar.html" %}
+{#
+  /parent_<name> -- the parent's own page: their family at a glance, what
+  needs their OK, and their account.  Private to them; nothing here is ever
+  reachable by anybody else (app/family/views.py).
+#}
+<main id="main" class="db-main">
+  <section class="db-band">
+    <div class="db-band-sky" aria-hidden="true"><i class="db-stars"></i><i class="db-aurora"></i></div>
+    <div class="f-wrap db-band-in">
+      <div class="db-hello">
+        <p class="db-hello-kicker">{{ greeting }}, {{ parent.display_name }}</p>
+        <h1>{% if kids %}Here&rsquo;s your family today{% else %}Welcome to your family dashboard{% endif %}</h1>
+        {% if kids %}
+        <div class="db-band-stats" id="hub-stats">
+          <span class="db-stat-chip"><span class="f-dot live"></span> <b data-hub="online">{{ len([k for k in kids if k.status.state != 'offline']) }}</b> of {{ len(kids) }} online now</span>
+          <span class="db-stat-chip"><svg class="f-ic sm"><use href="#i-clock"/></svg> <b data-hub="today">&mdash;</b> played today</span>
+          <span class="db-stat-chip"><svg class="f-ic sm"><use href="#i-bell"/></svg> <b data-hub="attention">{{ len(attention) }}</b> waiting for you</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <div class="f-wrap db-lift">
+    {% if flash %}<div class="f-notice {{ 'bad' if flash.kind == 'bad' else 'good' }}" style="margin-bottom:16px"><span>{{ flash.text }}</span></div>{% endif %}
+
+    {% if kids %}
+    <div class="hub-kids">
+      {% for kid in kids %}
+      <article class="hub-kid f-reveal{{ ' is-paused' if kid.paused else '' }}" style="--d:{{ loop.index0 * 0.08 }}s" data-kid="{{ kid.id }}">
+        <a class="hub-kid-top" href="{{ home }}/child/{{ kid.username }}">
+          <span class="hub-ava"><canvas class="avatar-thumb" width="160" height="160" data-user="{{ kid.username }}"></canvas></span>
+          <span class="hub-kid-who">
+            <b>{{ kid.first_name }}{% if kid.age %} <small>&middot; {{ kid.age }}</small>{% endif %}</b>
+            <span class="hub-user">@{{ kid.username }}</span>
+            <span class="db-status {{ kid.status.state }}" data-live="status"><span class="f-dot {{ 'live' if kid.status.state == 'playing' else ('on' if kid.status.state == 'online' else '') }}"></span><span data-live="label">{{ 'Paused' if kid.paused else kid.status.label }}</span></span>
+          </span>
+          <svg class="f-ic hub-go"><use href="#i-chevron"/></svg>
+        </a>
+        <div class="hub-today">
+          <div class="hub-today-row">
+            <span class="hub-today-label">Today</span>
+            <span class="hub-today-val"><b data-live="used">{{ kid.today.used_label }}</b>{% if kid.today.limit is not None %} <small>of {{ kid.today.limit_label }}</small>{% else %} <small>&middot; no limit</small>{% endif %}</span>
+          </div>
+          <span class="db-meter{{ ' low' if kid.today.pct is not None and kid.today.pct >= 85 else '' }}" role="meter" aria-label="Play time used today" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ kid.today.pct if kid.today.pct is not None else 0 }}"><i data-live="meter" style="width:{{ kid.today.pct if kid.today.pct is not None else 0 }}%"></i></span>
+          <span class="hub-today-note" data-live="note">{% if kid.today.quiet_now %}Quiet hours until {{ kid.today.quiet_end }}{% elif kid.today.left is not None %}{{ kid.today.left_label }} left{% if kid.today.quiet %} &middot; quiet from {{ kid.today.quiet_start }}{% endif %}{% else %}{% if kid.today.quiet %}Quiet from {{ kid.today.quiet_start }}{% else %}No limits set{% endif %}{% endif %}</span>
+        </div>
+        <div class="hub-week" aria-label="Play time, last 7 days">
+          {% for d in kid.chart %}<span class="hub-week-day{{ ' today' if d.today else '' }}" title="{{ d.label }}: {{ int(d.minutes) }} min"><i style="--h:{{ min(100, int(100 * d.seconds / max(1, max([x.seconds for x in kid.chart] + [1])))) }}%"></i><small>{{ d.short }}</small></span>{% endfor %}
+        </div>
+        <div class="hub-kid-foot">
+          <span class="hub-chip"><svg class="f-ic sm"><use href="#i-users"/></svg> {{ kid.friends }} friend{{ '' if kid.friends == 1 else 's' }}</span>
+          <span class="hub-chip"><svg class="f-ic sm"><use href="#i-calendar"/></svg> {{ kid.week_label }} this week</span>
+          {% if kid.status.alerts %}<span class="hub-chip bad"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> {{ kid.status.alerts }} alert{{ '' if kid.status.alerts == 1 else 's' }}</span>{% endif %}
+          {% if kid.status.approvals %}<span class="hub-chip warn"><svg class="f-ic sm"><use href="#i-user-plus"/></svg> {{ kid.status.approvals }} to approve</span>{% endif %}
+        </div>
+        <div class="hub-kid-actions">
+          <a class="f-btn f-btn-sm f-btn-primary" href="{{ home }}/child/{{ kid.username }}">Open dashboard</a>
+          <button class="f-btn f-btn-sm {{ 'f-btn-good' if kid.paused else 'f-btn-ghost' }}" type="button" data-pause="{{ kid.id }}" data-paused="{{ 1 if kid.paused else 0 }}" data-name="{{ kid.first_name }}"><svg class="f-ic sm"><use href="#i-{{ 'play' if kid.paused else 'pause' }}"/></svg> {{ 'Resume' if kid.paused else 'Pause' }}</button>
+        </div>
+      </article>
+      {% endfor %}
+      {% if slots_left > 0 %}
+      <a class="hub-add f-reveal" href="{{ home }}/setup" style="--d:{{ len(kids) * 0.08 }}s">
+        <span class="hub-add-plus"><svg class="f-ic lg"><use href="#i-plus"/></svg></span>
+        <b>Add a child</b>
+        <small>{{ len(kids) }} of {{ max_children }} accounts used &mdash; best done together</small>
+      </a>
+      {% endif %}
+    </div>
+    {% else %}
+    <section class="hub-empty f-card f-reveal">
+      <div class="hub-empty-art" aria-hidden="true">
+        <span class="wz-person grown"><span class="h"><i></i></span><span class="b"></span></span>
+        <span class="wz-person kid"><span class="h"><i></i></span><span class="b"></span></span>
+      </div>
+      <h2>{% if parent.setup_state == 'later' %}Ready to set up your child&rsquo;s account?{% else %}Let&rsquo;s set up your first child&rsquo;s account{% endif %}</h2>
+      <p>For this part, you&rsquo;ll want your child with you: you&rsquo;ll pick their username and password together, they&rsquo;ll design their character, and you&rsquo;ll choose the rules. It takes about three minutes.</p>
+      <a class="f-btn f-btn-primary f-btn-lg" href="{{ home }}/setup">Set up a child&rsquo;s account <svg class="f-ic f-arrow"><use href="#i-arrow"/></svg></a>
+      <small class="f-muted">You can add up to {{ max_children }} children.</small>
+    </section>
+    {% endif %}
+
+    <div class="hub-grid">
+      <section class="db-card hub-attention f-reveal" aria-labelledby="att-h">
+        <header class="db-card-head"><h2 id="att-h"><svg class="f-ic"><use href="#i-bell"/></svg> Needs your attention</h2></header>
+        {% if attention %}
+        <ul class="att-list">
+          {% for a in attention %}
+          {% if a.kind == 'approval' %}
+          <li class="att-item" data-approval="{{ a.id }}" data-uid="{{ a.uid }}">
+            <span class="att-ic warn"><svg class="f-ic sm"><use href="#i-user-plus"/></svg></span>
+            <span class="att-text">{% if a.direction == 'in' %}<b>{{ a.other }}</b> wants to be friends with {{ a.child }}{% else %}{{ a.child }} asked to be friends with <b>{{ a.other }}</b>{% endif %}<small>{{ ago(a.at) }} &middot; <a href="{{ home }}/child/{{ a.child_username }}#friends">See {{ a.child }}&rsquo;s friends</a></small></span>
+            <span class="att-actions"><button class="f-btn f-btn-sm f-btn-good" type="button" data-decide="approve">Approve</button><button class="f-btn f-btn-sm f-btn-ghost" type="button" data-decide="decline">Decline</button></span>
+          </li>
+          {% else %}
+          <li class="att-item">
+            <span class="att-ic {{ 'bad' if a.severity == 'high' else 'warn' }}"><svg class="f-ic sm"><use href="#i-shield-check"/></svg></span>
+            <span class="att-text"><b>{{ a.title }}</b> <span class="f-muted">&middot; {{ a.child }}</span><small>{{ a.detail }}</small></span>
+            <span class="att-actions"><a class="f-btn f-btn-sm f-btn-soft" href="{{ home }}/child/{{ a.child_username }}#safety">Review</a></span>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-check"/></svg></span><b>All clear</b><small>New friend requests and Safe Chat alerts will show up here.</small></div>
+        {% endif %}
+      </section>
+
+      <section class="db-card hub-tips f-reveal" style="--d:.08s" aria-labelledby="tips-h">
+        <header class="db-card-head"><h2 id="tips-h"><svg class="f-ic"><use href="#i-sparkle"/></svg> Getting the most out of it</h2></header>
+        <ol class="tips">
+          <li><b>Play the first round together.</b> Sit with them for their first game &mdash; you&rsquo;ll learn the worlds fast, and they&rsquo;ll love showing you.</li>
+          <li><b>Talk about Safe Chat.</b> Explain why it stops phone numbers and &ldquo;add me on&hellip;&rdquo; invites, so they know to tell you if anyone asks.</li>
+          <li><b>Approve friends they know.</b> Kids they know from school or family are the friends worth saying yes to.</li>
+          <li><b>Check in weekly.</b> A quick look at the week&rsquo;s play time and messages keeps everyone on the same page.</li>
+        </ol>
+      </section>
+    </div>
+
+    <section class="db-card hub-account f-reveal" id="account" aria-labelledby="acct-h">
+      <header class="db-card-head"><h2 id="acct-h"><svg class="f-ic"><use href="#i-sliders"/></svg> Your account</h2><span class="f-muted f-small">Member since {{ fmt_date(parent.created_at) }}</span></header>
+      <div class="acct-grid">
+        <form class="acct-form" id="acct-form">
+          <h3>Your details</h3>
+          <div class="f-field"><label class="f-label" for="a-name">Name</label><input class="f-input" id="a-name" name="display_name" maxlength="40" value="{{ parent.display_name }}"></div>
+          <div class="f-field"><label class="f-label" for="a-email">Email</label><input class="f-input" id="a-email" name="email" type="email" maxlength="254" value="{{ parent.email }}"></div>
+          <div class="f-field"><span class="f-label">Username</span><div class="acct-static">{{ parent.username }} <span class="f-muted f-tiny">&middot; your page is /parent_{{ parent.username }}</span></div></div>
+          <div class="f-field"><label class="f-label" for="a-tz">Time zone</label><input class="f-input" id="a-tz" name="timezone" maxlength="64" value="{{ parent.timezone }}" placeholder="e.g. America/New_York"><span class="f-help">Daily limits and quiet hours follow this clock.</span></div>
+          <button class="f-btn f-btn-primary" type="submit">Save details</button>
+        </form>
+        <form class="acct-form" id="pass-form">
+          <h3>Password &amp; sign-in</h3>
+          <div class="f-field"><label class="f-label" for="p-cur">Current password</label><input class="f-input" id="p-cur" name="current" type="password" autocomplete="current-password"></div>
+          <div class="f-field"><label class="f-label" for="p-new">New password</label><input class="f-input" id="p-new" name="new" type="password" autocomplete="new-password" minlength="8"></div>
+          <div class="acct-row"><button class="f-btn f-btn-primary" type="submit">Change password</button><button class="f-btn f-btn-ghost" type="button" id="signout-all">Sign out other devices</button></div>
+          <div class="acct-danger">
+            <h3>Delete your family account</h3>
+            <p>This deletes your account <b>and every child account you&rsquo;ve set up</b>, with their characters, items and friends. It can&rsquo;t be undone.</p>
+            <button class="f-btn f-btn-sm f-btn-danger" type="button" id="delete-family" data-username="{{ parent.username }}"><svg class="f-ic sm"><use href="#i-trash"/></svg> Delete everything</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</main>
+{% include "family/partials/foot.html" %}

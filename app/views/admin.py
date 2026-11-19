@@ -83,7 +83,8 @@ def dashboard(req: Request):
     term = req.query.get("q", "")
     return render(req, "admin.html",
                   live=_live_payload(),
-                  user_rows=users.search(term, 40, order="seen"),
+                  user_rows=users.search(term, 40, order="seen",
+                                         include_children=True),
                   term=term,
                   audit=db.rows_to_dicts(db.query(
                       "SELECT a.*, u.username FROM audit_log a"
