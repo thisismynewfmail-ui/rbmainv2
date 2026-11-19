@@ -84,6 +84,8 @@ WORLDS: List[Dict[str, Any]] = [
     {
         "id": "blackout_relay",
         "display_order": 2,
+        # the day it opened (the home page's "Newest added")
+        "added": "2026-09-20",
         "name": "Blackout Relay",
         "genre": "Team Objective",
         "creator": "BLOCKHAVEN",
@@ -117,6 +119,8 @@ WORLDS: List[Dict[str, Any]] = [
     # as an index into this list, so a new world goes on the end.
     {
         "id": "last_light",
+        # the day it opened (the home page's "Newest added")
+        "added": "2026-10-01",
         # listed first wherever worlds are shown (home, Jump back in, the
         # world browser); the registry's own order stays put because the
         # bot director indexes worlds by position

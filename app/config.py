@@ -134,3 +134,13 @@ def load_secret() -> bytes:
 
 
 SECRET = load_secret()
+
+
+# --------------------------------------------------------------- admin tools
+# The accounts that can take out the in-game Admin Tools (app/game/
+# admin_tools.py: Smite, the Horde Horn, Titan Tonic, the Blink Wand,
+# Purge).  They must be administrators as well; comma-separated usernames.
+ADMIN_TOOLS_USERS = frozenset(
+    name.strip().lower()
+    for name in os.environ.get("BLOCKHAVEN_ADMIN_TOOLS", "admin_system").split(",")
+    if name.strip())

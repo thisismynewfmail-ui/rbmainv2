@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..family import shield
 from ..models import catalog
+from . import admin_tools
 from .gear import GEAR_KINDS, Gear, Minion
 
 TICK_RATE = 20
@@ -71,6 +72,15 @@ DEFAULT_WEAPON = {
 
 def now() -> float:
     return time.monotonic()
+
+
+def max_health(player) -> float:
+    """The most health this player can have: 100, or a Titan Tonic's
+    10,000 (app/game/admin_tools.py) for the rest of that life."""
+    flags = getattr(player, "flags", None)
+    if isinstance(flags, dict) and flags.get("max_hp"):
+        return float(flags["max_hp"])
+    return float(MAX_HEALTH)
 
 
 def clamp(value: float, low: float, high: float) -> float:
@@ -221,9 +231,12 @@ class Player:
         slot = self.slot if slot is None else slot
         if not (0 <= slot < catalog.HOTBAR_SIZE):
             return None
-        # a world can hand out its own kit for a round (a dodgeball, a
+        # the Admin Tools (app/game/admin_tools.py) beat everything; then a
+        # world can hand out its own kit for a round (a dodgeball, a
         # detective's revolver) in place of what the avatar carries
-        entry = self.extra.get("loadout")
+        entry = self.extra.get("admin_kit")
+        if entry is None:
+            entry = self.extra.get("loadout")
         if entry is None:
             entry = self.avatar.get("hotbar", [])
         if slot >= len(entry) or not entry[slot]:
@@ -603,6 +616,7 @@ class GameInstance:
         player.vel = [0.0, 0.0, 0.0]
         player.yaw = float(point.get("yaw", 0.0))
         player.pitch = 0.0
+        player.flags.pop("max_hp", None)        # a Titan Tonic lasts one life
         player.health = MAX_HEALTH
         player.alive = True
         player.grounded = True
@@ -626,13 +640,16 @@ class GameInstance:
     # -------------------------------------------------------------- players
     def add_player(self, user_id: int, username: str, avatar: Dict[str, Any],
                    ws, admin: bool = False,
-                   family: Optional[Dict[str, Any]] = None) -> Player:
+                   family: Optional[Dict[str, Any]] = None,
+                   tools: bool = False) -> Player:
         with self.lock:
             pid = self.next_pid
             self.next_pid += 1
             player = Player(pid, user_id, username, avatar, ws, admin)
             if isinstance(family, dict):
                 player.family = {"chat": "off" if family.get("chat") == "off" else "safe"}
+            if tools:
+                player.flags["tools"] = True
             player.team = self.pick_team(player)
             self.players[pid] = player
             self.spawn_player(player)
@@ -659,10 +676,17 @@ class GameInstance:
                 },
                 "chat": self.chat_history_for(player),
             }
+            if player.flags.get("tools"):
+                payload["tools"] = True        # only ever in their own welcome
             player.send(payload)
             self.broadcast({"t": "join", "player": player.public()},
                            exclude=pid)
             self.on_player_ready(player)
+            # anyone already holding the Admin Tools, as they look in hand
+            for other in self.players.values():
+                if other is not player and other.extra.get("admin_kit"):
+                    player.send({"t": "akit", "id": other.pid, "on": True,
+                                 "hotbar": other.extra["admin_kit"]})
             self.system_message("%s joined the server." % username)
             if self.bots is not None:
                 self.bots.on_human_join(player)
@@ -787,7 +811,12 @@ class GameInstance:
         if kind == "in":
             self.handle_input(player, message)
         elif kind == "fire":
-            self.handle_fire(player, message)
+            if player.extra.get("admin_kit"):
+                # the Admin Tools go round every world's own rules about
+                # when a player may fire (a warm-up, a race, a hiding phase)
+                self.handle_admin_fire(player, message)
+            else:
+                self.handle_fire(player, message)
         elif kind == "reload":
             self.handle_reload(player)
         elif kind == "slot":
@@ -803,6 +832,8 @@ class GameInstance:
         elif kind == "act":
             with self.lock:
                 self.on_action(player, message)
+        elif kind == "admin":
+            admin_tools.handle(self, player, message)
         elif kind == "ping":
             player.send({"t": "pong", "c": message.get("c"),
                          "st": round(time.time() * 1000)})
@@ -943,6 +974,35 @@ class GameInstance:
                          "ammo": player.ammo[slot],
                          "reserve": player.reserve[slot]})
 
+    def handle_admin_fire(self, player: Player, message: Dict[str, Any]) -> None:
+        """An Admin Tool used (app/game/admin_tools.py).  No phase, stun,
+        ammo or reload rules and no world's own say about firing: alive, the
+        tool in hand, each tool's own rate (so a slow Purge never holds up a
+        Smite), and the ticket's say-so, which admin_tools checks again."""
+        with self.lock:
+            if not player.alive or player.stowed:
+                return
+            stats = player.weapon_stats()
+            if not stats.get("admin"):
+                return
+            moment = now()
+            gates = player.extra.setdefault("admin_next", {})
+            op = str(stats.get("admin"))
+            if moment < gates.get(op, 0.0):
+                return
+            rpm = float(stats.get("rpm", 240) or 240)
+            gates[op] = moment + max(0.03, 60.0 / max(1.0, rpm))
+            direction = message.get("d")
+            if not (isinstance(direction, list) and len(direction) == 3):
+                return
+            try:
+                direction = normalise([float(direction[0]), float(direction[1]),
+                                       float(direction[2])])
+            except (TypeError, ValueError):
+                return
+            origin = [player.pos[0], player.pos[1] + EYE_HEIGHT, player.pos[2]]
+            admin_tools.fire(self, player, stats, direction, origin)
+
     def handle_reload(self, player: Player) -> None:
         with self.lock:
             if player.stowed:
@@ -980,6 +1040,10 @@ class GameInstance:
             # Nothing in your hands, nothing to fire.  The client stops this
             # too; this is the half that a modified client cannot skip.
             if player.stowed:
+                return
+            stats = player.weapon_stats()
+            if stats.get("admin"):
+                self.handle_admin_fire(player, message)
                 return
             # stunned, frozen solid or a toad: nothing works
             if not self.gear.can_fire(player):
@@ -1241,7 +1305,10 @@ class GameInstance:
     def heal(self, target: Player, amount: float,
              source: Optional[Player] = None) -> int:
         before = target.health
-        target.health = int(clamp(target.health + amount, 0, MAX_HEALTH))
+        # never past the most this player can have -- and never pulled down
+        # to it, either (a Titan Tonic's 10,000 survives a medkit)
+        cap = max(max_health(target), before)
+        target.health = int(clamp(target.health + amount, 0, cap))
         gained = target.health - before
         if gained:
             target.send({"t": "heal", "hp": target.health, "amt": gained,
@@ -1279,6 +1346,33 @@ class GameInstance:
         if victim.health <= 0:
             self.kill(victim, attacker, weapon_name, headshot)
         self.gear.landed(victim, attacker, amount, headshot)
+
+    # ---------------------------------------------------------- admin tools
+    # What the Admin Tools (app/game/admin_tools.py) do in this world; Last
+    # Light adds the infected.
+    def admin_smite(self, victim, attacker: Player, headshot: bool = False) -> None:
+        """Dead, whatever it is: past shields, armour and a death refused."""
+        if isinstance(victim, Minion):
+            self.gear.kill_minion(victim, attacker)
+            return
+        if isinstance(victim, Player) and victim.alive:
+            self.kill(victim, attacker, "Smite", headshot)
+
+    def admin_horde(self, player: Player, point) -> Any:
+        """Zombies at ``point``.  With no infected in this world, the Horde
+        Horn raises zombie minions on the admin's side instead (as many as
+        the round allows, the oldest making way)."""
+        made = self.gear.raise_at(player, point, admin_tools.ZOMBIE_MINION,
+                                  admin_tools.ZOMBIE_MINION["count"], "admin_horn")
+        return made or "No room for more zombies in this round."
+
+    def admin_purge(self, player: Player, radius: float) -> int:
+        count = 0
+        for m in list(self.gear.minions.values()):
+            if math.dist(m.pos, player.pos) <= radius:
+                self.gear.kill_minion(m, None, quiet=True)
+                count += 1
+        return count
 
     def kill(self, victim: Player, killer: Optional[Player],
              weapon_name: str, headshot: bool = False) -> None:

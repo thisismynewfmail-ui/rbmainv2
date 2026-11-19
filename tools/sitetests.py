@@ -322,10 +322,21 @@ def run(host: str, port: int, tls: bool = False) -> int:
           not stolen.get("ok"), stolen)
     bad_colour = client.api("/api/avatar/colors", {"colors": {"head": "javascript:1"}})
     check("avatar: colours are validated", not bad_colour.get("ok"), bad_colour)
-    good_colour = client.api("/api/avatar/colors", {"colors": {"head": "#12ab34"}})
-    check("avatar: a valid colour is stored",
-          good_colour.get("ok") and good_colour["colors"]["head"] == "#12ab34",
+    # only the palette's own colours: the editor offers its swatches and no
+    # free colour picker, and the server holds to the same list
+    _status, editor = client.get("/avatar")
+    swatches = [c.lower() for c in re.findall(r'class="swatch[^"]*"[^>]*data-color="(#[0-9a-fA-F]{6})"', editor)]
+    check("avatar: the editor offers swatches and no colour picker",
+          bool(swatches) and 'type="color"' not in editor, len(swatches))
+    swatch = swatches[3] if len(swatches) > 3 else "#000000"
+    good_colour = client.api("/api/avatar/colors", {"colors": {"head": swatch}})
+    check("avatar: a palette colour is stored",
+          good_colour.get("ok") and good_colour["colors"]["head"] == swatch,
           good_colour)
+    off_palette = next(c for c in ("#12ab34", "#12ab35", "#13ab35") if c not in swatches)
+    custom_colour = client.api("/api/avatar/colors", {"colors": {"head": off_palette}})
+    check("avatar: ...and a colour that isn't one of the swatches is refused",
+          not custom_colour.get("ok"), custom_colour)
     hotbar_theft = client.api("/api/avatar/hotbar", {"index": 4, "inv_id": 1})
     check("avatar: the hotbar rejects unowned items",
           not hotbar_theft.get("ok"), hotbar_theft)

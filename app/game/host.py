@@ -259,6 +259,10 @@ class GameHost:
             # a woken bot arrived with a score line the director has already
             # booked: only what it did in this live stretch is new
             score = player.brain.stats_delta()[2]
+        if player.flags.get("off_record"):
+            # the Admin Tools came out this session (app/game/admin_tools.py):
+            # the time spent counts, the kills and the score don't
+            kills = zkills = deaths = score = 0
         self.queue_report({
             "kind": "stats", "world": self.world_id,
             "user_id": player.user_id, "kills": kills, "zkills": zkills,
@@ -267,6 +271,8 @@ class GameHost:
         })
 
     def report_round(self, instance: GameInstance, player, won: bool) -> None:
+        if getattr(player, "flags", {}).get("off_record"):
+            return              # the Admin Tools came out this session
         self.queue_report({"kind": "round", "world": self.world_id,
                            "user_id": player.user_id, "won": bool(won)})
 
@@ -281,6 +287,8 @@ class GameHost:
         uid = int(getattr(player, "user_id", 0) or 0)
         if uid <= 0 or not stat or amount <= 0:
             return
+        if getattr(player, "flags", {}).get("off_record"):
+            return              # the Admin Tools came out this session
         key = (uid, stat, mode)
         with self.report_lock:
             if mode == "max":
@@ -606,7 +614,9 @@ class GameHost:
             expand_avatar(ticket.get("avatar") or {}), ws,
             bool(ticket.get("admin")),
             # a child account's chat setting (app/family), signed with the rest
-            family=ticket.get("fam") if isinstance(ticket.get("fam"), dict) else None)
+            family=ticket.get("fam") if isinstance(ticket.get("fam"), dict) else None,
+            # the Admin Tools (app/game/admin_tools.py), signed with the rest
+            tools=bool(ticket.get("tools")))
         self.connections += 1
         try:
             while True:

@@ -128,8 +128,109 @@
     });
   }
 
+  // ------------------------------------------------------ jump back in
+  /* The sort menu at the top right of "Jump back in" reorders the cards on
+     the spot (with a little slide, so you can see where each one went) and
+     leaves a cookie so the page comes back sorted the same way.  Without
+     JavaScript it is a plain form and the server does the sorting. */
+  function bindJumpSort() {
+    var form = document.getElementById('jump-sort');
+    var grid = document.getElementById('jump-grid');
+    if (!form || !grid) return;
+    var select = form.querySelector('select');
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function num(card, key) { return parseFloat(card.getAttribute('data-' + key)) || 0; }
+    function players(card) {
+      var live = card.querySelector('[data-live-players]');
+      return live ? parseInt(live.textContent, 10) || 0 : 0;
+    }
+    // the same words as the server's ago() (app/views/base.py)
+    function ago(ts) {
+      var s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+      function n(v, unit) { return v + ' ' + unit + (v === 1 ? '' : 's') + ' ago'; }
+      if (s < 60) return s + ' seconds ago';
+      if (s < 3600) return n(Math.floor(s / 60), 'minute');
+      if (s < 86400) return n(Math.floor(s / 3600), 'hour');
+      if (s < 86400 * 30) return n(Math.floor(s / 86400), 'day');
+      var d = new Date(ts * 1000);
+      return 'on ' + d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    function span(sec) {
+      var m = Math.max(1, Math.floor(sec / 60));
+      if (m < 60) return m + ' min played';
+      var h = Math.floor(m / 60), r = m % 60;
+      return r ? h + 'h ' + r + 'm played' : h + 'h played';
+    }
+    var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    function note(card, key) {
+      if (key === 'recent') { var t = num(card, 'recent'); return t ? 'Played ' + ago(t) : ''; }
+      if (key === 'playtime') { var p = num(card, 'playtime'); return p ? span(p) : ''; }
+      if (key === 'newest') {
+        var a = card.getAttribute('data-added') || '';
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(a);
+        return m ? 'Added ' + MONTHS[parseInt(m[2], 10) - 1] + ' ' + parseInt(m[3], 10) : '';
+      }
+      if (key === 'popular') return num(card, 'visits').toLocaleString() + ' visits';
+      if (key === 'rated') return num(card, 'votes') ? num(card, 'rating') + '% liked' : 'Not rated yet';
+      if (key === 'favourites') return num(card, 'fav') >= 0 ? '★ Favourite' : '';
+      return '';
+    }
+    var compare = {
+      recent: function (a, b) { return num(b, 'recent') - num(a, 'recent'); },
+      playtime: function (a, b) { return num(b, 'playtime') - num(a, 'playtime'); },
+      newest: function (a, b) { return (b.getAttribute('data-added') || '').localeCompare(a.getAttribute('data-added') || ''); },
+      popular: function (a, b) { return num(b, 'visits') - num(a, 'visits'); },
+      rated: function (a, b) { return (num(b, 'rating') - num(a, 'rating')) || (num(b, 'votes') - num(a, 'votes')); },
+      playing: function (a, b) { return players(b) - players(a); },
+      favourites: function (a, b) {
+        var fa = num(a, 'fav'), fb = num(b, 'fav');
+        if ((fa < 0) !== (fb < 0)) return fa < 0 ? 1 : -1;
+        return fa - fb;
+      },
+      name: function (a, b) { return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || ''); }
+    };
+    function apply(key) {
+      var cards = Array.prototype.slice.call(grid.querySelectorAll('.worldcard[data-order]'));
+      if (!cards.length) return;
+      var before = {};
+      cards.forEach(function (c) { before[c.getAttribute('data-world-id')] = c.getBoundingClientRect(); });
+      var cmp = compare[key] || compare.recent;
+      cards.sort(function (a, b) { return cmp(a, b) || (num(a, 'order') - num(b, 'order')); });
+      cards.forEach(function (c) {
+        grid.appendChild(c);
+        var n = c.querySelector('.sortnote');
+        if (n) { var text = note(c, key); n.textContent = text; n.hidden = !text; }
+      });
+      grid.setAttribute('data-sort', key);
+      if (reduced) return;
+      // slide each card from where it was to where it is now
+      cards.forEach(function (c) {
+        var was = before[c.getAttribute('data-world-id')], now = c.getBoundingClientRect();
+        if (!was) return;
+        var dx = was.left - now.left, dy = was.top - now.top;
+        if (!dx && !dy) return;
+        c.style.transition = 'none';
+        c.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      });
+      void grid.offsetWidth;
+      grid.classList.add('sorting');
+      cards.forEach(function (c) { c.style.transition = ''; c.style.transform = ''; });
+      setTimeout(function () { grid.classList.remove('sorting'); }, 450);
+    }
+    select.addEventListener('change', function () {
+      var key = select.value;
+      apply(key);
+      try {
+        document.cookie = 'bh_jump=' + encodeURIComponent(key) + '; path=/; max-age=31536000; samesite=lax' +
+          (location.protocol === 'https:' ? '; secure' : '');
+      } catch (e) { /* cookies off: it still sorts, just not next time */ }
+    });
+    form.addEventListener('submit', function (e) { e.preventDefault(); apply(select.value); });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindCountdown();
+    bindJumpSort();
     bindCounters();
     // thumbs.js builds the preview in its own DOMContentLoaded handler, which
     // runs before this one, so the stage is already there to listen to

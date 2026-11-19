@@ -813,6 +813,7 @@ the callouts.
 | `Y` | Chat &nbsp;&nbsp; `U` Team chat |
 | `Tab` | Scoreboard |
 | `Esc` | Pause menu → controls, display, quit |
+| `` ` `` | **admin_system only:** take the [Admin Tools](#admin-tools) out, and put them away |
 
 Every one of those keys is rebindable, from **Controls** in the pause menu:
 click a key, press the one you want, and it takes effect immediately. A key
@@ -1208,6 +1209,37 @@ design rules for the opening, is
 [`reference_images_to_start_with/CRATES_AND_KEYS.md`](reference_images_to_start_with/CRATES_AND_KEYS.md).
 Set `BLOCKHAVEN_EVENTS=all` to keep every event running while you develop.
 
+### Summoned helpers
+
+The weapons that summon things (the Restless Dead, the Pecking Order's
+chicks, the Clockwork Songbirds, Balloon Animals, the Gingerbread Brigade,
+the Gravedigger's skeletons, the Admin Tools' Horde Horn) share one follower
+AI in `app/game/gear.py`:
+
+* **Following,** each one has a spot of its own round its owner: a loose fan
+  trailing behind while they walk, a ring round them when they stop. Spots
+  go round in the order the helpers already stand, so none has to cross the
+  others, and a spot is always open floor the owner can see: never inside a
+  wall, over a drop, on top of the owner or on another helper's spot.
+* **Moving,** they keep their distance from each other and from people,
+  turn at a limited rate so they curve rather than snap, and weave off a
+  straight line on a smooth noise of their own (a stroll weaves more than a
+  charge). Feelers turn them away from a wall before they bump it, low
+  obstacles get hopped, and a blocked way is pathed round on the bots' nav
+  grid. A straggler speeds up past a walk to catch up, and one left more
+  than 110 studs behind, or stuck for four seconds well away from it, pops back beside its
+  owner.
+* **Fighting,** a pack takes a flank each round its target, fanning out from
+  the side it came from, instead of piling onto one spot; the nearest enemy
+  the rest aren't already on is the one picked. A ranged helper (a
+  songbird) stands off at range and drifts round while it fires, and goes
+  looking for a clear shot when a wall is in the way.
+* **On screen,** the client eases each helper's heading round rather than
+  snapping it to every update, leans small ones into their turns and tips
+  them forward at a run.
+
+`tools/geartests.py` has a followers group for all of this.
+
 ## Badges
 
 Badges are 3D medals earned by playing. Each badge watches one stat (flags
@@ -1241,6 +1273,14 @@ legs), plus `face`, `hair`, `hat`, `shirt`, `pants`, `belt` and `back` cosmetic
 slots and five **usable** hotbar slots. One rig drives the profile preview, the
 editor, the market thumbnails and the game itself, so anything added to the
 catalogue shows up everywhere at once.
+
+**Colours come from the palette and nowhere else.** The Avatar Editor offers
+the palette's swatches and no free colour picker, each part's pill names the
+colour chosen ("Teal", "Hot pink") rather than a hex code, and the server
+refuses any colour that is not one of the swatches (`catalog.PALETTE_HEX`), so
+a hand-written request cannot get round it either. Edit Pet works the same
+way, with one addition: a pet's own species colours, which **Reset** puts
+back, are always allowed.
 
 The **hips** are their own colour rather than borrowing the left leg's, which
 is what they did before. Trousers still cover them exactly as they did, so the
@@ -1523,6 +1563,14 @@ tiles still open the item preview when clicked.
   it. On a phone the side column runs profile → friend requests → who is
   online → an inbox button → your friends, because reaching people is what the
   phone layout is for.
+* **Jump back in** has a **Sort by** menu at the top right of the panel:
+  recently played (the default), most play time, newest added, most popular,
+  top rated, playing now, favourites, or A to Z. The order is worked out per
+  player from their own visits (`world_visits`) and play time, the cards
+  slide into the new order without a reload, each card carries a small note
+  for the sort in use ("Played 2 hours ago", "1h 20m played", "Added Oct 30"), and
+  the choice is remembered in a cookie. Without JavaScript the menu is a
+  plain form (`/?jump=playtime`) that does the same on the server.
 * **The news strip** carries new sign-ups alongside the Unusual pulls and the
   notable finds, and scrolls slowly enough to read a headline on the way past.
   Hovering parks it.
@@ -1713,6 +1761,12 @@ floating islands, a storm-versus-haven story, a dashboard demo, a working
 (`/api/family/safechat-demo`), the four family slots, the worlds with a live
 3D character, and a FAQ.
 
+The live character dresses in a new look every few seconds, always in the
+brand's own colours: a few close shades of the classic yellow for the skin
+and blue for the body (`Thumbs.brandLook`), with hats, faces, back items and
+Unusual effects on top but no shirt or trousers over the blue. The home
+page's character keeps the full palette.
+
 **The dome** is a live little world everywhere it appears: the landing page's
 hero, the comparison card, the sign-up page and the set-up wizard
 (`static/js/family/haven.js`). It's a floating island of studded plastic
@@ -1805,6 +1859,43 @@ carry a violet **bot** pill in the player table; real people keep the usual
 colours, and when the graph has to be trimmed people are kept first.
 
 **Bots Zone** is the control room for the synthetic players, described next.
+
+## Admin Tools
+
+`admin_system` has a kit of its own in every world. Press `` ` `` (the key under
+`Esc`) to swap the hotbar for it, and again to put it away; a gold
+**ADMIN TOOLS** badge sits over the hotbar while it is out, and the ammo
+counter reads ∞.
+
+| Slot | Tool | What it does |
+| --- | --- | --- |
+| 1 | **Smite** | Kills whatever it hits outright, through shields, armour and health of any size: players, the infected, minions, barrels. One shot goes through a line of up to twelve. Hold to keep firing. |
+| 2 | **Horde Horn** | In Last Light, a pack of the infected where you aim, with a special every fourth blast: no cooldown and no wave needed, as fast as you can click or hold, up to a safety cap of 300 alive so the server keeps up. In any other world it raises zombies that fight on your side (up to the round's minion limit, the oldest making way). |
+| 3 | **Titan Tonic** | 10,000 health, as often as you like. A medkit never pulls it back down; it lasts until you next die. The health bar turns gold and shows the real number. |
+| 4 | **Blink Wand** | Teleports you to where you are looking. |
+| 5 | **Purge** | Clears every infected and minion within 60 studs, quietly: a purged bomber takes nobody with it. |
+
+**None of it is in the store.** The tools are not catalogue items, so they
+cannot appear in the market, a crate, an inventory, a trade, an outfit, a
+bot's hotbar or a world's own kit, and the market refuses them by id. A player
+gets the kit only when their signed join ticket says so, which
+`app/views/worlds_view.py` writes for the administrator accounts named in
+`config.ADMIN_TOOLS_USERS` — `admin_system`, unless `BLOCKHAVEN_ADMIN_TOOLS`
+(a comma-separated list) says otherwise. The game server checks again on
+every use, and never for a bot, so a modified client gets nowhere: asking for
+the kit does nothing, and a tool forced onto an ordinary hotbar does nothing
+either. The tools work through every world's own rules about when a player may
+fire (a warm-up, a race, a hiding phase); each keeps its own rate on the server
+whatever a client sends. Everyone else in the round sees them in the
+administrator's hands.
+
+**Off the record.** A session in which the kit came out books its play time
+and nothing else: no kills, score, wins or badge progress, so a Smite spree
+never tops a world's leaderboard or levels a badge. The code is
+`app/game/admin_tools.py`, with what each
+tool does in a world in `admin_smite`, `admin_horde` and `admin_purge`
+(`app/game/instance.py`, Last Light's in `app/game/worlds/last_light.py`);
+`tools/admintests.py` covers it without a server.
 
 ## Bots
 
@@ -2237,6 +2328,7 @@ tools/tlstests.py                       # certificate discovery and chain tests
 tools/install_cert.py                   # with no arguments: check what is installed
 tools/pettests.py                       # pets: shop rules, Edit Pet, the descriptor, Pet Zone care (no server)
 tools/familytests.py                    # family accounts: rules, Safe Chat, privacy, metering, pages (no server)
+tools/admintests.py                     # the Admin Tools: who gets them, each tool, never in the store (no server)
 node tools/pettests.js                  # the pet rig, the follower AI and the Pet Zone's acts, headless
 node tools/petsheet.js --scale          # render the pets to a contact sheet
 tools/bottests.py                       # bot unit tests, headless rounds, scale

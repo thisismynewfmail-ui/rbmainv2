@@ -134,6 +134,10 @@ def set_colors(user_id: int, colors: Dict[str, str]) -> Dict[str, str]:
             continue
         if not isinstance(value, str) or not security.valid_color(value):
             raise AvatarError("Invalid colour for %s." % part)
+        # only the palette's own colours: the editor has no free picker, and
+        # nothing sent by hand gets round that
+        if value.lower() not in catalog.PALETTE_HEX:
+            raise AvatarError("Pick one of the colours shown.")
         merged[part] = value.lower()
     _save(user_id, merged, avatar["equipped"], avatar["hotbar"])
     return merged

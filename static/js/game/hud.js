@@ -28,14 +28,18 @@
 
   // ------------------------------------------------------------- health/ammo
   HUD.prototype.setHealth = function (hp, hurt) {
-    hp = Math.max(0, Math.min(100, Math.round(hp)));
+    hp = Math.max(0, Math.round(hp));
+    // past 100 is a Titan Tonic (the Admin Tools): a full gold bar and the
+    // real number, rather than a bar ten thousand per cent long
+    var titan = hp > 100;
     var fill = el('health-fill');
     if (fill) {
-      fill.style.width = hp + '%';
+      fill.style.width = Math.min(100, hp) + '%';
       fill.classList.toggle('low', hp <= 30);
+      fill.classList.toggle('titan', titan);
     }
     var text = el('health-text');
-    if (text) text.textContent = hp;
+    if (text) text.textContent = titan ? hp.toLocaleString() : hp;
     if (hurt) {
       // Re-trigger the CSS animation by taking the class off and forcing a
       // reflow before putting it back; without the reflow the browser sees
@@ -112,10 +116,30 @@
         var canvas = document.createElement('canvas');
         canvas.width = 128; canvas.height = 128;
         slot.insertBefore(canvas, slot.querySelector('.n'));
-        if (window.Thumbs) Thumbs.renderItem(canvas, item.item_id, '');
+        if (window.Thumbs) {
+          if (item.data && item.data.admin && Thumbs.renderItemData) Thumbs.renderItemData(canvas, item);
+          else Thumbs.renderItem(canvas, item.item_id, '');
+        }
       }
       wrap.appendChild(slot);
     }
+  };
+
+  /* The Admin Tools' badge over the hotbar: a reminder of the key while
+     they are away, a gold banner while they are out. */
+  HUD.prototype.setAdminKit = function (on, allowed) {
+    var chip = el('admin-kit');
+    if (!allowed) { if (chip) chip.remove(); return; }
+    if (!chip) {
+      chip = document.createElement('div');
+      chip.id = 'admin-kit';
+      var hud = el('hotbar-hud');
+      (hud && hud.parentNode ? hud.parentNode : document.body).appendChild(chip);
+    }
+    chip.className = on ? 'on' : '';
+    chip.innerHTML = on
+      ? '<b>ADMIN TOOLS</b> <span>press <kbd>`</kbd> to put away</span>'
+      : '<span>Admin tools: press <kbd>`</kbd></span>';
   };
 
   HUD.prototype.setSlot = function (index) {

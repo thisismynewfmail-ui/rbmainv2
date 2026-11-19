@@ -18,6 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 WORLD: Dict[str, Any] = {
     "id": "plunder_bay",
+    # the day it opened (the home page's "Newest added")
+    "added": "2026-10-30",
     "prefix": "pb",
     "name": "Plunder Bay",
     "genre": "Treasure Haul",

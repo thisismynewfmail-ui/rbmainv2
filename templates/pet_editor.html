@@ -87,9 +87,8 @@
         {% for ck in color_keys %}
         <div class="field pe-color" data-color-key="{{ ck }}">
           <div class="spread">
-            <label style="margin:0" for="pe-pick-{{ ck }}">{{ color_labels[ck] }}</label>
-            <span class="pe-pickwrap"><input type="color" id="pe-pick-{{ ck }}" value="{{ current.colors[ck] }}" data-pick="{{ ck }}">
-              <span class="pill" data-hex="{{ ck }}">{{ current.colors[ck] }}</span></span>
+            <label style="margin:0">{{ color_labels[ck] }}</label>
+            <span class="pill" data-hex="{{ ck }}">{{ palette_names.get(current.colors[ck].lower(), 'Her own colour') }}</span>
           </div>
           <div class="swatches" data-part="{{ ck }}">
             {% for sw in palette %}<span class="swatch{{ ' on' if current.colors[ck] == sw.hex else '' }}" style="background:{{ sw.hex }}"

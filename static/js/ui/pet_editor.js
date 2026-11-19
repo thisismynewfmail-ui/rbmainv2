@@ -123,13 +123,14 @@
   function paintColours() {
     boot.colorKeys.forEach(function (key) {
       var value = current.colors[key];
-      var pick = root.querySelector('[data-pick="' + key + '"]');
-      if (pick) pick.value = value;
-      var hex = root.querySelector('[data-hex="' + key + '"]');
-      if (hex) hex.textContent = value;
+      var named = null;
       root.querySelectorAll('.swatches[data-part="' + key + '"] .swatch').forEach(function (sw) {
-        sw.classList.toggle('on', sw.dataset.color.toLowerCase() === String(value).toLowerCase());
+        var on = sw.dataset.color.toLowerCase() === String(value).toLowerCase();
+        sw.classList.toggle('on', on);
+        if (on) named = sw.title;
       });
+      var hex = root.querySelector('[data-hex="' + key + '"]');
+      if (hex) hex.textContent = named || 'Her own colour';
     });
   }
 
@@ -240,11 +241,6 @@
     queue({ colors: current.colors });
   }
 
-  $$('[data-pick]').forEach(function (input) {
-    var key = input.dataset.pick;
-    input.addEventListener('input', function () { setColour(key, input.value); });
-    input.addEventListener('change', function () { setColour(key, input.value, 'sparkle'); });
-  });
 
   var nameBox = $('#pe-name');
   if (nameBox) {

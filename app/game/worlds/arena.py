@@ -371,6 +371,10 @@ class ArenaWorld(GameInstance):
                 player.extra["public_loadout"] = shown
             else:
                 player.extra.pop("public_loadout", None)
+        if player.extra.get("admin_kit"):
+            # the Admin Tools stay in hand; this kit is what they get back
+            # when they put them away (app/game/admin_tools.py)
+            return
         first = next((i for i in range(catalog.HOTBAR_SIZE) if player.weapon(i)), 0)
         player.slot = first
         player.stowed = player.weapon(first) is None

@@ -8,7 +8,9 @@ No server: a Blackout Relay round and a Last Light round are built in
 process on a simulated clock, two players are put in them with any item on
 the hotbar, and the tests fire, swing, throw and summon and look at what the
 round does -- damage, statuses, minions, turrets, strikes, sticky bombs,
-boomerangs -- and at what the players were told.  Every event weapon in the
+boomerangs -- and at what the players were told.  The followers group
+checks how summoned things get about: a ring round their owner rather than
+a pile, their own curving paths, keeping up, a flank each round a target.  Every event weapon in the
 catalogue is also fired once each way it can be, to be sure none of them
 throws.
 """
@@ -468,6 +470,111 @@ def test_circus():
     reset_players(inst)
 
 
+def _summoner(inst, clock, spec, gap=24.0, far=False):
+    """Alice with a summoning staff for ``spec``; Bob ``gap`` away (or
+    nowhere near, with ``far``).  Returns them and what she raised."""
+    a, wa, b, wb = pair(inst, clock, ["use_pistol"], gap=gap)
+    if far:
+        b.pos = [b.pos[0] + 400.0, b.pos[1], b.pos[2] + 400.0]
+    b.health = 100000
+    a.avatar["hotbar"][0]["data"] = {"stats": {"kind": "summon", "cooldown": 1, "minion": spec},
+                                     "parts": []}
+    a.avatar["hotbar"][0]["item_id"] = "use_test_summon"
+    fire(inst, clock, a, [0, 0, 1])
+    return a, b, sorted(inst.gear.minions.values(), key=lambda m: m.pid)
+
+
+def _closest_pair(ms) -> float:
+    return min((math.dist(ms[i].pos, ms[j].pos) for i in range(len(ms))
+                for j in range(i + 1, len(ms))), default=99.0)
+
+
+def test_followers():
+    """Summoned things follow and fight as a pack, not a pile: a ring round
+    their owner, their own curving paths, room between them, a flank each
+    round a target -- and nobody left behind."""
+    print("\n== followers ==")
+    import app.game.instance as engine
+    zombies = {"name": "Restless Dead", "model": "zombie", "count": 4, "hp": 60, "speed": 15,
+               "damage": 12, "reach": 4.5, "rate": 1.0, "secs": 120}
+    inst, clock = make_world()
+    inst.gear.rng.seed(5)
+    a, b, ms = _summoner(inst, clock, zombies, far=True)
+    run(inst, clock, 3.0)
+    check("standing: a ring round their owner, not a pile on them",
+          _closest_pair(ms) >= 2.5 and all(2.0 < math.dist(m.pos, a.pos) < 14.0 for m in ms),
+          (round(_closest_pair(ms), 2), [round(math.dist(m.pos, a.pos), 1) for m in ms]))
+    # a walk down the street
+    d = a.extra["fwd"]
+    tracks = {m.pid: [] for m in ms}
+    spread = []
+    for k in range(int(3.0 / engine.TICK_DT)):
+        a.pos = [a.pos[0] + d[0] * 17 * engine.TICK_DT, a.pos[1], a.pos[2] + d[2] * 17 * engine.TICK_DT]
+        run(inst, clock, engine.TICK_DT)
+        for m in ms:
+            tracks[m.pid].append(list(m.pos))
+        # side to side across the way they're walking: single file has none
+        side = [(m.pos[0] - a.pos[0]) * d[2] - (m.pos[2] - a.pos[2]) * d[0] for m in ms]
+        spread.append((max(side) - min(side), _closest_pair(ms)))
+
+    def wander(path):
+        """How far a path strays from the straight line between its ends."""
+        (x0, _, z0), (x1, _, z1) = path[0], path[-1]
+        length = math.hypot(x1 - x0, z1 - z0) or 1.0
+        return max(abs((p[0] - x0) * (z1 - z0) - (p[2] - z0) * (x1 - x0)) / length for p in path)
+    strays = [wander(path) for path in tracks.values()]
+    check("walking: their own curving paths, not straight lines",
+          min(strays) > 0.8, [round(x, 2) for x in strays])
+    across = sum(x[0] for x in spread) / len(spread)
+    apart = sum(x[1] for x in spread) / len(spread)
+    check("walking: spread out side to side, not single file, and not bunched",
+          across > 4.0 and apart > 2.5, (round(across, 1), round(apart, 1)))
+    check("walking: the slow ones keep up (15 studs/s after a 17 studs/s walk)",
+          all(math.dist(m.pos, a.pos) < 22.0 for m in ms),
+          [round(math.dist(m.pos, a.pos), 1) for m in ms])
+    run(inst, clock, 3.5)
+    check("stopped: they settle round their owner with room between them",
+          _closest_pair(ms) >= 2.0 and all(2.0 < math.dist(m.pos, a.pos) < 14.0 for m in ms),
+          (round(_closest_pair(ms), 2), [round(math.dist(m.pos, a.pos), 1) for m in ms]))
+    # left far behind (their owner fell, teleported, went the long way)
+    spots = sorted(inst.spawn_points("red") + inst.spawn_points("blue"),
+                   key=lambda sp: -math.dist(sp["p"], a.pos))
+    a.pos = [float(v) for v in spots[0]["p"]]
+    run(inst, clock, 0.3)
+    check("left far behind: they pop back beside their owner",
+          math.dist(spots[0]["p"], ms[0].pos) > 0 and all(math.dist(m.pos, a.pos) < 16.0 for m in ms),
+          [round(math.dist(m.pos, a.pos), 1) for m in ms])
+    reset_players(inst)
+
+    # a pack round its target, every one of them biting
+    hits, near, pairs = [], [], []
+    for trial in range(4):
+        inst.gear.rng.seed(trial)
+        a, b, ms = _summoner(inst, clock, zombies)
+        run(inst, clock, 6.0)
+        hits.append(100000 - b.health)
+        near.append(all(math.dist(m.pos, b.pos) <= 6.0 for m in ms))
+        pairs.append(_closest_pair(ms))
+        reset_players(inst)
+    check("hunting: every one of them gets to the target", all(near), near)
+    check("hunting: ...spread round it, not stacked on one spot", min(pairs) > 1.0,
+          [round(x, 2) for x in pairs])
+    check("hunting: ...and they bite as often as ever (4 x 12 a second)", min(hits) >= 180, hits)
+
+    # songbirds keep their distance and sing
+    birds = {"name": "Clockwork Songbird", "model": "parts", "count": 3, "hp": 15, "speed": 16,
+             "damage": 0, "reach": 3.0, "rate": 1.0, "secs": 120, "sight": 60, "scale": 0.6,
+             "ranged": {"range": 26, "rpm": 50, "damage": 5}}
+    inst.gear.rng.seed(2)
+    a, b, ms = _summoner(inst, clock, birds)
+    run(inst, clock, 6.0)
+    gaps = [math.dist(m.pos, b.pos) for m in ms]
+    check("songbirds: they keep their distance and sing",
+          all(5.0 < g <= 26.0 for g in gaps) and b.health < 100000,
+          ([round(g, 1) for g in gaps], 100000 - b.health))
+    reset_players(inst)
+
+
 def _aim_pos(p, point):
     d = [point[0] - p.pos[0], point[1] - (p.pos[1] + 5.05), point[2] - p.pos[2]]
     n = math.sqrt(sum(v * v for v in d))
@@ -517,6 +624,7 @@ def main() -> int:
     test_weapons()
     test_minions()
     test_circus()
+    test_followers()
     test_every_weapon()
     print("\n%d passed, %d failed" % (len(PASSED), len(FAILED)))
     for name in FAILED:

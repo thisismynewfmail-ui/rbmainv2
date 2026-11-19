@@ -396,6 +396,22 @@
     });
   };
 
+  /* An item that isn't in the catalogue -- the Admin Tools -- drawn from the
+     parts it carries. */
+  Thumbs.renderItemData = function (canvas, item, effect) {
+    if (!item || !item.data) return;
+    var key = 'itemdata:' + item.item_id + ':' + (effect || '');
+    if (Thumbs.imageCache[key]) { blit(canvas, Thumbs.imageCache[key]); return; }
+    var spec = Thumbs.itemParts(item, effect);
+    var source = renderParts(spec.parts, {
+      angle: spec.angle, tilt: spec.tilt, padding: spec.padding,
+      frame: spec.frame, effect: effect, effectScale: spec.effectScale, anchor: spec.anchor
+    });
+    if (!source) return;
+    Thumbs.imageCache[key] = snapshot(source);
+    blit(canvas, Thumbs.imageCache[key]);
+  };
+
   /* ---------------------------------------------------------- live effects
      A still frame is the right answer for a wall of item tiles -- it renders
      once and is cached -- but the moment a piece is the subject (the preview
@@ -1864,16 +1880,28 @@
     return pick(FALLBACK_PALETTE);
   }
 
+  /* The brand's own character, for the family pages: the classic yellow
+     (a few close shades of it) and a blue body (torso a brighter blue than
+     the legs), with no shirt or trousers over it to change that. */
+  var BRAND_LOOK = {
+    skin: ['#f5cd30', '#ffcd3c', '#f2c12e', '#ffd75e'],
+    torso: ['#2b67f6', '#1d4fd6', '#0d69ac', '#3a7cf7'],
+    legs: ['#1847c2', '#1d4fd6', '#0f2d7a', '#2b5fa8']
+  };
+  Thumbs.brandLook = BRAND_LOOK;
+
   Thumbs.randomLook = function (options) {
     options = options || {};
-    var skin = paletteHex();
-    var legs = paletteHex();
+    var brand = options.brand ? (typeof options.brand === 'object' ? options.brand : BRAND_LOOK) : null;
+    var skin = brand ? pick(brand.skin) : paletteHex();
+    var legs = brand ? pick(brand.legs) : paletteHex();
+    var torso = brand ? pick(brand.torso) : paletteHex();
     var descriptor = {
       // every build in the rig gets a turn on the welcome stage, so a new
       // one shows up out front the day it ships
       body_type: pick(Avatar.BODY_TYPES),
       colors: {
-        head: skin, torso: paletteHex(), left_arm: skin, right_arm: skin,
+        head: skin, torso: torso, left_arm: skin, right_arm: skin,
         left_leg: legs, right_leg: legs
       },
       items: {}
@@ -1890,8 +1918,11 @@
     var face = wear('face', 1);
     // An Unusual has to sit on something, so a forced one forces the hat too
     var hat = wear('hat', options.forceUnusual ? 1 : 0.92);
-    wear('shirt', 0.8);
-    wear('pants', 0.72);
+    if (!brand) {
+      // (the brand's character keeps its blue body on show)
+      wear('shirt', 0.8);
+      wear('pants', 0.72);
+    }
     wear('back', 0.34);
     // roughly one look in four wears an Unusual, which is the whole point of
     // the hat aisle and the thing worth showing a visitor

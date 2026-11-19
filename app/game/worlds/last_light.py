@@ -482,6 +482,55 @@ class LastLight(GameInstance):
             head = head and ray_aabb(origin, direction, hlo, hhi) is not None
         return best, best_d, head
 
+    # ----------------------------------------------------- admin tools
+    def admin_smite(self, victim, attacker, headshot: bool = False) -> None:
+        if isinstance(victim, Zombie):
+            if victim.alive and not victim.hidden:
+                self.kill_infected(victim, attacker, headshot=True)
+        elif isinstance(victim, Dummy):
+            attacker.send({"t": "dealt", "a": 9999, "hs": headshot, "target": victim.pid,
+                           "hp": 100})
+        elif isinstance(victim, Barrel):
+            if victim.alive:
+                self.detonate(victim, attacker)
+        else:
+            super().admin_smite(victim, attacker, headshot)
+
+    def admin_horde(self, player: Player, point):
+        """The Horde Horn: a pack of the infected where the admin aims, with
+        a special every few blasts -- no cooldown, no wave needed."""
+        from .. import admin_tools
+        if self.where(player) == "lobby":
+            return "The infected only come out in the field -- deploy first."
+        alive = len(self.horde.zombies)
+        room = admin_tools.HORDE_CAP - alive
+        if room <= 0:
+            return ("That's %d infected up -- the safety cap. Purge some, or let them "
+                    "thin out." % alive)
+        made = 0
+        for _ in range(min(admin_tools.HORDE_PACK, room)):
+            pos = self._jitter(point)
+            kind = "runner" if self.rng.random() < 0.4 else "common"
+            self.horde.spawn(kind, pos, KINDS[kind]["hp"] * self._hp_scale(),
+                             KINDS[kind]["dmg"] * self._dmg_scale(), self.wave)
+            made += 1
+        blasts = player.extra["horn_blasts"] = player.extra.get("horn_blasts", 0) + 1
+        if blasts % admin_tools.SPECIAL_EVERY == 0 and room > made:
+            kind = self.rng.choice(admin_tools.SPECIALS)
+            self.horde.spawn(kind, self._jitter(point), KINDS[kind]["hp"] * self._hp_scale(),
+                             KINDS[kind]["dmg"] * self._dmg_scale(), self.wave)
+            made += 1
+        return made
+
+    def admin_purge(self, player: Player, radius: float) -> int:
+        count = super().admin_purge(player, radius)
+        for z in list(self.horde.zombies.values()):
+            if z.alive and math.dist(z.pos, player.pos) <= radius:
+                # quietly: a purged bomber or bloater takes nobody with it
+                self.kill_infected(z, None, quietly=True)
+                count += 1
+        return count
+
     def apply_damage(self, victim, attacker, amount: float, weapon_name: str,
                      headshot: bool = False) -> None:
         if isinstance(victim, Minion):

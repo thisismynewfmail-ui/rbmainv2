@@ -212,10 +212,14 @@
       var m = self.minions[r[0]];
       if (!m) {
         m = self.minions[r[0]] = { id: r[0], pos: [r[1], r[2], r[3]], target: [r[1], r[2], r[3]],
-                                   memory: {}, seed: Math.random() };
+                                   memory: {}, seed: Math.random(), yaw: r[4], lean: 0 };
       }
       m.target = [r[1], r[2], r[3]];
-      m.yaw = r[4]; m.anim = r[5]; m.hp = r[6]; m.owner = r[7]; m.item = r[8]; m.bits = r[9] || 0;
+      // the heading eases round in drawMinion rather than jumping to each
+      // snapshot's; a leap (popping back beside its owner) is a jump
+      m.tyaw = r[4];
+      if (dist(m.pos, m.target) > 25) { m.pos = m.target.slice(); m.yaw = r[4]; }
+      m.anim = r[5]; m.hp = r[6]; m.owner = r[7]; m.item = r[8]; m.bits = r[9] || 0;
     });
     Object.keys(this.minions).forEach(function (id) { if (!live[id]) delete self.minions[id]; });
     (msg.dm || []).forEach(function (r) {
@@ -742,6 +746,15 @@
   Gear.prototype.drawMinion = function (m, renderer, dt, time) {
     var lerp = Math.min(1, dt * 12);
     for (var i = 0; i < 3; i++) m.pos[i] += (m.target[i] - m.pos[i]) * lerp;
+    // turn smoothly toward the server's heading, the short way round, and
+    // lean a touch into the turn
+    if (m.tyaw !== undefined) {
+      var turn = Math.atan2(Math.sin(m.tyaw - m.yaw), Math.cos(m.tyaw - m.yaw));
+      var step = turn * Math.min(1, dt * 10);
+      m.yaw += step;
+      var leanTo = Math.max(-0.22, Math.min(0.22, -step / Math.max(dt, 1e-3) * 0.05));
+      m.lean += (leanTo - m.lean) * Math.min(1, dt * 6);
+    }
     var spec = this.minionSpec(m.item, m.owner);
     var parts;
     var model = spec.model || 'avatar';
@@ -761,8 +774,12 @@
       renderer.pushRaw('cyl', m.pos[0], m.pos[1] + 0.06, m.pos[2], 0, 0, 0, 3.4, 0.05, 3.4,
                        rgb(spec.glow || '#6bff9a'), 0.4, 0, 2, 0.7, null);
     } else if (spec.parts && spec.parts.length) {
-      var hop = m.anim === 'walk' || m.anim === 'run' ? Math.abs(Math.sin(time * 9 + m.seed * 6)) * 0.35 * scale : 0;
-      parts = placeParts(spec.parts, [m.pos[0], m.pos[1] + hop, m.pos[2]], [0, m.yaw, 0], scale, undefined, time);
+      var moving = m.anim === 'walk' || m.anim === 'run';
+      var hop = moving ? Math.abs(Math.sin(time * 9 + m.seed * 6)) * 0.35 * scale : 0;
+      // a little forward tip at a run, and the lean into a turn
+      var tip = m.anim === 'run' ? 0.12 : (moving ? 0.05 : 0);
+      parts = placeParts(spec.parts, [m.pos[0], m.pos[1] + hop, m.pos[2]], [tip, m.yaw, m.lean || 0],
+                         scale, undefined, time);
     } else {
       var colors = spec.colors || {};
       var d = { colors: { head: colors.head || '#e8d9b8', torso: colors.torso || '#6a5a48',

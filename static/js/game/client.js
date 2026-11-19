@@ -285,6 +285,11 @@
         return;
       }
       if (self.paused) return;
+      if (self.tools && event.code === 'Backquote') {
+        event.preventDefault();
+        if (!event.repeat) self.net.send({ t: 'admin', op: 'kit' });
+        return;
+      }
       if (action === 'scoreboard') { event.preventDefault(); self.hud.toggleScoreboard(true); return; }
       if (action === 'chat') { event.preventDefault(); self.hud.openChat(false); return; }
       if (action === 'teamchat') { event.preventDefault(); self.hud.openChat(true); return; }
@@ -731,6 +736,7 @@
       self.local.pos = msg.p.slice();
       self.local.vel = [0, 0, 0];
     });
+    net.on('akit', function (msg) { self.onAdminKit(msg); });
     net.on('knock', function (msg) {
       self.local.vel[0] += msg.v[0];
       self.local.vel[1] += msg.v[1];
@@ -920,6 +926,10 @@
 
   Client.prototype.onWelcome = function (msg) {
     this.hud.setLoading(70, 'Building ' + msg.map.name + '...');
+    // the Admin Tools (app/game/admin_tools.py): only in admin_system's
+    // own welcome, and the server checks again on every use anyway
+    this.tools = !!msg.tools;
+    if (this.tools && this.hud.setAdminKit) this.hud.setAdminKit(false, true);
     this.map = msg.map;
     this.constants = msg.constants;
     this.myId = msg.you.id;
@@ -1165,6 +1175,17 @@
     var now = performance.now() / 1000;
     if (now < this.nextFire || now < this.reloadUntil) return;
     var stats = this.weaponStats();
+    if (stats.admin) {
+      // each tool keeps its own rate, as on the server
+      this.adminNext = this.adminNext || {};
+      if (now < (this.adminNext[stats.admin] || 0)) return;
+      this.adminNext[stats.admin] = now + 60 / Math.max(1, stats.rpm || 240);
+      var aim = this.lookDirection();
+      var from = [this.local.pos[0], this.local.pos[1] + Avatar.EYE_HEIGHT, this.local.pos[2]];
+      this.net.send({ t: 'fire', d: aim, o: from });
+      this.adminFx(stats, from, aim);
+      return;
+    }
     var melee = stats.kind === 'melee';
     var gear = this.gear;
     if (gear && !gear.canFire(stats)) return;
@@ -1206,6 +1227,75 @@
       this.recoil = Math.min(1.4, this.recoil + 0.5);
     } else {
       this.audio.play('heal', { volume: 0.7 });
+    }
+  };
+
+  /* The Admin Tools in or out of somebody's hands.  Ours: the hotbar, the
+     ammo and the HUD swap over (and the hotbar we had is kept for when they
+     go away again, unless the server hands back a world's own kit).
+     Somebody else's: what they hold, as everyone sees it. */
+  Client.prototype.onAdminKit = function (msg) {
+    function clone(v) { return v ? JSON.parse(JSON.stringify(v)) : v; }
+    if (msg.you || msg.id === this.myId) {
+      if (msg.on && !this.kitSaved) this.kitSaved = clone(this.avatar.hotbar || []);
+      // nothing in the message means "your own hotbar": in an arena world
+      // that is the one Arena kept (a round's kit may have ended meanwhile)
+      var own = this.arena ? clone(this.arena.ownHotbar) : this.kitSaved;
+      var hotbar = msg.hotbar ? clone(msg.hotbar) : (own || this.avatar.hotbar || []);
+      if (!msg.on) this.kitSaved = null;
+      this.avatar.hotbar = hotbar;
+      var slot = msg.slot || 0;
+      this.slot = slot;
+      this.stowed = !hotbar[slot];
+      for (var i = 0; i < 5; i++) {
+        var stats = hotbar[i] && hotbar[i].data && hotbar[i].data.stats;
+        this.ammo[i] = stats && stats.mag ? stats.mag : 0;
+        this.reserve[i] = stats && stats.reserve ? stats.reserve : 0;
+      }
+      this.hud.buildHotbar(hotbar, slot);
+      this.hud.setSlot(this.stowed ? -1 : slot);
+      this.updateAmmoHud();
+      if (this.scoped) { this.scoped = false; this.hud.setScope(false); }
+      if (this.hud.setAdminKit) this.hud.setAdminKit(!!msg.on, true);
+      this.audio.play(msg.on ? 'raise' : 'ui', { volume: 0.7 });
+      return;
+    }
+    var player = this.players[msg.id];
+    if (!player) return;
+    if (msg.on && !player._preKit) player._preKit = clone((player.avatar || {}).hotbar || []);
+    var avatar = {};
+    for (var k in player.avatar) avatar[k] = player.avatar[k];
+    avatar.hotbar = msg.hotbar ? clone(msg.hotbar)
+      : (player._ownHotbar || player._preKit || avatar.hotbar);
+    if (!msg.on) player._preKit = null;
+    player.avatar = avatar;
+  };
+
+  /* What each Admin Tool looks and sounds like at our end; what it does is
+     the server's business (app/game/admin_tools.py). */
+  Client.prototype.adminFx = function (stats, origin, dir) {
+    var op = stats.admin;
+    var reach = stats.range || 200;
+    var distance = this.physics ? this.physics.rayDistance(origin, dir, reach) : reach;
+    var at = [origin[0] + dir[0] * distance, origin[1] + dir[1] * distance, origin[2] + dir[2] * distance];
+    var front = [origin[0] + dir[0] * 1.8, origin[1] + dir[1] * 1.8, origin[2] + dir[2] * 1.8];
+    if (op === 'smite') {
+      this.spawnTracer(origin, dir, reach, stats.tracer || '#ffd23f');
+      this.particles.burst('muzzle', front);
+      this.recoil = Math.min(1.4, this.recoil + 0.25);
+      this.audio.play('bolt', { volume: 0.8 });
+    } else if (op === 'horde') {
+      this.particles.burst('impact', at);
+      this.audio.play('horn', { volume: 0.55 });
+    } else if (op === 'tonic') {
+      this.particles.burst('muzzle', front);
+      this.audio.play('heal', { volume: 0.9 });
+    } else if (op === 'blink') {
+      this.particles.burst('impact', [this.local.pos[0], this.local.pos[1] + 2, this.local.pos[2]]);
+      this.audio.play('whoosh', { volume: 0.9 });
+    } else if (op === 'purge') {
+      this.particles.burst('impact', [this.local.pos[0], this.local.pos[1] + 2, this.local.pos[2]]);
+      this.audio.play('explode', { volume: 0.7 });
     }
   };
 
@@ -1275,7 +1365,9 @@
     else if (stats.souls && this.hud.setSouls) this.hud.setSouls(0, stats.souls, 0);
     // a blade (an event world's cutlass or glove too) has no magazine to
     // count, and a world's own kit can say its count means nothing
-    if (stats.kind === 'melee' || stats.melee || stats.hide_ammo) {
+    if (stats.admin) {
+      this.hud.setAmmo('\u221e', null, item ? item.name : '', false);
+    } else if (stats.kind === 'melee' || stats.melee || stats.hide_ammo) {
       this.hud.setAmmo(null, null, item ? item.name : '', false);
     } else {
       this.hud.setAmmo(this.ammo[this.slot], this.reserve[this.slot],

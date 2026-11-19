@@ -802,6 +802,21 @@ dl.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   color: #1b3d5f; font-size: 9px; padding: 2px 6px; border-radius: 2px; font-weight: bold;
   text-transform: uppercase; letter-spacing: .4px;
 }
+.worldcard .sortnote {
+  position: absolute; left: 6px; bottom: 6px; background: rgba(10,20,40,.72); color: #fff;
+  font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: bold; max-width: calc(100% - 12px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.worldcard .sortnote[hidden] { display: none; }
+/* "Jump back in": the sort menu sits in the panel's own title bar */
+.jump-sort { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: normal; text-shadow: none; }
+.jump-sort label { font-size: 10px; color: #e6f2ff; margin: 0; font-weight: bold; }
+.jump-sort select {
+  font: inherit; font-size: 11px; font-weight: bold; padding: 2px 22px 2px 7px; border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.25); background-color: #fff; color: #17324f; cursor: pointer; max-width: 150px;
+}
+.jump-sort select:focus-visible { outline: 2px solid #ffd23f; outline-offset: 1px; }
+.worldgrid.sorting .worldcard { transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .2s; }
 .worldcard .wbody { padding: 8px 10px; }
 .worldcard .wtitle { font-size: 13px; font-weight: bold; color: var(--ink-strong); }
 .worldcard .wtag { color: var(--ink-soft); font-style: italic; margin: 2px 0 6px; }

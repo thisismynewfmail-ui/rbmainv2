@@ -287,6 +287,10 @@ BODY_PALETTE: List[Dict[str, str]] = [
     {"name": "Really black", "hex": "#1b2a35"},
 ]
 
+# Every colour a player can choose, for checking what they send.
+PALETTE_HEX = frozenset(entry["hex"].lower() for entry in BODY_PALETTE)
+PALETTE_NAMES: Dict[str, str] = {entry["hex"].lower(): entry["name"] for entry in BODY_PALETTE}
+
 # Colours left out of every *random* look: a new bot's avatar and the
 # welcome screen's shuffled characters.  They stay in BODY_PALETTE, so anyone
 # can still pick them in the avatar editor -- they are just never dealt.
