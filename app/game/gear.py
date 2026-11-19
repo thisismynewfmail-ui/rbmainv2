@@ -238,6 +238,7 @@ class Gear:
         self._next_dep = 1
         self._dirty_players: set = set()
         self._sent: Dict[int, Any] = {}
+        self._trails: Dict[int, Dict[str, Any]] = {}     # which way each owner walks
 
     # ============================================================ context
     @contextmanager
@@ -1629,40 +1630,53 @@ class Gear:
                            _num(boom.get("damage"), 40), _num(boom.get("knock"), 20), m.name,
                            kind=str(boom.get("fx") or "explode"), item=m.item)
 
+    # How summoned things get about.  Every minion has a spot of its own
+    # round its owner -- trailing behind in a loose fan while they walk, a
+    # ring round them when they stop -- and a flank of its own round its
+    # target, so a pack spreads out instead of piling onto one point.  They
+    # keep their distance from each other and from the people they follow,
+    # turn at a limited rate (so they curve rather than snap), wander off a
+    # straight line on a smooth noise of their own, speed up when they have
+    # fallen behind and, left far behind or stuck, pop back beside their owner.
+    FOLLOW_TURN = 5.0           # rad/s at which a minion swings round
+    FOLLOW_CATCH_UP = 30.0      # studs/s a straggler may reach (a walk is 22)
+    FOLLOW_TELEPORT = 110.0     # further than this from its owner: pops back
+    FOLLOW_NOISE = 0.55         # how far off a straight line they weave
+    FOLLOW_PATH_BUDGET = 500    # A* nodes a minion may search round a wall
+
     def _step_minion(self, m: Minion, dt: float, moment: float) -> None:
         spec = m.spec
         owner = self.inst.players.get(m.owner)
         if owner is None or moment >= m.until:
             self.kill_minion(m, None, quiet=owner is None)
             return
-        # falling
+        # falling (off a ledge, or a hop)
         if not m.grounded or m.vel[1] != 0.0:
-            m.vel[1] -= 62.0 * dt
-            nxt = [m.pos[0] + m.vel[0] * dt, m.pos[1] + m.vel[1] * dt, m.pos[2] + m.vel[2] * dt]
-            floor = self._floor([nxt[0], max(nxt[1], m.pos[1]) + 0.5, nxt[2]])
-            if nxt[1] <= floor[1] and m.vel[1] <= 0:
-                nxt[1] = floor[1]
-                m.vel = [0.0, 0.0, 0.0]
-                m.grounded = True
-            m.pos = nxt
-            if m.pos[1] < self.inst.map.get("kill_y", -60):
-                self.kill_minion(m, None)
+            self._fall_minion(m, dt)
             return
         speed = _num(spec.get("speed"), 14) * self._minion_scale(m)
         if speed <= 0:
             m.anim = "idle"
             return
+        mem = self._minion_mind(m)
         reach = _num(spec.get("reach"), 4.5)
         ranged = spec.get("ranged") or {}
         sight = _num(spec.get("sight"), 70)
-        # pick a target now and then
+        # pick a target now and then: the nearest, but not the one the rest
+        # of the pack is already on, and not swapping for no good reason
         if moment >= m.extra.get("look_at", 0.0) or m.target is None:
-            m.extra["look_at"] = moment + 0.5
-            best, best_d = None, sight
+            m.extra["look_at"] = moment + 0.45 + 0.1 * mem["seed"]
+            taken: Dict[int, int] = {}
+            for other in self.minions.values():
+                if other is not m and other.owner == m.owner and other.target is not None:
+                    taken[other.target] = taken.get(other.target, 0) + 1
+            best, best_score = None, None
             for ent in self.targets_for(m, sight):
-                d = math.dist(ent.pos, m.pos)
-                if d < best_d:
-                    best, best_d = ent, d
+                score = math.dist(ent.pos, m.pos) + 9.0 * taken.get(ent.pid, 0)
+                if ent.pid == m.target:
+                    score -= 7.0
+                if best_score is None or score < best_score:
+                    best, best_score = ent, score
             m.target = best.pid if best is not None else None
         target = None
         if m.target is not None:
@@ -1672,17 +1686,14 @@ class Gear:
             if target is None or not getattr(target, "alive", False):
                 m.target = None
                 target = None
-        goal = target.pos if target is not None else owner.pos
-        dist = math.dist(goal, m.pos)
-        keep = reach * 0.8 if target is not None else 6.0
-        if ranged and target is not None:
-            keep = max(keep, _num(ranged.get("range"), 30) * 0.6)
+        dist = math.dist(target.pos, m.pos) if target is not None else 0.0
         # attack
         if target is not None and moment >= m.next_attack:
             if ranged and dist <= _num(ranged.get("range"), 30):
                 eye = m.centre()
                 aim = self._centre(target)
                 if self.inst.line_of_sight(eye, aim):
+                    mem.pop("blind", None)
                     m.next_attack = moment + 60.0 / max(1.0, _num(ranged.get("rpm"), 60))
                     with self.using(owner, spec, m.name, m.item):
                         self.inst.apply_damage(target, owner, _num(ranged.get("damage"), 6),
@@ -1690,45 +1701,571 @@ class Gear:
                     self.inst.broadcast({"t": "gfx", "k": "mshot", "a": [round(v, 2) for v in eye],
                                          "b": [round(v, 2) for v in aim], "id": m.pid,
                                          "c": str(ranged.get("color") or "#ffd96b")})
+                else:
+                    # no clear shot: it goes and finds one (see _hunt_goal)
+                    mem.setdefault("blind", moment)
+                    m.next_attack = moment + 0.25
             elif dist <= reach + 1.0:
                 m.next_attack = moment + _num(spec.get("rate"), 1.0)
                 m.anim = "attack"
+                mem["struck"] = moment
                 if spec.get("explode"):
                     self.kill_minion(m, None)
                     return
                 with self.using(owner, spec, m.name, m.item):
                     self.inst.apply_damage(target, owner, _num(spec.get("damage"), 8), m.name, False)
                 self.inst.broadcast({"t": "gfx", "k": "bite", "id": m.pid})
-        # move
-        if dist > keep:
-            d = _norm([goal[0] - m.pos[0], 0.0, goal[2] - m.pos[2]])
-            step = speed * dt
-            moved = False
-            for turn in (0.0, 0.7, -0.7, 1.4, -1.4):
-                dd = d if turn == 0.0 else [d[0] * math.cos(turn) - d[2] * math.sin(turn), 0.0,
-                                            d[0] * math.sin(turn) + d[2] * math.cos(turn)]
-                eye = [m.pos[0], m.pos[1] + 1.4, m.pos[2]]
-                if self.inst.ray_world(eye, dd, step + 1.5) >= step + 1.5:
-                    m.pos = [m.pos[0] + dd[0] * step, m.pos[1], m.pos[2] + dd[2] * step]
-                    m.yaw = math.atan2(dd[0], dd[2])
-                    moved = True
-                    break
-            if moved:
-                floor = self._floor([m.pos[0], m.pos[1] + 2.0, m.pos[2]])
-                if floor[1] < m.pos[1] - 0.6:
-                    m.grounded = False
-                else:
-                    m.pos[1] = floor[1]
-                m.anim = "run" if speed > 18 else "walk"
-            else:
-                # stuck: hop
-                m.vel = [d[0] * speed, 26.0, d[2] * speed]
-                m.grounded = False
+        # where to be
+        if target is not None:
+            goal, park = self._hunt_goal(m, target, reach, ranged, moment, mem)
         else:
-            if target is not None:
-                m.yaw = math.atan2(goal[0] - m.pos[0], goal[2] - m.pos[2])
-            if m.anim != "attack" or moment >= m.next_attack - 0.5:
+            goal, park = self._follow_goal(m, owner, moment, mem)
+            if math.dist(owner.pos, m.pos) > self.FOLLOW_TELEPORT:
+                self._minion_rejoin(m, owner, goal, mem)
+                return
+        self._steer_minion(m, owner, target, goal, park, speed, reach, dt, moment, mem)
+
+    def _minion_mind(self, m: Minion) -> Dict[str, Any]:
+        """What a minion keeps from tick to tick: its own noise seed and pace,
+        which way it is heading, which way it sidesteps."""
+        mem = m.extra.get("ai")
+        if mem is None:
+            seed = self.rng.random()
+            mem = m.extra["ai"] = {
+                "seed": seed,
+                "pace": 0.9 + 0.22 * self.rng.random(),
+                "hand": 1.0 if self.rng.random() < 0.5 else -1.0,
+                "side": 1.0 if self.rng.random() < 0.5 else -1.0,     # never flips
+                "head": [math.sin(m.yaw), math.cos(m.yaw)],
+                "parked": False,
+                "check": (0.0, 0.0), "stuck": 0,
+            }
+        return mem
+
+    @staticmethod
+    def _wobble(t: float, seed: float) -> float:
+        """Smooth noise in about -1..1: three slow waves out of step with each
+        other, so no two minions weave alike and none repeats for a while."""
+        return (math.sin(t * 1.00 + seed * 12.99) * 0.55 +
+                math.sin(t * 2.31 + seed * 78.23) * 0.30 +
+                math.sin(t * 0.47 + seed * 37.72) * 0.45) / 1.3
+
+    def _owner_trail(self, owner, moment: float) -> Dict[str, Any]:
+        """Which way an owner is walking (not looking: the camera swings
+        about far more than the feet), and how much they are walking."""
+        trails = self._trails
+        rec = trails.get(owner.pid)
+        if rec is None:
+            rec = trails[owner.pid] = {"t": moment, "p": list(owner.pos), "moving": 0.0,
+                                       "dir": [math.sin(owner.yaw), math.cos(owner.yaw)]}
+            return rec
+        dt = moment - rec["t"]
+        if dt <= 0.0:
+            return rec
+        dx, dz = owner.pos[0] - rec["p"][0], owner.pos[2] - rec["p"][2]
+        moved = math.hypot(dx, dz)
+        walking = moved / dt > 3.0 and moved < 40.0
+        if walking:
+            k = min(1.0, dt * 5.0)
+            nx = rec["dir"][0] + (dx / moved - rec["dir"][0]) * k
+            nz = rec["dir"][1] + (dz / moved - rec["dir"][1]) * k
+            n = math.hypot(nx, nz) or 1.0
+            rec["dir"] = [nx / n, nz / n]
+        rec["moving"] += ((1.0 if walking else 0.0) - rec["moving"]) * min(1.0, dt * 2.5)
+        rec["t"], rec["p"] = moment, list(owner.pos)
+        return rec
+
+    def _follow_goal(self, m: Minion, owner, moment: float, mem: Dict[str, Any]):
+        """This minion's own spot round its owner."""
+        trail = self._owner_trail(owner, moment)
+        seed = mem["seed"]
+        back = math.atan2(-trail["dir"][0], -trail["dir"][1])
+        # spots go round in the order the minions already stand round their
+        # owner (worked out once a second), so none has to cross the others
+        order = trail.get("order")
+        group = [x for x in self.minions.values() if x.owner == m.owner and x.alive]
+        if order is None or moment >= order[0] or len(order[1]) != len(group) or m.pid not in order[1]:
+            def bearing(x):
+                a = math.atan2(x.pos[0] - owner.pos[0], x.pos[2] - owner.pos[2]) - back
+                return (a + math.pi) % (2.0 * math.pi) - math.pi
+            order = trail["order"] = (moment + 1.0, [x.pid for x in sorted(group, key=bearing)])
+        n = max(1, len(order[1]))
+        i = order[1].index(m.pid)
+        # standing: a ring round them; walking: a fan trailing behind
+        ring = back + (i - (n - 1) / 2.0) * (2.0 * math.pi / n)
+        spread = min(2.6, 0.8 * (n - 1))
+        fan = back + ((i / (n - 1) - 0.5) * spread if n > 1 else 0.0)
+        moving = trail["moving"]
+        angle = ring + ((fan - ring + math.pi) % (2.0 * math.pi) - math.pi) * moving
+        angle += self._wobble(moment * 0.21, seed) * 0.45
+        size = _clamp(m.scale, 0.5, 1.6)
+        radius = (4.6 + 1.3 * (i % 3) + 0.9 * self._wobble(moment * 0.33, seed + 0.5)) \
+            * (0.6 + 0.4 * size) + 1.5 * moving
+        # the spot has to be open floor its owner can see -- never inside a
+        # wall or over a drop -- or it would go a long way round to reach
+        # somewhere it can't stand
+        # (and outside its owner's elbow room: a spot squeezed in close
+        # swings round to an open side instead)
+        check = mem.get("slot")
+        if check is None or moment >= check[0]:
+            # (at hip height: no spot behind a wall it would have to hop)
+            chest = [owner.pos[0], owner.pos[1] + 1.5, owner.pos[2]]
+            need = min(radius, 3.6 + 1.0 * m.scale)
+            side = mem["side"]
+            turns = [0.0, 0.5 * side, -0.5 * side, 1.0 * side, -1.0 * side,
+                     1.6 * side, -1.6 * side, 2.4 * side, -2.4 * side]
+            claims = trail.setdefault("claims", {})
+            options = []
+            best = None
+            for turn in turns:
+                a = angle + turn
+                way = [math.sin(a), 0.0, math.cos(a)]
+                reach = min(radius, self.inst.ray_world(chest, way, radius + 1.5) - 1.5)
+                if reach < need:
+                    options.append((turn, reach, False, 0.0))
+                    continue
+                floor = self._floor([owner.pos[0] + way[0] * reach, owner.pos[1] + 2.0,
+                                     owner.pos[2] + way[2] * reach])
+                if abs(floor[1] - owner.pos[1]) > 2.2:
+                    continue            # over a drop
+                # ...and not one another minion has already taken
+                spot = [owner.pos[0] + way[0] * reach, owner.pos[2] + way[2] * reach]
+                room = min([math.hypot(spot[0] - c[0], spot[1] - c[1])
+                            for pid, c in claims.items() if pid != m.pid] or [99.0])
+                if room >= 3.5:
+                    best = (turn, reach)
+                    break
+                options.append((turn, reach, True, room))
+            if best is None:
+                # nowhere open and free: the open spot furthest from the
+                # others, else the most open way there is
+                free = [o for o in options if o[2]]
+                if free:
+                    best = max(free, key=lambda o: o[3])[:2]
+                elif options:
+                    best = max(options, key=lambda o: o[1])[:2]
+                else:
+                    best = (0.0, need)
+            check = mem["slot"] = (moment + 0.3 + 0.1 * seed, best[0],
+                                   max(need, best[1]) / radius)
+        angle += check[1]
+        radius *= check[2]
+        goal = [owner.pos[0] + math.sin(angle) * radius, owner.pos[1],
+                owner.pos[2] + math.cos(angle) * radius]
+        claims = trail.setdefault("claims", {})
+        claims[m.pid] = [goal[0], goal[2]]
+        for pid in [pid for pid in claims if pid not in order[1]]:
+            claims.pop(pid, None)
+        return goal, 1.0
+
+    def _hunt_goal(self, m: Minion, target, reach: float, ranged: Dict[str, Any],
+                   moment: float, mem: Dict[str, Any]):
+        """Where to stand to fight: a flank of its own round the target (the
+        pack fanning out from the side it came from), up close for a bite or
+        well back for a ranged one, which strafes round while it shoots."""
+        tp = target.pos
+        pack = sorted(x.pid for x in self.minions.values()
+                      if x.owner == m.owner and x.target == m.target and x.alive)
+        k = max(1, len(pack))
+        j = pack.index(m.pid) if m.pid in pack else 0
+        owner = self.inst.players.get(m.owner)
+        src = owner.pos if owner is not None else m.pos
+        base = math.atan2(src[0] - tp[0], src[2] - tp[2])
+        spacing = min(1.25, 2.0 * math.pi / k)
+        angle = base + (j - (k - 1) / 2.0) * spacing + self._wobble(moment * 0.4, mem["seed"]) * 0.3
+        if ranged:
+            standoff = _num(ranged.get("range"), 30) * 0.6
+            angle += moment * 0.22 * mem["hand"]          # circling while it sings
+            blind = mem.get("blind")
+            if blind is not None:
+                # no clear shot for a while: closer in, and further round
+                lost = moment - blind
+                standoff *= max(0.3, 1.0 - 0.45 * lost)
+                angle += lost * 0.9 * mem["hand"]
+            park = 1.6
+        else:
+            standoff = max(1.6, reach * 0.6)
+            park = 0.7
+        # its flank has to be open ground beside the target, or it would
+        # never get there: else a little round, else the side it's on
+        check = mem.get("flank")
+        if check is None or moment >= check[0] or check[1] != m.target:
+            chest = [tp[0], tp[1] + 2.0, tp[2]]
+            hand = mem["hand"]
+            offset = math.atan2(m.pos[0] - tp[0], m.pos[2] - tp[2]) - angle
+            for turn in (0.0, 0.6 * hand, -0.6 * hand, 1.2 * hand, -1.2 * hand):
+                a = angle + turn
+                if self.inst.ray_world(chest, [math.sin(a), 0.0, math.cos(a)],
+                                       standoff + 1.0) >= standoff + 1.0:
+                    offset = turn
+                    break
+            check = mem["flank"] = (moment + 0.5 + 0.2 * mem["seed"], m.target, offset)
+        angle += check[2]
+        flank = [tp[0] + math.sin(angle) * standoff, tp[1], tp[2] + math.cos(angle) * standoff]
+        d = math.hypot(tp[0] - m.pos[0], tp[2] - m.pos[2])
+        if ranged and mem.get("blind") is None and \
+                standoff * 0.6 <= d <= _num(ranged.get("range"), 30) * 0.92:
+            # in range with a clear shot: stay at this distance and drift
+            # slowly round, not off chasing a spot of its own
+            mine = math.atan2(m.pos[0] - tp[0], m.pos[2] - tp[2]) + mem["hand"] * 1.5 / max(1.0, d)
+            return [tp[0] + math.sin(mine) * d, tp[1], tp[2] + math.cos(mine) * d], 0.6
+        # from a distance, straight at it (with the weave); close in, to its flank
+        t = _clamp((d - standoff - 4.0) / 14.0, 0.0, 1.0)
+        goal = [flank[0] + (tp[0] - flank[0]) * t, tp[1], flank[2] + (tp[2] - flank[2]) * t]
+        return goal, park
+
+    def _minion_rejoin(self, m: Minion, owner, goal, mem: Dict[str, Any]) -> None:
+        """Left far behind or stuck: back beside its owner in a puff."""
+        spot = self._floor([goal[0], goal[1] + 2.0, goal[2]])
+        eye = [owner.pos[0], owner.pos[1] + 2.0, owner.pos[2]]
+        if not self.inst.line_of_sight(eye, [spot[0], spot[1] + 2.0, spot[2]]):
+            back = math.atan2(-math.sin(owner.yaw), -math.cos(owner.yaw))
+            spot = self._floor([owner.pos[0] + math.sin(back) * 3.0, owner.pos[1] + 2.0,
+                                owner.pos[2] + math.cos(back) * 3.0])
+        self.inst.broadcast({"t": "gfx", "k": "poof", "p": [round(v, 2) for v in m.pos],
+                             "w": m.item, "m": m.kind, "id": m.pid})
+        m.pos = spot
+        m.vel = [0.0, 0.0, 0.0]
+        m.grounded = True
+        mem["stuck"] = 0
+        mem["check"] = (0.0, 0.0)
+        mem["parked"] = False
+        self.inst.broadcast({"t": "gfx", "k": "rise", "p": [round(v, 2) for v in spot],
+                             "w": m.item, "m": m.kind})
+
+    def _steer_minion(self, m: Minion, owner, target, goal, park: float, speed: float,
+                      reach: float, dt: float, moment: float, mem: Dict[str, Any]) -> None:
+        seed = mem["seed"]
+        to_x, to_z = goal[0] - m.pos[0], goal[2] - m.pos[2]
+        dist = math.hypot(to_x, to_z)
+        # arrived, with some give either way so it isn't forever shuffling
+        if mem["parked"]:
+            if dist > park * 2.8 + 0.8:
+                mem["parked"] = False
+        elif dist < park:
+            mem["parked"] = True
+        biting = target is not None and math.dist(target.pos, m.pos) < reach + 4.0
+        # elbow room: from the other minions, and from people (bar what it
+        # bites); a pack at its target crowds in closer
+        sx = sz = 0.0
+        squeeze = 0.75 if biting else 1.0
+        for other in self.minions.values():
+            if other is m or not other.alive:
+                continue
+            dx, dz = m.pos[0] - other.pos[0], m.pos[2] - other.pos[2]
+            room = (1.6 + 1.4 * (m.scale + other.scale)) * squeeze
+            d2 = dx * dx + dz * dz
+            if d2 >= room * room or abs(m.pos[1] - other.pos[1]) > 4.0:
+                continue
+            d = math.sqrt(d2)
+            if d < 1e-3:
+                a = (seed + other.pid * 0.618) * math.tau
+                dx, dz, d = math.sin(a), math.cos(a), 1.0
+            push = (room - d) / room
+            sx += dx / d * push
+            sz += dz / d * push
+        for person in self.inst.players.values():
+            if not person.alive or (target is not None and person is target):
+                continue
+            dx, dz = m.pos[0] - person.pos[0], m.pos[2] - person.pos[2]
+            room = 2.6 + 1.0 * m.scale
+            d2 = dx * dx + dz * dz
+            if d2 >= room * room or abs(m.pos[1] - person.pos[1]) > 5.0:
+                continue
+            d = math.sqrt(d2) or 1e-3
+            push = (room - d) / room * 1.6
+            sx += dx / d * push
+            sz += dz / d * push
+        # the shove is eased in and out, not felt afresh every tick
+        prev_sep = mem.get("sep")
+        if prev_sep is not None:
+            k = min(1.0, dt * 5.0)
+            sx, sz = prev_sep[0] + (sx - prev_sep[0]) * k, prev_sep[1] + (sz - prev_sep[1]) * k
+        mem["sep"] = [sx, sz]
+        crowded = math.hypot(sx, sz)
+        struck = moment - mem.get("struck", -9.0) < 0.45
+        if mem["parked"]:
+            mem.pop("path", None)
+            if crowded >= 0.25:
+                # crowded where it stands: a side-step to make room, still
+                # facing the way it was
+                step = min(speed * mem["pace"] * 0.45, 3.0 + 3.0 * m.scale) * dt * min(1.0, crowded)
+                way = [sx / crowded, 0.0, sz / crowded]
+                eye = [m.pos[0], m.pos[1] + 1.4, m.pos[2]]
+                if self.inst.ray_world(eye, way, step + 1.0) >= step + 1.0:
+                    m.pos = [m.pos[0] + way[0] * step, m.pos[1], m.pos[2] + way[2] * step]
+                    floor = self._floor([m.pos[0], m.pos[1] + 2.0, m.pos[2]])
+                    if floor[1] >= m.pos[1] - 0.6:
+                        m.pos[1] = floor[1]
+                    if not struck:
+                        m.anim = "walk"
+            elif not struck:
                 m.anim = "idle"
+            self._minion_face(m, owner, target, dt, moment, mem)
+            return
+        # the way it wants to go: straight for the goal when it can see it,
+        # else along a path round whatever is in the way
+        aim_x, aim_z, aim_d = to_x, to_z, dist
+        if not mem["parked"]:
+            way = self._minion_waypoint(m, goal, dist, moment, mem, target)
+            if way is not None:
+                aim_x, aim_z = way[0] - m.pos[0], way[2] - m.pos[2]
+                aim_d = math.hypot(aim_x, aim_z)
+        sep_w = 0.5 if biting else 1.4
+        if mem["parked"]:
+            want_x, want_z = sx * sep_w, sz * sep_w
+        else:
+            pull = 1.0 if mem.get("path") else max(0.25, min(1.0, dist / 3.0))
+            want_x = aim_x / (aim_d or 1.0) * pull + sx * sep_w
+            want_z = aim_z / (aim_d or 1.0) * pull + sz * sep_w
+            # ...off a straight line, less so close in for a bite or on a path
+            amp = self.FOLLOW_NOISE if dist > 10.0 else 0.22 + 0.033 * dist
+            if target is not None:
+                amp *= 0.6          # a charge weaves less than a stroll
+            if mem.get("path"):
+                amp *= 0.5
+            if biting:
+                amp = 0.08
+            w = self._wobble(moment * (0.8 + 0.5 * seed), seed)
+            n = math.hypot(want_x, want_z) or 1.0
+            want_x, want_z = want_x / n, want_z / n
+            want_x, want_z = want_x - want_z * w * amp, want_z + want_x * w * amp
+        # feelers: a wall coming up ahead turns it towards the more open
+        # side before it gets there, rather than bumping along it
+        if not mem["parked"]:
+            head0 = math.atan2(mem["head"][0], mem["head"][1])
+            look = 3.5 + speed * mem["pace"] * 0.18
+            eye = [m.pos[0], m.pos[1] + 1.4, m.pos[2]]
+            ahead = self.inst.ray_world(eye, [math.sin(head0), 0.0, math.cos(head0)], look)
+            if ahead < look:
+                left = self.inst.ray_world(eye, [math.sin(head0 + 0.7), 0.0,
+                                                 math.cos(head0 + 0.7)], look)
+                right = self.inst.ray_world(eye, [math.sin(head0 - 0.7), 0.0,
+                                                  math.cos(head0 - 0.7)], look)
+                side = mem["hand"] if abs(left - right) < 0.3 else (1.0 if left > right else -1.0)
+                urge = 2.2 * (1.0 - ahead / look)
+                want_x += math.cos(head0) * side * urge
+                want_z -= math.sin(head0) * side * urge
+        n = math.hypot(want_x, want_z)
+        if n < 1e-6:
+            return
+        want_x, want_z = want_x / n, want_z / n
+        raw = math.atan2(want_x, want_z)
+        prev = mem.get("want")
+        if prev is not None:
+            # eased, but quickly when it wants to go somewhere else entirely
+            swing = abs((raw - math.atan2(prev[0], prev[1]) + math.pi) % (2.0 * math.pi) - math.pi)
+            k = min(1.0, dt * (7.0 if swing < 1.2 else 20.0))
+            want_x, want_z = prev[0] + (want_x - prev[0]) * k, prev[1] + (want_z - prev[1]) * k
+            n = math.hypot(want_x, want_z) or 1.0
+            want_x, want_z = want_x / n, want_z / n
+        mem["want"] = [want_x, want_z]
+        want = math.atan2(want_x, want_z)
+        head = math.atan2(mem["head"][0], mem["head"][1])
+        diff = (want - head + math.pi) % (2.0 * math.pi) - math.pi
+        # how far its heading is from where it actually wants to be going
+        off = abs((raw - head + math.pi) % (2.0 * math.pi) - math.pi)
+        # just turned off a wall: don't swing straight back into it
+        slide = mem.get("slide")
+        if slide is not None and moment < slide[1] and diff * slide[0] < 0.0:
+            diff *= 0.15
+        if abs(diff) < 0.05:
+            diff = 0.0          # near enough: hold the line rather than twitch
+        rate = self.FOLLOW_TURN * (0.85 + 0.3 * seed) * (1.8 if off > 2.0 else 1.0)
+        head += _clamp(diff, -rate * dt, rate * dt)
+        hx, hz = math.sin(head), math.cos(head)
+        # how fast: its own pace, easing in to a stop, slower round a sharp
+        # turn, faster when it has fallen behind its owner
+        pace = speed * mem["pace"]
+        if mem["parked"]:
+            pace = min(pace * 0.45, 3.0 + 3.0 * m.scale)     # a shuffle to make room
+        else:
+            pace *= max(0.35, min(1.0, dist / 3.0))
+        # facing the wrong way: turn about, don't run off
+        pace *= max(0.2, math.cos(min(off, 1.45)))
+        if target is None:
+            behind = math.dist(owner.pos, m.pos)
+            boost = _clamp((behind - 9.0) / 14.0, 0.0, 1.0)
+            pace = pace + (max(pace, self.FOLLOW_CATCH_UP * mem["pace"]) - pace) * boost
+        step = pace * dt
+        # walls: the way it is heading, else a little to its own side, then
+        # the other; it slides along on the new heading
+        eye = [m.pos[0], m.pos[1] + 1.4, m.pos[2]]
+        # (a follower close by its owner goes round instead: hopping away
+        # over something only to come back the long way looks lost)
+        hopper = target is not None or math.dist(owner.pos, m.pos) > 12.0
+        if hopper and not mem["parked"] and moment >= mem.get("hop_at", 0.0) and off < 0.6 and \
+                dist > 4.0 and self.inst.ray_world(eye, [hx, 0.0, hz], step + 1.5) < step + 1.5:
+            # something in the way: if it's low (a kerb, a crate, a ledge),
+            # over it rather than round it
+            high = [m.pos[0], m.pos[1] + 4.8, m.pos[2]]
+            if self.inst.ray_world(high, [hx, 0.0, hz], step + 3.0) >= step + 3.0:
+                self._minion_hop(m, hx, hz, speed, moment, mem)
+                mem["head"] = [hx, hz]
+                m.yaw = head
+                return
+        moved = False
+        hand = mem["hand"]
+        for turn in (0.0, 0.5 * hand, -0.5 * hand, 1.0 * hand, -1.0 * hand, 1.6 * hand, -1.6 * hand):
+            a = head + turn
+            dd = [math.sin(a), 0.0, math.cos(a)]
+            if self.inst.ray_world(eye, dd, step + 1.5) >= step + 1.5:
+                m.pos = [m.pos[0] + dd[0] * step, m.pos[1], m.pos[2] + dd[2] * step]
+                if turn:
+                    mem["slide"] = (1.0 if turn > 0 else -1.0, moment + 0.35)
+                head = a
+                moved = True
+                break
+        mem["head"] = [math.sin(head), math.cos(head)]
+        m.yaw = head
+        if moved:
+            floor = self._floor([m.pos[0], m.pos[1] + 2.0, m.pos[2]])
+            if floor[1] < m.pos[1] - 0.6:
+                m.grounded = False
+            else:
+                m.pos[1] = floor[1]
+            if not struck:
+                m.anim = "run" if pace > 18 else "walk"
+        else:
+            # boxed in: hop, and look for a way round next time
+            self._minion_hop(m, hx, hz, speed, moment, mem)
+            mem["path_at"] = 0.0
+        self._minion_progress(m, owner, target, goal, dist, moment, mem)
+
+    @staticmethod
+    def _minion_hop(m: Minion, hx: float, hz: float, speed: float, moment: float,
+                    mem: Dict[str, Any]) -> None:
+        carry = min(14.0, 7.0 + 0.3 * speed)       # over the thing, not across the map
+        m.vel = [hx * carry, 26.0, hz * carry]
+        m.grounded = False
+        m.anim = "run"
+        mem["hop_at"] = moment + 0.7
+
+    def _minion_waypoint(self, m: Minion, goal, dist: float, moment: float,
+                         mem: Dict[str, Any], target=None):
+        """The next point on a path to ``goal`` round whatever is in the way,
+        or None when the way is clear (or there is no map to path on).  A
+        path is looked for only when the straight line is blocked, kept for
+        a second or so, and dropped once the goal is in plain sight."""
+        path = mem.get("path")
+        if moment >= mem.get("path_at", 0.0):
+            mem["path_at"] = moment + 0.6 + 0.3 * mem["seed"]
+            eye = [m.pos[0], m.pos[1] + 1.6, m.pos[2]]
+            # a hunter that can see what it's after goes straight for it, and
+            # a follower that can see its owner; a path is for out of sight
+            if target is not None:
+                far = self._centre(target)
+            else:
+                # (looking over anything low enough to hop: it hops it)
+                owner = self.inst.players.get(m.owner)
+                eye = [m.pos[0], m.pos[1] + 3.2, m.pos[2]]
+                far = ([owner.pos[0], owner.pos[1] + 3.2, owner.pos[2]] if owner is not None
+                       else [goal[0], goal[1] + 3.2, goal[2]])
+            if dist < 3.0 or self.inst.line_of_sight(eye, far):
+                mem.pop("path", None)
+                return None
+            moved_goal = path is not None and math.dist(mem.get("path_goal", goal), goal) > 6.0
+            if path is None or moved_goal or moment >= mem.get("path_until", 0.0):
+                path = self._minion_path(m, goal)
+                mem["path_goal"] = list(goal)
+                mem["path_until"] = moment + 1.6
+                if path:
+                    mem["path"] = path
+                else:
+                    mem.pop("path", None)
+                    return None
+        if not path:
+            return None
+        while path and math.hypot(path[0][0] - m.pos[0], path[0][2] - m.pos[2]) < 2.2:
+            path.pop(0)
+        if not path:
+            mem.pop("path", None)
+            return None
+        return path[0]
+
+    def _minion_path(self, m: Minion, goal) -> Optional[List[List[float]]]:
+        grid = getattr(getattr(self.inst, "host", None), "nav", None)
+        if grid is None or not getattr(grid, "ready", False):
+            return None
+        try:
+            start = grid.nearest(m.pos, 2, standing=True)
+            end = grid.nearest(goal, 3)
+            nodes = grid.astar(start, end, self.FOLLOW_PATH_BUDGET)
+            if not nodes:
+                return None
+            los = lambda a, b: self.inst.line_of_sight([a[0], a[1] + 1.6, a[2]],
+                                                       [b[0], b[1] + 1.6, b[2]])
+            return grid.smooth(m.pos, nodes, 8, los)[:12]
+        except Exception:               # a map without a usable grid: walk as before
+            return None
+
+    def _minion_face(self, m: Minion, owner, target, dt: float, moment: float,
+                     mem: Dict[str, Any]) -> None:
+        """Standing about: face what it's fighting, or look round now and
+        then, the way its owner is facing give or take."""
+        if target is not None:
+            want = math.atan2(target.pos[0] - m.pos[0], target.pos[2] - m.pos[2])
+        else:
+            want = owner.yaw + self._wobble(moment * 0.3, mem["seed"] + 0.25) * 1.1
+        head = math.atan2(mem["head"][0], mem["head"][1])
+        diff = (want - head + math.pi) % (2.0 * math.pi) - math.pi
+        head += _clamp(diff, -3.0 * dt, 3.0 * dt)
+        mem["head"] = [math.sin(head), math.cos(head)]
+        m.yaw = head
+
+    def _minion_progress(self, m: Minion, owner, target, goal, dist: float, moment: float,
+                         mem: Dict[str, Any]) -> None:
+        """Once a second: is it getting anywhere?  Not, and it looks for a way
+        round at once and tries its other side; not for four seconds running,
+        and a follower pops back by its owner."""
+        last_t, last_d = mem["check"]
+        if moment - last_t < 1.0:
+            return
+        # (round its own spot, circling in is not being stuck)
+        far = 8.0 if target is None else 4.0
+        if last_t > 0.0 and dist > far and not mem["parked"] and m.grounded and last_d - dist < 1.0:
+            mem["stuck"] += 1
+            mem["path_at"] = 0.0
+            mem["path_until"] = 0.0
+            mem["hand"] = -mem["hand"]
+            if mem["stuck"] >= 2 and moment >= mem.get("hop_at", 0.0):
+                # walled in: a hop at it
+                way = mem.get("path") or [goal]
+                dx, dz = way[0][0] - m.pos[0], way[0][2] - m.pos[2]
+                n = math.hypot(dx, dz)
+                eye = [m.pos[0], m.pos[1] + 1.4, m.pos[2]]
+                if n > 0.5 and self.inst.ray_world(eye, [dx / n, 0.0, dz / n], 2.5) < 2.5:
+                    self._minion_hop(m, dx / n, dz / n, _num(m.spec.get("speed"), 14), moment, mem)
+            if mem["stuck"] >= 4 and target is None and math.dist(owner.pos, m.pos) > 20.0:
+                self._minion_rejoin(m, owner, goal, mem)
+                return
+        else:
+            mem["stuck"] = 0
+        mem["check"] = (moment, dist)
+
+    def _fall_minion(self, m: Minion, dt: float) -> None:
+        m.vel[1] -= 62.0 * dt
+        # a hop doesn't carry it through a wall
+        hx, hz = m.vel[0] * dt, m.vel[2] * dt
+        across = math.hypot(hx, hz)
+        if across > 1e-6:
+            # held up while the ledge is still in front of it, on again as
+            # soon as it has cleared the top
+            way = [hx / across, 0.0, hz / across]
+            for lift in (0.3, 2.2):
+                low = [m.pos[0], m.pos[1] + lift, m.pos[2]]
+                if self.inst.ray_world(low, way, across + 0.8) < across + 0.8:
+                    hx = hz = 0.0
+                    break
+        nxt = [m.pos[0] + hx, m.pos[1] + m.vel[1] * dt, m.pos[2] + hz]
+        floor = self._floor([nxt[0], max(nxt[1], m.pos[1]) + 0.5, nxt[2]])
+        if nxt[1] <= floor[1] and m.vel[1] <= 0:
+            nxt[1] = floor[1]
+            m.vel = [0.0, 0.0, 0.0]
+            m.grounded = True
+        m.pos = nxt
+        if m.pos[1] < self.inst.map.get("kill_y", -60):
+            self.kill_minion(m, None)
 
     def _minion_scale(self, m: Minion) -> float:
         if self.has(m, "root") or self.has(m, "stun"):
@@ -1981,6 +2518,7 @@ class Gear:
             self.unplace(d.ident, fx=False)
         self.status.pop(pid, None)
         self._sent.pop(pid, None)
+        self._trails.pop(pid, None)
 
     def respawned(self, player) -> None:
         self.status.pop(player.pid, None)

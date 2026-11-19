@@ -411,7 +411,9 @@
   }
   function mount() {
     if (!window.Thumbs || !Thumbs.LivePreview || typeof Renderer === 'undefined') return;
-    var look = Thumbs.randomLook();
+    // the brand's character only: yellow skin, a blue body
+    var BRAND = { brand: true };
+    var look = Thumbs.randomLook(BRAND);
     var preview = new Thumbs.LivePreview(stage, look.descriptor);
     if (preview.failed) return;
     preview.skyMode = 'stage';
@@ -424,7 +426,7 @@
     stage.classList.add('live');
     if (Thumbs.rescan) Thumbs.rescan();
     stage.addEventListener('look', function (e) { describe(e.detail); });
-    Thumbs.loadCatalog().then(function () { Thumbs.dressHero(stage); });
+    Thumbs.loadCatalog().then(function () { Thumbs.dressHero(stage, BRAND); });
     var inView = true;
     var held = false;
     if ('IntersectionObserver' in window) {
@@ -433,7 +435,7 @@
     stage.addEventListener('pointerdown', function () { held = true; });
     window.addEventListener('pointerup', function () { setTimeout(function () { held = false; }, 1500); });
     setInterval(function () {
-      if (inView && !held && !document.hidden && Thumbs.dressHero) Thumbs.dressHero(stage);
+      if (inView && !held && !document.hidden && Thumbs.dressHero) Thumbs.dressHero(stage, BRAND);
     }, 5600);
   }
   if (stage && webglOK()) {

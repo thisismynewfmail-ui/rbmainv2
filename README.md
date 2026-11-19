@@ -1209,6 +1209,37 @@ design rules for the opening, is
 [`reference_images_to_start_with/CRATES_AND_KEYS.md`](reference_images_to_start_with/CRATES_AND_KEYS.md).
 Set `BLOCKHAVEN_EVENTS=all` to keep every event running while you develop.
 
+### Summoned helpers
+
+The weapons that summon things (the Restless Dead, the Pecking Order's
+chicks, the Clockwork Songbirds, Balloon Animals, the Gingerbread Brigade,
+the Gravedigger's skeletons, the Admin Tools' Horde Horn) share one follower
+AI in `app/game/gear.py`:
+
+* **Following,** each one has a spot of its own round its owner: a loose fan
+  trailing behind while they walk, a ring round them when they stop. Spots
+  go round in the order the helpers already stand, so none has to cross the
+  others, and a spot is always open floor the owner can see: never inside a
+  wall, over a drop, on top of the owner or on another helper's spot.
+* **Moving,** they keep their distance from each other and from people,
+  turn at a limited rate so they curve rather than snap, and weave off a
+  straight line on a smooth noise of their own (a stroll weaves more than a
+  charge). Feelers turn them away from a wall before they bump it, low
+  obstacles get hopped, and a blocked way is pathed round on the bots' nav
+  grid. A straggler speeds up past a walk to catch up, and one left more
+  than 110 studs behind, or stuck for four seconds well away from it, pops back beside its
+  owner.
+* **Fighting,** a pack takes a flank each round its target, fanning out from
+  the side it came from, instead of piling onto one spot; the nearest enemy
+  the rest aren't already on is the one picked. A ranged helper (a
+  songbird) stands off at range and drifts round while it fires, and goes
+  looking for a clear shot when a wall is in the way.
+* **On screen,** the client eases each helper's heading round rather than
+  snapping it to every update, leans small ones into their turns and tips
+  them forward at a run.
+
+`tools/geartests.py` has a followers group for all of this.
+
 ## Badges
 
 Badges are 3D medals earned by playing. Each badge watches one stat (flags
@@ -1729,6 +1760,12 @@ floating islands, a storm-versus-haven story, a dashboard demo, a working
 **Try Safe Chat** phone that runs the real filter
 (`/api/family/safechat-demo`), the four family slots, the worlds with a live
 3D character, and a FAQ.
+
+The live character dresses in a new look every few seconds, always in the
+brand's own colours: a few close shades of the classic yellow for the skin
+and blue for the body (`Thumbs.brandLook`), with hats, faces, back items and
+Unusual effects on top but no shirt or trousers over the blue. The home
+page's character keeps the full palette.
 
 **The dome** is a live little world everywhere it appears: the landing page's
 hero, the comparison card, the sign-up page and the set-up wizard

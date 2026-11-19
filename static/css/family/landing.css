@@ -513,7 +513,7 @@
 .poster-kid { display: grid; justify-items: center; animation: f-float 4s ease-in-out infinite; }
 .poster-kid .h { width: 62px; height: 62px; border-radius: 14px; background: #ffcd3c; box-shadow: inset -6px -6px 0 rgba(0, 0, 0, .1); }
 .poster-kid .t { width: 92px; height: 82px; margin-top: 4px; border-radius: 10px; background: #2b67f6; box-shadow: inset -8px -8px 0 rgba(0, 0, 0, .12); }
-.poster-kid .l { width: 70px; height: 70px; margin-top: 3px; border-radius: 6px; background: linear-gradient(90deg, #a4bd47 0 47%, transparent 47% 53%, #a4bd47 53%); }
+.poster-kid .l { width: 70px; height: 70px; margin-top: 3px; border-radius: 6px; background: linear-gradient(90deg, #1847c2 0 47%, transparent 47% 53%, #1847c2 53%); }
 .lp-stage-cap { padding: 16px 20px 20px; display: grid; gap: 4px; }
 .lp-stage-cap b { font-size: 18px; font-weight: 800; }
 .lp-stage-cap span { color: var(--f-ink-2); font-family: var(--f-text); font-size: 14.5px; }
