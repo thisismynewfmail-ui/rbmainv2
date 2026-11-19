@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 WORLD: Dict[str, Any] = {
     "id": "calamity_coast",
+    # the day it opened (the home page's "Newest added")
+    "added": "2026-10-23",
     # Retired from the browser: no page, no host, no bots (see
     # app/models/worlds.py HIDDEN_WORLDS); its subtab is off the Bots Zone.
     "hidden": True,

@@ -735,8 +735,11 @@
       var status = where[p.id] || 'field';
       var downed = !!self.downedPlayers[p.id] || (p.id === client.myId && self.me.downed);
       var cls = status === 'lobby' ? 'wait' : (!p.alive ? 'dead' : (downed ? 'down' : ''));
-      var hp = Math.max(0, Math.min(100, Math.round(p.health || 0)));
-      var label = status === 'lobby' ? 'bunker' : (!p.alive ? 'dead' : (downed ? 'DOWN' : hp));
+      // past 100 is a Titan Tonic (the Admin Tools): a full bar, the real number
+      var health = Math.max(0, Math.round(p.health || 0));
+      var hp = Math.min(100, health);
+      var label = status === 'lobby' ? 'bunker' : (!p.alive ? 'dead' : (downed ? 'DOWN'
+        : (health > 100 ? health.toLocaleString() : health)));
       rows.push('<div class="ll-mate ' + cls + (p.id === client.myId ? ' me' : '') + '">' +
                 '<span class="n">' + client.hud.escape(p.name || '?') + '</span>' +
                 '<span class="h"><i style="width:' + (p.alive && status !== 'lobby' ? hp : 0) +

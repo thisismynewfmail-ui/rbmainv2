@@ -107,9 +107,18 @@
 
   <div class="col">
     <div class="panel h-jump">
-      <div class="panel-head">Jump back in</div>
+      <div class="panel-head">
+        <span>Jump back in</span>
+        <form class="jump-sort" method="get" action="/" id="jump-sort">
+          <label for="jump-sort-by">Sort by</label>
+          <select id="jump-sort-by" name="jump">
+            {% for key, label in jump_sorts %}<option value="{{ key }}"{{ ' selected' if key == jump else '' }}>{{ label }}</option>{% endfor %}
+          </select>
+          <noscript><button class="btn small" type="submit">Go</button></noscript>
+        </form>
+      </div>
       <div class="panel-body">
-        <div class="worldgrid">
+        <div class="worldgrid" id="jump-grid" data-sort="{{ jump }}">
           {% for row in worlds %}{% include "partials/world_card.html" %}{% endfor %}
         </div>
         <p class="tiny muted only-mobile" style="margin:10px 0 0">

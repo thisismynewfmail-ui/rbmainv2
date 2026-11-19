@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .. import config, db, security
+from ..game import admin_tools
 from ..game import registry as game_registry
 from ..http import router as R
 from ..http.router import Request
@@ -131,6 +132,8 @@ def join_ticket(req: Request):
         "world": world_id,
         "avatar": avatar,
         "admin": bool(req.user["is_admin"]),
+        # the in-game Admin Tools (app/game/admin_tools.py): admin_system only
+        "tools": admin_tools.allowed_user(req.user),
         # a child's chat setting, for the host's Safe Chat (None for others)
         "fam": family_guard.ticket_flags(uid),
     }, config.GAME_TICKET_TTL)

@@ -1054,6 +1054,35 @@ class Gear:
             self.inst.broadcast({"t": "gfx", "k": "rise", "p": [round(v, 2) for v in spot],
                                  "w": item, "m": m.kind})
 
+    def raise_at(self, player, point, spec: Dict[str, Any], count: int, item: str) -> int:
+        """Raise ``count`` of ``spec`` for ``player`` round ``point`` --
+        the Admin Tools' Horde Horn (app/game/admin_tools.py) in a world with
+        no infected.  Endless: the oldest of the same lot make way, and the
+        round never holds more than MAX_MINIONS."""
+        moment = _now()
+        mine = sorted((m for m in self.minions.values() if m.owner == player.pid and m.item == item),
+                      key=lambda m: m.pid)
+        over = len(self.minions) + count - MAX_MINIONS
+        for old in mine[:max(0, over)]:
+            self.kill_minion(old, None, quiet=True)
+        made = 0
+        for k in range(count):
+            if len(self.minions) >= MAX_MINIONS:
+                break
+            a = k / max(1, count) * math.tau
+            spot = self._floor([point[0] + math.sin(a) * 3.0, point[1] + 2.0,
+                                point[2] + math.cos(a) * 3.0])
+            m = Minion(self._next_minion, player, spec, item, spot,
+                       moment + _num(spec.get("secs"), 25.0))
+            self._next_minion += 1
+            m.yaw = a
+            m.next_attack = moment + 0.6 + 0.1 * k
+            self.minions[m.pid] = m
+            self.inst.broadcast({"t": "gfx", "k": "rise", "p": [round(v, 2) for v in spot],
+                                 "w": item, "m": m.kind})
+            made += 1
+        return made
+
     def _decoy(self, player, spec, spot, item) -> None:
         decoy = {"name": "Decoy", "model": "decoy", "hp": _num(spec.get("hp"), 60),
                  "speed": 0, "damage": 0, "secs": _num(spec.get("secs"), 8.0)}

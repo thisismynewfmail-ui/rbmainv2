@@ -651,9 +651,15 @@ def save(user_id: int, inv_id: int, name: Any = None, colors: Any = None, tags: 
     if colors is not None:
         if not isinstance(colors, dict):
             raise PetError("Colours must be a set of hex values.")
+        # the palette's colours, or her own (what "Reset" puts back) -- the
+        # editor has no free picker, and nothing sent by hand gets round that
+        from . import catalog          # here, not at the top: catalog imports this module
+        own = {str(v).lower() for v in species["colors"].values()}
         for key, value in colors.items():
             if key in COLOR_KEYS and not (isinstance(value, str) and security.valid_color(value)):
                 raise PetError("Invalid colour for %s." % COLOR_LABELS[key].lower())
+            if key in COLOR_KEYS and value.lower() not in catalog.PALETTE_HEX and value.lower() not in own:
+                raise PetError("Pick one of the colours shown.")
         merged = dict(pet["colors"])
         merged.update({k: v for k, v in colors.items() if k in COLOR_KEYS})
         pet["colors"] = clean_colors(merged, species)

@@ -256,7 +256,8 @@ class WhodunitWorld(ArenaWorld):
 
     def handle_slot(self, player: Player, message: Dict[str, Any]) -> None:
         super().handle_slot(player, message)
-        if not self.is_murderer(player):
+        # (with the Admin Tools out there is no knife in hand to show)
+        if not self.is_murderer(player) or player.extra.get("admin_kit"):
             return
         out = not player.stowed and player.weapon(player.slot) is not None
         if out == bool(player.extra.get("wd_knife_out")):

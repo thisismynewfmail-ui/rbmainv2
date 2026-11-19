@@ -535,7 +535,7 @@ class PropPanicWorld(ArenaWorld):
         if what == "prop":
             prop = best[1]
             self._stat(hunter, "hits")
-            hunter.health = min(MAX_HEALTH, hunter.health + POP_HEAL)
+            hunter.health = min(max(MAX_HEALTH, hunter.health), hunter.health + POP_HEAL)
             self._mind(prop)["shot_at"] = moment
             self.apply_damage(prop, hunter, POP_DAMAGE, "Prop Popper")
             hunter.send({"t": "ppx", "k": "hit", "hp": round(hunter.health)})

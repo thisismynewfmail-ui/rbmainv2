@@ -160,7 +160,7 @@ put on a hat, then set up the five hotbar slots you take into a world.</div>
         <div class="field">
           <div class="spread">
             <label style="margin:0">{{ part.replace('_', ' ').title() }}</label>
-            <span class="pill" id="hex-{{ part }}">{{ raw.colors[part] }}</span>
+            <span class="pill" id="hex-{{ part }}">{{ palette_names.get(raw.colors[part].lower(), 'Custom') }}</span>
           </div>
           <div class="swatches" data-part="{{ part }}">
             {% for c in palette %}

@@ -77,6 +77,7 @@ def pet_editor(req: Request):
                   color_keys=pets.COLOR_KEYS, color_labels=pets.COLOR_LABELS,
                   species=pets.SPECIES, tag_options=pets.tag_list(), max_tags=pets.MAX_TAGS,
                   name_max=pets.NAME_MAX, palette=catalog.BODY_PALETTE,
+                  palette_names=catalog.PALETTE_NAMES,
                   extra_scripts=["/static/js/ui/pets_shop.js", "/static/js/ui/pet_editor.js"])
 
 

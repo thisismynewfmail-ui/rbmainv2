@@ -281,7 +281,8 @@
         if (!res.ok) { Site.toast(res.error, 'bad'); return; }
         if (status) status.textContent = 'Saved.';
         var hex = document.getElementById('hex-' + part);
-        if (hex) hex.textContent = colour;
+        var chosen = group && group.querySelector('.swatch[data-color="' + colour + '"]');
+        if (hex) hex.textContent = chosen ? chosen.title : colour;
         if (group) {
           group.querySelectorAll('.swatch').forEach(function (s) {
             s.classList.toggle('on', s.dataset.color === colour);

@@ -14,6 +14,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 WORLD: Dict[str, Any] = {
     "id": "whodunit",
+    # the day it opened (the home page's "Newest added")
+    "added": "2026-10-24",
     "prefix": "wd",
     "name": "Whodunit",
     "genre": "Murder Mystery",

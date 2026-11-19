@@ -23,6 +23,7 @@ def avatar_editor(req: Request):
         owned=owned,
         by_slot=by_slot,
         palette=catalog.BODY_PALETTE,
+        palette_names=catalog.PALETTE_NAMES,
         body_parts=catalog.BODY_PARTS,
         slots=catalog.SLOTS,
         slot_labels=catalog.SLOT_LABELS,

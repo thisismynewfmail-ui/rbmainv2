@@ -1,4 +1,4 @@
-<div class="worldcard">
+<div class="worldcard"{% if row.get('order') is not None %} data-order="{{ row.order }}" data-recent="{{ row.last_played }}" data-playtime="{{ row.playtime }}" data-added="{{ row.added }}" data-visits="{{ row.stats.visits }}" data-rating="{{ row.stats.rating }}" data-votes="{{ row.stats.rating_votes }}" data-fav="{{ row.fav }}" data-name="{{ row.world.name }}" data-world-id="{{ row.world.id }}"{% endif %}>
   <a class="shot" href="/worlds/{{ row.world.id }}">
     <canvas class="world-shot" width="640" height="360"
             data-world="{{ row.world.thumb }}"
@@ -8,6 +8,7 @@
     <span class="live"><span class="dot {{ 'game' if row.status.players else 'off' }}"></span>
       <span data-live-players="{{ row.world.id }}">{{ row.status.players }}</span> playing</span>
     <span class="genre">{{ row.world.genre }}</span>
+    {% if row.get('order') is not None %}<span class="sortnote"{{ '' if row.sortnote else ' hidden' }}>{{ row.sortnote }}</span>{% endif %}
   </a>
   <div class="wbody">
     <div class="spread">

@@ -396,6 +396,22 @@
     });
   };
 
+  /* An item that isn't in the catalogue -- the Admin Tools -- drawn from the
+     parts it carries. */
+  Thumbs.renderItemData = function (canvas, item, effect) {
+    if (!item || !item.data) return;
+    var key = 'itemdata:' + item.item_id + ':' + (effect || '');
+    if (Thumbs.imageCache[key]) { blit(canvas, Thumbs.imageCache[key]); return; }
+    var spec = Thumbs.itemParts(item, effect);
+    var source = renderParts(spec.parts, {
+      angle: spec.angle, tilt: spec.tilt, padding: spec.padding,
+      frame: spec.frame, effect: effect, effectScale: spec.effectScale, anchor: spec.anchor
+    });
+    if (!source) return;
+    Thumbs.imageCache[key] = snapshot(source);
+    blit(canvas, Thumbs.imageCache[key]);
+  };
+
   /* ---------------------------------------------------------- live effects
      A still frame is the right answer for a wall of item tiles -- it renders
      once and is cached -- but the moment a piece is the subject (the preview
