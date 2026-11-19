@@ -418,7 +418,7 @@
     var posts = [[-2.8, -1.3], [2.8, -1.3], [-2.8, 1.3], [2.8, 1.3]];
     for (var i = 0; i < posts.length; i++) B.box(posts[i][0], 3.3, posts[i][1], 0.3, 3.4, 0.3, WHITE);
     for (var s = 0; s < 6; s++) {
-      B.add('box', -2.5 + s, 7.1, 0.2, 1.0, 0.3, 3.8, s % 2 ? WHITE : '#e23b3b', { r: [-0.32, 0, 0] });
+      B.add('box', -2.5 + s, 7.1, 0.2, 1.0, 0.3, 3.8, s % 2 ? WHITE : '#e23b3b', { r: [0.32, 0, 0] });
     }
     B.box(0, 7.6, -1.4, 4.4, 1.4, 0.3, '#f5cd30');
     B.add('cyl', -1.4, 3.85, 0.4, 0.9, 1.4, 0.9, '#ffe066', { a: 0.85, m: 'glass' });
@@ -428,11 +428,14 @@
 
   function swingFrame(B, x, z, yaw, len) {
     B.at(x, 0, z, yaw);
+    // an A at each end: feet 2.45 out either side, tops meeting under the bar
+    // (a turn of +a about x tips a part's top towards +z, so the leg standing
+    // on the +z side leans back the other way)
     var a = 0.32;
-    B.add('cyl', -len / 2, 3.7, 1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [a, 0, 0] });
-    B.add('cyl', -len / 2, 3.7, -1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [-a, 0, 0] });
-    B.add('cyl', len / 2, 3.7, 1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [a, 0, 0] });
-    B.add('cyl', len / 2, 3.7, -1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [-a, 0, 0] });
+    B.add('cyl', -len / 2, 3.7, 1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [-a, 0, 0] });
+    B.add('cyl', -len / 2, 3.7, -1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [a, 0, 0] });
+    B.add('cyl', len / 2, 3.7, 1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [-a, 0, 0] });
+    B.add('cyl', len / 2, 3.7, -1.2, 0.45, 7.8, 0.45, '#c4281c', { r: [a, 0, 0] });
     B.add('cyl', 0, 7.4, 0, 0.5, len + 0.6, 0.5, '#f5cd30', { r: [0, 0, Math.PI / 2] });
   }
   function slide(B, x, z, yaw) {
@@ -2481,7 +2484,7 @@
           var th = s.user && s.user.act === 'swing' && !s.user.path ? Math.sin(t * 2.1 + s.phase) * 0.62 : Math.sin(t * 0.7 + s.phase) * 0.05;
           var L = s.pivot - s.seat;
           var seat = [s.x, s.pivot - Math.cos(th) * L, s.z + Math.sin(th) * L];
-          B.parts.push({ t: 'box', p: seat, s: [1.9, 0.25, 1.1], r: [th, 0, 0], c: '#2a2d33' });
+          B.parts.push({ t: 'box', p: seat, s: [1.9, 0.25, 1.1], r: [-th, 0, 0], c: '#2a2d33' });
           this.stick(B.parts, [s.x - 0.85, s.pivot, s.z], [seat[0] - 0.85, seat[1], seat[2]], 0.1, METAL);
           this.stick(B.parts, [s.x + 0.85, s.pivot, s.z], [seat[0] + 0.85, seat[1], seat[2]], 0.1, METAL);
         }
@@ -2534,7 +2537,7 @@
       // the lighthouse lamp turns, after dark
       if (this.look.back === 'lighthouse' && this.night > 0.3) {
         var ly = this.lampTop || 18, lx = this.place.back[0] * mir, lz = this.place.back[1] - 0.4, ba = t * 1.2;
-        B.parts.push({ t: 'cone', p: [lx + Math.sin(ba) * 7, ly, lz + Math.cos(ba) * 7], s: [3.6, 14, 3.6], r: [Math.PI / 2, ba, 0], c: '#fff3b0', a: 0.18 * this.night, m: 'neon' });
+        B.parts.push({ t: 'cone', p: [lx + Math.sin(ba) * 7, ly, lz + Math.cos(ba) * 7], s: [3.6, 14, 3.6], r: [-Math.PI / 2, ba, 0], c: '#fff3b0', a: 0.18 * this.night, m: 'neon' });
       }
       this.drawCars(B);
       this.drawCritters(B);
@@ -2746,7 +2749,7 @@
     B.box(0.5, 2.5, 1.3, 0.3, 0.6, 0.4, shade(c, -0.3));
     B.add('sph', -0.3, 1.95, 2.12, 0.18, 0.18, 0.1, '#1b1b1b');
     B.add('sph', 0.3, 1.95, 2.12, 0.18, 0.18, 0.1, '#1b1b1b');
-    B.add('box', 0, 1.9, -1.45, 0.25, 0.25, 1.0, c, { r: [-0.7, Math.sin(dog.wag) * 0.6, 0] });
+    B.add('box', 0, 1.9, -1.45, 0.25, 0.25, 1.0, c, { r: [0.7, Math.sin(dog.wag) * 0.6, 0] });
     var legs = [[-0.45, 0.9, step], [0.45, 0.9, -step], [-0.45, -0.9, -step], [0.45, -0.9, step]];
     for (var i = 0; i < legs.length; i++) B.add('box', legs[i][0], 0.45, legs[i][1], 0.35, 0.9, 0.35, shade(c, -0.12), { r: [legs[i][2], 0, 0] });
     // ducks paddle round the pond, on the far side from the dock
