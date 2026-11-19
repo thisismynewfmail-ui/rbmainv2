@@ -1787,19 +1787,38 @@ page's character keeps the full palette.
 hero, the comparison card, the sign-up page and the set-up wizard
 (`static/js/family/haven.js`). It is drawn by the game's own 3D engine
 (`Renderer`, `Avatar`, `Particles`), so it looks like a place in the game: a
-floating island of studded plastic parts with roads and crossings, a
-fountain plaza with a flag, a house, a glass tower, an apartment block or a
-lighthouse, a playground, a pond with a dock, a campfire, a lemonade stand, a
-boombox and a build plate, all under a glass shield.
+floating island of studded plastic parts laid out as a little town, all under
+a glass shield. In the middle is a square with the fountain, a flag, lamps and
+a little tree, with a road on every side of it: two long streets that run out
+to the island's edge and two short ones that close the square in front and
+behind. Every street has a sidewalk on both sides, and zebra crossings join
+them beside each corner and halfway along. Round about are a house, a
+lemonade stand, a pond with a dock and a build plate on one side; a
+playground with swings, a slide, a seesaw, a trampoline, a sandbox, a bench
+and a dance floor with a boombox on the other; a campfire in front; and a
+glass tower, an apartment block or a lighthouse behind. The landing page's
+hero and the sign-up page get the whole town; the wizard's dome and the
+comparison card stay a single home on a smaller island.
 
 * **Who's there.** Blocky kids with the classic yellow skin, dressed from a
   small wardrobe of real catalogue faces, hats, hair, shirts and trousers
-  (`views.HAVEN_WARDROBE`, sent with the page). They walk the paths between
-  spots and swing, slide, ride the seesaw, bounce on the trampoline, fish off
-  the dock, build towers on the plate, dance by the boombox, fly kites, play
-  catch, sit round the campfire, visit the lemonade stand and wave. A dog
-  trots about, ducks paddle round the pond, a cat naps and a car drives the
-  roads.
+  (`views.HAVEN_WARDROBE`, sent with the page). They walk the sidewalks
+  between spots and swing, slide, ride the seesaw, bounce on the trampoline,
+  dig in the sandbox, fish off the dock, build towers on the plate, dance by
+  the boombox, fly kites, play catch, sit round the campfire or on a bench,
+  toss a coin in the fountain, visit the lemonade stand and wave. A dog trots
+  the sidewalks, ducks paddle round the pond, a cat naps on the roof and two
+  cars drive round the square, one each way.
+* **Getting about.** Nobody walks through the fountain, a wall, a pond, a
+  tree or a lamp post, and nobody steps into a road except on a zebra. Kids
+  keep to the right of the sidewalk, so two coming the other way pass side
+  by side; they step round anyone standing still on the side away from the
+  road; and they wait at the curb, on the edge of the sidewalk, while a car
+  is on the crossing or close to it. Called away to a party halfway to the
+  swings, a kid goes back out the way it came in, and one pushed into a
+  corner finds its way out round things. Each car slows and stops for anyone
+  out on the road ahead of it, and only one car takes a corner at a time, so
+  the two never meet. The dog keeps the same rules.
 * **New every visit.** A fresh seed picks the house colours, the building at
   the back, the layout (mirrored or not), who is playing and what they wear.
 * **The season and the light.** The season follows the real month:
@@ -2356,6 +2375,8 @@ tools/familytests.py                    # family accounts: rules, Safe Chat, pri
 tools/admintests.py                     # the Admin Tools: who gets them, each tool, never in the store (no server)
 node tools/pettests.js                  # the pet rig, the follower AI and the Pet Zone's acts, headless
 node tools/petsheet.js --scale          # render the pets to a contact sheet
+node tools/haventests.js                # the dome's town: layout, walking, crossings, cars, headless
+node tools/haventests.js 20 400         # ...more towns, run for longer
 tools/bottests.py                       # bot unit tests, headless rounds, scale
 tools/bottests.py scale --bots 100000   # ...just the scale test, bigger
 tools/mockllm.py --port 5055            # a stand-in language model endpoint
@@ -2403,6 +2424,24 @@ hours from simulated heartbeats; the market and crate switches; bots never
 reaching a child; in-game chat masking; the dashboard reports; and every
 family page and API over HTTP, including the CSRF check
 (`tools/familytests.py shield play` runs just those groups).
+
+`haventests.js` needs no browser and no server: it loads the dome's script
+with a seeded random number generator, so every run is the same run. For a
+number of towns of each size (mirrored and not, every season), it checks the
+layout as built:
+* the sidewalks join up and keep clear of everything;
+* every spot has a clear way in and out on its own side of the streets;
+* every curb a kid waits at is on the sidewalk;
+* both cars' loops stay on the road.
+
+Then it runs each town and checks every frame:
+* nobody walks into the fountain, a wall, a pond, a tree or a lamp;
+* no car touches a kid, the dog or the other car;
+* nobody gets stuck or waits at a curb for long;
+* nobody leaves the island;
+* two kids never stand in each other for more than a moment.
+
+The wizard's dome and the comparison card are run too.
 
 `gametests.py` asserts exact outcomes in empty rounds — a flag captured, a
 cart pushed — so run it against a server started with `--no-bots` (or
