@@ -137,6 +137,21 @@ def test_shield():
     check(shield.scan("sh1t").action == "mask", "leetspeak language masked")
     v = shield.scan("call 555 123 4567 now")
     check("555" not in v.masked, "phone number blanked in the excerpt")
+    # asking to meet somewhere: stopped in private, left alone in a game
+    for text in ("meet me at the park after school", "wanna meet up?", "can we meet tomorrow",
+                 "lets meet at the mall"):
+        check(shield.scan(text).blocked, "meet-up blocked: %r" % text)
+    for text in ("nice to meet you", "i want to meet new friends", "lets meet in the lobby",
+                 "meet me at the spawn"):
+        check(shield.scan(text).action == "allow", "not a meet-up: %r" % text)
+    check(shield.scan("meet me at the park", channel="game").action == "allow",
+          "game chat: meeting places are gameplay")
+    # the parent's excerpt blanks the details and keeps the words around them
+    ex = shield.excerpt("my number is 555 201 3344 text me")
+    check("555" not in ex and ex.startswith("my number is"), "excerpt keeps context: %r" % ex)
+    check(shield.excerpt("meet me at the park") == "meet me at the park", "meet-up quoted whole")
+    check("maple" not in shield.excerpt("i live at 42 maple street"), "address blanked")
+    check("fuck" not in shield.excerpt("this fucking map"), "language blanked for parents")
     check(shield.username_warnings("Mia2015", "Mia", 2015), "username warnings")
     check(not shield.username_warnings("PixelPanda42", "Mia", 2015), "clean username")
 

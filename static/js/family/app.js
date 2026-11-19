@@ -193,7 +193,7 @@
     if (minutes < 60) return minutes + ' min';
     var h = Math.floor(minutes / 60);
     var m = minutes % 60;
-    return m ? h + ' hr ' + m + ' min' : h + (h === 1 ? ' hour' : ' hours');
+    return m ? h + ' hr ' + m + ' min' : h + ' hr';   /* same words as the server */
   };
   FAM.clock = function (hhmm) {
     var parts = String(hhmm || '').split(':');

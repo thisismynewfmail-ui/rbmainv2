@@ -8,6 +8,13 @@
 <main id="main" class="db-main">
   <section class="db-band">
     <div class="db-band-sky" aria-hidden="true"><i class="db-stars"></i><i class="db-aurora"></i></div>
+    <div class="db-band-isles" aria-hidden="true">
+      <i class="db-moon"></i>
+      <span class="db-isle i1">{% include "family/partials/islet.svg.html" %}</span>
+      <span class="db-isle i2">{% include "family/partials/islet.svg.html" %}</span>
+      <span class="db-isle i3">{% include "family/partials/islet.svg.html" %}</span>
+      <i class="db-spark s1"></i><i class="db-spark s2"></i><i class="db-spark s3"></i>
+    </div>
     <div class="f-wrap db-band-in">
       <div class="db-hello">
         <p class="db-hello-kicker">{{ greeting }}, {{ parent.display_name }}</p>

@@ -75,7 +75,7 @@ def world_status(world_id: str) -> Dict[str, Any]:
     data = raw(world_id)
     if not data:
         return AttrDict({"online": False, "players": 0, "instances": 0,
-                         "instance_list": [], "humans": 0, "bots": 0,
+                         "instance_list": [], "instances_hidden": 0, "humans": 0, "bots": 0,
                          "live_instances": 0, "sleeping_instances": 0})
     live = [dict(i) for i in data.get("instances", [])]
     live_players = int(data.get("players", 0))

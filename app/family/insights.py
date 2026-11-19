@@ -161,8 +161,11 @@ def playtime(child: Dict[str, Any]) -> Dict[str, Any]:
     monday = today - _dt.timedelta(days=today.weekday())
     week = sum(v for k, v in by_day.items() if k >= monday.strftime("%Y-%m-%d"))
     last_monday = monday - _dt.timedelta(days=7)
+    # Like for like: Monday to today against Monday to the same weekday last
+    # week, so a Wednesday doesn't compare three days with seven.
+    same_day_last_week = (today - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
     last_week = sum(v for k, v in by_day.items()
-                    if last_monday.strftime("%Y-%m-%d") <= k < monday.strftime("%Y-%m-%d"))
+                    if last_monday.strftime("%Y-%m-%d") <= k <= same_day_last_week)
     seven = [today - _dt.timedelta(days=i) for i in range(7)]
     seven_total = sum(by_day.get(d.strftime("%Y-%m-%d"), 0) for d in seven)
     active_days = sum(1 for d in seven if by_day.get(d.strftime("%Y-%m-%d"), 0) > 0)

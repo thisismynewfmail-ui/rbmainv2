@@ -169,6 +169,15 @@ def session_ok(user: Dict[str, Any]) -> bool:
 
 # ----------------------------------------------------------------- messages
 
+def _shown(subject: str, body: str) -> str:
+    """A message as the parent's alert quotes it: the subject only when one
+    was written (the site fills in "(no subject)" otherwise)."""
+    subject = (subject or "").strip()
+    if not subject or (subject.startswith("(") and subject.endswith(")")):
+        return body
+    return "%s \u2014 %s" % (subject, body)
+
+
 def filter_message(sender_id: int, recipient: Dict[str, Any], subject: str,
                    body: str) -> Tuple[str, str]:
     """Check a private message; returns the (possibly blanked) subject and
@@ -189,7 +198,7 @@ def filter_message(sender_id: int, recipient: Dict[str, Any], subject: str,
         verdict = shield.scan(subject + "\n" + body, author_is_child=True)
         if verdict.flagged:
             record_outgoing(sender_id, sender, verdict, "message",
-                            subject + " " + body, recipient["username"])
+                            _shown(subject, body), recipient["username"])
         if verdict.blocked:
             raise Refused(shield.kid_notice(verdict))
         if verdict.action == "mask":
@@ -204,7 +213,7 @@ def filter_message(sender_id: int, recipient: Dict[str, Any], subject: str,
         if sender is None:
             verdict = shield.scan(subject + "\n" + body, author_is_child=False)
             if verdict.flagged:
-                record_incoming(rid, target, verdict, "message", subject + " " + body,
+                record_incoming(rid, target, verdict, "message", _shown(subject, body),
                                 _name(sender_id))
             if verdict.blocked:
                 raise Refused(GENERIC_MESSAGE)

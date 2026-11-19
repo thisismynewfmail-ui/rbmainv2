@@ -49,7 +49,7 @@ WORLD_GUIDE: Dict[str, Dict[str, str]] = {
                 "brake levers, coal boosts and blocky blasters at the crossing."},
     "plunder_bay": {
         "intensity": "action", "kind": "Pirate treasure hunt",
-        "note": "Two pirate crews race to haul gold into their own ship -- "
+        "note": "Two pirate crews race to haul gold into their own ship \u2014 "
                 "digging up chests, firing cannons and raiding each other."},
     "blackout_relay": {
         "intensity": "action", "kind": "Capture the flag",
@@ -87,12 +87,12 @@ LABELS = {
 
 HELP = {
     "chat": "Safe Chat blocks phone numbers, emails, addresses, links and invites "
-            "to other apps -- in both directions -- and blanks out strong language.",
+            "to other apps \u2014 in both directions \u2014 and blanks out strong language.",
     "messages": "Who can send private messages. Safe Chat checks every one.",
     "friends": "With approval on, new friends wait for your OK on this dashboard.",
     "wall": "Who can leave comments on their profile.",
     "presence": "Who can see when they're online and which world they're in.",
-    "spending": "Noogets are play money -- nothing on the site costs real money.",
+    "spending": "Noogets are play money \u2014 nothing on the site costs real money.",
     "crates": "Crates are random-reward boxes (like loot boxes). You decide.",
 }
 

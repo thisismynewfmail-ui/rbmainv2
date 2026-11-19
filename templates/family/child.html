@@ -67,7 +67,7 @@
       <h2 class="db-sec-h" id="ov-h">Overview</h2>
       <div class="kpis">
         <div class="kpi"><span class="kpi-label">Play this week</span><span class="kpi-val">{{ play.week_label }}</span>
-          <span class="kpi-delta">{% if play.week_change is None %}First week on {{ brand }}{% else %}{{ '↑' if play.week_change > 0 else ('↓' if play.week_change < 0 else '→') }} {{ abs(play.week_change) }}% vs last week ({{ play.last_week_label }}){% endif %}</span></div>
+          <span class="kpi-delta">{% if play.week_change is None %}First week on {{ brand }}{% else %}{{ '↑' if play.week_change > 0 else ('↓' if play.week_change < 0 else '→') }} {{ abs(play.week_change) }}% vs this point last week ({{ play.last_week_label }}){% endif %}</span></div>
         <div class="kpi"><span class="kpi-label">Daily average</span><span class="kpi-val">{{ play.avg_label }}</span><span class="kpi-delta">Over the last 7 days</span></div>
         <div class="kpi"><span class="kpi-label">Days played</span><span class="kpi-val">{{ play.active_days }}<small>/7</small></span><span class="kpi-delta">{% if play.peak_label %}Mostly around {{ play.peak_label }}{% else %}No play yet{% endif %}</span></div>
         <div class="kpi"><span class="kpi-label">Friends</span><span class="kpi-val">{{ report.social.count }}</span><span class="kpi-delta">{% if report.social.waiting %}{{ len(report.social.waiting) }} waiting for your OK{% else %}All approved by you{% endif %}</span></div>
@@ -78,7 +78,7 @@
       <div class="db-grid-2">
         <figure class="db-card chart-card" id="chart-days">
           <header class="db-card-head"><h3>Play time, last 14 days</h3><button class="chip-btn" type="button" data-table-toggle="chart-days">Table</button></header>
-          <div class="chart" data-chart="days" role="img" aria-label="Minutes played each day for the last 14 days, with the daily limit marked"></div>
+          <div class="chart" data-chart="days" aria-label="Minutes played each day for the last 14 days, with the daily limit marked"></div>
           <figcaption class="chart-note"><span class="key-bar"></span> Minutes played <span class="key-tick"></span> Daily limit</figcaption>
           <div class="chart-table" hidden>
             <table class="db-table"><thead><tr><th>Day</th><th class="num">Played</th><th class="num">Limit</th></tr></thead><tbody>
@@ -102,8 +102,9 @@
       </div>
 
       <figure class="db-card chart-card" id="chart-heat">
-        <header class="db-card-head"><h3>When {{ child.first_name }} plays</h3><span class="f-muted f-tiny">Last 4 weeks, by day and hour</span></header>
-        <div class="chart heat" data-chart="heat" role="img" aria-label="A grid of days and hours, darker where more time was played"></div>
+        <header class="db-card-head"><h3>When {{ child.first_name }} plays</h3><span class="db-head-tools"><span class="f-muted f-tiny">Last 4 weeks, by day and hour</span><button class="chip-btn" type="button" data-table-toggle="chart-heat">Table</button></span></header>
+        <div class="chart heat" data-chart="heat" aria-label="A grid of days and hours, darker where more time was played. Use the arrow keys to move between hours and days."></div>
+        <div class="chart-table" hidden></div>
         <figcaption class="chart-note heat-key"><span>Less</span><i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i><i style="background:var(--heat-5)"></i><span>More</span></figcaption>
       </figure>
     </section>
@@ -174,7 +175,7 @@
             {% endfor %}
           </ul>
           {% else %}
-          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-users"/></svg></span><b>No friends yet</b><small>{% if report.controls.values.friends == 'approve' %}When someone asks, you&rsquo;ll be asked to approve them here first.{% else %}Friends {{ child.first_name }} adds will appear here.{% endif %}</small></div>
+          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-users"/></svg></span><b>No friends yet</b><small>{% if report.controls['values'].friends == 'approve' %}When someone asks, you&rsquo;ll be asked to approve them here first.{% else %}Friends {{ child.first_name }} adds will appear here.{% endif %}</small></div>
           {% endif %}
         </div>
         <div class="db-card">
@@ -198,7 +199,7 @@
       <div class="db-grid-2">
         <figure class="db-card chart-card" id="chart-msgs">
           <header class="db-card-head"><h3>Messages per day</h3><button class="chip-btn" type="button" data-table-toggle="chart-msgs">Table</button></header>
-          <div class="chart" data-chart="messages" role="img" aria-label="Messages sent and received each day for the last 14 days"></div>
+          <div class="chart" data-chart="messages" aria-label="Messages sent and received each day for the last 14 days"></div>
           <figcaption class="chart-note"><span class="key-bar"></span> Sent by {{ child.first_name }} <span class="key-bar b2"></span> Received</figcaption>
           <div class="chart-table" hidden>
             <table class="db-table"><thead><tr><th>Day</th><th class="num">Sent</th><th class="num">Received</th></tr></thead><tbody>
@@ -219,7 +220,7 @@
             {% endfor %}
           </ul>
           {% else %}
-          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-message"/></svg></span><b>No messages yet</b><small>{% if report.controls.values.messages == 'off' %}Private messages are switched off.{% else %}Conversations with {{ child.first_name }}&rsquo;s friends will appear here, and you can read them.{% endif %}</small></div>
+          <div class="db-empty"><span class="db-empty-ic"><svg class="f-ic lg"><use href="#i-message"/></svg></span><b>No messages yet</b><small>{% if report.controls['values'].messages == 'off' %}Private messages are switched off.{% else %}Conversations with {{ child.first_name }}&rsquo;s friends will appear here, and you can read them.{% endif %}</small></div>
           {% endif %}
         </div>
       </div>
@@ -272,7 +273,7 @@
       <div class="kpis three">
         <div class="kpi"><span class="kpi-label">Noogets balance</span><span class="kpi-val"><span class="coin-dot"></span>{{ fmt_num(report.spending.balance) }}</span><span class="kpi-delta">Play money &mdash; never real money</span></div>
         <div class="kpi"><span class="kpi-label">Spent this week</span><span class="kpi-val">{{ fmt_num(report.spending.spent_week) }}</span><span class="kpi-delta">Earned {{ fmt_num(report.spending.earned_week) }}</span></div>
-        <div class="kpi"><span class="kpi-label">Crates opened</span><span class="kpi-val">{{ report.spending.crates_opened }}</span><span class="kpi-delta">Crates are {{ 'allowed' if report.controls.values.crates else 'switched off' }}</span></div>
+        <div class="kpi"><span class="kpi-label">Crates opened</span><span class="kpi-val">{{ report.spending.crates_opened }}</span><span class="kpi-delta">Crates are {{ 'allowed' if report.controls['values'].crates else 'switched off' }}</span></div>
       </div>
       <div class="db-grid-2 wide-left">
         <div class="db-card">
@@ -285,8 +286,8 @@
         </div>
         <div class="db-card">
           <header class="db-card-head"><h3>Newest things they own</h3></header>
-          {% if report.spending.items %}
-          <ul class="mini-list">{% for i in report.spending.items %}<li><svg class="f-ic sm"><use href="#i-sparkle"/></svg><span>{{ i.name }}<small>{{ i.slot }} &middot; {{ i.rarity }}{{ ' · Unusual' if i.tier == 'unusual' else '' }} &middot; {{ i.when }}</small></span></li>{% endfor %}</ul>
+          {% if report.spending['items'] %}
+          <ul class="mini-list">{% for i in report.spending['items'] %}<li><svg class="f-ic sm"><use href="#i-sparkle"/></svg><span>{{ i.name }}<small>{{ i.slot }} &middot; {{ i.rarity }}{{ ' · Unusual' if i.tier == 'unusual' else '' }} &middot; {{ i.when }}</small></span></li>{% endfor %}</ul>
           {% else %}<p class="f-muted f-small">Nothing yet.</p>{% endif %}
         </div>
       </div>

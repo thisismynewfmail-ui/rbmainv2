@@ -233,7 +233,12 @@
     if (!threatLayer) return;
     var spec = THREATS[threatIndex++ % THREATS.length];
     var cx = dome[0], cy = dome[1], rx = dome[2], ry = dome[3];
-    var theta = (24 + Math.random() * 132) * Math.PI / 180;
+    /* on a phone the haven sits under the copy, so threats come in low from
+       the sides and from close by, never down across the words above it */
+    var narrow = window.innerWidth < 760;
+    var deg = narrow ? (Math.random() < 0.5 ? 18 + Math.random() * 38 : 124 + Math.random() * 38)
+                     : 24 + Math.random() * 132;
+    var theta = deg * Math.PI / 180;
     var px = cx + rx * Math.cos(theta);
     var py = cy - ry * Math.sin(theta);
     var nx = Math.cos(theta) / rx, ny = -Math.sin(theta) / ry;
@@ -249,7 +254,7 @@
                           'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, body);
     use.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#i-' + spec.icon);
     active.push({ g: g, body: body, spec: spec, px: px, py: py, nx: nx, ny: ny,
-                  sx: px + nx * 250, sy: py + ny * 250, t0: performance.now(), hit: false });
+                  sx: px + nx * (narrow ? 120 : 250), sy: py + ny * (narrow ? 120 : 250), t0: performance.now(), hit: false });
   }
   function impact(a) {
     var ring = el('g', { transform: 'translate(' + a.px.toFixed(1) + ' ' + a.py.toFixed(1) + ')' }, threatLayer);

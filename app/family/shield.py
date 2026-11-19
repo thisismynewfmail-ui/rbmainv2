@@ -58,6 +58,11 @@ class Verdict(NamedTuple):
     severity: str               # none | info | warn | high
     categories: Tuple[str, ...]
     masked: str                 # the text with every hit blanked
+    # For the parent's excerpt: only the details themselves (the digits, the
+    # address, the link, the handle) and strong language are blanked, so
+    # "meet me at the park after school" reads as written and "my number
+    # is ••• text me" still says what was tried.
+    redacted: str = ""
 
     @property
     def blocked(self) -> bool:
@@ -90,7 +95,7 @@ def kid_notice(verdict: Verdict) -> str:
     cats = set(verdict.categories)
     if cats & {"meetup", "secret", "photos"}:
         return ("That wasn't sent. Chats about meeting up, secrets or photos "
-                "stay off NoogBlock -- that's how everybody stays safe.")
+                "aren't allowed here -- that's how everybody stays safe.")
     if "bullying" in cats:
         return "That wasn't sent. Be kind -- everybody here is somebody's friend."
     if "link" in cats:
@@ -264,6 +269,17 @@ _MEETUP = re.compile(
     r"(?:are|r)\s+(?:you|u)\s+home\s+alone|"
     r"(?:are|r|is)\s+(?:your|ur)\s+(?:parents|mom|dad|mum|mommy|daddy)\s+(?:home|around|there|watching|awake|asleep)|"
     r"what(?:'?s|\s+is)\s+(?:your|ur)\s+(?:real|full|last)\s+name|\basl\b)", re.I)
+# Asking to meet somewhere: "meet me at the park", "wanna meet up?", "can we
+# meet tomorrow".  Game places are left alone ("meet me at the flag", "lets
+# meet in the lobby") and so is "nice to meet you".
+_GAME_PLACES = (r"lobby|server|game|round|world|spawn|base|map|match|party|team|arena|"
+                r"level|start|finish|flag|ship|course|track|checkpoint|portal|vote")
+_MEETUP_PLACE = re.compile(
+    r"\b(?:(?:let'?s|lets|wanna|want\s+to|can\s+we|could\s+we|we\s+(?:should|could))"
+    r"\s+meet(?:\s+up)?|meet\s+(?:me|up|with\s+me))"
+    r"(?=\s*(?:[?!.]|$|(?:at|in|by|near|outside|behind|after|before|tomorrow|tonight|today|"
+    r"later|sometime|this|next|on|irl)\b))"
+    r"(?!\s*(?:at|in|on|by)?\s*(?:the\s+)?(?:%s)\b)" % _GAME_PLACES, re.I)
 _MEETUP_PRIVATE = re.compile(
     r"\b(?:(?:are|r)\s+(?:you|u)\s+alone|(?:is|are)\s+any(?:one|body)\s+(?:else\s+)?(?:home|there|with\s+(?:you|u)))\b",
     re.I)
@@ -330,37 +346,43 @@ def scan(text: str, author_is_child: bool = True,
     leet = _leet(raw)
     hits: List[str] = []
     mask_spans: List[Tuple[int, int]] = []
+    detail_spans: List[Tuple[int, int]] = []
 
-    def hit(category: str, spans: Iterable[Tuple[int, int]] = ()) -> None:
+    def hit(category: str, spans: Iterable[Tuple[int, int]] = (),
+            detail: bool = False) -> None:
         if category not in hits:
             hits.append(category)
+        spans = list(spans)
         mask_spans.extend(spans)
+        if detail:
+            detail_spans.extend(spans)
 
     def seen(pattern: "re.Pattern") -> bool:
         return bool(pattern.search(words) or pattern.search(leet))
 
     phone = _phone_spans(raw)
     if phone:
-        hit("phone", phone)
+        hit("phone", phone, detail=True)
     for pattern in (_EMAIL, _EMAIL_SPOKEN):
         if pattern.search(raw) or pattern.search(words):
-            hit("email", _spans(pattern, raw))
+            hit("email", _spans(pattern, raw), detail=True)
     if _MAIL_PROVIDERS.search(words):
         hit("email", _spans(_MAIL_PROVIDERS, raw))
     if _STREET.search(raw) or _STREET.search(words):
-        hit("address", _spans(_STREET, raw))
+        hit("address", _spans(_STREET, raw), detail=True)
     if _ADDRESS_TALK.search(words):
         hit("address", _spans(_ADDRESS_TALK, raw))
     if _LINK.search(raw) or _LINK.search(words):
-        hit("link", _spans(_LINK, raw))
+        hit("link", _spans(_LINK, raw), detail=True)
     for pattern in (_INVITE, _MY_HANDLE, _MY_GAMERTAG, _DO_YOU_HAVE, _APP_HANDLE,
                     _NUMBER_ASK):
         if seen(pattern):
-            hit("contact", _spans(pattern, raw))
+            hit("contact", _spans(pattern, raw), detail=pattern is _APP_HANDLE)
     risky = [("meetup", _MEETUP), ("secret", _SECRET), ("photos", _PHOTOS),
              ("bullying", _BULLYING)]
     if channel != "game":
         risky.append(("meetup", _MEETUP_PRIVATE))
+        risky.append(("meetup", _MEETUP_PLACE))
     for category, pattern in risky:
         if seen(pattern):
             hit(category, _spans(pattern, raw))
@@ -370,13 +392,14 @@ def scan(text: str, author_is_child: bool = True,
         hit("age")
     language = _spans(_LANGUAGE, raw) + _token_spans(_LANGUAGE, raw)
     if language:
-        hit("language", language)
+        hit("language", language, detail=True)
 
     if not hits:
-        return Verdict("allow", "none", (), raw)
+        return Verdict("allow", "none", (), raw, raw)
     action = max((CATEGORIES[c][0] for c in hits), key=ACTION_RANK.__getitem__)
     severity = max((CATEGORIES[c][1] for c in hits), key=SEVERITY_RANK.__getitem__)
-    return Verdict(action, severity, tuple(hits), _apply_mask(raw, mask_spans))
+    return Verdict(action, severity, tuple(hits), _apply_mask(raw, mask_spans),
+                   _apply_mask(raw, detail_spans))
 
 
 def _apply_mask(text: str, spans: List[Tuple[int, int]]) -> str:
@@ -405,8 +428,11 @@ def mask(text: str, channel: str = "game") -> str:
 
 
 def excerpt(text: str, limit: int = 160) -> str:
-    """A parent-safe excerpt: the masked text, trimmed to one line."""
-    flat = " ".join((scan(text).masked or "").split())
+    """A parent-safe excerpt, trimmed to one line: the details themselves are
+    blanked (digits, addresses, links, handles, strong language) and the
+    words around them are kept, so the parent can see what was tried."""
+    verdict = scan(text)
+    flat = " ".join((verdict.redacted or verdict.masked or "").split())
     return flat if len(flat) <= limit else flat[:limit - 1].rstrip() + "…"
 
 
