@@ -10,7 +10,15 @@
    all of them the same green skin, two dot eyes and open O of a mouth --
    with the parts that make a special what it is (the Bloater's belly, the
    Bomber's vest, the Riot's shield, the Tank's shoulders) built on to the
-   body before it is scaled to size. */
+   body before it is scaled to size.
+
+   The Mannequins are the odd ones out: only the Admin Tools' Horde Horn
+   calls them (app/game/admin_tools.py).  Shop-window dummies the infection
+   got into -- porcelain, gloss black or tailor's beige, ball-jointed, faceless
+   but for a crack the green shows through and two green pinpricks where the
+   eyes would be -- and they move like stop-motion: upright, arms locked, the
+   limbs jumping from pose to pose while the body glides, and the head
+   snapping to a new angle now and then. */
 (function (global) {
   'use strict';
 
@@ -20,12 +28,12 @@
   // the server's KIND_CODES, in order
   var KINDS = ['common', 'runner', 'bloater', 'bomber', 'leaper', 'brute',
                'spitter', 'screamer', 'riot', 'captain', 'hive', 'mite', 'ronin',
-               'burrower', 'tank'];
+               'burrower', 'tank', 'mannequin'];
   var NAMES = {
     common: 'Infected', runner: 'Runner', bloater: 'Bloater', bomber: 'Bomber',
     leaper: 'Leaper', brute: 'Brute', spitter: 'Spitter', screamer: 'Screamer',
     riot: 'Riot', captain: 'Plague Captain', hive: 'Hive', mite: 'Mite',
-    ronin: 'Ronin', burrower: 'Burrower', tank: 'Tank'
+    ronin: 'Ronin', burrower: 'Burrower', tank: 'Tank', mannequin: 'Mannequin'
   };
   // hit boxes (w, h, d), matching app/game/worlds/infected.py, for tracers
   var BOX = {
@@ -33,7 +41,8 @@
     bomber: [3.0, 5.4, 2.2], leaper: [3.0, 4.8, 2.2], brute: [4.8, 7.2, 3.6],
     spitter: [2.8, 6.0, 2.0], screamer: [2.8, 5.6, 2.0], riot: [3.6, 5.9, 2.6],
     captain: [3.2, 6.4, 2.2], hive: [4.4, 6.0, 3.6], mite: [1.6, 1.8, 1.6],
-    ronin: [3.0, 5.8, 2.2], burrower: [3.0, 5.4, 2.2], tank: [6.4, 9.0, 4.6]
+    ronin: [3.0, 5.8, 2.2], burrower: [3.0, 5.4, 2.2], tank: [6.4, 9.0, 4.6],
+    mannequin: [3.0, 5.4, 2.0]
   };
   var SCALE = { brute: 1.32, tank: 1.68, bloater: 1.06, spitter: 1.1, captain: 1.08 };
   // animation codes and flag bits on the wire
@@ -218,6 +227,55 @@
     { t: 'cyl', p: [0, -0.4, 0.3], s: [0.6, 0.8, 0.6], c: '#9ad84a', m: 'neon' },
     { t: 'box', p: [0, 0.1, 0.3], s: [0.66, 0.12, 0.66], c: '#3a3a2a' }] } };
 
+  /* The Mannequins' faces: no mouth to hang open, just a thin painted
+     line; two dark hollows with a green pinprick deep in each; and one long
+     crack from the crown down through an eye to the jaw, the green showing
+     along it. */
+  function mannequinFace(hollow, crack, lips, flip) {
+    var f = flip ? -1 : 1;
+    var path = [[0.09, -0.5], [0.15, -0.33], [0.2, -0.13], [0.28, 0.03], [0.24, 0.2], [0.29, 0.36]];
+    var shapes = [
+      { k: 'ellipse', x: -0.21, y: -0.12, w: 0.18, h: 0.14, c: hollow },
+      { k: 'ellipse', x: 0.21, y: -0.12, w: 0.18, h: 0.14, c: hollow },
+      { k: 'ellipse', x: -0.21, y: -0.11, w: 0.04, h: 0.04, c: '#c6ff5a' },
+      { k: 'ellipse', x: 0.21, y: -0.11, w: 0.04, h: 0.04, c: '#c6ff5a' },
+      { k: 'rect', x: 0, y: 0.25, w: 0.16, h: 0.018, c: lips }
+    ];
+    for (var i = 1; i < path.length; i++) {
+      shapes.push({ k: 'line', x1: path[i - 1][0] * f, y1: path[i - 1][1], x2: path[i][0] * f,
+                    y2: path[i][1], w: 0.024 - i * 0.002, c: crack });
+    }
+    // and a splinter off it across the brow
+    shapes.push({ k: 'line', x1: 0.15 * f, y1: -0.33, x2: 0.03 * f, y2: -0.27, w: 0.014, c: crack });
+    return shapes;
+  }
+  var FACE_PORCELAIN = mannequinFace('#3a342c', '#4f8a2a', '#9a6a62', false);
+  var FACE_PORCELAIN_L = mannequinFace('#3a342c', '#4f8a2a', '#9a6a62', true);
+  var FACE_GLOSS = mannequinFace('#060607', '#6fc23a', '#3a3a40', false);
+  var FACE_BEIGE = mannequinFace('#3e3426', '#4f7a2a', '#8a5a4a', true);
+  /* Eight of them, as the server's variants go: ``skin`` the shell,
+     ``joint`` the balls at the shoulders, elbows, wrists, hips and knees,
+     ``female`` the slighter build, ``extra`` what dressExtras adds (a dress,
+     a tape measure, a sale sash) and ``armless`` the one that came off its
+     stand without its left arm. */
+  var MANNEQUINS = [
+    { skin: '#ece4d4', joint: '#cfc4b0', face: FACE_PORCELAIN },
+    { skin: '#f2efe8', joint: '#d6d1c6', face: FACE_PORCELAIN_L,
+      shirt: shirt('#2a2d36', '#2a2d36', { decal: 'tux' }), pants: pants('#2a2d36') },
+    { skin: '#2c2c31', joint: '#46464d', face: FACE_GLOSS },
+    { skin: '#d9c4a0', joint: '#b8a27c', face: FACE_BEIGE, extra: 'tape' },
+    { skin: '#ece4d4', joint: '#cfc4b0', face: FACE_PORCELAIN_L, female: true, extra: 'dress',
+      shirt: shirt('#7a1626', '#7a1626', { sleeves: 0 }) },
+    { skin: '#d4cfc6', joint: '#b5afa4', face: FACE_PORCELAIN,
+      shirt: shirt('#6a7a6a', '#6a7a6a', { weave: 'knit' }), pants: pants('#34363c') },
+    { skin: '#ece4d4', joint: '#cfc4b0', face: FACE_PORCELAIN, extra: 'sash' },
+    { skin: '#e2cfb4', joint: '#c4ae8e', face: FACE_BEIGE, female: true, armless: true }
+  ];
+
+  function mannequinLook(variant) {
+    return MANNEQUINS[((variant || 0) % MANNEQUINS.length + MANNEQUINS.length) % MANNEQUINS.length];
+  }
+
   var descriptorCache = {};
 
   /* The rig descriptor for one infected: kind, area and variant. */
@@ -225,7 +283,11 @@
     var key = kind + ':' + area + ':' + variant;
     if (descriptorCache[key]) return descriptorCache[key];
     var look, skin, face;
-    if (kind === 'common' || kind === 'mite') {
+    if (kind === 'mannequin') {
+      look = mannequinLook(variant);
+      skin = look.skin;
+      face = look.face;
+    } else if (kind === 'common' || kind === 'mite') {
       var set = WARDROBE[area] || WARDROBE.town;
       look = set[variant % set.length];
       skin = SKINS[variant % SKINS.length];
@@ -236,8 +298,10 @@
       face = look.face || FACE_COMMON;
     }
     var faceKey = 'zface_' + (face === FACE_COMMON ? 'common' : kind);
+    if (kind === 'mannequin') faceKey += '_' + MANNEQUINS.indexOf(look);
+    var female = kind === 'mannequin' ? !!look.female : variant % 3 === 1 && kind === 'common';
     var desc = {
-      body_type: variant % 3 === 1 && kind === 'common' ? 'female' : 'male',
+      body_type: female ? 'female' : 'male',
       colors: { head: skin, torso: skin, left_arm: skin, right_arm: skin,
                 left_leg: skin, right_leg: skin, hips: skin },
       items: {
@@ -360,10 +424,112 @@
           v: [0, 1.5, 0], life: 0.9, size: 0.5, grow: 1.2, gravity: 0.5, blend: 'add',
           shape: 'puff', colors: ['#b6ff4a', '#2a6a10'] });
       }
+    } else if (kind === 'mannequin') {
+      var look = mannequinLook(z.variant);
+      if (look.extra === 'dress') {
+        // the evening dress the window had it in, flared below the waist
+        add('cone', 0, 1.75, 0.02, [2.7, 1.9, 2.1], '#7a1626');
+      } else if (look.extra === 'tape') {
+        // a tailor's tape round the neck, hanging down either side
+        add('box', 0.55, 3.9, 0.56, [0.16, 1.5, 0.04], '#e8c81a');
+        add('box', -0.55, 3.7, 0.56, [0.16, 1.9, 0.04], '#e8c81a');
+      } else if (look.extra === 'sash') {
+        add('box', 0, 3.25, 0.55, [0.42, 2.9, 0.06], '#c81e1e',
+            { r: [lean * 0.6, yaw, 0.72], dec: 't~SALE~#c81e1e~#f2f3f3~4.50' });
+      }
+      // the green getting out through the cracks in its chest
+      var front = look.female ? [0.51, 0.465] : [0.545, 0.545];
+      add('box', -0.42, 3.55, front[0], [0.05, 0.62, 0.02], '#9ad84a', { m: 'neon', r: [lean * 0.6, yaw, 0.35] });
+      add('box', 0.3, 2.85, front[1], [0.04, 0.48, 0.02], '#9ad84a', { m: 'neon', r: [lean * 0.6, yaw, -0.5] });
     } else if (kind === 'screamer' && z.screamAt && time - z.screamAt < 1.8) {
       var ring = (time - z.screamAt) * 22;
       add('torus', 0, 4.6, 0, [ring, 0.3, ring], '#e8e8f8', { a: Math.max(0, 0.6 - (time - z.screamAt) * 0.33) });
     }
+  }
+
+  /* Where a limb part's two ends are: its own y axis, turned the way the
+     renderer turns it (yaw, then pitch, then roll). */
+  function limbEnds(part) {
+    var r = part.r || [0, 0, 0];
+    var sx = Math.sin(r[0]), cx = Math.cos(r[0]);
+    var sz = Math.sin(r[2]), cz = Math.cos(r[2]);
+    var sy = Math.sin(r[1]), cy = Math.cos(r[1]);
+    var ux = -sz, uy = cz * cx, uz = cz * sx;
+    var wx = ux * cy + uz * sy, wz = -ux * sy + uz * cy;
+    var h = part.s[1] / 2, p = part.p;
+    return { up: [wx, uy, wz],
+             top: [p[0] + wx * h, p[1] + uy * h, p[2] + wz * h],
+             bottom: [p[0] - wx * h, p[1] - uy * h, p[2] - wz * h] };
+  }
+
+  /* A Mannequin's joints, on the limbs the rig just built (one part a limb:
+     no Mannequin's outfit has half sleeves or cut-off trousers).  A bare
+     limb comes apart into two with a ball between, at the elbow or the knee,
+     and another ball rounds off the shoulder or the hip; a clothed one stays
+     as it is.  Then its head is cocked to wherever it last snapped to, and
+     the armless one loses its left arm, leaving a socket. */
+  function mannequinJoints(parts, z, look, clock) {
+    var yaw = z.yaw;
+    var extra = [];
+    var keep = [];
+    function ball(at, w, k) {
+      extra.push({ t: 'sph', p: at, s: [w * k, w * k, w * k], c: look.joint, r: [0, yaw, 0] });
+    }
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i];
+      var limb = part.k === 'arm' || part.k === 'leg';
+      if (!limb || part.t !== 'rlimb') {
+        keep.push(part);
+        continue;
+      }
+      var ends = limbEnds(part);
+      var side = rotY(ends.top[0] - z.pos[0], ends.top[2] - z.pos[2], -yaw)[0];
+      var w = Math.max(part.s[0], part.s[2]);
+      if (look.armless && part.k === 'arm' && side > 0) {
+        // the socket: a ball with the green showing in its open end
+        var out = rotY(1, 0, yaw);
+        var rim = [ends.top[0] + out[0] * w * 0.44, ends.top[1], ends.top[2] + out[1] * w * 0.44];
+        extra.push({ t: 'sph', p: ends.top, s: [w * 0.92, w * 0.92, w * 0.92], c: look.joint, r: [0, yaw, 0] });
+        extra.push({ t: 'cyl', p: rim, s: [w * 0.55, 0.06, w * 0.55], c: '#6fc23a', m: 'neon',
+                     r: [0, yaw, -1.5708] });
+        continue;
+      }
+      if (part.c !== look.skin) {
+        keep.push(part);
+        continue;
+      }
+      var u = ends.up, len = part.s[1], off = len * 0.28;
+      var upper = Object.assign({}, part, {
+        p: [part.p[0] + u[0] * off, part.p[1] + u[1] * off, part.p[2] + u[2] * off],
+        s: [part.s[0], len * 0.44, part.s[2]] });
+      var lower = Object.assign({}, part, {
+        p: [part.p[0] - u[0] * off, part.p[1] - u[1] * off, part.p[2] - u[2] * off],
+        s: [part.s[0] * 0.94, len * 0.44, part.s[2] * 0.94] });
+      keep.push(upper, lower);
+      ball(part.p, w, 0.84);
+      ball(ends.top, w, part.k === 'arm' ? 1.04 : 0.96);
+    }
+    // the head, cocked: a new angle every so often, snapped to, not turned
+    var n = Math.floor(clock * 1.3 + (z.seed || 0) * 7);
+    var tilt = (hash(n, z.seed) - 0.5) * 0.85;
+    var nod = (hash(n + 17, z.seed) - 0.5) * 0.35;
+    if (z.anim === A.ATTACK) tilt *= 1.6;
+    for (var j = 0; j < keep.length; j++) {
+      if (keep[j].k === 'head') {
+        var hr = keep[j].r || [0, yaw, 0];
+        keep[j].r = [hr[0] + nod, hr[1], hr[2] + tilt];
+      }
+    }
+    parts.length = 0;
+    Array.prototype.push.apply(parts, keep);
+    Array.prototype.push.apply(parts, extra);
+    return parts;
+  }
+
+  /* A repeatable 0..1 from a whole number and a seed. */
+  function hash(n, seed) {
+    var v = Math.sin(n * 12.9898 + (seed || 0) * 78.233) * 43758.5453;
+    return v - Math.floor(v);
   }
 
   function mite(z, time, deathAge) {
@@ -406,7 +572,11 @@
     var state = anim === A.RUN || anim === A.CHARGE ? 'run'
       : (anim === A.ATTACK || anim === A.WALK || anim === A.CLIMB ? 'walk' : 'idle');
     if (dummy) state = 'idle';
-    var t = time * (kind === 'runner' ? 1.15 : 0.8) + (z.seed || 0) * 10;
+    // a Mannequin's limbs keep stop-motion time: nine poses a second, held
+    // in between, while the body itself glides on
+    var dummyShell = kind === 'mannequin';
+    var clock = dummyShell ? Math.floor((time + (z.seed || 0)) * 9) / 9 : time;
+    var t = clock * (kind === 'runner' ? 1.15 : 0.8) + (z.seed || 0) * 10;
     var pose = Avatar.smoothPose(z.memory, deathAge ? 'idle' : state, t, 0, desc, dt);
     pose = Object.assign({}, pose);
     var reach = -1.45 + Math.sin(t * 3.1) * 0.12;
@@ -486,6 +656,24 @@
     if (kind === 'captain' && anim !== A.SCREAM) {
       pose.armR = -1.1;
     }
+    if (dummyShell && !deathAge) {
+      // no hunch, no sway: stood up straight, the arms locked
+      var jerk = hash(Math.floor(clock * 9), z.seed) - 0.5;
+      pose.lean = anim === A.RUN ? 0.14 : 0.04;
+      pose.armLZ = 0; pose.armRZ = 0;
+      if (anim === A.ATTACK) {
+        // a chop, both arms at once, from one held pose to the other
+        var up = Math.floor(clock * 4 + (z.seed || 0) * 3) % 2 === 0;
+        pose.armL = pose.armR = up ? -2.7 : -1.1;
+        pose.lean = up ? -0.05 : 0.22;
+      } else if (anim === A.RUN) {
+        // a sprint with the arms pinned straight down at its sides
+        pose.armL = 0.04 + jerk * 0.18;
+        pose.armR = 0.04 - jerk * 0.18;
+      } else if (anim === A.WALK || anim === A.CLIMB) {
+        pose.armL = pose.armR = -1.55 + jerk * 0.06;
+      }
+    }
     if (deathAge) {
       // falling over: a quick topple, a bounce, then sinking into the ground
       var f = Math.min(1, deathAge / 0.55);
@@ -500,6 +688,7 @@
     var parts = Avatar.build(desc, { position: origin, yaw: z.yaw, pitch: 0, time: time,
                                      pose: pose, holding: holding });
     dressExtras(parts, kind, origin, z, time, pose, fx);
+    if (dummyShell) mannequinJoints(parts, z, mannequinLook(z.variant), clock);
     scaleParts(parts, origin, scale);
     if (tilt) tiltParts(parts, origin, z.yaw, tilt);
     var fade = 1;
@@ -519,7 +708,7 @@
 
   global.Zombies = {
     KINDS: KINDS, NAMES: NAMES, BOX: BOX, SCALE: SCALE, ANIM: A, FLAGS: F,
-    descriptorFor: descriptorFor, build: build, fuseLight: fuseLight,
+    descriptorFor: descriptorFor, build: build, fuseLight: fuseLight, mannequinLook: mannequinLook,
     tiltParts: tiltParts, scaleParts: scaleParts, local: local
   };
 })(window);

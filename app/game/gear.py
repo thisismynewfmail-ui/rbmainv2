@@ -1055,24 +1055,28 @@ class Gear:
             self.inst.broadcast({"t": "gfx", "k": "rise", "p": [round(v, 2) for v in spot],
                                  "w": item, "m": m.kind})
 
-    def raise_at(self, player, point, spec: Dict[str, Any], count: int, item: str) -> int:
+    def raise_at(self, player, point, spec: Dict[str, Any], count: int, item: str,
+                 limit: int = MAX_MINIONS) -> int:
         """Raise ``count`` of ``spec`` for ``player`` round ``point`` --
         the Admin Tools' Horde Horn (app/game/admin_tools.py) in a world with
         no infected.  Endless: the oldest of the same lot make way, and the
-        round never holds more than MAX_MINIONS."""
+        round never holds more than ``limit`` (MAX_MINIONS unless the caller
+        says otherwise: the horn's own cap is twice that)."""
         moment = _now()
         mine = sorted((m for m in self.minions.values() if m.owner == player.pid and m.item == item),
                       key=lambda m: m.pid)
-        over = len(self.minions) + count - MAX_MINIONS
+        over = len(self.minions) + count - limit
         for old in mine[:max(0, over)]:
             self.kill_minion(old, None, quiet=True)
         made = 0
+        # a bigger pack stands in a wider ring, so it doesn't rise in a heap
+        ring = 3.0 + 0.25 * max(0, count - 4)
         for k in range(count):
-            if len(self.minions) >= MAX_MINIONS:
+            if len(self.minions) >= limit:
                 break
             a = k / max(1, count) * math.tau
-            spot = self._floor([point[0] + math.sin(a) * 3.0, point[1] + 2.0,
-                                point[2] + math.cos(a) * 3.0])
+            spot = self._floor([point[0] + math.sin(a) * ring, point[1] + 2.0,
+                                point[2] + math.cos(a) * ring])
             m = Minion(self._next_minion, player, spec, item, spot,
                        moment + _num(spec.get("secs"), 25.0))
             self._next_minion += 1

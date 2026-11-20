@@ -12,8 +12,10 @@ way tools/geartests.py builds them, and the tests check four things:
   * the kit coming out and going away again, as the holder and everyone
     else in the round see it, a world's own kit (an arena round's) included
   * each tool doing what it says: Smite kills through a shield and goes
-    through a line; the Horde Horn calls the infected with no cooldown up to
-    the safety cap (Last Light) or raises zombies on your side (elsewhere);
+    through a line; the Horde Horn calls Mannequins with no cooldown up to
+    the safety cap (Last Light) or raises them on your side (elsewhere) --
+    twelve a blast (eight elsewhere), outrunning anybody and biting five
+    times as hard as a common -- and a crush of hundreds still spreads out;
     the Titan Tonic's 10,000 health survives a medkit and lasts one life;
     the Blink Wand moves you; Purge clears the infected quietly
   * the server's own rate, whatever a client sends
@@ -291,6 +293,19 @@ def test_horde_last_light():
     expected = 12 * admin_tools.HORDE_PACK + 12 // admin_tools.SPECIAL_EVERY
     check("twelve blasts in a second and a half: %d infected, no wave needed" % expected,
           count == expected, count)
+    from app.game.instance import WALK_SPEED
+    from app.game.worlds.infected import KINDS as K
+    pack = [z for z in zs.values() if z.kind == admin_tools.HORN_KIND]
+    check("...twelve Mannequins a blast, twice what it used to call",
+          admin_tools.HORDE_PACK == 12 and len(pack) == 12 * admin_tools.HORDE_PACK, len(pack))
+    common = inst.horde.spawn("common", [a.pos[0], a.pos[1], a.pos[2] + 30], K["common"]["hp"],
+                              K["common"]["dmg"] * inst._dmg_scale(), inst.wave)
+    check("...each close to twice as fast as anybody can run",
+          all(z.speed >= WALK_SPEED * 1.75 for z in pack) and
+          min(z.speed for z in pack) >= common.speed * 1.9, (pack[0].speed, WALK_SPEED, common.speed))
+    check("...and biting five times as hard as a common",
+          all(z.dmg >= common.dmg * 4.5 for z in pack), (pack[0].dmg, common.dmg))
+    inst.kill_infected(common, None, quietly=True)
     specials = [z for z in zs.values() if z.kind in admin_tools.SPECIALS]
     check("...a special every fourth blast", len(specials) == 12 // admin_tools.SPECIAL_EVERY,
           [z.kind for z in specials])
@@ -342,6 +357,67 @@ def test_horde_last_light():
     G.reset_players(inst)
 
 
+def test_mannequin_hunts():
+    print("\n== a Mannequin on the hunt ==")
+    from app.game.instance import WALK_SPEED
+    from app.game.worlds.infected import KINDS
+    inst, clock = G.make_world("last_light")
+    a, wa = admin(inst, "Alice", "survivors")
+    inst.deploy(a)
+    a.spawn_protect_until = 0
+    a.flags["max_hp"] = 5000
+    a.health = 5000
+    eye = [a.pos[0], a.pos[1] + 5.05, a.pos[2]]
+    reach, yaw = max((inst.ray_world(eye, [math.sin(y), 0.0, math.cos(y)], 120.0), y)
+                     for y in [k * math.pi / 16 for k in range(32)])
+    gap = min(60.0, reach - 3.0)
+    spot = [a.pos[0] + math.sin(yaw) * gap, a.pos[1], a.pos[2] + math.cos(yaw) * gap]
+    z = inst.horde.spawn("mannequin", spot, KINDS["mannequin"]["hp"] * 50, KINDS["mannequin"]["dmg"], 1)
+    start, hits, took = clock.t, [], None
+    for _ in range(200):
+        before = a.health
+        G.run(inst, clock, 0.05)
+        a.alive, a.extra["downed"] = True, False
+        if a.health < before:
+            hits.append(before - a.health)
+            if took is None:
+                took = clock.t - start
+        if len(hits) >= 2:
+            break
+    covered = gap - KINDS["mannequin"]["reach"]
+    check("it crosses %.0f studs faster than anybody could run it" % gap,
+          took is not None and covered / took > WALK_SPEED * 1.4, (took, covered))
+    check("...and every bite takes a fifth of a survivor's health or more",
+          len(hits) >= 2 and min(hits) >= 20, hits)
+    G.reset_players(inst)
+
+    # a crush: a few hundred on one spot still shove each other apart
+    inst2, clock2 = G.make_world("last_light")
+    b, _wb = admin(inst2, "Bea", "survivors")
+    inst2.deploy(b)
+    centre = list(b.pos)
+    crowd = [inst2.horde.spawn("mannequin", [centre[0] + (k % 7) * 0.01, centre[1], centre[2]],
+                               60, 1, 1) for k in range(300)]
+    for _ in range(40):
+        inst2.horde._separate()
+    spread = sorted(math.hypot(z.pos[0] - centre[0], z.pos[2] - centre[2]) for z in crowd)
+    check("a crush of 300 on one spot spreads out (half of them %.1f studs off it)" % spread[150],
+          spread[150] > 3.0 and all(math.isfinite(v) for v in spread), spread[150])
+    G.reset_players(inst2)
+
+
+def test_kinds_match():
+    print("\n== the Game View knows every kind ==")
+    import re
+    from app.game.worlds.infected import KIND_CODES
+    src = open(os.path.join(BASE, "static", "js", "engine", "zombies.js")).read()
+    listed = re.search(r"var KINDS = \[(.*?)\];", src, re.S).group(1)
+    client = re.findall(r"'([a-z]+)'", listed)
+    check("static/js/engine/zombies.js lists the kinds in the server's order", client == KIND_CODES,
+          (client, KIND_CODES))
+    check("...the Mannequin last, so nothing before it moved", KIND_CODES[-1] == "mannequin")
+
+
 def test_horde_elsewhere():
     print("\n== Horde Horn, any other world ==")
     from app.game import admin_tools, gear
@@ -352,12 +428,21 @@ def test_horde_elsewhere():
     d = [a.extra["fwd"][0], -0.3, a.extra["fwd"][2]]
     use(inst, clock, a, 1, d)
     mine = [m for m in inst.gear.minions.values() if m.owner == a.pid]
-    check("zombies rise on her side", len(mine) == admin_tools.ZOMBIE_MINION["count"], len(mine))
+    check("Mannequins rise on her side, eight at a time",
+          len(mine) == admin_tools.ZOMBIE_MINION["count"] == 8, len(mine))
+    from app.game.instance import WALK_SPEED
+    spec = mine[0].spec
+    check("...outrunning anybody, and biting hard",
+          spec["speed"] >= WALK_SPEED * 1.75 and spec["damage"] >= 36, (spec["speed"], spec["damage"]))
+    horn = next(t for t in admin_tools.KIT if t["item_id"] == "admin_horn")
+    check("...and the horn tells the Game View to draw them as Mannequins",
+          horn["data"]["stats"]["minion"]["zkind"] == "mannequin")
     for _ in range(10):
         use(inst, clock, a, 1, d, wait=False)
         clock.t += 0.13
-    check("endless, but never past the round's limit",
-          len(inst.gear.minions) == gear.MAX_MINIONS, len(inst.gear.minions))
+    check("endless, but never past the horn's limit (twice a round's)",
+          len(inst.gear.minions) == admin_tools.MINION_CAP == 2 * gear.MAX_MINIONS,
+          len(inst.gear.minions))
     b.health = 1000
     G.run(inst, clock, 6.0)
     check("they go for the enemy", b.health < 1000, b.health)
@@ -417,6 +502,8 @@ def main() -> int:
     test_tonic()
     test_blink()
     test_horde_last_light()
+    test_mannequin_hunts()
+    test_kinds_match()
     test_horde_elsewhere()
     test_off_record()
     print("\n%d passed, %d failed" % (len(G.PASSED), len(G.FAILED)))

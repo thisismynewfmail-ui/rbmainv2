@@ -18,6 +18,12 @@ and again to put it away:
                  or hold: no cooldown and no wave needed (Last Light, up to a
                  safety cap so the server keeps up).  In any other world it
                  raises zombies to fight on your side, the oldest making way.
+                 Either way what comes is a pack of Mannequins -- shop-window
+                 dummies the infection got into: porcelain-pale, faceless but
+                 for a crack and two green pinpricks, ball-jointed, and
+                 moving in jerks, like stop-motion -- close to twice as fast
+                 as anybody can run, and biting five times as hard as the
+                 common infected.
   3 Titan Tonic  10,000 health, as often as you like (until you next die).
   4 Blink Wand   teleports you to where you're looking.
   5 Purge        clears every infected and minion near you.
@@ -35,8 +41,9 @@ from typing import Any, Dict, List, Optional, Sequence
 from .. import config
 
 TITAN_HP = 10000
-HORDE_CAP = 300            # infected alive at once, however fast the horn is blown
-HORDE_PACK = 6             # infected per blast
+HORDE_CAP = 600            # infected alive at once, however fast the horn is blown
+HORDE_PACK = 12            # infected per blast (Mannequins: see HORN_KIND)
+HORN_KIND = "mannequin"    # what the horn calls (app/game/worlds/infected.py)
 SPECIAL_EVERY = 4          # every this many blasts, one special comes too
 SPECIALS = ("brute", "spitter", "bomber", "leaper", "screamer", "bloater")
 PURGE_RADIUS = 60.0
@@ -44,9 +51,15 @@ SMITE_RANGE = 400.0
 SMITE_PIERCE = 12          # targets one shot goes through
 BLINK_RANGE = 250.0
 HORN_RANGE = 160.0
-ZOMBIE_MINION = {"name": "Admin's Zombie", "model": "zombie", "count": 4, "hp": 60,
-                 "speed": 15, "damage": 12, "reach": 4.5, "rate": 1.0, "secs": 45,
-                 "glow": "#6bff9a"}
+# what the horn raises in a world with no infected: the same Mannequins, on
+# your side -- eight a blast, at a sprint no player can match (a walk is 22),
+# biting for 40 -- and up to MINION_CAP of them (twice an ordinary round's
+# limit) before the oldest make way.  ``zkind`` tells the Game View to draw
+# them as Mannequins (static/js/game/gear.js).
+ZOMBIE_MINION = {"name": "Mannequin", "model": "zombie", "zkind": HORN_KIND, "count": 8,
+                 "hp": 60, "speed": 40, "damage": 40, "reach": 4.5, "rate": 0.85,
+                 "secs": 45, "glow": "#6bff9a"}
+MINION_CAP = 48
 
 
 def _tool(item_id: str, name: str, op: str, stats: Dict[str, Any],
@@ -69,12 +82,13 @@ KIT: List[Dict[str, Any]] = [
            {"t": "star", "p": [0, 0, 1.12], "s": [0.56, 0.56, 0.08], "c": "#ffe066", "m": "neon"}],
           "Kills whatever it hits, outright."),
     _tool("admin_horn", "Horde Horn", "horde",
-          {"rpm": 480, "mag": 999, "range": HORN_RANGE, "auto": True, "sound": "horn"},
+          {"rpm": 480, "mag": 999, "range": HORN_RANGE, "auto": True, "sound": "horn",
+           "minion": dict(ZOMBIE_MINION)},
           [{"t": "cyl", "p": [0, 0, -0.15], "s": [0.18, 0.7, 0.18], "c": "#5a3a24", "r": [R, 0, 0]},
            {"t": "cone", "p": [0, 0, 0.55], "s": [0.6, 1.0, 0.6], "c": "#6bff9a", "m": "glass", "r": [-R, 0, 0]},
            {"t": "torus", "p": [0, 0, 1.02], "s": [0.6, 0.1, 0.6], "c": "#2f8f46", "r": [R, 0, 0]},
            {"t": "torus", "p": [0, 0, 0.25], "s": [0.28, 0.08, 0.28], "c": "#2f8f46", "r": [R, 0, 0]}],
-          "Calls the infected where you aim. No cooldown."),
+          "Calls a pack of Mannequins where you aim. No cooldown."),
     _tool("admin_tonic", "Titan Tonic", "tonic",
           {"rpm": 60, "mag": 999, "sound": "heal"},
           [{"t": "sph", "p": [0, 0, 0.25], "s": [0.66, 0.66, 0.66], "c": "#ff3b5c", "m": "glass"},

@@ -508,9 +508,9 @@ class LastLight(GameInstance):
             return ("That's %d infected up -- the safety cap. Purge some, or let them "
                     "thin out." % alive)
         made = 0
+        kind = admin_tools.HORN_KIND
         for _ in range(min(admin_tools.HORDE_PACK, room)):
             pos = self._jitter(point)
-            kind = "runner" if self.rng.random() < 0.4 else "common"
             self.horde.spawn(kind, pos, KINDS[kind]["hp"] * self._hp_scale(),
                              KINDS[kind]["dmg"] * self._dmg_scale(), self.wave)
             made += 1
