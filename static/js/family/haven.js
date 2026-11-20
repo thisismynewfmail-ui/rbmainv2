@@ -2331,9 +2331,7 @@
   WP.fitCamera = function () {
     var rd = this.renderer, cfg = this.cfg, R = this.R;
     var aspect = rd.aspect || 1;
-    // room above the dome for the shield badge the overlay draws there (about
-    // 34 CSS pixels), whatever the size of the picture
-    var room = Math.min(0.3, 36 / Math.max(60, (this.cssH || 300) / 2));
+    var room = 0;
     if (this.fit && this.fit.aspect === aspect && this.fit.room === room && this.fit.yaw === Math.round(this.camYaw * 50)) return this.fit;
     var Rd = this.domeR(), top = Rd * 0.92, bottom = this.round ? -25 : -(this.mode === 'mini' ? 12 : 22);
     var pts = [];
@@ -3235,11 +3233,6 @@
     ctx.clearRect(0, 0, W, H);
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
-    // the shield badge on top of the dome
-    if (this.domeK > 0.6) {
-      var top = this.project([0, this.domeR() * 0.92 * this.domeK + 0.2, 0]);
-      if (top) this.drawBadge(ctx, top.x, top.y);
-    }
     // what kids are saying
     ctx.font = 'bold 12px Verdana, ' + this.font;
     for (i = 0; i < this.kids.length; i++) {
@@ -3267,24 +3260,6 @@
     ctx.font = 'bold 12px Verdana, ' + this.font;
     for (i = 0; i < this.threats.length; i++) this.drawThreat(ctx, this.threats[i], W, H);
     if (this.mini) this.drawMini(ctx, W, H);
-  };
-  WP.drawBadge = function (ctx, x, y) {
-    var s = 1 + this.badgeHit * 0.4 + Math.sin(this.t * 2) * 0.03;
-    ctx.save();
-    ctx.translate(x, y - 16);
-    ctx.scale(s, s);
-    ctx.beginPath(); ctx.arc(0, 0, 15, 0, TAU);
-    var g = ctx.createLinearGradient(0, -15, 0, 15);
-    g.addColorStop(0, '#5fa8ea'); g.addColorStop(1, '#1d5fae');
-    ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff'; ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, -8); ctx.lineTo(7, -5); ctx.lineTo(6, 3); ctx.quadraticCurveTo(4, 8, 0, 10);
-    ctx.quadraticCurveTo(-4, 8, -6, 3); ctx.lineTo(-7, -5); ctx.closePath();
-    ctx.fillStyle = '#ffffff'; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-3, 1); ctx.lineTo(-0.5, 3.6); ctx.lineTo(3.6, -1.6);
-    ctx.strokeStyle = '#1d5fae'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.restore();
   };
   WP.bubble = function (ctx, x, y, text, bg, ink, alpha) {
     var w = ctx.measureText(text).width + 14, h = 20;
