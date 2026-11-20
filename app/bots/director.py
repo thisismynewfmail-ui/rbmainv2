@@ -50,7 +50,7 @@ from .. import db
 from ..models import worlds as world_registry
 from . import config as bot_config
 from . import dormant as dormant_model
-from . import personas, social, storage
+from . import arms, personas, social, storage
 
 OFFLINE, WAKING, IDLE, PLAYING = 0, 1, 2, 3
 STATE_NAMES = {OFFLINE: "offline", WAKING: "online (settling in)",
@@ -113,11 +113,11 @@ class Director:
         self.events: deque = deque(maxlen=200)
         self.history: deque = deque(maxlen=24 * 60)           # one sample a minute
         self.counters = {"woke": 0, "slept": 0, "joined": 0, "left": 0,
-                         "hydrated": 0, "slept_instances": 0}
+                         "hydrated": 0, "slept_instances": 0, "hotbar_changes": 0}
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._last = {"ctrl": 0.0, "dorm": 0.0, "flush": 0.0, "snap": 0.0,
-                      "hist": 0.0, "prune": 0.0, "social": 0.0}
+                      "hist": 0.0, "prune": 0.0, "social": 0.0, "arms": 0.0}
         self._dorm_cursor = 0
         self._curve_cache: Dict[Tuple[int, int, int], float] = {}
         self._hosts_up: Set[str] = set()
@@ -1407,6 +1407,9 @@ class Director:
             if t - self._last["dorm"] >= 1.0:
                 self._last["dorm"] = t
                 self._summarise(t)
+            if t - self._last.get("arms", 0.0) >= 60.0:
+                self._last["arms"] = t
+                self._hotbar_roll(now)
             if t - self._last["hist"] >= 60.0:
                 self._last["hist"] = t
                 self.history.append({"at": now, "online": self.online,
@@ -1448,6 +1451,65 @@ class Director:
             social.set_last_seen(seen)
         if rows:
             social.write_sessions(rows)
+
+    # =========================================================== hotbars
+    def _hotbar_roll(self, now: int) -> None:
+        """Once a minute (under the lock): which online bots might change up
+        their hotbar -- the Bots Zone's "Hotbar changes", a chance per minute
+        that each bot's persona scales (``arms.change_factor``).  Every online
+        bot is rolled against the most a persona can scale it; the few that
+        come up are finished off the lock, where their own persona is read.
+        Offline bots never change."""
+        try:
+            rate = float(bot_config.get("ingame.hotbar_change_per_minute") or 0) / 100.0
+        except (TypeError, ValueError):
+            rate = 0.0
+        if rate <= 0 or not self.n or not self.enabled():
+            return
+        cap = min(1.0, rate * arms.CHANGE_MAX)
+        rng, state, picked = self.rng, self.state, []
+        for i in range(self.n):
+            if state[i] == OFFLINE or rng.random() >= cap:
+                continue
+            uid = int(self.uids[i])
+            w = self.world[i]
+            world = WORLD_IDS[w] if w != NO_WORLD else ""
+            inst = self.live[world].get(uid) if world else None
+            picked.append((uid, world, inst))
+        if picked:
+            threading.Thread(target=self._hotbar_changes, args=(picked, rate, cap),
+                             daemon=True, name="bots-hotbars").start()
+
+    def _hotbar_changes(self, picked: List[Tuple[int, str, Optional[int]]],
+                        rate: float, cap: float) -> None:
+        """Change up the hotbars of the bots that came up: each one's own
+        chance is ``rate`` times its persona's factor, so it is kept with
+        that over ``cap``.  The new hotbar comes only from what the bot
+        already owns (``factory.change_hotbar``).  A bot in a live round is
+        sent it too, and swaps when it isn't fighting."""
+        from . import factory
+        rng = random.Random()
+        changed = 0
+        for uid, world, inst in picked:
+            try:
+                row = db.query_one("SELECT traits FROM bot_profiles WHERE user_id=?", (uid,))
+                traits = personas.unpack_traits(row["traits"] if row else "")
+                if rng.random() >= rate * arms.change_factor(traits) / cap:
+                    continue
+                hotbar = factory.change_hotbar(uid, traits, rng)
+                if hotbar is None:
+                    continue
+                changed += 1
+                if world and inst is not None:
+                    with self.lock:
+                        if self.live[world].get(uid) == inst:
+                            self.ops[world].append({"op": "rearm", "uid": uid, "inst": inst,
+                                                    "hotbar": hotbar})
+            except Exception:
+                traceback.print_exc()
+        if changed:
+            with self.lock:
+                self.counters["hotbar_changes"] = self.counters.get("hotbar_changes", 0) + changed
 
     def _note(self, text: str) -> None:
         self.events.append({"at": _now(), "text": text})

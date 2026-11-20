@@ -484,6 +484,12 @@ class GameHost:
                     with target.lock:
                         if target.bots.remove(uid, op.get("reason", "")):
                             break
+        elif kind == "rearm":
+            # a bot changed up its hotbar (the Bots Zone's "Hotbar changes"),
+            # from what it owns: it swaps when it isn't fighting
+            if instance is not None and instance.bots is not None:
+                with instance.lock:
+                    instance.bots.rearm(int(op.get("uid", 0) or 0), op.get("hotbar") or [])
         elif kind == "chat":
             if instance is not None and instance.bots is not None:
                 with instance.lock:

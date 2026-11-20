@@ -27,6 +27,7 @@ import random
 import time
 from typing import Any, Dict, List, Optional
 
+from ...models import catalog
 from ..instance import Player, now
 from .brain import Brain, feet, styled
 from .survival import SurvivalPlan
@@ -106,6 +107,25 @@ class BotRunner:
             if self.rng.random() < 0.25:
                 brain.say("hello", chance=0.6, delay=self.rng.uniform(2, 5))
         return player
+
+    def rearm(self, uid: int, hotbar: List[Any]) -> bool:
+        """A changed-up hotbar for one of this round's bots, from the
+        director: the items by reference, rebuilt from the catalogue here
+        the way a join ticket is.  The bot swaps to it the next time it
+        isn't fighting (or on its next life).  False when the bot isn't in
+        this round."""
+        brain = next((b for b in self.brains.values() if b.p.user_id == uid), None)
+        if brain is None:
+            return False
+        try:
+            from app.models import avatars as avatar_models
+            whole = avatar_models.expand({"hotbar": list(hotbar)[:catalog.HOTBAR_SIZE]})["hotbar"]
+        except Exception:
+            return False
+        if not any(whole):
+            return False
+        brain.pending_hotbar = whole
+        return True
 
     def remove(self, uid: int, reason: str = "", say_bye: bool = True) -> bool:
         inst = self.instance

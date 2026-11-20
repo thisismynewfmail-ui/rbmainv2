@@ -737,6 +737,7 @@
       self.local.vel = [0, 0, 0];
     });
     net.on('akit', function (msg) { self.onAdminKit(msg); });
+    net.on('hotbar', function (msg) { self.onHotbar(msg); });
     net.on('knock', function (msg) {
       self.local.vel[0] += msg.v[0];
       self.local.vel[1] += msg.v[1];
@@ -1268,6 +1269,24 @@
     avatar.hotbar = msg.hotbar ? clone(msg.hotbar)
       : (player._ownHotbar || player._preKit || avatar.hotbar);
     if (!msg.on) player._preKit = null;
+    player.avatar = avatar;
+  };
+
+  /* Somebody else changed up their hotbar mid-round (a bot, between fights:
+     app/game/bots/brain.py _swap_hotbar).  Their own hotbar changes --
+     including the one kept behind a world's kit or the admin tools -- and so
+     does what they are holding, unless a kit is in their hands right now. */
+  Client.prototype.onHotbar = function (msg) {
+    var player = this.players[msg.id];
+    if (!player || msg.id === this.myId) return;
+    function clone(v) { return v ? JSON.parse(JSON.stringify(v)) : v; }
+    var hotbar = clone(msg.hotbar || []);
+    if (player._ownHotbar) player._ownHotbar = clone(hotbar);
+    if (player._preKit) player._preKit = clone(hotbar);
+    if (msg.kit) return;
+    var avatar = {};
+    for (var k in player.avatar) avatar[k] = player.avatar[k];
+    avatar.hotbar = hotbar;
     player.avatar = avatar;
   };
 

@@ -936,6 +936,35 @@ def _badges(card: Dict[str, Any], rng: random.Random) -> None:
         badges.set_worn(card["id"], best)
 
 
+def usable_owned(uid: int) -> List[Tuple[int, str]]:
+    """(inventory id, item id) for every weapon and held item an account owns."""
+    return [(int(r["id"]), r["item_id"]) for r in db.query(
+        "SELECT id, item_id FROM inventory WHERE user_id=? ORDER BY id", (uid,))
+        if (catalog.get(r["item_id"]) or {}).get("slot") == "usable"]
+
+
+def change_hotbar(uid: int, traits: Dict[str, float],
+                  rng: random.Random) -> Optional[List[Optional[Dict[str, Any]]]]:
+    """Change up one bot's hotbar (the Bots Zone's "Hotbar changes"): a
+    different pick and order from what is already in its own inventory
+    (``arms.change_up``) -- nothing is bought or given -- saved like any
+    hotbar.  Returns the new hotbar in the join ticket's compact form, for a
+    round the bot is playing in, or None when nothing changed (a bot with
+    only the free three has nothing to change)."""
+    from ..models import avatars
+    owned = usable_owned(uid)
+    raw = avatars.raw_avatar(uid)["hotbar"]
+    current = [int(x or 0) for x in list(raw)[:catalog.HOTBAR_SIZE]]
+    current += [0] * (catalog.HOTBAR_SIZE - len(current))
+    new = arms.change_up(owned, traits, rng, current)
+    mine = {inv for inv, _item in owned}
+    if new == current or any(inv and inv not in mine for inv in new):
+        return None
+    db.execute("UPDATE avatars SET hotbar=?, updated_at=? WHERE user_id=?",
+               (json.dumps(new, separators=(",", ":")), _now(), uid))
+    return avatars.compact(avatars.descriptor(uid))["hotbar"]
+
+
 def backfill_arms(limit: int = 50000) -> Dict[str, int]:
     """Arm the bots made before they bought weapons of their own, and lay
     every bot's hotbar out from what it owns.
@@ -959,12 +988,7 @@ def backfill_arms(limit: int = 50000) -> Dict[str, int]:
             traits = personas.unpack_traits(row["traits"] or "")
             tags = [t for t in (row["tags"] or "").split(",") if t]
 
-            def usable() -> List[Tuple[int, str]]:
-                return [(int(r["id"]), r["item_id"]) for r in db.query(
-                    "SELECT id, item_id FROM inventory WHERE user_id=? ORDER BY id", (uid,))
-                    if (catalog.get(r["item_id"]) or {}).get("slot") == "usable"]
-
-            owned = usable()
+            owned = usable_owned(uid)
             if not any(not arms.free(item_id) for _inv, item_id in owned):
                 bought = False
                 for item_id in arms.wanted(traits, tags, random.Random(uid * 104729 + 17), armory):
@@ -979,7 +1003,7 @@ def backfill_arms(limit: int = 50000) -> Dict[str, int]:
                     bought = True
                 if bought:
                     armed += 1
-                    owned = usable()
+                    owned = usable_owned(uid)
             hotbar = arms.lay_out(owned, traits, random.Random(uid * 7919 + 3))
             try:
                 current = json.loads(row["hotbar"] or "[]")
