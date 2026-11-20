@@ -209,7 +209,7 @@ SECTIONS = [
     ("friends", "Friends", "Bots adding and confirming friends."),
     ("chatter", "Chatter", "Profile comments, posts and likes between associated bots."),
     ("messages", "DMs & Chat", "Private messages and in-game chat."),
-    ("modifiers", "Dynamic Modifiers", "Short-lived boosts that follow a live conversation, then fade."),
+    ("modifiers", "Dynamic Modifiers", "Short-lived boosts that follow a live conversation or a game, then fade. Bots also sort their loadout between games."),
     ("speech", "Speech Events", "What happens in a round, and how likely bots are to talk about it."),
     ("llm", "Language Model", "The endpoint every word a bot writes comes from."),
     ("prompts", "Prompts", "The system message used for each kind of interaction."),
@@ -402,11 +402,12 @@ FIELDS: List[Field] = [
       "Chance per minute a bot stands still for a bit.", 0, 100, 0.5,
       "%/min", scope="base"),
     F("ingame.hotbar_change_per_minute", "Hotbar changes", "pct", 2, "ingame",
-      "Chance per minute an online bot changes up its hotbar: a different "
+      "Chance per minute a bot in a round changes up its hotbar: a different "
       "pick and order, only ever from what is already in its own inventory "
       "(nothing is bought or given, and the pistol stays in slot 1). "
       "Collectors and chaotic personas change more often. In a live round "
-      "the bot swaps between fights, and everyone sees it.", 0, 100, 0.5,
+      "the bot swaps between fights, and everyone sees it. Between games, "
+      "see Loadout planning under Dynamic Modifiers.", 0, 100, 0.5,
       "%/min", scope="base"),
     F("ingame.anything_floor", "Anything can happen", "pct", 3, "ingame",
       "Every bot, however focused, keeps at least this chance of doing any "
@@ -671,6 +672,28 @@ FIELDS: List[Field] = [
     F("modifiers.bot_chain_fade", "Each further bot reply", "pct", 50,
       "modifiers", "How much less likely each further reply in a bot-only "
       "exchange is.", 0, 100, 5, "% less"),
+    F("modifiers.loadout_enabled", "Loadout planning (between games)", "bool", True,
+      "modifiers", "Away from a round, bots look through their inventory and "
+      "choose which weapons to take into their next game, the way a player "
+      "sorts their hotbar between matches. Mostly they settle on their "
+      "favourites; now and then they try something different. Only ever "
+      "items they already own: nothing is bought or given, and the pistol "
+      "stays in slot 1.", toggle=True),
+    F("modifiers.loadout_per_hour", "How often (loadout)", "pct", 12, "modifiers",
+      "Chance per hour a bot that isn't in a round rethinks its loadout. "
+      "Collectors and chaotic personas do it more, the most skilled less. "
+      "0 turns it off.", 0, 100, 1, "%/hour", scope="base"),
+    F("modifiers.loadout_after_game", "Just after a game", "pct", 200,
+      "modifiers", "Extra chance right after a bot leaves a round, fading over "
+      "the decay time: 200% means three times as likely at first. Half as much "
+      "again after a rough game (more deaths than kills), when it is also "
+      "keener to try something new.", 0, 1000, 10, "%"),
+    F("modifiers.loadout_decay_minutes", "Decay time (loadout)", "int", 90,
+      "modifiers", "How long the after-a-game boost lasts. It fades gradually: "
+      "half this long after the game, half of it is left.", 5, 1440, 5, "min"),
+    F("modifiers.loadout_offline", "Offline bots too", "bool", True,
+      "modifiers", "Offline bots sort their loadout as well, as if between "
+      "sessions. Off keeps it to bots online on the site but not in a round."),
 
     # --------------------------------------------------------------- speech
     F("speech.enabled", "Speech events", "bool", True, "speech",

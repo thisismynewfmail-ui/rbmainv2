@@ -2024,8 +2024,9 @@ So there are two tiers.
   *Hotbar changes* under In-Game Behaviour in the Bots Zone sets the chance
   per minute (2% by default, 0 turns it off). Each bot's persona scales it:
   collectors and chaotic players change more, the most skilled stick with
-  what works. Once a minute the director rolls it for every online bot (never
-  an offline one). A bot that comes up gets a different pick and order, only
+  what works. Once a minute the director rolls it for every bot in a round,
+  asleep or live; between games, bots plan their loadout instead (*Loadout
+  planning*, under Dynamic Modifiers below). A bot that comes up gets a different pick and order, only
   ever from what is already in its own inventory (`arms.change_up`): nothing
   is bought or given, the pistol stays in slot 1, and a bot that owns only the
   free three keeps them. A bot in a live round is sent its new hotbar and
@@ -2137,15 +2138,16 @@ Settings carry a scope badge so it is clear how each is applied:
 
 ### Dynamic Modifiers
 
-Short-lived boosts that start when a conversation does and fade once it goes
-quiet, each on its own switch on the **Dynamic Modifiers** subtab, which also
-shows what is active right now.
+Short-lived boosts that start when a conversation (or a game) does and fade
+once it goes quiet, each on its own switch on the **Dynamic Modifiers**
+subtab, which also shows what is active right now.
 
 | Modifier | What it does | Defaults |
 | --- | --- | --- |
 | Conversation momentum (DMs) | After two back-and-forths the bot's reply delay is cut by 30%, 10% more per further turn, never more than 70%. How quickly the person answered decides how much of it is left: straight back keeps all of it, a pause fades it, and after the decay time it is gone and the count starts again. A bot mid-conversation also puts off logging off. | 2 turns, 30% + 10%/turn, 70% max, 60 s decay |
 | Chat heat (in-game) | Each of a player's recent lines adds 35% to the chance a bot answers them, fading over the decay time, up to +150%. The bot they were just talking with is favoured to answer again, and a hot chat can pull in a second voice. | +35%/line, +150% max, 60 s decay, 60% partner, 20% second voice |
 | Bots answer each other | A bot's line can draw an answer from another bot (70% when it names them), each further bot-only line half as likely, and the exchange drops after three bot lines in a row until a real player speaks. | 22%, halving, 3 lines |
+| Loadout planning (between games) | Away from a round, a bot looks through its inventory and chooses which weapons to take into its next game (`arms.plan`). Mostly it settles on its favourites; now and then (more for an explorer) it tries something different. Only ever items it already owns: nothing is bought or given, and the pistol stays in slot 1. *How often (loadout)* is the chance per hour, scaled by persona (collectors and chaotic players more, the most skilled less); *Just after a game* boosts it when a bot leaves a round, half as much again after a rough game (more deaths than kills), when it is also keener to try something new, and the boost fades over the decay time. *Offline bots too* lets bots that are offline sort theirs as well. In a round, *Hotbar changes* (In-Game Behaviour) takes over. Counted as `loadout_reviews` and `loadout_changes`. | 12%/hour, +200% after a game, 90 min decay, offline bots on |
 
 ### Speech Events
 
@@ -2439,8 +2441,9 @@ bots a spectator watches at full detail and practise in the bunker; the
 profiles group checks the profile-setting chances and that
 created bots carry them, that most new bots carry weapons they bought and
 that the backfill arms older ones (once), that a hotbar change only ever uses
-what is in the bot's inventory and that the minute's roll leaves offline bots
-alone; the live group also checks that bots fight with the weapons they
+what is in the bot's inventory and that the minute's roll only picks bots in
+a round, and that loadout planning only uses the inventory, never picks a bot
+in a round, honours its switches and is likelier just after a game; the live group also checks that bots fight with the weapons they
 bought rather than the free pistol, and that a bot in a round swaps to its
 changed-up hotbar and everyone is told; the scale group creates thousands of bots, loads
 them and times the director; the llm group runs the model client against the
