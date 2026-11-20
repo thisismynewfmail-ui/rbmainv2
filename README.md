@@ -1761,10 +1761,10 @@ the arrow keys move between hours and days), and every chart has a table view.
 
 Every family page wears the site's own classic chrome (`static/css/site.css`
 loads first, then `family.css`): the glossy blue top bar, the red tab strip,
-the orange parents' notice, gradient-headed panels on the light weave,
-bevelled buttons, the big glossy green call to action, and Verdana. The
-public pages share one header (`partials/pubbar.html`); the parent's own
-pages share another (`partials/appbar.html`) with a tab for each child.
+gradient-headed panels on the light weave, bevelled buttons, the big glossy
+green call to action, and Verdana. The public pages share one header
+(`partials/pubbar.html`); the parent's own pages share another
+(`partials/appbar.html`) with a tab for each child.
 
 The landing page speaks to one parent above all: the one whose child loves
 block games and who wants a safer place for them to play. It names no other

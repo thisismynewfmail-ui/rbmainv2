@@ -57,8 +57,6 @@
   --f-go: linear-gradient(#8fdc6c, #4caf35 52%, #3a9128);
   --f-go-hover: linear-gradient(#a3e884, #57bd3f 52%, #429c2f);
   --f-go-edge: #2c6e1d;
-  --f-notice: linear-gradient(#ffb43a, #f08a00);
-  --f-notice-edge: #b86400;
 }
 :root[data-theme="dark"] { --f-grape-soft: #241634; }
 
@@ -111,14 +109,6 @@ body.fam p { line-height: 1.6; }
 :root[data-theme="dark"] .fam-theme .ap-moon { display: none; }
 .fam-menu { display: none; }
 .fam .only-sm { display: none; }
-
-/* the parents' notice: the orange bar under the tabs */
-.fam-notice { background: var(--f-notice); border-bottom: 1px solid var(--f-notice-edge); color: #fff; font-weight: bold;
-  font-size: 12px; text-shadow: 0 1px 0 rgba(0,0,0,.25); }
-.fam-notice .wrap { display: flex; align-items: center; gap: 8px; min-height: 26px; padding-top: 3px; padding-bottom: 3px; }
-.fam-notice .f-ic { stroke: #fff; }
-.fam-notice a { color: #fff; text-decoration: underline; }
-.fam-notice a:hover { color: #fff3c4; }
 
 /* ------------------------------------------------------------ buttons */
 .f-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--f-text);
@@ -275,7 +265,6 @@ body.fam p { line-height: 1.6; }
   .fam .topnav .hide-sm { display: none; }
   .fam .only-sm { display: inline; }
   .fam .topnav a { padding: 6px 6px; }
-  .fam-notice { font-size: 11px; }
   .f-btn-xl { font-size: 16px; padding: 12px 20px; }
 }
 @media (max-width: 520px) {
