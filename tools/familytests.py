@@ -253,7 +253,15 @@ def test_social():
     mid = messages.send(int(pal["id"]), child["username"], "", "that was shit lol")
     body = db.scalar("SELECT body FROM messages WHERE id=?", (mid,))
     check("shit" not in body, "strong language blanked for the child")
-    # friends: "approve" holds every new friendship for the parent
+    # friends: a new child chooses their own friends until the parent switches
+    # approval on; then "approve" holds every new friendship for the parent
+    fresh = children.get(int(p["id"]), child["username"])["controls"]
+    check(fresh["friends"] == "open", "new friends: they choose, by default")
+    check(fresh["weekday_minutes"] is None and fresh["weekend_minutes"] is None,
+          "no daily limits, by default")
+    check(fresh["quiet"] is False, "quiet hours off, by default")
+    check(guard.check_join(cid, "sky_sprint") is None, "a new child can join at any hour")
+    children.set_controls(int(p["id"]), cid, {"friends": "approve"})
     other = player()
     state = friends.request(cid, int(other["id"]))
     check(state == "awaiting_parent", "child's request waits for the parent")

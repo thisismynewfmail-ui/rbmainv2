@@ -18,3 +18,40 @@
 .haven-overlay:active { cursor: grabbing; }
 .haven-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .haven-host.haven-live .haven-poster { display: none; }
+
+/* The bubble.  Wherever a page wraps a dome in .haven-bubble, the world sits
+   in a round bubble of sky instead of a box: the largest circle the space
+   holds, centred (haven.js frames the dome to fit it).  Only the 3D view is
+   clipped to the circle.  The overlay is not -- the messages that fly at the
+   shield come in from outside the bubble and bounce off, and speech bubbles
+   and the shield badge can cross its edge.  A glassy ring round it slowly
+   brightens and fades, a sheen catches the light, the bubble bobs gently,
+   and a soft shadow under it shrinks as it rises.  (Still, for anyone who
+   asks for less motion.) */
+.haven-bubble { position: relative; isolation: isolate; }
+.haven-bubble > .haven-host { background: none; overflow: visible; animation: hv-bob 8s ease-in-out infinite; }
+.haven-bubble > .haven-host::before,
+.haven-bubble > .haven-host::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; height: 100%; aspect-ratio: 1 / 1;
+  transform: translateX(-50%); border-radius: 50%; pointer-events: none; }
+.haven-bubble > .haven-host::before { z-index: 0; background: linear-gradient(#3a86d6, #a8d3f4 72%, #d4ecfa); }
+.haven-bubble > .haven-host[data-haven="hero"]::before,
+.haven-bubble > .haven-host[data-haven="panel"]::before {
+  background: url("/static/img/family/haven-hero.jpg") center / cover no-repeat, linear-gradient(#3a86d6, #a8d3f4 72%, #d4ecfa); }
+.haven-bubble > .haven-host::after { z-index: 2;
+  background: radial-gradient(ellipse 30% 18% at 33% 15%, rgba(255,255,255,.42), rgba(255,255,255,0) 72%);
+  box-shadow: inset 0 0 0 3px rgba(255,255,255,.6), inset 0 0 24px rgba(255,255,255,.3), 0 0 0 4px rgba(126,200,255,.2), 0 0 26px rgba(126,200,255,.38);
+  animation: hv-glow 6s ease-in-out infinite; }
+.haven-bubble .haven-canvas { z-index: 1; clip-path: circle(closest-side at 50% 50%); }
+.haven-bubble .haven-overlay { z-index: 3; }
+.haven-bubble .haven-poster { z-index: 1; clip-path: circle(closest-side at 50% 50%); }
+.haven-bubble::after { content: ''; position: absolute; left: 50%; top: 100%; height: 11%; max-height: 46px; aspect-ratio: 5 / 1; z-index: -1;
+  transform: translate(-50%, -40%); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(6, 28, 56, .34), rgba(6, 28, 56, 0)); animation: hv-shadow 8s ease-in-out infinite; }
+@keyframes hv-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes hv-shadow { 0%, 100% { transform: translate(-50%, -40%) scale(1); opacity: 1; } 50% { transform: translate(-50%, -40%) scale(.86); opacity: .7; } }
+@keyframes hv-glow {
+  0%, 100% { box-shadow: inset 0 0 0 3px rgba(255,255,255,.6), inset 0 0 24px rgba(255,255,255,.3), 0 0 0 4px rgba(126,200,255,.2), 0 0 26px rgba(126,200,255,.38); }
+  50% { box-shadow: inset 0 0 0 3px rgba(255,255,255,.75), inset 0 0 30px rgba(255,255,255,.4), 0 0 0 6px rgba(126,200,255,.3), 0 0 40px rgba(126,200,255,.6); } }
+@media (prefers-reduced-motion: reduce) {
+  .haven-bubble > .haven-host, .haven-bubble > .haven-host::after, .haven-bubble::after { animation: none; }
+}

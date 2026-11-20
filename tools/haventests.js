@@ -195,7 +195,7 @@ function layoutProblems(w) {
 function run(w, secs) {
   var dt = 1 / 30, steps = Math.round(secs / dt), ks = w.kids, i, j;
   var r = { inside: 0, insideAt: '', carKid: 0, carKidAt: '', carDog: 0, carCar: 0, stuck: 0, stuckAt: '', wait: 0, waitAt: '',
-            outside: 0, nan: 0, bump: 0, bumpAt: '', parties: 0, walked: 0 };
+            outside: 0, nan: 0, bump: 0, bumpAt: '', parties: 0, walked: 0, seeFrames: 0, seeMin: 9, seeMax: -9, seeOff: 0 };
   var pair = {}, waitFor = ks.map(function () { return 0; }), still = ks.map(function (k) { return { x: k.x, z: k.z, t: 0 }; }), wasParty = false;
   for (var st = 0; st < steps; st++) {
     w.step(dt, false);
@@ -232,6 +232,18 @@ function run(w, secs) {
       if (Math.hypot(a.x - s.x, a.z - s.z) > 0.6 || !a.path || a.waiting) { s.x = a.x; s.z = a.z; s.t = w.t; }
       else if (w.t - s.t > 6) { r.stuck++; r.stuckAt = where(w, a.x, a.z); s.t = w.t; }
     }
+    // the seesaw: moving whenever someone rides it, the riders on their seats
+    if (w.seesaws && w.seesaws.length === 2) {
+      w.seesaws.forEach(function (s) {
+        var k = s.user;
+        if (!k || k.path || k.act !== 'seesaw') return;
+        r.seeFrames++;
+        r.seeMin = Math.min(r.seeMin, w.seeTh); r.seeMax = Math.max(r.seeMax, w.seeTh);
+        if (k.actT < 0.5) return;          // still climbing on
+        var u = s.end * 4, seat = 1.65 + u * Math.sin(w.seeTh) + 0.175 * Math.cos(w.seeTh) + 0.06 - 0.5;
+        r.seeOff = Math.max(r.seeOff, Math.abs(k.y - seat), Math.abs(k.x - (s.cx + u * Math.cos(w.seeTh)) * w.mir));
+      });
+    }
     // the cars: against a kid, the dog, each other
     if (w.cars) {
       var bodies = w.cars.map(carCorners);
@@ -254,7 +266,8 @@ function run(w, secs) {
 var win = load(), seasons = ['spring', 'summer', 'autumn', 'winter'];
 ['hero', 'panel'].forEach(function (mode, m) {
   console.log('\n' + mode + ': ' + TOWNS + ' towns, ' + SECS + ' s each');
-  var worst = { inside: 0, carKid: 0, carDog: 0, carCar: 0, stuck: 0, wait: 0, outside: 0, nan: 0, bump: 0, parties: 0, walked: 0 }, notes = {};
+  var worst = { inside: 0, carKid: 0, carDog: 0, carCar: 0, stuck: 0, wait: 0, outside: 0, nan: 0, bump: 0, parties: 0, walked: 0,
+                seeFrames: 0, seeMin: 9, seeMax: -9, seeOff: 0 }, notes = {};
   var layout = [], mirrored = 0, backs = {};
   for (var t = 1; t <= TOWNS; t++) {
     var seed = t * 7919 + m * 104729, season = seasons[t % 4];
@@ -271,6 +284,8 @@ var win = load(), seasons = ['spring', 'summer', 'autumn', 'winter'];
     if (r.wait > worst.wait) { worst.wait = r.wait; notes.wait = label + ', ' + r.waitAt; }
     if (r.bump > worst.bump) { worst.bump = r.bump; notes.bump = label + ', ' + r.bumpAt; }
     worst.parties += r.parties; worst.walked += r.walked;
+    worst.seeFrames += r.seeFrames; worst.seeMin = Math.min(worst.seeMin, r.seeMin); worst.seeMax = Math.max(worst.seeMax, r.seeMax);
+    worst.seeOff = Math.max(worst.seeOff, r.seeOff);
   }
   check(mode + ': towns of both hands and several buildings', mirrored > 0 && mirrored < TOWNS || TOWNS < 3, { mirrored: mirrored, of: TOWNS });
   check(mode + ': the layout is sound (sidewalks, zebras, curbs, spots, car loops)', !layout.length, layout.slice(0, 8).join(' | '));
@@ -284,6 +299,9 @@ var win = load(), seasons = ['spring', 'summer', 'autumn', 'winter'];
   check(mode + ': nobody leaves the island', !worst.outside, notes.outside);
   check(mode + ': every position is a number', !worst.nan, notes.nan);
   check(mode + ': two kids never stand in each other for more than 1.5 s', worst.bump <= 1.5, (notes.bump || '') + ' ' + worst.bump.toFixed(2) + ' s');
+  check(mode + ': the seesaw moves whenever someone rides it, and they stay on their seat',
+        worst.seeFrames > 0 && worst.seeMax - worst.seeMin > 0.35 && worst.seeOff < 0.05,
+        { riddenFrames: worst.seeFrames, tilt: [+worst.seeMin.toFixed(2), +worst.seeMax.toFixed(2)], offSeat: +worst.seeOff.toFixed(3) });
   check(mode + ': the kids get about (and the parties happen)', worst.walked > TOWNS * SECS * 0.5 && (SECS < 200 || worst.parties > 0), { walked: Math.round(worst.walked), parties: worst.parties });
 });
 

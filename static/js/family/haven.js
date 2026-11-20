@@ -637,6 +637,9 @@
     var cfg = MODES[mode] || MODES.hero;
     this.host = host;
     this.mode = mode;
+    // in a round bubble (the page wraps the host in .haven-bubble), the
+    // world is framed to fit the circle rather than the box
+    this.round = !!(host.closest && host.closest('.haven-bubble'));
     this.cfg = cfg;
     this.R = cfg.R;
     var seed = parseInt(query['haven-seed'] || host.getAttribute('data-seed') || '', 10);
@@ -1531,6 +1534,8 @@
     for (i = 0; i < this.spots.length; i++) {
       var c = this.spots[i];
       if (c.kind === 'catch' && !c.user && c.pair && c.pair.user && free.indexOf(c) < 0) free.push(c, c);
+      // the same for the seesaw: someone on one end makes the other end more likely
+      if (c.kind === 'seesaw' && !c.user) { var cs2 = this.otherSeesaw(c); if (cs2 && cs2.user) free.push(c, c); }
     }
     if (!free.length) { k.idle = 1 + Math.random() * 2; return; }
     var target = free[Math.floor(Math.random() * free.length)];
@@ -1645,7 +1650,9 @@
       k.actT += dt;
       var s = k.spot;
       this.act(k, s, dt, t);
-      if (k.act && k.actT >= k.dur && k.act !== 'slide') this.finish(k);
+      // (off the slide at the bottom of the chute -- in act -- and off the
+      // seesaw only when their end is down)
+      if (k.act && k.actT >= k.dur && k.act !== 'slide' && !(k.act === 'seesaw' && (k.see || 0) > -0.27)) this.finish(k);
       return;
     }
     k.state = 'idle';
@@ -1889,10 +1896,14 @@
         break;
       }
       case 'seesaw': {
-        var other = this.otherSeesaw(s), both = other && other.user && !other.user.path && other.user.act === 'seesaw';
-        var tilt = both ? Math.sin(t * 1.8) * 0.3 : 0.3 * s.end;
-        k.x = s.x; k.z = s.z; k.y = 1.6 + Math.sin(tilt) * (s.len / 2) * s.end * (this.mir < 0 ? -1 : 1) * -1;
-        k.y = Math.max(0.4, k.y);
+        // on the seat at its end of the plank: 4 along it from the pivot,
+        // sitting on its top face (a sitter's feet are 0.5 under the seat)
+        // (climbing on takes half a second, as the plank comes down to meet them)
+        var th = this.seeTh || 0, u = s.end * 4.0, up = smooth(clamp(k.actT / 0.5, 0, 1));
+        k.x = (s.cx + u * (up * Math.cos(th) + 1 - up)) * this.mir;
+        k.z = s.z;
+        k.y = up * (1.65 + u * Math.sin(th) + 0.175 * Math.cos(th) + 0.06 - 0.5);
+        k.see = s.end * Math.sin(th);      // + while its end is up, - while it's down
         k.state = 'sit';
         break;
       }
@@ -1964,6 +1975,34 @@
   WP.coinTarget = function (k) {
     var d = Math.sqrt(k.x * k.x + k.z * k.z) || 1;
     return [k.x - k.x / d * 2.6, 1.98, k.z - k.z / d * 2.6];
+  };
+  /* The seesaw's tilt: th lifts its +x end (on the unmirrored island) and
+     everything on it follows -- the plank, the handles and the riders.  Two
+     riders rock it between them; one on their own bumps their end up off the
+     ground and comes back down; with nobody on it, it settles with an end
+     down.  It eases between these, so a kid getting on or off doesn't make
+     it jump. */
+  WP.stepSeesaw = function (dt) {
+    var sw = this.seesaws || (this.seesaws = this.spots.filter(function (q) { return q.kind === 'seesaw'; }));
+    if (sw.length !== 2) return;
+    var riding = sw.filter(function (q) { return q.user && !q.user.path && q.user.act === 'seesaw'; }), want;
+    if (this.seeTh === undefined) { this.seeTh = 0.3; this.seePh = 0; this.seeN = 0; }
+    if (riding.length !== this.seeN) {
+      // someone got on or off: two pick up the rocking from where the plank
+      // is; one on their own starts with their end down (to get on, or
+      // because their partner just got off)
+      if (riding.length === 2) this.seePh = Math.asin(clamp(this.seeTh / 0.3, -1, 1));
+      else this.seePh = 0;
+      this.seeN = riding.length;
+    }
+    if (riding.length === 2) {
+      this.seePh += dt * 1.8;
+      want = Math.sin(this.seePh) * 0.3;
+    } else if (riding.length === 1) {
+      this.seePh += dt * 2.4;
+      want = -riding[0].end * (0.06 + 0.24 * Math.cos(this.seePh));
+    } else want = 0.3;
+    this.seeTh += clamp(want - this.seeTh, -dt * 1.6, dt * 1.6);
   };
   WP.otherSeesaw = function (s) {
     for (var i = 0; i < this.spots.length; i++) {
@@ -2055,7 +2094,9 @@
       p.armL = -2.7; p.armR = -2.7;
       p.legL = -1.3 + (k.swing || 0) * 0.8; p.legR = p.legL;
     } else if (act === 'seesaw') {
-      p.armL = -1.2; p.armR = -1.2;
+      p.armL = -1.25; p.armR = -1.25;
+      var low = clamp(-(k.see || 0) / 0.3, 0, 1);
+      p.legL = -1.45 + low * 0.6; p.legR = p.legL;
     } else if (act === 'tramp') {
       p.armL = -2.2 + Math.sin(t * 8) * 0.4; p.armR = -2.2 - Math.sin(t * 8) * 0.4;
     } else if (act === 'fish') {
@@ -2136,6 +2177,7 @@
     }
     if (this.badgeHit > 0) this.badgeHit = Math.max(0, this.badgeHit - dt);
     if (this.mode === 'build') this.stepBuild(dt);
+    if (this.cfg.town) this.stepSeesaw(dt);
     for (var i = 0; i < this.kids.length; i++) this.updateKid(this.kids[i], dt);
     this.separate(dt);
     if (this.cfg.critters) this.stepCritters(dt);
@@ -2293,13 +2335,21 @@
     // 34 CSS pixels), whatever the size of the picture
     var room = Math.min(0.3, 36 / Math.max(60, (this.cssH || 300) / 2));
     if (this.fit && this.fit.aspect === aspect && this.fit.room === room && this.fit.yaw === Math.round(this.camYaw * 50)) return this.fit;
-    var Rd = this.domeR(), top = Rd * 0.92, bottom = -(this.mode === 'mini' ? 12 : 22);
+    var Rd = this.domeR(), top = Rd * 0.92, bottom = this.round ? -25 : -(this.mode === 'mini' ? 12 : 22);
     var pts = [];
     for (var i = 0; i < 12; i++) {
       var a = i / 12 * TAU;
       pts.push([Math.sin(a) * (Rd + 0.5), 0, Math.cos(a) * (Rd + 0.5)]);
       pts.push([Math.sin(a) * Rd * 0.7, top * 0.72, Math.cos(a) * Rd * 0.7]);
       pts.push([Math.sin(a) * R * 0.7, bottom * 0.45, Math.cos(a) * R * 0.7]);
+      if (this.round) {
+        // in a bubble, the island's whole outline underneath too -- the dirt,
+        // the rock tiers, down to the tip of the big rock -- so the bubble
+        // doesn't cut the rocks off
+        pts.push([Math.sin(a) * (R + 0.8), -7.1, Math.cos(a) * (R + 0.8)]);
+        pts.push([Math.sin(a) * R * 0.86, -11.9, Math.cos(a) * R * 0.86]);
+        pts.push([Math.sin(a) * R * 0.62, -16.5, Math.cos(a) * R * 0.62]);
+      }
     }
     pts.push([0, top, 0], [0, bottom, 0]);
     var target = [0, (top + bottom) * 0.22, 0];
@@ -2328,7 +2378,13 @@
       var y = vp[1] * q[0] + vp[5] * q[1] + vp[9] * q[2] + vp[13];
       var w = vp[3] * q[0] + vp[7] * q[1] + vp[11] * q[2] + vp[15];
       if (w <= 0) return false;
-      if (Math.abs(x / w) > lim || Math.abs(y / w) > lim || y / w > lim - (room || 0)) return false;
+      if (this.round) {
+        // inside the largest circle the picture holds, centred (its radius
+        // in clip space is 1 along the short side, less along the long one)
+        var rx = Math.min(1, 1 / aspect), ry = Math.min(1, aspect), ex = x / w / rx, ey = y / w / ry;
+        if (ey > 0) ey += (room || 0) / ry;
+        if (ex * ex + ey * ey > lim * lim) return false;
+      } else if (Math.abs(x / w) > lim || Math.abs(y / w) > lim || y / w > lim - (room || 0)) return false;
     }
     return true;
   };
@@ -2489,14 +2545,18 @@
           this.stick(B.parts, [s.x + 0.85, s.pivot, s.z], [seat[0] + 0.85, seat[1], seat[2]], 0.1, METAL);
         }
       }
-      // the seesaw plank
-      var a = this.spots.filter(function (q) { return q.kind === 'seesaw'; });
-      if (a.length === 2) {
-        var busyA = a[0].user && !a[0].user.path && a[0].user.act === 'seesaw', busyB = a[1].user && !a[1].user.path && a[1].user.act === 'seesaw';
-        var tilt = busyA && busyB ? Math.sin(t * 1.8) * 0.3 : (busyA ? 0.3 : (busyB ? -0.3 : 0.3));
-        var cx = a[0].cx * mir;
-        B.parts.push({ t: 'box', p: [cx, 1.65, a[0].z], s: [a[0].len + 1.2, 0.35, 1.2], r: [0, 0, tilt * mir], c: '#0d69ac' });
-        B.parts.push({ t: 'box', p: [cx - Math.cos(tilt) * 4.2 * mir, 1.65 + Math.sin(tilt * mir) * -4.2 * mir + 0.7, a[0].z], s: [0.25, 1.2, 1.0], r: [0, 0, tilt * mir], c: '#f5cd30' });
+      // the seesaw: the plank on its pivot, and at each end a seat with a
+      // handle in front of it, all on the one tilt
+      var sw = this.seesaws;
+      if (sw && sw.length === 2) {
+        var th = this.seeTh || 0, tc = Math.cos(th), ts = Math.sin(th), scx = sw[0].cx, ssz = sw[0].z, rot = [0, 0, th * mir];
+        var on = function (u, up) { return [(scx + u * tc - up * ts) * mir, 1.65 + u * ts + up * tc, ssz]; };
+        B.parts.push({ t: 'box', p: on(0, 0), s: [sw[0].len + 1.2, 0.35, 1.2], r: rot, c: '#0d69ac' });
+        for (var e = -1; e <= 1; e += 2) {
+          B.parts.push({ t: 'box', p: on(e * 4.0, 0.23), s: [1.3, 0.12, 1.25], r: rot, c: '#e23b3b' });
+          B.parts.push({ t: 'box', p: on(e * 2.9, 0.72), s: [0.22, 1.1, 0.22], r: rot, c: '#f5cd30' });
+          B.parts.push({ t: 'box', p: on(e * 2.9, 1.24), s: [0.24, 0.24, 1.3], r: rot, c: '#f5cd30' });
+        }
       }
       // the flame and its glow
       var fx = this.place.fire[0] * mir, fz = this.place.fire[1];

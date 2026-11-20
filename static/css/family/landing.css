@@ -35,16 +35,12 @@
 .lp-assure .f-ic { stroke: #8fdc6c; stroke-width: 3; }
 .lp-assure.center { justify-content: center; }
 
-/* the live dome, in a framed stage like the front page's character */
-.lp-stagebox { position: relative; border-radius: 4px; overflow: hidden; border: 1px solid #0a2a48;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.12), 0 6px 18px rgba(0,0,0,.35); background: #8ec5ef; }
+/* the live dome, floating in its bubble on the hero's sky (see haven.css);
+   the notes about what the shield stopped pop up over its lower edge */
+.lp-stagebox { position: relative; }
 .lp-stagebox .lp-haven { aspect-ratio: 1 / 1; }
-.lp-stagelabel { position: absolute; left: 8px; top: 8px; z-index: 3; font-size: 10px; font-weight: bold; color: #fff; padding: 3px 8px;
-  border-radius: 3px; background: rgba(10,30,52,.62); display: inline-flex; align-items: center; gap: 5px; pointer-events: none; }
-.lp-stagehint { position: absolute; right: 8px; bottom: 8px; z-index: 3; font-size: 9px; color: #e8f2ff; background: rgba(10,30,52,.5);
-  padding: 2px 6px; border-radius: 3px; pointer-events: none; }
-.lp-stagecap { margin: 8px 2px 0; font-size: 11px; color: #cfe3f7; text-align: center; }
-.lp-notes { position: absolute; left: 8px; right: 8px; bottom: 30px; z-index: 3; display: grid; gap: 6px; pointer-events: none; }
+.lp-stagecap { margin: 18px 2px 0; font-size: 11px; color: #cfe3f7; text-align: center; }
+.lp-notes { position: absolute; left: 0; right: 0; bottom: 7%; z-index: 4; display: grid; gap: 6px; pointer-events: none; }
 .lp-note { display: flex; gap: 8px; align-items: center; background: #fff; color: #22303c; border: 1px solid #9fb6c9; border-left: 4px solid #2c7fc0;
   border-radius: 3px; padding: 6px 9px; box-shadow: 0 3px 8px rgba(0,0,0,.25); font-size: 11px; max-width: 290px;
   animation: lp-note-in .35s var(--f-spring); }
@@ -100,14 +96,15 @@
 .lp-vs.bad .lp-vs-head { background: var(--head-red); }
 .lp-vs.good .lp-vs-head { background: var(--head-green); }
 .lp-vs-cap { font-size: 11px; color: var(--ink-soft); margin: 0; padding: 6px 10px; border-top: 1px solid var(--line-soft); background: var(--panel); }
-.lp-chatlog { height: 220px; background: #fff; padding: 10px; font-size: 12px; overflow: hidden; color: #22303c;
+.lp-chatlog { height: 260px; background: #fff; padding: 10px; font-size: 12px; overflow: hidden; color: #22303c;
   background-image: repeating-linear-gradient(transparent 0 25px, #eef3f8 25px 26px); }
 .lp-chatlog p { margin: 0 0 8px; padding: 5px 8px; border-left: 3px solid #c4281c; background: #fdecea; border-radius: 0 3px 3px 0;
   opacity: 0; transform: translateX(-8px); animation: lp-msg 9s infinite; }
 .lp-chatlog b { color: #8c1c15; }
 .lp-chatlog .m2 { animation-delay: 1.4s; } .lp-chatlog .m3 { animation-delay: 2.8s; } .lp-chatlog .m4 { animation-delay: 4.2s; }
 @keyframes lp-msg { 0% { opacity: 0; transform: translateX(-8px); } 6%, 80% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; } }
-.vs-world { height: 220px; background: #8ec5ef; }
+.vs-stage { padding: 6px 0 14px; background: radial-gradient(ellipse 60% 70% at 50% 46%, rgba(142,197,239,.35), rgba(142,197,239,0) 70%); }
+.vs-world { height: 240px; }
 .lp-bring { display: grid; grid-template-columns: 1fr auto; gap: 8px 18px; align-items: center; padding: 12px; border: 1px solid var(--info-edge);
   background: var(--info-bg); border-radius: var(--radius); }
 .lp-bring h3 { grid-column: 1 / -1; margin: 0; font-size: 14px; }
