@@ -951,12 +951,30 @@ def change_hotbar(uid: int, traits: Dict[str, float],
     hotbar.  Returns the new hotbar in the join ticket's compact form, for a
     round the bot is playing in, or None when nothing changed (a bot with
     only the free three has nothing to change)."""
+    return _rehotbar(uid, lambda owned, current: arms.change_up(owned, traits, rng, current))
+
+
+def plan_loadout(uid: int, traits: Dict[str, float], rng: random.Random,
+                 unsettled: bool = False) -> bool:
+    """Between games (Dynamic Modifiers' "Loadout planning"): a bot looks
+    through its inventory and chooses which weapons to take into its next
+    game (``arms.plan``), saved like any hotbar.  Only what it owns: nothing
+    is bought or given.  True when the hotbar changed."""
+    return _rehotbar(uid, lambda owned, current: arms.plan(owned, traits, rng, current,
+                                                           unsettled)) is not None
+
+
+def _rehotbar(uid: int, choose) -> Optional[List[Optional[Dict[str, Any]]]]:
+    """Lay one bot's hotbar out again with ``choose(owned, current)`` and
+    save it.  Refused -- None -- when nothing changed or the new hotbar
+    would hold anything that isn't in the bot's own inventory.  Returns the
+    new hotbar in the join ticket's compact form."""
     from ..models import avatars
     owned = usable_owned(uid)
     raw = avatars.raw_avatar(uid)["hotbar"]
     current = [int(x or 0) for x in list(raw)[:catalog.HOTBAR_SIZE]]
     current += [0] * (catalog.HOTBAR_SIZE - len(current))
-    new = arms.change_up(owned, traits, rng, current)
+    new = choose(owned, current)
     mine = {inv for inv, _item in owned}
     if new == current or any(inv and inv not in mine for inv in new):
         return None

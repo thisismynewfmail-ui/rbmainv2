@@ -98,6 +98,18 @@ def test_unit() -> None:
           len({tuple(u) for u in ups}) > 10 and all(u != bar for u in ups))
     check("arms: a bot with only the free three has nothing to change",
           arms.change_up(owned[:3], {}, r, [1, 2, 3, 0, 0]) == [1, 2, 3, 0, 0])
+    big = owned + [(8, "use_smg"), (9, "use_rocket")]
+    fan = {"wp_sniper": 0.95, "wp_rifle": 0.2, "wp_smg": 0.1, "wp_rocket": 0.1, "wp_melee": 0.1}
+    plans = [arms.plan(big, fan, r, [1, 2, 3, 0, 0]) for _ in range(200)]
+    mine_big = {o[0] for o in big}
+    check("arms: between games a bot plans from what it owns, its favourites first",
+          all(all(i in mine_big or i == 0 for i in p) and p[0] == 1 for p in plans)
+          and sum(1 for p in plans if 5 in p) > 180, sum(1 for p in plans if 5 in p))
+    settled = arms.lay_out(big, fan, random.Random(4))
+    calm = sum(1 for _ in range(300) if arms.plan(big, fan, r, settled) != settled)
+    rattled = sum(1 for _ in range(300) if arms.plan(big, fan, r, settled, unsettled=True) != settled)
+    check("arms: after a rough game a bot is keener to try something different",
+          rattled > calm, (calm, rattled))
     check("arms: collectors and chaotic personas change more, the most skilled less",
           arms.change_factor({"collector": 0.9, "chaos": 0.5}) > arms.change_factor({})
           > arms.change_factor({"collector": 0.0, "chaos": 0.0, "skill": 1.0, "explore": 0.0})
@@ -1492,9 +1504,8 @@ def test_profiles() -> None:
         d._hotbar_roll(_now_int())
     d._hotbar_changes = real_changes
     rolled = {uid for uid, _w, _i in picked}
-    check("profiles: the minute's roll only ever picks online bots",
-          rolled and not rolled & {int(d.uids[i]) for i in offline}
-          and rolled <= {int(d.uids[i]) for i in range(d.n) if d.state[i] != dm.OFFLINE})
+    check("profiles: Hotbar changes only ever picks bots in a round",
+          rolled and rolled <= {int(d.uids[i]) for i in range(d.n) if d.state[i] == dm.PLAYING})
     d._hotbar_changes([(live_uid, world, 7)] + [(int(d.uids[i]), "", None) for i in online if i != live_i],
                       1.0, 1.0)
     ops = [o for o in d.ops[world] if o.get("op") == "rearm"]
@@ -1504,6 +1515,56 @@ def test_profiles() -> None:
           and all(e is None or int(e["inv_id"]) in owned_live for e in ops[0]["hotbar"]),
           ops[:1])
     check("profiles: the changes are counted for the Bot Stats", d.stats()["counters"]["hotbar_changes"] > 0)
+    # Loadout planning (Dynamic Modifiers): between games, from the inventory only
+    inv_before = {uid: sorted(r["id"] for r in db.query("SELECT id FROM inventory WHERE user_id=?", (uid,)))
+                  for uid in ids}
+    cash_before = {uid: economy.balance(uid) for uid in ids}
+    planned, off_inv = 0, []
+    for uid in ids:
+        if factory.plan_loadout(uid, {}, rng2, unsettled=True):
+            planned += 1
+        owned_ids = {inv for inv, _item in factory.usable_owned(uid)}
+        if any(int(i or 0) and int(i) not in owned_ids for i in avatars.raw_avatar(uid)["hotbar"]):
+            off_inv.append(uid)
+    check("profiles: loadout planning only uses what is in the bot's inventory",
+          planned > 10 and not off_inv
+          and all(sorted(r["id"] for r in db.query("SELECT id FROM inventory WHERE user_id=?", (uid,)))
+                  == inv_before[uid] and economy.balance(uid) == cash_before[uid] for uid in ids),
+          "%d planned, %d off-inventory" % (planned, len(off_inv)))
+
+    def loadout_picks(settings):
+        bot_config.save(settings)
+        got = []
+        real = d._loadout_changes
+        d._loadout_changes = lambda picks: got.extend(picks)
+        with d.lock:
+            d._loadout_roll(_now_int())
+        d._loadout_changes = real
+        return got
+    full = {"modifiers.loadout_enabled": True, "modifiers.loadout_per_hour": 100,
+            "modifiers.loadout_offline": True}
+    picks = {u for u, _c, _cap, _r in loadout_picks(full)}
+    in_round = {int(d.uids[i]) for i in range(d.n) if d.state[i] == dm.PLAYING}
+    check("profiles: loadout planning never picks a bot that is in a round",
+          picks and not picks & in_round, len(picks))
+    online_only = {u for u, _c, _cap, _r in loadout_picks(dict(full, **{"modifiers.loadout_offline": False}))}
+    check("profiles: with Offline bots too off, only bots online between games plan",
+          online_only and all(d.state[d.index_of(u)] in (dm.IDLE, dm.WAKING) for u in online_only))
+    check("profiles: Loadout planning switched off picks nobody",
+          not loadout_picks(dict(full, **{"modifiers.loadout_enabled": False}))
+          and not loadout_picks(dict(full, **{"modifiers.loadout_per_hour": 0})))
+    # just after a game, more likely -- more again after a rough one
+    fresh_off = [int(d.uids[i]) for i in offline]
+    for uid in fresh_off[:10]:
+        d.after_game[uid] = (_now_int(), True)
+    slow = dict(full, **{"modifiers.loadout_per_hour": 5, "modifiers.loadout_after_game": 1000})
+    tally = collections.Counter()
+    for _ in range(40):
+        for u, _c, _cap, _r in loadout_picks(slow):
+            tally["after" if u in fresh_off[:10] else ("other" if u in fresh_off[10:20] else "-")] += 1
+    check("profiles: just after a game a bot is likelier to plan its loadout",
+          tally["after"] > tally["other"] * 3, dict(tally))
+    bot_config.reset("modifiers")
     bot_config.reset("ingame")
     owner = rows[0]
     check("profiles: the site honours a bot's private inventory",

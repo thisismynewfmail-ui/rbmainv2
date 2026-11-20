@@ -217,3 +217,24 @@ def change_up(owned: Sequence[Tuple[int, str]], traits: Dict[str, float],
         if bar != current:
             return bar
     return current
+
+
+# ----------------------------------------------------------- between games
+def plan(owned: Sequence[Tuple[int, str]], traits: Dict[str, float],
+         rng: random.Random, current: Sequence[int], unsettled: bool = False) -> List[int]:
+    """Between games (Dynamic Modifiers' "Loadout planning"): which weapons a
+    bot takes into its next game, chosen from what it already owns.  Mostly
+    it settles on what it likes best -- its own preferences, give or take a
+    little -- the way a player goes back to their favourite set; now and then
+    (more often for an explorer, much more after a rough game) it tries
+    something different instead (``change_up``).  Nothing is bought or
+    given, and the pistol stays in slot 1.  The hotbar comes back as it was
+    when it already holds what the bot would choose."""
+    current = list(current)
+    explore = 0.2 + float(traits.get("explore", 0.2)) * 0.4 + (0.35 if unsettled else 0.0)
+    if rng.random() < explore:
+        return change_up(owned, traits, rng, current)
+    mood = dict(traits)
+    for key in WEAPON_KEYS:
+        mood[key] = float(traits.get(key, 0.3)) + rng.uniform(-0.12, 0.12)
+    return lay_out(owned, mood, rng)

@@ -113,7 +113,11 @@ class Director:
         self.events: deque = deque(maxlen=200)
         self.history: deque = deque(maxlen=24 * 60)           # one sample a minute
         self.counters = {"woke": 0, "slept": 0, "joined": 0, "left": 0,
-                         "hydrated": 0, "slept_instances": 0, "hotbar_changes": 0}
+                         "hydrated": 0, "slept_instances": 0, "hotbar_changes": 0,
+                         "loadout_reviews": 0, "loadout_changes": 0}
+        # when each bot last left a round, and whether it went badly -- for
+        # Loadout planning's "just after a game" boost (forgotten once faded)
+        self.after_game: Dict[int, Tuple[int, bool]] = {}
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._last = {"ctrl": 0.0, "dorm": 0.0, "flush": 0.0, "snap": 0.0,
@@ -911,12 +915,16 @@ class Director:
                 stats.update({"uid": uid, "world": world, "at": now,
                               "visit": seconds >= 30})
                 self.session_rows.append(stats)
+                rough = int(stats.get("deaths", 0)) > max(int(stats.get("kills", 0)),
+                                                          int(stats.get("zkills", 0)) // 6, 1)
+                self.after_game[uid] = (now, rough)
             if not dorm.members:
                 self.dormant[world].pop(inst_id, None)
                 self._free_hint[world] = min(self._free_hint[world], inst_id)
             else:
                 self._mark_open(world, inst_id)
         elif self.live[world].pop(uid, None) is not None:
+            self.after_game[uid] = (now, False)
             self.ops[world].append({"op": "leave", "uid": uid, "inst": inst_id,
                                     "reason": reason})
             hosted = self.hosted[world].get(inst_id)
@@ -1410,6 +1418,7 @@ class Director:
             if t - self._last.get("arms", 0.0) >= 60.0:
                 self._last["arms"] = t
                 self._hotbar_roll(now)
+                self._loadout_roll(now)
             if t - self._last["hist"] >= 60.0:
                 self._last["hist"] = t
                 self.history.append({"at": now, "online": self.online,
@@ -1456,10 +1465,11 @@ class Director:
     def _hotbar_roll(self, now: int) -> None:
         """Once a minute (under the lock): which online bots might change up
         their hotbar -- the Bots Zone's "Hotbar changes", a chance per minute
-        that each bot's persona scales (``arms.change_factor``).  Every online
-        bot is rolled against the most a persona can scale it; the few that
-        come up are finished off the lock, where their own persona is read.
-        Offline bots never change."""
+        that each bot's persona scales (``arms.change_factor``).  Every bot in
+        a round (asleep or live) is rolled against the most a persona can
+        scale it; the few that come up are finished off the lock, where their
+        own persona is read.  Bots between games plan their loadout instead
+        (``_loadout_roll``)."""
         try:
             rate = float(bot_config.get("ingame.hotbar_change_per_minute") or 0) / 100.0
         except (TypeError, ValueError):
@@ -1469,7 +1479,7 @@ class Director:
         cap = min(1.0, rate * arms.CHANGE_MAX)
         rng, state, picked = self.rng, self.state, []
         for i in range(self.n):
-            if state[i] == OFFLINE or rng.random() >= cap:
+            if state[i] != PLAYING or rng.random() >= cap:
                 continue
             uid = int(self.uids[i])
             w = self.world[i]
@@ -1510,6 +1520,77 @@ class Director:
         if changed:
             with self.lock:
                 self.counters["hotbar_changes"] = self.counters.get("hotbar_changes", 0) + changed
+
+    # ======================================================= loadouts
+    def _loadout_roll(self, now: int) -> None:
+        """Once a minute (under the lock): Dynamic Modifiers' "Loadout
+        planning".  Bots that aren't in a round -- online on the site, and
+        offline ones too unless that is switched off -- may look through
+        their inventory and choose what to take into their next game.  The
+        chance per hour is scaled by each bot's persona and, for a while
+        after it leaves a round, boosted (more after a rough game), the boost
+        fading over the decay time.  As with hotbar changes, every bot is
+        rolled against the most it could be and the few that come up are
+        finished off the lock."""
+        from .modifiers import fade
+        get = bot_config.get
+        if not get("modifiers.loadout_enabled") or not self.n or not self.enabled():
+            return
+        try:
+            rate = float(get("modifiers.loadout_per_hour") or 0) / 100.0 / 60.0
+            boost_max = float(get("modifiers.loadout_after_game") or 0) / 100.0
+            decay = max(60.0, float(get("modifiers.loadout_decay_minutes") or 90) * 60.0)
+        except (TypeError, ValueError):
+            return
+        after = self.after_game
+        for uid in [u for u, (at, _r) in after.items() if now - at >= decay]:
+            after.pop(uid, None)
+        if rate <= 0:
+            return
+        offline_ok = bool(get("modifiers.loadout_offline"))
+        rng, state, uids, picked = self.rng, self.state, self.uids, []
+        plain_cap = min(1.0, rate * arms.CHANGE_MAX)
+        for i in range(self.n):
+            st = state[i]
+            if st == PLAYING or (st == OFFLINE and not offline_ok):
+                continue
+            chance, rough = rate, False
+            if after:
+                ag = after.get(int(uids[i]))
+                if ag is not None:
+                    rough = ag[1]
+                    chance = rate * (1.0 + boost_max * fade(now - ag[0], decay) * (1.5 if rough else 1.0))
+            cap = plain_cap if chance == rate else min(1.0, chance * arms.CHANGE_MAX)
+            if rng.random() < cap:
+                picked.append((int(uids[i]), chance, cap, rough))
+        if picked:
+            threading.Thread(target=self._loadout_changes, args=(picked,),
+                             daemon=True, name="bots-loadouts").start()
+
+    def _loadout_changes(self, picked: List[Tuple[int, float, float, bool]]) -> None:
+        """The bots that came up look through their inventory: each one's own
+        chance is its share times its persona's factor, so it goes ahead
+        with that over the cap it was rolled against.  It chooses from what
+        it owns (``factory.plan_loadout``) -- after a rough game more keen to
+        try something different."""
+        from . import factory
+        rng = random.Random()
+        reviewed = changed = 0
+        for uid, chance, cap, rough in picked:
+            try:
+                row = db.query_one("SELECT traits FROM bot_profiles WHERE user_id=?", (uid,))
+                traits = personas.unpack_traits(row["traits"] if row else "")
+                if rng.random() >= chance * arms.change_factor(traits) / cap:
+                    continue
+                reviewed += 1
+                if factory.plan_loadout(uid, traits, rng, unsettled=rough):
+                    changed += 1
+            except Exception:
+                traceback.print_exc()
+        if reviewed:
+            with self.lock:
+                self.counters["loadout_reviews"] = self.counters.get("loadout_reviews", 0) + reviewed
+                self.counters["loadout_changes"] = self.counters.get("loadout_changes", 0) + changed
 
     def _note(self, text: str) -> None:
         self.events.append({"at": _now(), "text": text})
