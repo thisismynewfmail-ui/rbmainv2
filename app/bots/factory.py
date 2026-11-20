@@ -38,7 +38,7 @@ from .. import db
 from ..models import catalog, users
 from ..models import event_worlds as _event_worlds
 from . import config as bot_config
-from . import llm, names, personas, prompts, social, storage
+from . import arms, llm, names, personas, prompts, social, storage
 
 BOT_PASSWORD_HASH = "!bot"      # never verifies: bots cannot be signed in to
 
@@ -514,17 +514,14 @@ def _choose_items(traits: Dict[str, float], tags: Sequence[str],
             weights.append(w)
         wanted.append(rng.choices(pool, weights)[0]["id"])
 
-    # what this persona would go for first
-    if "tycoon_fan" in tags or "builder" in tags:
-        wanted += [i for i in ("shirt_burger", "use_buildhammer") if rng.random() < 0.6]
-    weapon_pref = [("use_sniper", "wp_sniper"), ("use_smg", "wp_smg"),
-                   ("use_rifle", "wp_rifle"), ("use_sword", "wp_melee"),
-                   ("use_rocket", "wp_rocket")]
-    for item_id, key in weapon_pref:
-        if traits.get(key, 0) > 0.8 or rng.random() < traits.get(key, 0) * 0.35:
-            wanted.append(item_id)
-    if traits.get("support", 0) > 0.4 and rng.random() < 0.7:
-        wanted.append("use_medkit")
+    # what this persona would go for first: the shirt for a tycoon fan, then
+    # weapons (app/bots/arms.py) -- the shelf ones it likes, a hammer, a
+    # medkit, and from the Event Armory for a veteran or a collector
+    if ("tycoon_fan" in tags or "builder" in tags) and rng.random() < 0.6:
+        wanted.append("shirt_burger")
+    from ..models import crates
+    armory = [it for it in catalog.by_slot("usable") if crates.in_armory(it)]
+    wanted += arms.wanted(traits, tags, rng, armory)
     order = ["hair", "shirt", "pants", "hat", "face", "hat", "belt", "back", "hat",
              "shirt", "pants", "hat", "face", "hair", "hat", "back", "hat", "belt"]
     if traits.get("collector", 0) > 0.55:
@@ -873,16 +870,9 @@ def _outfit(card: Dict[str, Any], rows: Dict[str, List[Tuple[int, str]]],
             continue        # some people just do not wear a hat
         choice = (unusual or paid or options)
         equipped[slot] = rng.choice(choice)[0]
-    # the hotbar: the free three, then whatever weapons it bought
-    hotbar = [0] * catalog.HOTBAR_SIZE
-    for index, item_id in enumerate(catalog.DEFAULT_HOTBAR):
-        if item_id and item_id in rows:
-            hotbar[index] = rows[item_id][0][0]
-    bought = [c for c in by_slot.get("usable", []) if c[2] not in catalog.DEFAULT_HOTBAR]
-    rng.shuffle(bought)
-    slots = [3, 4, 2, 1]
-    for (inv_id, _tier, item_id), slot in zip(bought, slots):
-        hotbar[slot] = inv_id
+    # the hotbar: the free three, and the weapons it bought (app/bots/arms.py)
+    hotbar = arms.lay_out([(inv_id, item_id) for inv_id, _tier, item_id in by_slot.get("usable", [])],
+                          card.get("traits") or {}, rng)
     pinned: List[int] = []
     showable = [o for o in by_slot.get("hat", []) if o[1] == "unusual"] + \
         [o for s in ("hat", "back", "usable", "shirt") for o in by_slot.get(s, [])
@@ -944,6 +934,65 @@ def _badges(card: Dict[str, Any], rng: random.Random) -> None:
     if held and rng.random() < 0.55:
         best = max(held.items(), key=lambda kv: (kv[1]["level"], rng.random()))[0]
         badges.set_worn(card["id"], best)
+
+
+def backfill_arms(limit: int = 50000) -> Dict[str, int]:
+    """Arm the bots made before they bought weapons of their own, and lay
+    every bot's hotbar out from what it owns.
+
+    A bot that owns nothing beyond the free three buys what its persona
+    wants (``arms.wanted``), paid from its balance like any purchase, with
+    the ledger line to show for it -- what it can't afford it goes without.
+    Then its hotbar is laid out from its inventory (``arms.lay_out``).  Each
+    bot's choices come from its own id, so a second run changes nothing.
+    Runs when the director starts, in the background."""
+    from ..models import crates, economy, inventory
+    armory = [it for it in catalog.by_slot("usable") if crates.in_armory(it)]
+    rows = db.query(
+        "SELECT u.id, bp.traits, bp.tags, a.hotbar FROM users u"
+        " JOIN bot_profiles bp ON bp.user_id=u.id JOIN avatars a ON a.user_id=u.id"
+        " WHERE u.is_bot=1 ORDER BY u.id LIMIT ?", (int(limit),))
+    armed = laid = 0
+    for row in rows:
+        uid = int(row["id"])
+        try:
+            traits = personas.unpack_traits(row["traits"] or "")
+            tags = [t for t in (row["tags"] or "").split(",") if t]
+
+            def usable() -> List[Tuple[int, str]]:
+                return [(int(r["id"]), r["item_id"]) for r in db.query(
+                    "SELECT id, item_id FROM inventory WHERE user_id=? ORDER BY id", (uid,))
+                    if (catalog.get(r["item_id"]) or {}).get("slot") == "usable"]
+
+            owned = usable()
+            if not any(not arms.free(item_id) for _inv, item_id in owned):
+                bought = False
+                for item_id in arms.wanted(traits, tags, random.Random(uid * 104729 + 17), armory):
+                    item = catalog.get(item_id)
+                    if item is None or inventory.owns_item(uid, item_id):
+                        continue
+                    try:
+                        economy.spend(uid, crates.price_of(item), _bought(item))
+                    except economy.EconomyError:
+                        continue
+                    inventory.grant(uid, item_id, source="market", allow_unusual=False)
+                    bought = True
+                if bought:
+                    armed += 1
+                    owned = usable()
+            hotbar = arms.lay_out(owned, traits, random.Random(uid * 7919 + 3))
+            try:
+                current = json.loads(row["hotbar"] or "[]")
+            except ValueError:
+                current = []
+            if current != hotbar:
+                db.execute("UPDATE avatars SET hotbar=?, updated_at=? WHERE user_id=?",
+                           (json.dumps(hotbar, separators=(",", ":")), _now(), uid))
+                laid += 1
+        except Exception:
+            import traceback
+            traceback.print_exc()
+    return {"armed": armed, "hotbars": laid}
 
 
 def backfill_badges(limit: int = 400) -> int:

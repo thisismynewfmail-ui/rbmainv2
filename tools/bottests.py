@@ -26,6 +26,7 @@ Nothing here touches ``data/``: every database is a temporary file.
 from __future__ import annotations
 
 import argparse
+import collections
 import io
 import contextlib
 import json
@@ -70,6 +71,23 @@ def isolate() -> str:
 # ====================================================================== unit
 def test_unit() -> None:
     print("\n== unit ==")
+    from app.bots import arms
+    from app.models import catalog as cat
+    check("arms: shelf and event weapons answer to the right preference",
+          arms.preference("use_sniper") == "wp_sniper" and arms.preference("use_sword") == "wp_melee"
+          and arms.preference("use_ny22_midnight_mallet") == "wp_melee"
+          and arms.preference("use_ny22_confetti_cannon") == "wp_shotgun"
+          and arms.preference("use_xm22_snowball_gatling") == "wp_rocket"
+          and arms.preference("use_jl22_powder_keg") == "")
+    owned = [(1, "use_pistol"), (2, "use_shotgun"), (3, "use_stick"), (4, "use_rifle"),
+             (5, "use_sniper"), (6, "use_sword"), (7, "use_ny22_confetti_cannon")]
+    bar = arms.lay_out(owned, {"wp_rifle": 0.9, "wp_sniper": 0.8}, random.Random(1))
+    check("arms: the hotbar keeps the pistol, fills the empty slots and swaps the free ones by job",
+          bar[0] == 1 and set(bar[3:]) == {4, 5} and bar[2] == 6 and bar[1] == 7, bar)
+    check("arms: with nothing bought it is the free three",
+          arms.lay_out(owned[:3], {}, random.Random(2)) == [1, 2, 3, 0, 0])
+    check("arms: a hotbar only ever holds what is owned, and only usable things",
+          all(i in {o[0] for o in owned} or i == 0 for i in bar) and len(bar) == cat.HOTBAR_SIZE)
     from app.bots import names, personas, dormant, template
     rng = random.Random(1)
     made = names.generate_unique(rng, set(), 400)
@@ -361,6 +379,28 @@ def test_live(seconds: float) -> None:
         stuck = [sp["p"] for sp in points if not inst.body_fits(*sp["p"])]
         check("%s: every spawn point has room for a body (%d points)" % (world_id, len(points)),
               not stuck, stuck)
+    # bots fight with what they bought: a bot with a rifle, an SMG or the
+    # Longshot fires it for most of its shots (not the free pistol in slot 1)
+    import app.game.instance as engine_module
+    cls = engine_module.GameInstance
+    real_fire, shots = cls.handle_fire, collections.Counter()
+
+    def counting(self, p, msg):
+        if getattr(p, "brain", None) is not None:
+            owns = any(e and e.get("item_id") not in ("use_pistol", "use_shotgun", "use_stick")
+                       for e in (p.avatar.get("hotbar") or []))
+            if owns:
+                held = (p.weapon() or {}).get("item_id", "")
+                shots["own" if held not in ("use_pistol", "use_shotgun", "use_stick") else "free"] += 1
+        return real_fire(self, p, msg)
+    cls.handle_fire = counting
+    try:
+        run_world("blackout_relay", min(seconds, 45.0), 12, seed=4)
+    finally:
+        cls.handle_fire = real_fire
+    share = shots["own"] / max(1, shots["own"] + shots["free"])
+    check("live: bots fight with the weapons they bought (%.0f%% of their shots)" % (share * 100),
+          shots["own"] + shots["free"] > 20 and share > 0.4, dict(shots))
     for world_id, bots in (("capture_the_flag", 14), ("blackout_relay", 18),
                            ("fortress_team_2", 16), ("burger_tycoon", 14)):
         r = run_world(world_id, seconds, bots)
@@ -1310,6 +1350,41 @@ def test_profiles() -> None:
           len(made) == 300 and len(rows) >= 300 and 0.35 < private / len(rows) < 0.65
           and all(users.theme_of(r) == "dark" for r in rows) and 0.25 < hidden / len(rows) < 0.55,
           "%d/%d private, %d hidden" % (private, len(rows), hidden))
+    from app.bots import arms
+    from app.models import avatars, catalog as cat, economy
+    carry, honest = 0, True
+    for card in made:
+        hb = avatars.descriptor(int(card["id"]))["hotbar"]
+        if any(e and not arms.free(e["item_id"]) for e in hb):
+            carry += 1
+        if not hb[0] or hb[0]["item_id"] != "use_pistol":
+            honest = False
+    check("profiles: most new bots carry weapons they bought, and the pistol stays",
+          carry >= len(made) * 0.8 and honest, "%d/%d" % (carry, len(made)))
+    events = sum(1 for r in db.query("SELECT i.item_id FROM inventory i JOIN users u ON u.id=i.user_id"
+                                     " WHERE u.is_bot=1")
+                 if (cat.get(r["item_id"]) or {}).get("slot") == "usable" and (cat.get(r["item_id"]) or {}).get("event"))
+    check("profiles: some bots own event weapons from the Event Armory", events > 0, events)
+    # bots from before: nothing bought, the free three on the hotbar, some Noogets
+    old = [int(c["id"]) for c in made[:40]]
+    bought_ids = [it["id"] for it in cat.by_slot("usable") if not arms.free(it["id"])]
+    for uid in old:
+        db.execute("DELETE FROM inventory WHERE user_id=? AND item_id IN (%s)"
+                   % ",".join("?" * len(bought_ids)), [uid] + bought_ids)
+        inv = {r["item_id"]: r["id"] for r in db.query(
+            "SELECT id, item_id FROM inventory WHERE user_id=?", (uid,))}
+        db.execute("UPDATE avatars SET hotbar=? WHERE user_id=?",
+                   (json.dumps([inv.get(i, 0) for i in cat.DEFAULT_HOTBAR]), uid))
+        db.execute("UPDATE users SET credits=6000 WHERE id=?", (uid,))
+    first = factory.backfill_arms()
+    armed = sum(1 for uid in old if any(e and not arms.free(e["item_id"])
+                                        for e in avatars.descriptor(uid)["hotbar"]))
+    paid = all(db.scalar("SELECT COUNT(*) FROM credit_ledger WHERE user_id=? AND reason LIKE 'Bought %'",
+                         (uid,)) >= 1 for uid in old if economy.balance(uid) < 6000)
+    check("profiles: the backfill arms the old bots, paid for from their balance",
+          armed >= len(old) * 0.6 and paid and all(economy.balance(uid) >= 0 for uid in old),
+          "%d/%d armed, %s" % (armed, len(old), first))
+    check("profiles: a second backfill changes nothing", factory.backfill_arms() == {"armed": 0, "hotbars": 0})
     owner = rows[0]
     check("profiles: the site honours a bot's private inventory",
           users.can_view(dict(owner, privacy=json.dumps({"inventory": "private"})),

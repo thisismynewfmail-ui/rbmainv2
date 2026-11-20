@@ -39,6 +39,7 @@ import time
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 
+from ...bots import arms
 from ..gear import GEAR_KINDS
 from ..instance import EYE_HEIGHT, GRAVITY, JUMP_SPEED, WALK_SPEED, now
 from . import body as body_module
@@ -873,11 +874,12 @@ class Brain:
             or float(stats.get("range", 200)) < 80
 
     def _choose_weapon(self, distance: float) -> None:
+        """The weapon for this distance: the one that suits the range, by how
+        much this bot likes that kind of weapon -- and, like anybody, a
+        weapon it bought (a rifle, an event blaster) over the free one that
+        does the same job.  The free pistol and shotgun are what it falls
+        back on, not what it reaches for."""
         best_slot, best_score = self.p.slot, -1.0
-        prefs = {"use_sniper": "wp_sniper", "use_shotgun": "wp_shotgun",
-                 "use_smg": "wp_smg", "use_rifle": "wp_rifle", "use_sword": "wp_melee",
-                 "use_stick": "wp_melee", "use_rocket": "wp_rocket",
-                 "use_buildhammer": "wp_melee"}
         for slot, stats, item_id in self._weapons():
             kind = stats.get("kind")
             reach = float(stats.get("range", 200))
@@ -907,7 +909,12 @@ class Brain:
             ammo = self.p.ammo[slot] + self.p.reserve[slot]
             if kind not in ("melee", "beam") and ammo <= 0:
                 continue
-            score = fit * (0.6 + self.t(prefs.get(item_id, ""), 0.3))
+            if arms.free(item_id):
+                key = {"use_shotgun": "wp_shotgun", "use_stick": "wp_melee"}.get(item_id, "")
+            else:
+                key = arms.preference(item_id)
+            liking = (0.6 + self.t(key, 0.3)) if key else 0.9
+            score = fit * liking * (1.0 if arms.free(item_id) else 1.35)
             if score > best_score:
                 best_slot, best_score = slot, score
         if best_slot != self.p.slot or self.p.stowed:
