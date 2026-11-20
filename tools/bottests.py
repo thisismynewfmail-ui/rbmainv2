@@ -88,6 +88,21 @@ def test_unit() -> None:
           arms.lay_out(owned[:3], {}, random.Random(2)) == [1, 2, 3, 0, 0])
     check("arms: a hotbar only ever holds what is owned, and only usable things",
           all(i in {o[0] for o in owned} or i == 0 for i in bar) and len(bar) == cat.HOTBAR_SIZE)
+    # changing up (the Bots Zone's "Hotbar changes"): only ever what it owns
+    r = random.Random(3)
+    ups = [arms.change_up(owned, {}, r, bar) for _ in range(80)]
+    mine = {o[0] for o in owned}
+    check("arms: a change-up only ever carries what the bot owns, the pistol in slot 1",
+          all(all(i in mine or i == 0 for i in u) and u[0] == 1 for u in ups))
+    check("arms: changing up really changes it (a different pick and order)",
+          len({tuple(u) for u in ups}) > 10 and all(u != bar for u in ups))
+    check("arms: a bot with only the free three has nothing to change",
+          arms.change_up(owned[:3], {}, r, [1, 2, 3, 0, 0]) == [1, 2, 3, 0, 0])
+    check("arms: collectors and chaotic personas change more, the most skilled less",
+          arms.change_factor({"collector": 0.9, "chaos": 0.5}) > arms.change_factor({})
+          > arms.change_factor({"collector": 0.0, "chaos": 0.0, "skill": 1.0, "explore": 0.0})
+          and all(0.25 <= arms.change_factor(t) <= arms.CHANGE_MAX
+                  for t in ({}, {"collector": 5, "chaos": 5}, {"skill": 9})))
     from app.bots import names, personas, dormant, template
     rng = random.Random(1)
     made = names.generate_unique(rng, set(), 400)
@@ -220,6 +235,10 @@ def _spec(uid: int, rng: random.Random, team: str = "") -> Dict[str, Any]:
             "stats": [0, 0, 0], "tags": tags, "traits": traits,
             "bias": {"skill": 0.55, "reaction": 380, "aim": 3.5,
                      "objective": min(1.0, 0.72 * (0.5 + traits["objective"]))}}
+
+
+def _now_int() -> int:
+    return int(time.time())
 
 
 def run_world(world_id: str, seconds: float, bots: int = 16, watcher: bool = True,
@@ -401,6 +420,32 @@ def test_live(seconds: float) -> None:
     share = shots["own"] / max(1, shots["own"] + shots["free"])
     check("live: bots fight with the weapons they bought (%.0f%% of their shots)" % (share * 100),
           shots["own"] + shots["free"] > 20 and share > 0.4, dict(shots))
+    # "Hotbar changes" in a live round: the director's op reaches the bot,
+    # which swaps when it isn't fighting, and the round is told
+    told = []
+
+    def stage(inst):
+        real_broadcast = inst.broadcast
+
+        def watching(msg, *args, **kwargs):
+            if msg.get("t") == "hotbar":
+                told.append(msg)
+            return real_broadcast(msg, *args, **kwargs)
+        inst.broadcast = watching
+        from app.models import catalog as cat
+        sword = cat.get("use_sword")
+        refs = [{"inv_id": 1, "item_id": "use_pistol"}, None, {"inv_id": 2, "item_id": "use_stick"},
+                {"inv_id": 3, "item_id": sword["id"]}, None]
+        brain = next(iter(inst.bots.brains.values()))
+        stage.uid = brain.p.user_id
+        stage.ok = inst.bots.rearm(brain.p.user_id, refs)
+    r = run_world("blackout_relay", 20.0, 6, seed=8, setup=stage)
+    bot = next(p for p in r["inst"].players.values() if p.user_id == stage.uid)
+    held = [(e or {}).get("item_id") for e in bot.avatar.get("hotbar") or []]
+    check("live: a bot in the round swaps to its changed-up hotbar, and everyone is told",
+          stage.ok and held == ["use_pistol", None, "use_stick", "use_sword", None]
+          and bot.brain.pending_hotbar is None and any(m.get("id") == bot.pid for m in told),
+          held)
     for world_id, bots in (("capture_the_flag", 14), ("blackout_relay", 18),
                            ("fortress_team_2", 16), ("burger_tycoon", 14)):
         r = run_world(world_id, seconds, bots)
@@ -1385,6 +1430,81 @@ def test_profiles() -> None:
           armed >= len(old) * 0.6 and paid and all(economy.balance(uid) >= 0 for uid in old),
           "%d/%d armed, %s" % (armed, len(old), first))
     check("profiles: a second backfill changes nothing", factory.backfill_arms() == {"armed": 0, "hotbars": 0})
+    # "Hotbar changes": from the inventory only -- nothing bought, nothing given
+    ids = [int(c["id"]) for c in made[40:120]]
+    inv_before = {uid: sorted(r["id"] for r in db.query("SELECT id FROM inventory WHERE user_id=?", (uid,)))
+                  for uid in ids}
+    cash_before = {uid: economy.balance(uid) for uid in ids}
+    rng2, changed, bad = random.Random(9), 0, []
+    for _ in range(4):
+        for uid in ids:
+            if factory.change_hotbar(uid, {}, rng2) is not None:
+                changed += 1
+            owned_ids = {inv for inv, _item in factory.usable_owned(uid)}
+            hb = [int(x or 0) for x in avatars.raw_avatar(uid)["hotbar"]]
+            if any(i and i not in owned_ids for i in hb):
+                bad.append(uid)
+    same_inv = all(sorted(r["id"] for r in db.query("SELECT id FROM inventory WHERE user_id=?", (uid,)))
+                   == inv_before[uid] for uid in ids)
+    check("profiles: a hotbar change only uses what is in the bot's inventory",
+          changed > 50 and not bad and same_inv and all(economy.balance(u) == cash_before[u] for u in ids),
+          "%d changes, %d off-inventory" % (changed, len(bad)))
+    plain = next((uid for uid in ids if all(arms.free(i) for _inv, i in factory.usable_owned(uid))), None)
+    if plain is None:
+        plain = ids[0]
+        extra = [it["id"] for it in cat.by_slot("usable") if not arms.free(it["id"])]
+        db.execute("DELETE FROM inventory WHERE user_id=? AND item_id IN (%s)" % ",".join("?" * len(extra)),
+                   [plain] + extra)
+        inv = {r["item_id"]: r["id"] for r in db.query("SELECT id, item_id FROM inventory WHERE user_id=?", (plain,))}
+        db.execute("UPDATE avatars SET hotbar=? WHERE user_id=?",
+                   (json.dumps([inv.get(i, 0) for i in cat.DEFAULT_HOTBAR]), plain))
+    check("profiles: a bot with only the free three keeps them",
+          factory.change_hotbar(plain, {}, rng2) is None)
+    # the director's minute: online bots only, the rate from the Bots Zone
+    from app.bots import director as dm
+    d = dm.Director()
+    d.load()
+    online = [d.index_of(uid) for uid in ids[:30]]
+    offline = [d.index_of(uid) for uid in ids[30:60]]
+    for i in online:
+        d.state[i] = dm.IDLE
+    for i in offline:
+        d.state[i] = dm.OFFLINE
+    world = dm.WORLD_IDS[0]
+    # the bot in a live round owns something beyond the free three, so it has a change to send
+    live_i = next(i for i in online if any(not arms.free(item) for _inv, item in
+                                           factory.usable_owned(int(d.uids[i]))))
+    live_uid = int(d.uids[live_i])
+    d.state[live_i] = dm.PLAYING
+    d.world[live_i] = dm.WORLD_INDEX[world]
+    d.live[world][live_uid] = 7
+    snap = {uid: list(avatars.raw_avatar(uid)["hotbar"]) for uid in ids[:60]}
+    bot_config.save({"ingame.hotbar_change_per_minute": 0})
+    with d.lock:
+        d._hotbar_roll(_now_int())
+    check("profiles: Hotbar changes at 0% changes nobody", not d.ops[world] and
+          all(list(avatars.raw_avatar(uid)["hotbar"]) == snap[uid] for uid in ids[:60]))
+    bot_config.save({"ingame.hotbar_change_per_minute": 100})
+    picked = []
+    real_changes = d._hotbar_changes
+    d._hotbar_changes = lambda picks, rate, cap: picked.extend(picks)
+    with d.lock:
+        d._hotbar_roll(_now_int())
+    d._hotbar_changes = real_changes
+    rolled = {uid for uid, _w, _i in picked}
+    check("profiles: the minute's roll only ever picks online bots",
+          rolled and not rolled & {int(d.uids[i]) for i in offline}
+          and rolled <= {int(d.uids[i]) for i in range(d.n) if d.state[i] != dm.OFFLINE})
+    d._hotbar_changes([(live_uid, world, 7)] + [(int(d.uids[i]), "", None) for i in online if i != live_i],
+                      1.0, 1.0)
+    ops = [o for o in d.ops[world] if o.get("op") == "rearm"]
+    owned_live = {inv for inv, _item in factory.usable_owned(live_uid)}
+    check("profiles: a bot in a live round is sent its new hotbar, all of it its own",
+          len(ops) == 1 and ops[0]["uid"] == live_uid and ops[0]["inst"] == 7
+          and all(e is None or int(e["inv_id"]) in owned_live for e in ops[0]["hotbar"]),
+          ops[:1])
+    check("profiles: the changes are counted for the Bot Stats", d.stats()["counters"]["hotbar_changes"] > 0)
+    bot_config.reset("ingame")
     owner = rows[0]
     check("profiles: the site honours a bot's private inventory",
           users.can_view(dict(owner, privacy=json.dumps({"inventory": "private"})),

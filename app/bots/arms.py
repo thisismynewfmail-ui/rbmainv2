@@ -116,7 +116,7 @@ def wanted(traits: Dict[str, float], tags: Sequence[str], rng: random.Random,
 
 
 def lay_out(owned: Iterable[Tuple[int, str]], traits: Dict[str, float],
-            rng: random.Random) -> List[int]:
+            rng: random.Random, keep: Sequence[str] = ()) -> List[int]:
     """A hotbar (inventory ids, 0 for empty) from what a bot owns, given as
     (inventory id, item id) pairs.
 
@@ -124,7 +124,10 @@ def lay_out(owned: Iterable[Tuple[int, str]], traits: Dict[str, float],
     empty slots, the ones it likes best first.  Any more take over from the
     free weapon that does the same job -- a melee weapon from the stick, a
     close-range one from the shotgun, anything else from the stick and then
-    the shotgun.  The pistol stays, so there is always something to shoot."""
+    the shotgun.  The pistol stays, so there is always something to shoot.
+    A free weapon named in ``keep`` keeps its place this time (``change_up``
+    leaves the stick or the shotgun in now and then).  Only what is owned
+    ever goes on it."""
     size = catalog.HOTBAR_SIZE
     hotbar = [0] * size
     first: Dict[str, int] = {}
@@ -148,7 +151,7 @@ def lay_out(owned: Iterable[Tuple[int, str]], traits: Dict[str, float],
     stick, shotgun = free_slot.get("use_stick"), free_slot.get("use_shotgun")
 
     def holds_free(index: Optional[int]) -> bool:
-        if index is None:
+        if index is None or catalog.DEFAULT_HOTBAR[index] in keep:
             return False
         return hotbar[index] in (0, first.get(catalog.DEFAULT_HOTBAR[index]))
 
@@ -164,3 +167,53 @@ def lay_out(owned: Iterable[Tuple[int, str]], traits: Dict[str, float],
                 hotbar[index] = first[item_id]
                 break
     return hotbar
+
+
+# ------------------------------------------------------------ changing up
+# How much a persona scales the platform's chance per minute that a bot
+# changes up its hotbar (the Bots Zone's "Hotbar changes"): collectors and
+# chaotic players change theirs often, explorers a little more, the most
+# skilled stick with what works.  CHANGE_MAX is the most it can scale it --
+# the director rolls against that first and the bot's own factor after, so
+# it only reads the persona of a bot that might change.
+CHANGE_MAX = 3.0
+WEAPON_KEYS = ("wp_sniper", "wp_shotgun", "wp_smg", "wp_rifle", "wp_melee", "wp_rocket")
+
+
+def change_factor(traits: Dict[str, float]) -> float:
+    f = (0.6 + float(traits.get("collector", 0.3)) * 1.0 + float(traits.get("chaos", 0.08)) * 2.0
+         + float(traits.get("explore", 0.2)) * 0.5 - float(traits.get("skill", 0.5)) * 0.3)
+    return max(0.25, min(CHANGE_MAX, f))
+
+
+def change_up(owned: Sequence[Tuple[int, str]], traits: Dict[str, float],
+              rng: random.Random, current: Sequence[int]) -> List[int]:
+    """A different hotbar from what a bot already owns -- nothing bought,
+    nothing given.  Today it fancies something else (its weapon preferences
+    nudged up and down), so it carries a different pick -- when it owns
+    more than fits -- in a different order, and now and then keeps the
+    stick or the shotgun in.  The pistol stays in slot 1.  A bot with
+    nothing but the free three has nothing to change: its hotbar comes back
+    as it was, and so does one whose things only go one way."""
+    current = list(current)
+    items = set()
+    for _inv, item_id in owned:
+        item = catalog.get(item_id)
+        if item is not None and item.get("slot") == "usable":
+            items.add(item_id)
+    if not any(not free(i) for i in items):
+        return current
+    for _ in range(8):
+        mood = dict(traits)
+        for key in WEAPON_KEYS:
+            mood[key] = float(traits.get(key, 0.3)) + rng.uniform(-0.45, 0.45)
+        keep = [i for i in ("use_stick", "use_shotgun") if rng.random() < 0.3]
+        bar = lay_out(owned, mood, rng, keep=keep)
+        if rng.random() < 0.6:
+            # and moves things round: everything but the pistol in slot 1
+            rest = bar[1:]
+            rng.shuffle(rest)
+            bar = bar[:1] + rest
+        if bar != current:
+            return bar
+    return current

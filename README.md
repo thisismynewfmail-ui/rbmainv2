@@ -2020,6 +2020,19 @@ So there are two tiers.
   same job. Bots made before they had weapons of their own are armed when
   the director starts (paid for from their balance, in the background), and
   every bot's hotbar is laid out again from what it owns.
+- **Hotbar changes.** Bots change up what they carry, the way players do.
+  *Hotbar changes* under In-Game Behaviour in the Bots Zone sets the chance
+  per minute (2% by default, 0 turns it off). Each bot's persona scales it:
+  collectors and chaotic players change more, the most skilled stick with
+  what works. Once a minute the director rolls it for every online bot (never
+  an offline one). A bot that comes up gets a different pick and order, only
+  ever from what is already in its own inventory (`arms.change_up`): nothing
+  is bought or given, the pistol stays in slot 1, and a bot that owns only the
+  free three keeps them. A bot in a live round is sent its new hotbar and
+  swaps when it isn't fighting (or on its next life); everyone in the round
+  sees the new weapons, and while a world's own kit is in its hands only the
+  hotbar behind the kit changes. The Bot Stats counters include
+  `hotbar_changes`.
 - **Bodies.** A person's movement is simulated in their own browser
   (`static/js/game/physics.js`): their box is moved one axis at a time
   against the map's solid parts, stepping up low ledges, landing on floors and
@@ -2425,8 +2438,11 @@ sorts rather than only hold and hang out, get about the area, follow their perso
 bots a spectator watches at full detail and practise in the bunker; the
 profiles group checks the profile-setting chances and that
 created bots carry them, that most new bots carry weapons they bought and
-that the backfill arms older ones (once); the live group also checks that
-bots fight with the weapons they bought rather than the free pistol; the scale group creates thousands of bots, loads
+that the backfill arms older ones (once), that a hotbar change only ever uses
+what is in the bot's inventory and that the minute's roll leaves offline bots
+alone; the live group also checks that bots fight with the weapons they
+bought rather than the free pistol, and that a bot in a round swaps to its
+changed-up hotbar and everyone is told; the scale group creates thousands of bots, loads
 them and times the director; the llm group runs the model client against the
 stand-in server playing every kind of reasoning model, in chat and completion
 mode, and checks that each chat line has an answer and none of the notes,

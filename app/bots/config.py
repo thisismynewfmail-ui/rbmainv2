@@ -401,6 +401,13 @@ FIELDS: List[Field] = [
     F("ingame.afk_per_minute", "AFK moments", "pct", 3, "ingame",
       "Chance per minute a bot stands still for a bit.", 0, 100, 0.5,
       "%/min", scope="base"),
+    F("ingame.hotbar_change_per_minute", "Hotbar changes", "pct", 2, "ingame",
+      "Chance per minute an online bot changes up its hotbar: a different "
+      "pick and order, only ever from what is already in its own inventory "
+      "(nothing is bought or given, and the pistol stays in slot 1). "
+      "Collectors and chaotic personas change more often. In a live round "
+      "the bot swaps between fights, and everyone sees it.", 0, 100, 0.5,
+      "%/min", scope="base"),
     F("ingame.anything_floor", "Anything can happen", "pct", 3, "ingame",
       "Every bot, however focused, keeps at least this chance of doing any "
       "behaviour it has.", 0, 50, 0.5, "%"),

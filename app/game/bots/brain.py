@@ -174,6 +174,8 @@ class Brain:
         self.next_shot = 0.0
         self.aim_yaw = player.yaw
         self.aim_pitch = 0.0
+        # a changed-up hotbar waiting for a quiet moment (runner.rearm)
+        self.pending_hotbar = None
         self.last_attacker: Optional[int] = None
         self.last_hit_at = 0.0
         # mood
@@ -255,6 +257,8 @@ class Brain:
 
     # ============================================================== events
     def on_spawn(self) -> None:
+        if self.pending_hotbar is not None:
+            self._swap_hotbar()
         self.ground = list(self.p.pos)
         self.waypoints = []
         self.dest = None
@@ -578,6 +582,8 @@ class Brain:
         if not p.alive:
             return
         self.near = near
+        if self.pending_hotbar is not None and self.target is None:
+            self._swap_hotbar()
         cfg = self.runner.cfg
         interval = 1.0 / max(0.1, float(cfg.get("think_hz" if near else "far_think_hz", 4)))
         self.next_think = moment + interval * self.rng.uniform(0.8, 1.2)
@@ -857,6 +863,27 @@ class Brain:
             if d < best_d:
                 best, best_d = other, d
         return best if best_d < 220 else None
+
+    def _swap_hotbar(self) -> None:
+        """Put the changed-up hotbar on (the Bots Zone's "Hotbar changes";
+        the items are ones the bot owns -- the director laid it out from its
+        inventory).  Everyone in the round is told, so they see the new
+        weapons; while a world's own kit is in its hands (an arena round's
+        dodgeball, say) only its own hotbar behind the kit changes."""
+        hotbar, self.pending_hotbar = self.pending_hotbar, None
+        p, inst = self.p, self.instance
+        avatar = dict(p.avatar)
+        avatar["hotbar"] = hotbar
+        p.avatar = avatar
+        kit = p.extra.get("admin_kit") is not None or p.extra.get("loadout") is not None
+        inst.broadcast({"t": "hotbar", "id": p.pid, "hotbar": hotbar, "kit": kit},
+                       exclude=p.pid)
+        if kit:
+            return
+        p.reset_ammo()
+        first = next((i for i in range(len(hotbar)) if hotbar[i]), 0)
+        p.stowed = True          # so drawing slot ``first`` always tells everyone
+        inst.handle_slot(p, {"i": first})
 
     # -------------------------------------------------------------- combat
     def _weapons(self) -> List[Tuple[int, Dict[str, Any]]]:
