@@ -678,18 +678,23 @@
     var HOLD_ARM_RIGHT = -0.95;
     var HOLD_ARM_LEFT = -0.82;
     // how much of the look-pitch the arms carry, so aiming up or down still
-    // swings them rather than leaving the item pointing at the horizon
+    // swings them rather than leaving the item pointing at the horizon.
+    // The look-pitch is positive looking up (the camera's forward carries
+    // +sin(pitch) in Y, recoil adds to it, and the bots aim the same way),
+    // while a swing raises the arm as it goes negative -- so the pitch comes
+    // off the swing.  It used to be added, and everyone watching saw a
+    // player's arms drop as they looked up and lift as they looked down.
     var HOLD_PITCH_RIGHT = 0.55;
     var HOLD_PITCH_LEFT = 0.40;
 
     var holding = opts.holding;
     var rightSwing = pose.armR;
     if (holding) {
-      rightSwing = HOLD_ARM_RIGHT + (opts.pitch || 0) * HOLD_PITCH_RIGHT;
+      rightSwing = HOLD_ARM_RIGHT - (opts.pitch || 0) * HOLD_PITCH_RIGHT;
     }
     var leftSwing = pose.armL;
     if (holding && holding.twoHanded !== false) {
-      leftSwing = HOLD_ARM_LEFT + (opts.pitch || 0) * HOLD_PITCH_LEFT;
+      leftSwing = HOLD_ARM_LEFT - (opts.pitch || 0) * HOLD_PITCH_LEFT;
     }
     var rightHand = null;
 

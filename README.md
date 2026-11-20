@@ -2008,6 +2008,18 @@ So there are two tiers.
   everything else. Bots near a real player think at full rate and aim for
   real; bots far away think a few times a second and settle their fights by
   odds, so a busy round with 20 bots stays well inside the 20 Hz tick.
+- **Weapons.** A bot fights with its own hotbar, laid out from its own
+  inventory (`app/bots/arms.py`). It buys the shelf weapons its persona
+  favours -- the Longshot for a sniper fan, a sword for someone who likes it
+  close -- a hammer if it builds, a medkit if it plays support, and, if it is
+  a veteran or a collector, a weapon or two from the Event Armory. The free
+  three keep their places; what it bought fills the empty slots and then
+  takes over from the free weapon that does the same job, and the pistol
+  always stays. In a fight it picks the weapon that suits the range and,
+  like anybody, reaches for one it bought before the free one that does the
+  same job. Bots made before they had weapons of their own are armed when
+  the director starts (paid for from their balance, in the background), and
+  every bot's hotbar is laid out again from what it owns.
 - **Bodies.** A person's movement is simulated in their own browser
   (`static/js/game/physics.js`): their box is moved one axis at a time
   against the map's solid parts, stepping up low ledges, landing on floors and
@@ -2412,7 +2424,9 @@ play on their own, keep away from the spawn, walk most of the map, do all
 sorts rather than only hold and hang out, get about the area, follow their personas, honour the Squads switch, put the
 bots a spectator watches at full detail and practise in the bunker; the
 profiles group checks the profile-setting chances and that
-created bots carry them; the scale group creates thousands of bots, loads
+created bots carry them, that most new bots carry weapons they bought and
+that the backfill arms older ones (once); the live group also checks that
+bots fight with the weapons they bought rather than the free pistol; the scale group creates thousands of bots, loads
 them and times the director; the llm group runs the model client against the
 stand-in server playing every kind of reasoning model, in chat and completion
 mode, and checks that each chat line has an answer and none of the notes,

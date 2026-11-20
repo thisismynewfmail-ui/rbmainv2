@@ -1370,6 +1370,15 @@ class Director:
         except Exception:
             traceback.print_exc()
         try:
+            # bots from before they bought their own weapons get armed, and
+            # every bot's hotbar is laid out from what it owns -- in the
+            # background, so a big population doesn't hold the director up
+            from . import factory as _factory
+            threading.Thread(target=_factory.backfill_arms, daemon=True,
+                             name="bots-arms").start()
+        except Exception:
+            traceback.print_exc()
+        try:
             from . import llm
             threading.Thread(target=lambda: llm.client().probe(True),
                              daemon=True, name="bots-probe").start()

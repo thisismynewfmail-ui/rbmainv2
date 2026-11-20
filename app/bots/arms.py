@@ -1,0 +1,166 @@
+"""What a bot carries into a game.
+
+Every account owns the free three (the pistol, the shotgun and the stick).
+A bot, persona permitting, buys more: shelf weapons its preferences favour
+(the Longshot for a sniper fan, a sword for someone who likes it close),
+and -- for a veteran or a collector -- a weapon or two from the Event Armory.
+This module says which weapons a bot would buy, and lays its hotbar out from
+whatever it owns, so the brain in a game has them to hand and uses them.
+
+It imports nothing but the catalogue: the game host's brain reads
+``preference`` and ``free`` too.
+"""
+from __future__ import annotations
+
+import random
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+
+from ..models import catalog
+
+# the shelf weapons and the preference trait (personas: wp_*) each answers to
+SHELF = {"use_sniper": "wp_sniper", "use_smg": "wp_smg", "use_rifle": "wp_rifle",
+         "use_sword": "wp_melee", "use_rocket": "wp_rocket"}
+# the weapons every account starts with, by hotbar slot
+FREE = tuple(item_id for item_id in catalog.DEFAULT_HOTBAR if item_id)
+GEAR = frozenset(("support", "consume", "deploy", "ability", "summon", "strike"))
+
+
+def stats_of(item: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    return ((item or {}).get("data") or {}).get("stats") or {}
+
+
+def free(item_id: str) -> bool:
+    """One of the weapons everybody has without buying it."""
+    return item_id in FREE
+
+
+def preference(item: Any) -> str:
+    """The trait a weapon answers to -- the shelf ones by name, the rest by
+    what kind of weapon they are -- or '' for gear (abilities, a medkit)."""
+    if isinstance(item, str):
+        item = catalog.get(item)
+    if not item:
+        return ""
+    if item["id"] in SHELF:
+        return SHELF[item["id"]]
+    if item["id"] == "use_buildhammer":
+        return "wp_melee"
+    stats = stats_of(item)
+    kind = stats.get("kind")
+    if kind == "melee":
+        return "wp_melee"
+    if kind == "projectile":
+        return "wp_rocket"
+    if kind in ("beam", "cone"):
+        return "wp_smg"
+    if kind == "hitscan":
+        if int(stats.get("pellets", 1) or 1) > 1:
+            return "wp_shotgun"
+        if float(stats.get("range", 200) or 200) >= 600:
+            return "wp_sniper"
+        return "wp_smg" if stats.get("auto") else "wp_rifle"
+    return ""
+
+
+def role(item: Any) -> str:
+    """'melee', 'close' (a spread, a beam or a cone), 'gear' or 'gun'."""
+    if isinstance(item, str):
+        item = catalog.get(item)
+    stats = stats_of(item)
+    kind = stats.get("kind")
+    if kind == "melee":
+        return "melee"
+    if kind in GEAR:
+        return "gear"
+    if kind in ("beam", "cone") or int(stats.get("pellets", 1) or 1) > 1:
+        return "close"
+    return "gun"
+
+
+def wanted(traits: Dict[str, float], tags: Sequence[str], rng: random.Random,
+           armory: Iterable[Dict[str, Any]] = ()) -> List[str]:
+    """The weapons a bot buys.  Each shelf weapon on its preference (a strong
+    one always); a hammer for builders and tycoon fans; a medkit for team
+    players; and from the Event Armory, more likely the longer it has been
+    about and the more it collects, one weapon or two."""
+    out: List[str] = []
+    for item_id, key in SHELF.items():
+        pull = float(traits.get(key, 0.3))
+        if pull > 0.75 or rng.random() < 0.15 + pull * 0.6:
+            out.append(item_id)
+    if ("tycoon_fan" in tags or "builder" in tags) and rng.random() < 0.6:
+        out.append("use_buildhammer")
+    if float(traits.get("support", 0.2)) > 0.4 and rng.random() < 0.7:
+        out.append("use_medkit")
+    pool = [it for it in armory if it.get("slot") == "usable" and int(it.get("price", 0)) > 0]
+    chance = 0.2 + float(traits.get("collector", 0.3)) * 0.4
+    if "veteran" in tags:
+        chance += 0.25
+    if "newbie" in tags:
+        chance -= 0.15
+    if pool and rng.random() < chance:
+        for _ in range(1 if rng.random() < 0.65 else 2):
+            weights = []
+            for it in pool:
+                key = preference(it)
+                w = 0.4 + (float(traits.get(key, 0.3)) if key else 0.25)
+                if it.get("rarity") == "legendary":
+                    w *= 0.6 + float(traits.get("collector", 0.3))
+                weights.append(w)
+            choice = rng.choices(pool, weights)[0]
+            pool = [it for it in pool if it["id"] != choice["id"]]
+            out.append(choice["id"])
+            if not pool:
+                break
+    return list(dict.fromkeys(out))
+
+
+def lay_out(owned: Iterable[Tuple[int, str]], traits: Dict[str, float],
+            rng: random.Random) -> List[int]:
+    """A hotbar (inventory ids, 0 for empty) from what a bot owns, given as
+    (inventory id, item id) pairs.
+
+    The free three keep their places, and the weapons it bought go in the
+    empty slots, the ones it likes best first.  Any more take over from the
+    free weapon that does the same job -- a melee weapon from the stick, a
+    close-range one from the shotgun, anything else from the stick and then
+    the shotgun.  The pistol stays, so there is always something to shoot."""
+    size = catalog.HOTBAR_SIZE
+    hotbar = [0] * size
+    first: Dict[str, int] = {}
+    for inv_id, item_id in owned:
+        item = catalog.get(item_id)
+        if item is None or item.get("slot") != "usable" or item_id in first:
+            continue
+        first[item_id] = int(inv_id)
+    for index, item_id in enumerate(catalog.DEFAULT_HOTBAR[:size]):
+        if item_id and item_id in first:
+            hotbar[index] = first[item_id]
+
+    def liking(item_id: str) -> float:
+        key = preference(item_id)
+        base = float(traits.get(key, 0.35)) if key else float(traits.get("support", 0.2)) * 0.8
+        price = int((catalog.get(item_id) or {}).get("price", 0))
+        return base + price / 4000.0 + rng.random() * 0.25
+
+    bought = sorted((i for i in first if not free(i)), key=liking, reverse=True)[:size - 1]
+    free_slot = {item_id: index for index, item_id in enumerate(catalog.DEFAULT_HOTBAR[:size]) if item_id}
+    stick, shotgun = free_slot.get("use_stick"), free_slot.get("use_shotgun")
+
+    def holds_free(index: Optional[int]) -> bool:
+        if index is None:
+            return False
+        return hotbar[index] in (0, first.get(catalog.DEFAULT_HOTBAR[index]))
+
+    for item_id in bought:
+        empty = [i for i in range(size) if not hotbar[i] and not catalog.DEFAULT_HOTBAR[i]]
+        if empty:
+            hotbar[empty[0]] = first[item_id]
+            continue
+        job = role(item_id)
+        order = [stick] if job == "melee" else [shotgun] if job == "close" else [stick, shotgun]
+        for index in order:
+            if holds_free(index):
+                hotbar[index] = first[item_id]
+                break
+    return hotbar
