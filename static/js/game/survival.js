@@ -22,6 +22,7 @@
   var KINDS = Z.KINDS, NAMES = Z.NAMES, BOX = Z.BOX, SCALE = Z.SCALE;
   var A = Z.ANIM, F = Z.FLAGS;
   var descriptorFor = Z.descriptorFor, tiltParts = Z.tiltParts, local = Z.local;
+  var FULL_RIGS = 240;       // infected drawn in full at once (see draw)
 
   function push(renderer, parts) {
     for (var i = 0; i < parts.length; i++) renderer.push(parts[i]);
@@ -846,6 +847,19 @@
       this.savedFar = 0;
     }
     var near = 0;
+    // past FULL_RIGS infected (only the Admin Tools' Horde Horn gets there:
+    // a wave tops out well short), the furthest are drawn as silhouettes
+    var ids = Object.keys(this.zombies);
+    this.rigFar = Infinity;
+    if (ids.length > FULL_RIGS) {
+      var spread = [];
+      for (var k = 0; k < ids.length; k++) {
+        var q = this.zombies[ids[k]].pos;
+        spread.push(Math.hypot(q[0] - camera[0], q[2] - camera[2]));
+      }
+      spread.sort(function (x, y) { return x - y; });
+      this.rigFar = spread[FULL_RIGS - 1];
+    }
     for (var id in this.zombies) {
       var z = this.zombies[id];
       z.pos[0] += (z.target[0] - z.pos[0]) * lerp;
@@ -858,7 +872,7 @@
       if (d < 60) near++;
       this.drawZombie(renderer, z, time, dt, d, 0);
       if (d < 140 && z.kind !== 'common' && z.kind !== 'runner' && z.kind !== 'mite' &&
-          !(z.flags & F.HIDDEN) && Settings.showNames) {
+          z.kind !== 'mannequin' && !(z.flags & F.HIDDEN) && Settings.showNames) {
         var box = BOX[z.kind] || BOX.common;
         var colour = z.kind === 'tank' ? '#ff6a4a' : '#ffb84a';
         renderer.queueTag('z' + z.id, NAMES[z.kind], colour, z.hp + '%',
@@ -919,13 +933,14 @@
       return;
     }
     var pos = z.pos;
-    if (distance > 300 && !deathAge && kind !== 'mite') {
+    if ((distance > 300 || (distance > this.rigFar && !dummy)) && !deathAge && kind !== 'mite') {
       // far away: a coloured silhouette is all anyone can see
       var box = BOX[kind] || BOX.common;
       var look = descriptorFor(kind, z.area || this.area, z.variant);
       renderer.pushRaw('box', pos[0], pos[1] + box[1] * 0.3, pos[2], 0, z.yaw, 0,
                        box[0] * 0.6, box[1] * 0.6, box[2] * 0.7,
-                       rgb((look.items.shirt && look.items.shirt.data.torso) || '#7a5230'),
+                       rgb((look.items.shirt && look.items.shirt.data.torso) ||
+                           (kind === 'mannequin' ? look.colors.torso : '#7a5230')),
                        1, 0, 0, 0, null);
       renderer.pushRaw('box', pos[0], pos[1] + box[1] * 0.85, pos[2], 0, z.yaw, 0,
                        box[0] * 0.45, box[1] * 0.25, box[2] * 0.6, rgb(look.colors.head),

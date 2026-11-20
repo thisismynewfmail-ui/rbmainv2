@@ -1926,10 +1926,41 @@ counter reads ∞.
 | Slot | Tool | What it does |
 | --- | --- | --- |
 | 1 | **Smite** | Kills whatever it hits outright, through shields, armour and health of any size: players, the infected, minions, barrels. One shot goes through a line of up to twelve. Hold to keep firing. |
-| 2 | **Horde Horn** | In Last Light, a pack of the infected where you aim, with a special every fourth blast: no cooldown and no wave needed, as fast as you can click or hold, up to a safety cap of 300 alive so the server keeps up. In any other world it raises zombies that fight on your side (up to the round's minion limit, the oldest making way). |
+| 2 | **Horde Horn** | In Last Light, a pack of twelve **Mannequins** where you aim, with a special every fourth blast: no cooldown and no wave needed, as fast as you can click or hold, up to a safety cap of 600 alive so the server keeps up. In any other world it raises eight Mannequins at a time that fight on your side (up to 48, twice a round's minion limit, the oldest making way). |
 | 3 | **Titan Tonic** | 10,000 health, as often as you like. A medkit never pulls it back down; it lasts until you next die. The health bar turns gold and shows the real number. |
 | 4 | **Blink Wand** | Teleports you to where you are looking. |
 | 5 | **Purge** | Clears every infected and minion within 60 studs, quietly: a purged bomber takes nobody with it. |
+
+**The Mannequins** are only ever the horn's: no wave calls them, and they are
+not in the bestiary. They are shop-window dummies the infection got into. They
+run at 40 studs a second, close to twice a survivor's 22 and well past a
+Runner's 25. Each hit does 24 in Last Light, against a common's 5 (both scaled
+up with the wave the same way), and 40 as minions elsewhere. To look at:
+
+- porcelain, gloss black or tailor's beige
+- jointed: a ball at each shoulder, elbow, hip and knee
+- faceless, but for two dark hollows with a green pinprick in each, a thin
+  painted mouth, and a crack from crown to jaw with the green showing along it
+- eight looks in all: a suit, a knit sweater, a red evening dress, a tape
+  measure round the neck, a SALE sash, one missing its left arm
+- they move like stop-motion: upright and arms locked, the limbs jumping
+  between held poses nine times a second while the body glides on, and the
+  head snapping to a new angle now and then
+- they sprint with their arms pinned at their sides, and chop with both arms
+  at once
+
+The look is `static/js/engine/zombies.js`. Their numbers are in
+`app/game/worlds/infected.py` (`KINDS["mannequin"]`) and
+`app/game/admin_tools.py` (`HORDE_PACK`, `HORN_KIND`, `ZOMBIE_MINION`).
+
+The 600 cap holds because of a change to how the infected spread out. A crush
+of hundreds round one survivor used to cost every one of them a look at every
+other. Now each looks at an even spread of up to 48 neighbours, a different
+spread each tick, and pushes as hard as the whole crowd would have
+(`SEPARATE_SAMPLE`). An ordinary wave never gets that thick, so nothing changes
+there. With 600 Mannequins on one survivor, a tick takes about 12 ms on the
+dev machine, inside the 50 ms budget. Past 240 infected, the Game View draws
+only the nearest 240 as full figures and the rest as silhouettes.
 
 **None of it is in the store.** The tools are not catalogue items, so they
 cannot appear in the market, a crate, an inventory, a trade, an outfit, a

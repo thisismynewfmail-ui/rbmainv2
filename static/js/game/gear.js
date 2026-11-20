@@ -767,8 +767,11 @@
     } else if (model === 'zombie' && global.Zombies) {
       var anim = m.anim === 'attack' ? Zombies.ANIM.ATTACK : (m.anim === 'run' ? Zombies.ANIM.RUN
         : (m.anim === 'walk' ? Zombies.ANIM.WALK : Zombies.ANIM.WALK));
-      var z = { kind: 'common', variant: (m.id % 6), pos: m.pos, yaw: m.yaw, anim: anim, flags: 0,
-                memory: m.memory, seed: m.seed };
+      // ``zkind`` picks which of the infected it is drawn as: the Horde
+      // Horn's are Mannequins (app/game/admin_tools.py)
+      var zkind = spec.zkind && Zombies.KINDS.indexOf(spec.zkind) >= 0 ? spec.zkind : 'common';
+      var z = { kind: zkind, variant: (m.id % (zkind === 'mannequin' ? 8 : 6)), pos: m.pos, yaw: m.yaw,
+                anim: anim, flags: 0, memory: m.memory, seed: m.seed };
       parts = Zombies.build(z, spec.area || 'town', time, dt, 0, m.anim === 'idle', null);
       // an ally's dead: a ghostly green glow in the eyes and round the feet
       renderer.pushRaw('cyl', m.pos[0], m.pos[1] + 0.06, m.pos[2], 0, 0, 0, 3.4, 0.05, 3.4,

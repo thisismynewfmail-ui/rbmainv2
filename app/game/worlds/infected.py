@@ -73,10 +73,17 @@ KINDS: Dict[str, Dict[str, Any]] = {
     "tank":     dict(hp=3000, speed=17.5, dmg=34, reach=6.6, rate=1.6, score=40,
                      box=(6.4, 9.0, 4.6, 7.4), name="Tank", special=True,
                      boss=True),
+    # only ever called up by the Admin Tools' Horde Horn (app/game/
+    # admin_tools.py), never by a wave: a shop-window dummy the infection got
+    # into.  Close to twice a survivor's pace, five times a common's bite.
+    "mannequin": dict(hp=60, speed=40.0, dmg=24, reach=4.4, rate=0.85, score=1,
+                      box=(3.0, 5.4, 2.0, 4.0), name="Mannequin"),
 }
+# the wire sends a kind as its place in this list, so a new one goes on the
+# end (static/js/engine/zombies.js keeps the same list)
 KIND_CODES = ["common", "runner", "bloater", "bomber", "leaper", "brute",
               "spitter", "screamer", "riot", "captain", "hive", "mite", "ronin",
-              "burrower", "tank"]
+              "burrower", "tank", "mannequin"]
 KIND_INDEX = {kind: i for i, kind in enumerate(KIND_CODES)}
 SPECIALS = [k for k in KIND_CODES if KINDS[k].get("special") and k != "tank"]
 # the wave each special first turns up in, and how often after that
@@ -95,6 +102,7 @@ F_ENRAGED, F_HIDDEN, F_GUARD, F_FUSE, F_CHARGING, F_PINNING, F_STUNNED, \
     F_LURED = (1, 2, 4, 8, 16, 32, 64, 128)
 
 VARIANTS = 8               # common looks per area (the client draws them)
+SEPARATE_SAMPLE = 48       # most neighbours one infected shoves off in a tick
 
 
 class Zombie:
@@ -577,7 +585,12 @@ class Horde:
             dx, dz = goal[0] - z.pos[0], goal[2] - z.pos[2]
             flat = math.hypot(dx, dz)
             if flat > 0.3:
-                vx, vz = dx / flat * speed, dz / flat * speed
+                # no further than the goal in one tick: a Mannequin covers
+                # three studs a tick when it's enraged, and overshooting a
+                # waypoint by more than the 1.2 it takes to reach one would
+                # have it rocking back and forth over it
+                pace = min(speed, flat / dt) if dt > 0 else speed
+                vx, vz = dx / flat * pace, dz / flat * pace
                 rise = goal[1] - z.pos[1]
                 if not z.airborne and rise > body_module.STEP_HEIGHT + 0.1 and \
                         flat < 7.0 and rise <= nav_module.JUMP_UP + 0.5:
@@ -734,10 +747,17 @@ class Horde:
             for dx in (-1, 0, 1):
                 for dz in (-1, 0, 1):
                     others.extend(cells.get((cx + dx, cz + dz), ()))
+            # a crush (hundreds round one survivor, as the Horde Horn makes)
+            # would cost every one of them a look at every other: each looks
+            # at an even spread of its neighbours instead, a different spread
+            # each time, and pushes as hard as the whole crowd would have.
+            # An ordinary crowd is never that thick, and nothing changes there.
+            stride = -(-len(others) // SEPARATE_SAMPLE)
             for a in group:
                 ra = KINDS[a.kind]["box"][0] * 0.42
                 px = pz = 0.0
-                for b in others:
+                near = others if stride <= 1 else others[self.rng.randrange(stride)::stride]
+                for b in near:
                     if b is a:
                         continue
                     dx, dz = a.pos[0] - b.pos[0], a.pos[2] - b.pos[2]
@@ -754,6 +774,8 @@ class Horde:
                     px += dx / d * push
                     pz += dz / d * push
                 if px or pz:
+                    if stride > 1:
+                        px, pz = px * stride, pz * stride
                     px, pz = max(-0.6, min(0.6, px)), max(-0.6, min(0.6, pz))
                     nx, nz = a.pos[0] + px, a.pos[2] + pz
                     if not body_module.blocked(self._boxes(a), nx, a.pos[1], nz):

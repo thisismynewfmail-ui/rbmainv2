@@ -1363,7 +1363,8 @@ class GameInstance:
         Horn raises zombie minions on the admin's side instead (as many as
         the round allows, the oldest making way)."""
         made = self.gear.raise_at(player, point, admin_tools.ZOMBIE_MINION,
-                                  admin_tools.ZOMBIE_MINION["count"], "admin_horn")
+                                  admin_tools.ZOMBIE_MINION["count"], "admin_horn",
+                                  limit=admin_tools.MINION_CAP)
         return made or "No room for more zombies in this round."
 
     def admin_purge(self, player: Player, radius: float) -> int:
