@@ -1674,20 +1674,25 @@ of points, each one a no-op for anyone who isn't a child:
 
 ### The rules
 
-The defaults depend on the child's age. They are a starting point, and the
-parent can change any of them during setup or later from the dashboard. A
-change applies straight away, even in the middle of a round.
+A new child starts with no daily limits, quiet hours off and *they choose*
+for new friends; Safe Chat, friends-only messages, the intense worlds off
+for under 10s and crates off below 13 hold from the start. The parent can
+change any of it during setup or later from the dashboard, and a change
+applies straight away, even in the middle of a round.
 
 * **Play time.** One daily limit for school days and another for weekends, by
-  the family's own clock. Five minutes and one minute before the end the
-  child gets a warning in the game; at the end they are sent back to the
-  lobby with a friendly card. Play time is what the game hosts report from
-  inside a round, not time spent on the website.
+  the family's own clock; *no limit* for both until the parent picks one.
+  Five minutes and one minute before the end the child gets a warning in the
+  game; at the end they are sent back to the lobby with a friendly card. Play
+  time is what the game hosts report from inside a round, not time spent on
+  the website.
 * **Quiet hours.** No games at bedtime: from the time the parent sets until
-  the morning.
-* **New friends.** *I approve each one* (the default) holds every friendship,
-  asked for or accepted, until the parent says yes on the dashboard. The
-  alternatives are *they choose* and *no new friends*.
+  the morning. Off until the parent switches them on; the suggested times
+  are earlier for younger children.
+* **New friends.** *They choose* (the default) lets the child accept and send
+  friend requests themselves. *I approve each one* holds every friendship,
+  asked for or accepted, until the parent says yes on the dashboard; *no new
+  friends* stops them altogether.
 * **Private messages**: friends only (the default), off, or anyone. **In-game
   chat**: Safe Chat, or off. **Profile comments** and **who sees them online**
   can be set too.
@@ -1761,10 +1766,10 @@ the arrow keys move between hours and days), and every chart has a table view.
 
 Every family page wears the site's own classic chrome (`static/css/site.css`
 loads first, then `family.css`): the glossy blue top bar, the red tab strip,
-the orange parents' notice, gradient-headed panels on the light weave,
-bevelled buttons, the big glossy green call to action, and Verdana. The
-public pages share one header (`partials/pubbar.html`); the parent's own
-pages share another (`partials/appbar.html`) with a tab for each child.
+gradient-headed panels on the light weave, bevelled buttons, the big glossy
+green call to action, and Verdana. The public pages share one header
+(`partials/pubbar.html`); the parent's own pages share another
+(`partials/appbar.html`) with a tab for each child.
 
 The landing page speaks to one parent above all: the one whose child loves
 block games and who wants a safer place for them to play. It names no other
@@ -1803,12 +1808,13 @@ comparison card stay a single home on a smaller island.
 * **Who's there.** Blocky kids with the classic yellow skin, dressed from a
   small wardrobe of real catalogue faces, hats, hair, shirts and trousers
   (`views.HAVEN_WARDROBE`, sent with the page). They walk the sidewalks
-  between spots and swing, slide, ride the seesaw, bounce on the trampoline,
-  dig in the sandbox, fish off the dock, build towers on the plate, dance by
-  the boombox, fly kites, play catch, sit round the campfire or on a bench,
-  toss a coin in the fountain, visit the lemonade stand and wave. A dog trots
-  the sidewalks, ducks paddle round the pond, a cat naps on the roof and two
-  cars drive round the square, one each way.
+  between spots and swing, slide, ride the seesaw (two rock it between them;
+  one on their own bumps their end up off the ground), bounce on the
+  trampoline, dig in the sandbox, fish off the dock, build towers on the
+  plate, dance by the boombox, fly kites, play catch, sit round the campfire
+  or on a bench, toss a coin in the fountain, visit the lemonade stand and
+  wave. A dog trots the sidewalks, ducks paddle round the pond, a cat naps on
+  the roof and two cars drive round the square, one each way.
 * **Getting about.** Nobody walks through the fountain, a wall, a pond, a
   tree or a lamp post, and nobody steps into a road except on a zebra. Kids
   keep to the right of the sidewalk, so two coming the other way pass side
@@ -1834,6 +1840,12 @@ comparison card stay a single home on a smaller island.
   a `haven:blocked` event, and the landing page turns it into the note a
   parent would get. On the comparison card, the same three messages bounce
   off and a friend the parent approved gets through.
+* **Its frame.** No box: wherever it appears, the world floats in a round
+  bubble of sky (`.haven-bubble` in `haven.css`), framed to fit the circle,
+  with a glassy ring that slowly brightens, a sheen, a gentle bob and a soft
+  shadow under it. Only the 3D view is clipped to the circle, so the
+  messages flying at the shield come in from outside the bubble, and the
+  landing page's notes about what it stopped pop up over its edge.
 * **Tapping it.** Drag to turn it. A tapped kid jumps and says hi, the grass
   grows a flower, and the open sky sets off a firework.
 * **In the wizard** it builds itself step by step: a home, the child's
@@ -2438,6 +2450,7 @@ Then it runs each town and checks every frame:
 * nobody walks into the fountain, a wall, a pond, a tree or a lamp;
 * no car touches a kid, the dog or the other car;
 * nobody gets stuck or waits at a curb for long;
+* the seesaw moves under whoever rides it, and they stay on their seats;
 * nobody leaves the island;
 * two kids never stand in each other for more than a moment.
 

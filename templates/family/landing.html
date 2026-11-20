@@ -22,7 +22,7 @@
     <div class="lp-hero-copy">
       <span class="lp-kicker"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> Looking for a safer block game for your kids?</span>
       <h1>All the building, games and friends they love.<br><span class="lp-gold">With you in charge.</span></h1>
-      <p class="lp-lede">{{ brand }} is a free blocky game world with everything kids love &mdash; worlds to explore, a character that&rsquo;s all theirs, hats, pets and badges &mdash; plus the controls parents keep asking for: <b>you approve every new friend</b>, <b>Safe Chat stops personal details and &ldquo;add me on&hellip;&rdquo; invites</b>, and <b>you set the daily limits</b>.</p>
+      <p class="lp-lede">{{ brand }} is a free blocky game world with everything kids love &mdash; worlds to explore, a character that&rsquo;s all theirs, hats, pets and badges &mdash; plus the controls parents keep asking for: <b>Safe Chat stops personal details and &ldquo;add me on&hellip;&rdquo; invites</b>, and whenever you want, <b>you approve every new friend</b> and <b>set daily limits</b>.</p>
       <div class="lp-cta-row" id="hero-cta">
         <a class="f-btn f-btn-sun f-btn-xl" href="{{ signup_href }}" data-cta="hero">Create my free family account</a>
         <a class="f-btn f-btn-lg lp-ghost" href="#switch">Switching platforms? &raquo;</a>
@@ -35,10 +35,8 @@
       </ul>
     </div>
     <div class="lp-hero-art">
-      <div class="lp-stagebox" aria-label="A live little {{ brand }} world: kids playing on a floating island under a glass shield that stops unwanted messages">
+      <div class="lp-stagebox haven-bubble" aria-label="A live little {{ brand }} world: kids playing on a floating island under a glass shield that stops unwanted messages">
         <div class="lp-haven haven-host" data-haven="hero"><noscript><img class="haven-poster" src="{{ asset('/static/img/family/haven-hero.jpg') }}" alt=""></noscript></div>
-        <span class="lp-stagelabel"><span class="f-dot live"></span> Live &mdash; a world under the shield</span>
-        <span class="lp-stagehint">tap &amp; drag</span>
         <div class="lp-notes" id="lp-notes" aria-hidden="true"></div>
       </div>
       <p class="lp-stagecap">Watch the shield: messages from strangers bounce off. Your child plays; you&rsquo;re told what it stopped.</p>
@@ -51,7 +49,7 @@
 
 <!-- ======================================================= THE STRIP -->
 <div class="lp-strip">
-  <div class="lp-strip-i"><span class="lp-strip-ic blue"><svg class="f-ic"><use href="#i-user-check"/></svg></span><span><b>Friend approval</b><small>New friends wait for your OK</small></span></div>
+  <div class="lp-strip-i"><span class="lp-strip-ic blue"><svg class="f-ic"><use href="#i-user-check"/></svg></span><span><b>Friend approval</b><small>Switch it on to OK each new friend</small></span></div>
   <div class="lp-strip-i"><span class="lp-strip-ic green"><svg class="f-ic"><use href="#i-chat-shield"/></svg></span><span><b>Safe Chat</b><small>Personal details stay private</small></span></div>
   <div class="lp-strip-i"><span class="lp-strip-ic gold"><svg class="f-ic"><use href="#i-clock"/></svg></span><span><b>Time limits</b><small>School days &amp; weekends</small></span></div>
   <div class="lp-strip-i"><span class="lp-strip-ic purple"><svg class="f-ic"><use href="#i-chart"/></svg></span><span><b>Live dashboard</b><small>See it all, anytime</small></span></div>
@@ -67,7 +65,7 @@
         <table class="grid lp-compare">
           <thead><tr><th>What parents worry about</th><th class="bad">On many open platforms</th><th class="good">On {{ brand }}</th></tr></thead>
           <tbody>
-            <tr><td><b>Strangers messaging your child</b></td><td class="bad">Anyone can often send a friend request or a private message</td><td class="good">New friends wait for <b>your</b> approval &mdash; then they can chat</td></tr>
+            <tr><td><b>Strangers messaging your child</b></td><td class="bad">Anyone can often send a friend request or a private message</td><td class="good">Only friends can message them &mdash; and you can approve every new friend first</td></tr>
             <tr><td><b>Phone numbers, addresses, schools</b></td><td class="bad">One message is all it takes to share them</td><td class="good">Safe Chat stops them before they&rsquo;re seen &mdash; <b>both ways</b></td></tr>
             <tr><td><b>&ldquo;Add me on my other app&rdquo;</b></td><td class="bad">Kids get pulled into apps you can&rsquo;t see</td><td class="good">Outside invites and links are blocked, and you&rsquo;re told</td></tr>
             <tr><td><b>Knowing who they talk to</b></td><td class="bad">Chats you never get to see</td><td class="good">Read their conversations whenever you like</td></tr>
@@ -90,8 +88,10 @@
         </div>
         <div class="lp-vs good">
           <div class="lp-vs-head"><svg class="f-ic sm"><use href="#i-shield-check"/></svg> In {{ brand }}</div>
-          <div class="vs-world haven-host" data-haven="mini" data-bad-1="hey how old r u?" data-bad-2="add me on my other app"
-               data-bad-3="what school do u go to?" data-good="gg! wanna team up?" data-approve="You approved Leo"></div>
+          <div class="vs-stage haven-bubble">
+            <div class="vs-world haven-host" data-haven="mini" data-bad-1="hey how old r u?" data-bad-2="add me on my other app"
+                 data-bad-3="what school do u go to?" data-good="gg! wanna team up?" data-approve="You approved Leo"></div>
+          </div>
           <p class="lp-vs-cap">The same messages bounce off. A friend you approved gets through.</p>
         </div>
       </div>
@@ -146,10 +146,10 @@
   <h2 class="lp-title">Every protection is on from day one</h2>
   <p class="lp-sub">You decide how much to loosen as they grow.</p>
   <div class="lp-feat-grid">
-    <div class="panel lp-feat f-reveal"><div class="panel-head"><svg class="f-ic sm"><use href="#i-user-check"/></svg> Friend approval</div><div class="panel-body"><p>New friends wait for your OK on your dashboard. Nobody joins their list without you.</p></div></div>
+    <div class="panel lp-feat f-reveal"><div class="panel-head"><svg class="f-ic sm"><use href="#i-user-check"/></svg> Friend approval</div><div class="panel-body"><p>Switch it on and new friends wait for your OK on your dashboard &mdash; nobody joins their list without you. Or let them choose: it&rsquo;s one switch.</p></div></div>
     <div class="panel lp-feat f-reveal" style="--d:.05s"><div class="panel-head green"><svg class="f-ic sm"><use href="#i-chat-shield"/></svg> Safe Chat, both ways</div><div class="panel-body"><p>Phone numbers, emails, home addresses, links and &ldquo;add me on&hellip;&rdquo; invites are stopped before they&rsquo;re seen &mdash; in messages, comments and game chat.</p></div></div>
     <div class="panel lp-feat f-reveal" style="--d:.1s"><div class="panel-head"><svg class="f-ic sm"><use href="#i-message"/></svg> Read every message</div><div class="panel-body"><p>Private messages are friends-only by default, and you can read their conversations any time.</p></div></div>
-    <div class="panel lp-feat f-reveal" style="--d:.15s"><div class="panel-head gold"><svg class="f-ic sm"><use href="#i-clock"/></svg> Time limits &amp; quiet hours</div><div class="panel-body"><p>Separate school-day and weekend limits, a five-minute heads-up, then a friendly goodbye. No games at bedtime.</p></div></div>
+    <div class="panel lp-feat f-reveal" style="--d:.15s"><div class="panel-head gold"><svg class="f-ic sm"><use href="#i-clock"/></svg> Time limits &amp; quiet hours</div><div class="panel-body"><p>Set school-day and weekend limits and they get a five-minute heads-up, then a friendly goodbye. Add quiet hours for no games at bedtime.</p></div></div>
     <div class="panel lp-feat f-reveal"><div class="panel-head purple"><svg class="f-ic sm"><use href="#i-globe"/></svg> Choose their worlds</div><div class="panel-body"><p>Every world comes with a parent&rsquo;s guide and an intensity rating. Switch off anything that isn&rsquo;t right yet.</p></div></div>
     <div class="panel lp-feat f-reveal" style="--d:.05s"><div class="panel-head green"><svg class="f-ic sm"><use href="#i-coin"/></svg> No real money</div><div class="panel-body"><p>Nothing on {{ brand }} costs real money. You choose whether they can spend their play money &mdash; or open surprise crates.</p></div></div>
     <div class="panel lp-feat f-reveal" style="--d:.1s"><div class="panel-head"><svg class="f-ic sm"><use href="#i-eye-off"/></svg> Hard for strangers to find</div><div class="panel-body"><p>Child accounts never show up in &ldquo;new players&rdquo; or &ldquo;who&rsquo;s online&rdquo; lists. Friends find them only by their exact username.</p></div></div>
@@ -346,11 +346,11 @@
       </details>
       <details class="lp-q">
         <summary>Can strangers talk to my child?</summary>
-        <div class="lp-a"><p>Only in the ways you allow. New friends wait for your approval, private messages are friends-only by default, and Safe Chat stops personal details and &ldquo;add me on&hellip;&rdquo; invites in both directions. In a game round, other players can see what your child types in the round&rsquo;s chat &mdash; filtered by Safe Chat &mdash; and you can switch in-game chat off completely.</p></div>
+        <div class="lp-a"><p>Only in the ways you allow. Private messages are friends-only by default, Safe Chat stops personal details and &ldquo;add me on&hellip;&rdquo; invites in both directions, and you can have every new friend wait for your approval. In a game round, other players can see what your child types in the round&rsquo;s chat &mdash; filtered by Safe Chat &mdash; and you can switch in-game chat off completely.</p></div>
       </details>
       <details class="lp-q">
         <summary>Can they still play with their real friends?</summary>
-        <div class="lp-a"><p>Yes. Their friends sign up (it&rsquo;s free), send a friend request, and it lands on your dashboard. Once you approve it, they can play and chat together.</p></div>
+        <div class="lp-a"><p>Yes. Their friends sign up (it&rsquo;s free) and send a friend request, and your child accepts it &mdash; or, with friend approval switched on, it lands on your dashboard for your OK first. Then they can play and chat together.</p></div>
       </details>
       <details class="lp-q">
         <summary>What will I see on my dashboard?</summary>
@@ -362,7 +362,7 @@
       </details>
       <details class="lp-q">
         <summary>How old should my child be?</summary>
-        <div class="lp-a"><p>{{ brand }} is made for school-age kids, and you decide when yours is ready. Tell us their birth year and we&rsquo;ll suggest age-appropriate starting rules &mdash; shorter limits, an earlier bedtime and gentler worlds for younger children &mdash; which you can adjust any time.</p></div>
+        <div class="lp-a"><p>{{ brand }} is made for school-age kids, and you decide when yours is ready. Tell us their birth year and we&rsquo;ll suggest age-appropriate starting rules &mdash; gentler worlds for younger children, and no crates until 13 &mdash; and you can add daily limits, quiet hours and friend approval, or change anything, any time.</p></div>
       </details>
       <details class="lp-q">
         <summary>What devices does it work on?</summary>

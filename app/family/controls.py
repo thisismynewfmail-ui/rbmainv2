@@ -108,20 +108,25 @@ def age_from_year(birth_year: int, now: Optional[_dt.date] = None) -> Optional[i
 
 
 def defaults(age: Optional[int] = None) -> Dict[str, Any]:
-    """Sensible starting rules for a child of ``age`` (None: unknown)."""
+    """Where a new child's rules start, for a child of ``age`` (None:
+    unknown).  No daily limits, quiet hours off and they choose their own
+    friends -- the parent switches on whatever they want, in the wizard or
+    later.  The quiet-hours times are ready for when they do (earlier for
+    younger children); Safe Chat, friends-only messages, gentler worlds for
+    under 10s and no crates under 13 hold from the start."""
     young = age is not None and age < 10
     teen = age is not None and age >= 13
     intense = [w for w, g in WORLD_GUIDE.items() if g["intensity"] == "intense"]
     return {
-        "weekday_minutes": 60 if young else (120 if teen else 90),
-        "weekend_minutes": 120 if young else (240 if teen else 180),
-        "quiet": True,
+        "weekday_minutes": None,
+        "weekend_minutes": None,
+        "quiet": False,
         "quiet_start": "20:00" if young else ("22:00" if teen else "21:00"),
         "quiet_end": "07:00",
         "worlds_blocked": intense if young else [],
         "chat": "safe",
         "messages": "friends",
-        "friends": "approve",
+        "friends": "open",
         "wall": "friends",
         "presence": "friends",
         "spending": True,
