@@ -2,7 +2,8 @@
 
 Each area is a complete, walled-in map of its own, built at the origin by
 its module and placed far from the others, so no two are ever in sight of
-each other (they are 4800 units apart; nothing draws past 1400).  Only one
+each other (they are on a grid 2400 units apart; nothing draws past 1400).
+The first four are listed here; the places added since are in places.py.  Only one
 is played at a time: a round is fought in one until everybody is dead; a
 place gets three rounds, and after the third wipe there the server shuffles
 to another.  The holdout bunker, where people wait
@@ -29,7 +30,28 @@ AREAS = [
     ("docks", docks, "Blackwater Docks", (0.0, -SPACING), "#3a4248", 560.0),
     ("camp", camp, "Cedar Pines Camp", (0.0, SPACING), "#4f6b34", 740.0),
 ]
+
+
 AREA_IDS = [entry[0] for entry in AREAS]
+_LOADED = []
+
+
+def all_areas() -> List[tuple]:
+    """Every area: the first four, and the places added since (places.py),
+    each on its own slot of the grid round them.  Those are imported on
+    first use rather than with this package -- every kit in the game
+    imports this package's kit, and the newer places use those kits."""
+    if not _LOADED:
+        import importlib
+        from .places import ORDER, SLOTS
+        for index, (area_id, name, ground_colour, fog) in enumerate(ORDER):
+            module = importlib.import_module("%s.%s" % (__name__, area_id))
+            sx, sz = SLOTS[index]
+            AREAS.append((area_id, module, name, (sx * SPACING, sz * SPACING), ground_colour,
+                          fog))
+        AREA_IDS[:] = [entry[0] for entry in AREAS]
+        _LOADED.append(True)
+    return AREAS
 
 
 def build() -> Dict[str, Any]:
@@ -45,7 +67,7 @@ def build() -> Dict[str, Any]:
                        lobby.HALL[2] - 2.0, lobby.HALL[3] + 2.0]
 
     areas: List[Dict[str, Any]] = []
-    for area_id, module, name, (ox, oz), ground, fog in AREAS:
+    for area_id, module, name, (ox, oz), ground, fog in all_areas():
         area = Area(root, area_id, name, ox, oz, module.HALF, module.SKY,
                     module.AMBIENT, ground, fog=fog)
         module.build(area)
@@ -78,7 +100,9 @@ def area_payload(map_data: Dict[str, Any], area_id: str) -> Dict[str, Any]:
         "spawns": map_data["spawns"],
         "markers": {"mode": "survival", "area": area["id"],
                     "area_name": area["name"], "lobby_rect": holdout["rect"],
-                    "area_rect": area["rect"], "lure": area.get("lure")},
+                    "area_rect": area["rect"], "lure": area.get("lure"),
+                    "centre": area.get("centre"), "extra": area.get("extra") or {},
+                    "cameras": area.get("cameras") or []},
         "sky": area["sky"],
         "ambient": area["ambient"],
         "fog": area["fog"],

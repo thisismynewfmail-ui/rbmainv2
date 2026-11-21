@@ -105,6 +105,11 @@ class Area(MapBuilder):
         self.lure: Optional[Dict[str, Any]] = None
         self.landmarks: List[Dict[str, Any]] = []
         self.margin = 16.0
+        # what the client needs beyond the parts: the animated scenery
+        # (``rigs``, drawn by static/js/worlds/last_light_rigs.js), the
+        # weather round the camera and the area's accent colour
+        self.extra: Dict[str, Any] = {}
+        self.cameras: List[Dict[str, Any]] = []
 
     # ------------------------------------------------------------ placing
     def add(self, t, p, s, c, **kw):           # type: ignore[override]
@@ -197,6 +202,29 @@ class Area(MapBuilder):
         """A named place, for callouts in chat and the spectator's caption."""
         self.landmarks.append({"p": self.at(x, 0.0, z), "name": name})
 
+    def rig(self, kind: str, x: float, y: float, z: float, yaw: float = 0.0,
+            **params: Any) -> None:
+        """Something in the area that moves: drawn by the client every frame
+        from the kind registered for it (static/js/game/rigs.js), never solid
+        and never seen by the server.  Points among ``params`` (a list of
+        three numbers under a key ending in ``_p``, or ``q``) are placed like
+        ``(x, y, z)``; a list of such points under a key ending in ``_path``
+        is placed point by point."""
+        entry: Dict[str, Any] = {"kind": kind, "p": self.at(x, y, z), "yaw": round(yaw, 4)}
+        for key, value in params.items():
+            if (key == "q" or key.endswith("_p")) and isinstance(value, (list, tuple)) \
+                    and len(value) == 3:
+                value = self.at(*value)
+            elif key.endswith("_path") and isinstance(value, (list, tuple)):
+                value = [self.at(*pt) for pt in value]
+            entry[key] = value
+        self.extra.setdefault("rigs", []).append(entry)
+
+    def camera(self, x: float, y: float, z: float, tx: float, ty: float,
+               tz: float) -> None:
+        """A view of the area (for the screenshot tool and the spectators)."""
+        self.cameras.append({"p": self.at(x, y, z), "t": self.at(tx, ty, tz)})
+
     # ------------------------------------------------------------- finish
     def rect_world(self) -> List[float]:
         h = self.half + self.margin
@@ -224,7 +252,7 @@ class Area(MapBuilder):
             "rect": self.rect_world(), "centre": [self.ox, 0.0, self.oz],
             "parts": [self.start, self.end], "safe": self.safe,
             "zspawn": self.zspawns, "points": self.points, "lure": self.lure,
-            "landmarks": self.landmarks,
+            "landmarks": self.landmarks, "extra": self.extra, "cameras": self.cameras,
         }
 
 
@@ -421,6 +449,15 @@ def wall_sign(b: MapBuilder, x: float, y: float, z: float, w: float, h: float,
     turn = {"z+": 0.0, "z-": math.pi, "x+": math.pi / 2.0,
             "x-": -math.pi / 2.0}[facing]
     b.box([x, y, z], [w, h, 0.7], colour, r=[0, turn, 0], decal=decal)
+
+
+def post_sign(b: MapBuilder, x: float, z: float, y: float, height: float, w: float,
+              h: float, decal: str, facing: str = "z-", colour: str = "#f2f3f3",
+              post: str = WOOD_DARK) -> None:
+    """A sign board on a post, both solid: the post from ``y`` up
+    ``height``, the board on top of it."""
+    b.cyl([x, y + height / 2.0, z], [1.0, height, 1.0], post)
+    wall_sign(b, x, y + height + h / 2.0, z, w, h, decal, facing, colour)
 
 
 def flood(b: MapBuilder, x: float, z: float, y: float = 0.0,

@@ -30,6 +30,7 @@ live in :mod:`app.game.worlds.infected`.
 from __future__ import annotations
 
 import math
+import os
 import random
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -144,7 +145,9 @@ class LastLight(GameInstance):
         self.rng = random.Random()
         self.horde = Horde(self)
         self._payloads: Dict[str, Dict[str, Any]] = {}
-        self.area_id = self.rng.choice(self.area_order)
+        # a test (tools/lltests.py) can name the place to start in
+        forced = os.environ.get("BLOCKHAVEN_LL_AREA", "")
+        self.area_id = forced if forced in self.areas else self.rng.choice(self.area_order)
         self.area_losses = 0             # wipes in this area so far
         self.wave = 0
         self.best = 0                       # best wave reached on this server

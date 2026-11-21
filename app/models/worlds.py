@@ -259,6 +259,11 @@ WORLDS: List[Dict[str, Any]] = [
         "features": ["24 players", "Endless waves", "Tank every 5th wave",
                      "11 special infected", "4 shuffled locations",
                      "Revive your team", "Spectate while dead"],
+        # the newer places' moving scenery, weather and arrival scenes, and
+        # their pictures on the world page (static/js/worlds/last_light*.js)
+        "thumb_script": "/static/js/worlds/last_light_thumbs.js",
+        "game_scripts": ["/static/js/worlds/last_light_rigs.js",
+                         "/static/js/worlds/last_light.js"],
         # The places a round can be played in, in shuffle order, for the
         # world page's location gallery.  Each id is the map's own area id.
         "areas": [
@@ -281,6 +286,38 @@ WORLDS: List[Dict[str, Any]] = [
                       "dinner bell, a fire lookout tower, a boathouse on "
                       "the lake and a terraced ridge with an old mine "
                       "running under it."},
+            {"id": "drivein", "name": "Starlite Drive-In",
+             "blurb": "A drive-in on the county line, the night the feature "
+                      "was the end of the world. Hold the snack bar on its "
+                      "mound, climb the scaffold behind the screen to the "
+                      "walkway on top, and crank the movie's sound to send "
+                      "the horde for the screen. They come out of the corn."},
+            {"id": "zoo", "name": "Harrow County Zoo",
+             "blurb": "Golden hour on the last day it was open. Hold the vet "
+                      "hospital, run the monorail's loop on its stilts, watch "
+                      "the penguins from the gallery under their pool -- and "
+                      "play the showtime jingle to send the horde down into "
+                      "the sea lion arena. The animals are watching you."},
+            {"id": "aquarium", "name": "Harrow Point Aquarium",
+             "blurb": "On the headland, the night the storm came in. Hold the "
+                      "marine rescue centre, walk the shark tunnel, climb the "
+                      "Great Hall's balcony under the whale -- and start the "
+                      "dolphin show to send the horde into the pool on the "
+                      "cliff edge. They are coming up out of the sea."},
+            {"id": "backlot", "name": "Silver Screen Studios",
+             "blurb": "A film studio's backlot on the night of a night shoot. "
+                      "Hold the commissary, fight down a western street of false "
+                      "fronts from the galleries behind their windows, take the "
+                      "subway set, the moon and the castle hall in the sound "
+                      "stages, the pirate ship in its tank -- and fire the war "
+                      "set's special effects. The infected were the cast."},
+            {"id": "fair", "name": "Harrow County Fair",
+             "blurb": "The last night of the county fair, the lights just on. "
+                      "Hold the exhibition hall among the quilts and the pies, "
+                      "find the lookout in the middle of the corn maze, climb "
+                      "the hay pyramid and the grain elevator -- and start the "
+                      "demolition derby from the grandstand to send the horde "
+                      "into the mud pit. The rides are still turning."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

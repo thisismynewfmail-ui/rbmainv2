@@ -113,6 +113,44 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the east cabins": "e", "the fire lookout": "pe", "the car park": "h",
         "the archery range": "he", "the creek": "e",
     },
+    "drivein": {
+        "the snack bar": "shp", "the screen": "spc", "the playground": "he",
+        "the front rows": "e", "the east rows": "he", "the west rows": "e",
+        "the back rows": "he", "the box office": "e", "the marquee": "e",
+        "the railway": "pe", "the boxcars": "ec", "the corn": "r",
+        "the junkyard": "ec", "the putt-putt": "he", "the dinosaur": "ec",
+        "the water tower": "e",
+    },
+    "zoo": {
+        "the vet hospital": "shp", "the sea lion arena": "hr", "the zoo station": "pe",
+        "the monorail": "spc", "the aviary": "er", "the savannah": "he",
+        "the feeding platform": "spc", "the big cat rocks": "ecr", "the reptile house": "er",
+        "the elephant house": "e", "the elephant yard": "he", "the penguin cove": "esr",
+        "the petting farm": "ec", "the gift shop": "e", "the main gate": "e",
+        "primate island": "er", "the panda grove": "ec", "the flamingo pond": "h",
+    },
+    "aquarium": {
+        "the rescue centre": "shp", "the great hall": "shp", "the reef": "e",
+        "the shark tunnel": "se", "the deep sea room": "e", "the jellyfish gallery": "e",
+        "the dolphin stadium": "hp", "the cliff stair": "e", "the sea cave": "r",
+        "the rock pools": "er", "the pier": "er", "the shark's jaws": "ec",
+        "the car park": "e", "the staff yard": "ec", "the west point": "pe", "the beach": "her",
+    },
+    "backlot": {
+        "the commissary": "shp", "the western street": "e", "boot hill": "er",
+        "the saloon": "sp", "new york street": "e", "the subway set": "er",
+        "the moon set": "ec", "the castle hall": "esp", "the prop warehouse": "ec",
+        "the water tower": "e", "the pirate ship": "spc", "the war set": "hr",
+        "the church": "sp", "the main gate": "e", "the car park": "e", "the studio street": "he",
+    },
+    "fair": {
+        "the exhibition hall": "shp", "the grandstand": "sp", "the derby pit": "er",
+        "the midway": "he", "the ferris wheel": "he", "the carousel": "he",
+        "the swing ride": "e", "the haunted house": "er", "the cattle barn": "se",
+        "the hog barn": "se", "the corn maze": "erc", "the hay pyramid": "spc",
+        "the grain elevator": "spc", "the giant pumpkin": "ec", "the fair gate": "e",
+        "the tractor pull": "he", "the pig races": "he",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.
