@@ -352,6 +352,41 @@
     }
   });
 
+  Thumbs.registerWorld('br_bigear', {
+    camera: [[22, 20, 46], [0, 10, -4], 50],
+    sky: { top: '#04050c', horizon: '#26244a', sun: [-0.35, 0.55, 0.3], clouds: 0.08, tint: '#a8b8ff' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#b8925e', { st: 1 });
+      // the rails, two dishes on their stepped bases, all looking one way
+      k.box([0, 0.3, 0], [110, 0.6, 6], '#8a8a84', { st: 1 });
+      [[-24, 1], [18, 0.8]].forEach(function (d) {
+        var x = d[0], s = d[1];
+        k.box([x, 1, 0], [14 * s, 2, 14 * s], '#9a9a94', { st: 1 });
+        k.box([x, 3, 0], [9 * s, 2, 9 * s], '#c8c8c0', { st: 1 });
+        k.box([x - 3 * s, 8, 0], [1, 8 * s, 2], '#d8dce0', { m: 'metal' });
+        k.box([x + 3 * s, 8, 0], [1, 8 * s, 2], '#d8dce0', { m: 'metal' });
+        k.shape('cyl', [x, 13 * s + 2, 1.5], [18 * s, 1.0, 18 * s], '#f2f4f6', { r: [-1.0, 0, 0] });
+        k.shape('cyl', [x, 13 * s + 2, 1.0], [19 * s, 0.5, 19 * s], '#9aa0a8', { r: [-1.0, 0, 0], m: 'metal' });
+        k.shape('cyl', [x, 13 * s + 5.5, 5.2], [1.2, 2, 1.2], '#6a6e74', { r: [-1.0, 0, 0], m: 'metal' });
+      });
+      // the control building, the Big Ear behind it
+      k.box([0, 3, -18], [24, 6, 12], '#c8c8c0');
+      k.box([0, 6.5, -18], [25, 1, 13], '#7a7a78', { st: 1 });
+      k.shape('cyl', [0, 24, -33], [34, 1.4, 34], '#f2f4f6', { r: [-0.9, 0, 0] });
+      k.shape('cyl', [0, 24, -33.6], [36, 0.7, 36], '#9aa0a8', { r: [-0.9, 0, 0], m: 'metal' });
+      k.box([0, 10, -34], [8, 20, 8], '#c8c8c0');
+      // a saguaro, the light in the sky with its beam
+      k.shape('cyl', [34, 6, 6], [2.4, 12, 2.4], '#3a7a3e');
+      k.shape('cyl', [36.4, 8, 6], [1.6, 5, 1.6], '#3a7a3e');
+      k.shape('sph', [-30, 34, -26], [16, 3.2, 16], '#c8ccd4', { m: 'metal' });
+      k.shape('sph', [-30, 36, -26], [6, 4, 6], '#a8f0d8', { m: 'glass', a: 0.5 });
+      k.shape('cone', [-30, 18, -26], [12, 30, 12], '#b8fff0', { m: 'neon', a: 0.25, r: [Math.PI, 0, 0] });
+      pedestal(k, 30, 0, -6, BLUE, BLUE_NEON);
+      k.player(-4, 0.6, 6, { anim: 'run', time: 0.5, holding: flagItem(BLUE), wear: cap(RED) });
+      k.player(10, 0.6, 12, { anim: 'run', time: 0.1, wear: cap(BLUE) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

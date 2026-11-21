@@ -1799,5 +1799,414 @@
     return me;
   });
 
+  // ====================================================== Big Ear Array
+  if (GA) {
+    GA.register('br_howl', function (vol) {
+      this.tone({ type: 'sine', freq: 420, freqEnd: 760, dur: 0.7, gain: 0.06 * vol });
+      this.later(650, function () { this.tone({ type: 'sine', freq: 760, freqEnd: 520, dur: 1.4, gain: 0.05 * vol }); });
+      this.later(900, function () { this.tone({ type: 'sine', freq: 1520, freqEnd: 1040, dur: 1.0, gain: 0.012 * vol }); });
+    });
+    GA.register('br_moo', function (vol) {
+      this.tone({ type: 'sawtooth', freq: 150, freqEnd: 118, dur: 1.1, gain: 0.04 * vol });
+      this.tone({ type: 'sine', freq: 300, freqEnd: 240, dur: 1.0, gain: 0.03 * vol });
+    });
+    GA.register('br_ufo', function (vol) {
+      for (var i = 0; i < 8; i++) {
+        this.later(i * 140, function () {
+          this.tone({ type: 'sine', freq: 620, freqEnd: 980, dur: 0.14, gain: 0.04 * vol });
+        });
+      }
+      this.tone({ type: 'triangle', freq: 110, dur: 1.2, gain: 0.03 * vol });
+    });
+  }
+
+  /* Where the array is listening: a carried flag if there is one, the
+     light over the corral if not, and a slow sweep of the sky otherwise. */
+  function listening(ctx, t) {
+    var spots = ctx.flagSpots ? ctx.flagSpots() : [];
+    for (var i = 0; i < spots.length; i++) {
+      if (spots[i].state === 'carried' && spots[i].pos) return { p: spots[i].pos, flag: true };
+    }
+    if (ctx.skyTarget) return { p: ctx.skyTarget, flag: false };
+    return null;
+  }
+
+  /* A radio dish on its yoke: the turntable, the arms, the dish with its
+     lip and panel seams, the feed out at the focus on its struts.  It
+     slews -- slowly, as heavy things do -- to point at what the array is
+     listening to. */
+  Rigs.register('radio_dish', function (spec, ctx) {
+    var D = spec.d || 24, M = spec.mast || 12, big = !!spec.big;
+    var me = { radius: D + M, at: [spec.p[0], spec.p[1] + M, spec.p[2]], kind: 'radio_dish',
+               az: (spec.seed || 0) * 0.7, el: 0.9 };
+    me.update = function (dt, t) {
+      var tg = listening(ctx, t);
+      var az = 0.6 * Math.sin(t * 0.02 + 1), el = 1.1 + 0.2 * Math.sin(t * 0.017);
+      var pivot = me.at;
+      if (tg) {
+        var dx = tg.p[0] - pivot[0], dy = tg.p[1] + 3 - pivot[1], dz = tg.p[2] - pivot[2];
+        az = Math.atan2(dx, dz);
+        el = Math.atan2(dy, Math.hypot(dx, dz));
+        if (!tg.flag) el = Math.max(el, 0.5);
+      }
+      el = clamp(el, 0.35, 1.45);
+      var rate = big ? 0.45 : 0.75;
+      me.az = Rigs.approachAngle(me.az, az, rate, dt);
+      me.el = approach(me.el, el, rate, dt);
+      if (tg && tg.flag && !me.wasFlag && big && ctx.sound) ctx.sound('br_whirr', pivot, 2);
+      me.wasFlag = tg && tg.flag;
+    };
+    me.draw = function (pen, t) {
+      var base = Rigs.frame(spec.p, me.az, 1);
+      pen.part(base, 'cyl', [0, 0.6, 0], [D * 0.32, 1.2, D * 0.32], '#8a8e94', { m: 'metal' });
+      var arm = D * 0.24;
+      for (var side = -1; side <= 1; side += 2) {
+        pen.part(base, 'box', [side * arm, M / 2 + 0.6, 0], [D * 0.05 + 0.6, M, D * 0.1 + 0.8], '#d8dce0',
+                 { m: 'metal' });
+      }
+      pen.part(base, 'box', [0, 1.6, 0], [arm * 2 + 1, 1.4, D * 0.12 + 1], '#c8ccd0', { m: 'metal' });
+      var head = child(base, [0, M + 0.6, 0], -me.el, 0, 0);
+      pen.part(head, 'cyl', [0, 0, 0], [1.2 + D * 0.03, arm * 2 + 1.2, 1.2 + D * 0.03], '#8a8e94',
+               { m: 'metal', rz: Math.PI / 2 });
+      pen.part(head, 'box', [0, 0, -D * 0.06], [D * 0.3, D * 0.3, D * 0.1], '#c8ccd0', { m: 'metal' });
+      pen.part(head, 'box', [0, -D * 0.12, -D * 0.16], [D * 0.18, D * 0.12, D * 0.12], '#6a6e74', { m: 'metal' });
+      // the bowl: a shallow cone opening forward, its lip, its seams
+      pen.part(head, 'cone', [0, 0, D * 0.05], [D, D * 0.2, D], '#f2f4f6', { rx: -Math.PI / 2 });
+      pen.part(head, 'cyl', [0, 0, D * 0.135], [D * 1.05, 0.5, D * 1.05], '#9aa0a8', { rx: Math.PI / 2, m: 'metal' });
+      pen.part(head, 'cone', [0, 0, D * 0.152], [D * 0.62, D * 0.04, D * 0.62], '#dfe3e8', { rx: -Math.PI / 2 });
+      if (pen.near) {
+        for (var k = 0; k < 8; k++) {
+          var a = k * TAU / 8;
+          pen.part(child(head, [0, 0, D * 0.152], 0, 0, a), 'box', [0, D * 0.25, 0], [0.18, D * 0.5, 0.06],
+                   '#c8ccd0');
+        }
+      }
+      // the feed at the focus on its struts
+      var focus = Rigs.point(head, [0, 0, D * 0.48]);
+      for (var st = 0; st < (big ? 4 : 3); st++) {
+        var sa = st * TAU / (big ? 4 : 3) + 0.4;
+        var rim = Rigs.point(head, [Math.sin(sa) * D * 0.46, Math.cos(sa) * D * 0.46, D * 0.14]);
+        pen.rod(rim, focus, big ? 0.9 : 0.35, '#b8bcc2', { m: 'metal' });
+      }
+      var feed = child(head, [0, 0, D * 0.48], 0, 0, 0);
+      pen.part(feed, 'cyl', [0, 0, 0], [D * 0.08 + 0.4, D * 0.06 + 0.6, D * 0.08 + 0.4], '#6a6e74',
+               { rx: Math.PI / 2, m: 'metal' });
+      if (big) {
+        pen.part(feed, 'cyl', [0, 0, -1.6], [D * 0.16, 0.6, D * 0.16], '#d8dce0', { rx: Math.PI / 2, m: 'metal' });
+        var on = Math.sin(t * 3) > 0;
+        pen.part(feed, 'sph', [0, D * 0.06, 0], [1.2, 1.2, 1.2], on ? '#ff3020' : '#5a1a14', { m: on ? 'neon' : '' });
+      }
+    };
+    return me;
+  });
+
+  /* A rack of receivers: rows of little lights winking. */
+  Rigs.register('rack_lights', function (spec, ctx) {
+    var seed = spec.seed || 0;
+    var me = { radius: 8, at: spec.p, kind: 'rack_lights' };
+    me.draw = function (pen, t) {
+      if (!pen.near) return;
+      var f = Rigs.frame(spec.p, spec.yaw || 0, 1);
+      var busy = listening(ctx, t);
+      var speed = busy && busy.flag ? 9 : 3;
+      for (var row = 0; row < 6; row++) {
+        for (var col = 0; col < 4; col++) {
+          var h = hash(row * 7.1 + col * 3.3 + seed + Math.floor(t * speed + col) * 0.37);
+          var c = h < 0.5 ? '#3aff6a' : (h < 0.8 ? '#ffb84a' : (h < 0.9 ? '#ff4030' : '#1a2a1e'));
+          pen.part(f, 'box', [-2.2 + col * 1.4, -3.0 + row * 1.1, 0.05], [0.5, 0.35, 0.1], c,
+                   { m: c === '#1a2a1e' ? '' : 'neon' });
+        }
+      }
+    };
+    return me;
+  });
+
+  /* A monitor: green phosphor, a trace sweeping across it -- which jumps
+     the moment the array picks up a carried flag. */
+  Rigs.register('crt', function (spec, ctx) {
+    var W = spec.w || 3, seed = spec.seed || 0, big = !!spec.big;
+    var me = { radius: W + 6, at: spec.p, kind: 'crt' };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(spec.p, spec.yaw || 0, 1);
+      var H = W * (big ? 0.34 : 0.75);
+      if (!big) pen.part(f, 'box', [0, 0, -W * 0.35], [W + 0.6, H + 0.6, W * 0.7], '#2a2e34');
+      pen.part(f, 'box', [0, 0, 0.02], [W, H, 0.08], '#06140c', { m: 'neon' });
+      if (!pen.near) return;
+      var hit = listening(ctx, t);
+      var amp = hit && hit.flag ? 0.42 : 0.12;
+      var n = big ? 40 : 12;
+      for (var i = 0; i < n; i++) {
+        var u = i / (n - 1);
+        var x = -W / 2 + 0.2 + u * (W - 0.4);
+        var noise = Math.sin(u * 23 + t * 6 + seed) * 0.4 + Math.sin(u * 61 - t * 11) * 0.3;
+        var spike = hit && hit.flag ? Math.exp(-Math.pow((u - ((t * 0.4) % 1)) * 9, 2)) * 1.6 : 0;
+        var y = clamp((noise * amp + spike * 0.35) * H, -H * 0.45, H * 0.45);
+        pen.part(f, 'box', [x, y, 0.1], [W / n * 1.1, Math.max(0.08, W * 0.02), 0.06],
+                 hit && hit.flag && spike > 0.3 ? '#ffb84a' : '#7aff9a', { m: 'neon' });
+      }
+      if (big && hit && hit.flag && Math.sin(t * 8) > 0) {
+        pen.part(f, 'box', [W * 0.38, H * 0.36, 0.1], [W * 0.14, H * 0.12, 0.06], '#ff4030', { m: 'neon' });
+      }
+    };
+    return me;
+  });
+
+  /* An aviation light on a mast, blinking red into the dark. */
+  Rigs.register('blinker', function (spec) {
+    var period = spec.period || 1.5, seed = spec.seed || 0, colour = spec.c || '#ff3020';
+    var me = { radius: 6, at: spec.p, kind: 'blinker' };
+    me.draw = function (pen, t) {
+      var ph = ((t + seed) % period) / period;
+      var on = ph < 0.3;
+      var f = Rigs.frame(spec.p, 0, 1);
+      pen.part(f, 'cyl', [0, -0.5, 0], [1.2, 0.6, 1.2], '#3a3a3a');
+      pen.part(f, 'sph', [0, 0.1, 0], [1.0, 1.0, 1.0], on ? colour : '#3a1410', { m: on ? 'neon' : '' });
+      if (on) pen.part(f, 'sph', [0, 0.1, 0], [4.5, 4.5, 4.5], colour, { m: 'neon', a: 0.18 });
+    };
+    return me;
+  });
+
+  /* A tumbleweed bowling across the field on the wind, bouncing. */
+  Rigs.register('tumbleweed', function (spec) {
+    var a = spec.p, b = spec.q, R = spec.r || 2, speed = spec.speed || 6, seed = spec.seed || 0;
+    var len = dist(a, b);
+    var me = { radius: len / 2 + 10, at: [(a[0] + b[0]) / 2, a[1], (a[2] + b[2]) / 2], kind: 'tumbleweed' };
+    var dir = [(b[0] - a[0]) / len, (b[2] - a[2]) / len];
+    var heading = Math.atan2(dir[0], dir[1]);
+    me.draw = function (pen, t) {
+      var period = len / speed + 6;
+      var ph = ((t + seed * 13) % period) / period * (len / speed + 6);
+      var d = ph * speed;
+      if (d > len) return;
+      var fade = Math.min(1, d / 12, (len - d) / 12);
+      var wob = Math.sin(t * 0.7 + seed) * 6;
+      var x = a[0] + dir[0] * d + dir[1] * wob, z = a[2] + dir[1] * d - dir[0] * wob;
+      var y = a[1] + R + Math.abs(Math.sin(d * 0.21)) * R * 1.2;
+      var f = child(Rigs.frame([x, y, z], heading, R * fade), [0, 0, 0], d / R, 0, 0);
+      pen.part(f, 'torus', [0, 0, 0], [2, 4, 2], '#a8844c');
+      pen.part(f, 'torus', [0, 0, 0], [2, 4, 2], '#9a7a44', { rx: Math.PI / 2 });
+      pen.part(f, 'torus', [0, 0, 0], [1.9, 4, 1.9], '#b8945a', { rz: Math.PI / 2 });
+      pen.part(f, 'torus', [0, 0, 0], [1.6, 4, 1.6], '#8a6a3c', { rx: 0.8, rz: 0.6 });
+    };
+    return me;
+  });
+
+  /* A coyote on the mesa's rim: watching whoever comes near, and now and
+     then lifting its head to howl at the moon. */
+  Rigs.register('coyote', function (spec, ctx) {
+    var me = { radius: 12, at: spec.p, kind: 'coyote', look: 0, howl: 0 };
+    me.update = function (dt, t) {
+      var slot = Math.floor(t / 23), into = t - slot * 23;
+      var howling = hash(slot + 77) < 0.6 && into < 3.2;
+      me.howl = approach(me.howl, howling ? 1 : 0, 4, dt);
+      if (howling && slot !== me.slot) {
+        me.slot = slot;
+        var v = ctx.viewer ? ctx.viewer() : null;
+        if (v && dist(v.eye, spec.p) < 300 && ctx.sound) ctx.sound('br_howl', spec.p, 2.2);
+      }
+      var near = null, nd = 1e9;
+      (ctx.players ? ctx.players() : []).forEach(function (p) {
+        var d = dist(p.pos, spec.p);
+        if (d < nd) { nd = d; near = p; }
+      });
+      var look = 0;
+      if (near && nd < 90) {
+        var base = Rigs.frame(spec.p, spec.yaw || 0, 1);
+        var l = Rigs.local(base, [near.pos[0] - spec.p[0], 0, near.pos[2] - spec.p[2]]);
+        look = clamp(Math.atan2(l[0], l[2]), -1.2, 1.2);
+      }
+      me.look = Rigs.approachAngle(me.look, look, 3, dt);
+    };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(spec.p, spec.yaw || 0, spec.s || 1.3);
+      var fur = '#8a6a48', light = '#c8b090';
+      pen.part(f, 'sph', [0, 1.6, -0.6], [2.4, 2.6, 3.6], fur);
+      pen.part(f, 'sph', [0, 2.6, 0.6], [2.0, 2.8, 2.0], fur, { rx: -0.4 });
+      pen.part(f, 'sph', [0, 2.6, 1.3], [1.2, 2.0, 0.8], light, { rx: -0.4 });
+      for (var side = -1; side <= 1; side += 2) {
+        pen.part(f, 'box', [side * 0.5, 0.9, 1.2], [0.4, 1.8, 0.4], fur);
+        pen.part(f, 'sph', [side * 1.0, 0.7, -1.4], [1.0, 1.4, 1.8], fur);
+      }
+      pen.part(f, 'box', [0, 0.5, -2.8], [0.6, 0.6, 2.8], fur, { rx: 0.5 });
+      var head = child(f, [0, 4.0, 1.0], -1.0 * me.howl + 0.1, me.look * (1 - me.howl), 0);
+      pen.part(head, 'sph', [0, 0.4, 0], [1.6, 1.5, 1.8], fur);
+      pen.part(head, 'box', [0, 0.1, 1.4], [0.8, 0.7, 1.6], light);
+      pen.part(head, 'sph', [0, 0.3, 2.2], [0.35, 0.3, 0.3], '#1a1a1a');
+      for (var e = -1; e <= 1; e += 2) {
+        pen.part(head, 'cone', [e * 0.5, 1.6, -0.1], [0.6, 1.2, 0.4], fur, { rz: -e * 0.2 });
+      }
+    };
+    return me;
+  });
+
+  /* An old windpump on its tower: the wheel round and round, the tail
+     keeping it into the wind, the rod going up and down. */
+  Rigs.register('windpump', function (spec) {
+    var R = spec.r || 6;
+    var me = { radius: R + 30, at: spec.p, kind: 'windpump', spin: 0 };
+    me.update = function (dt, t) {
+      me.spin += dt * (1.2 + 0.8 * Math.sin(t * 0.13) + 0.4 * Math.sin(t * 0.41));
+    };
+    me.draw = function (pen, t) {
+      var yaw = (spec.yaw || 0) + Math.sin(t * 0.05) * 0.3;
+      var f = Rigs.frame(spec.p, yaw, 1);
+      pen.part(f, 'box', [0, 0, -2.5], [1.2, 1.2, 6], '#7a7a74', { m: 'metal' });
+      pen.part(f, 'box', [0, 0.8, -6.5], [0.2, 4.4, 4.0], '#c8c0a8');
+      var wheel = child(f, [0, 0, 1.0], 0, 0, me.spin);
+      pen.part(wheel, 'cyl', [0, 0, 0], [1.6, 1.0, 1.6], '#5a5a54', { rx: Math.PI / 2, m: 'metal' });
+      pen.part(wheel, 'torus', [0, 0, 0], [R * 2, 1.5, R * 2], '#7a7a74', { rx: Math.PI / 2, m: 'metal' });
+      for (var k = 0; k < 16; k++) {
+        var a = k * TAU / 16;
+        pen.part(child(wheel, [0, 0, 0], 0, 0, a), 'box', [0, R * 0.58, 0], [1.1, R * 0.82, 0.12], '#d8d4c8',
+                 { ry: 0.35 });
+      }
+      var stroke = Math.sin(me.spin) * 0.9;
+      pen.part(Rigs.frame(spec.p, 0, 1), 'box', [0, -6 + stroke, 0], [0.3, 10, 0.3], '#5a5a54', { m: 'metal' });
+    };
+    return me;
+  });
+
+  /* A cow: grazing, swishing her tail, mooing now and then -- and, when
+     the light over the corral comes for her, floating gently up into it
+     and (it always lets her go) back down. */
+  Rigs.register('cow', function (spec, ctx) {
+    var me = { radius: 30, at: spec.p, kind: 'cow' };
+    me.update = function (dt, t) {
+      var slot = Math.floor(t / 19);
+      if (slot !== me.slot) {
+        me.slot = slot;
+        if (hash(slot + 9) < 0.35 && ctx.viewer) {
+          var v = ctx.viewer();
+          if (v && dist(v.eye, spec.p) < 160 && ctx.sound) ctx.sound('br_moo', spec.p, 2);
+        }
+      }
+    };
+    me.draw = function (pen, t) {
+      var lift = ctx.abduction || 0;
+      var y = spec.p[1] + lift * 28 + Math.sin(t * 2) * lift * 0.8;
+      var f = child(Rigs.frame([spec.p[0], y, spec.p[2]], (spec.yaw || 0) + lift * t * 0.8, 1), [0, 0, 0],
+                    lift * 0.3, 0, lift * 0.2);
+      pen.part(f, 'rbox', [0, 4.2, 0], [3.4, 3.0, 6.4], '#f6f6f2');
+      if (pen.near) {
+        pen.part(f, 'box', [1.72, 4.6, -1.0], [0.1, 1.8, 2.4], '#1b1b1b');
+        pen.part(f, 'box', [-1.72, 3.8, 1.2], [0.1, 1.6, 2.0], '#1b1b1b');
+        pen.part(f, 'box', [0.4, 5.72, 0.6], [1.6, 0.1, 2.2], '#1b1b1b');
+      }
+      var graze = lift > 0.05 ? 0 : Math.max(0, Math.sin(t * 0.5)) * 0.9;
+      var head = child(f, [0, 5.0, 3.0], 0.2 + graze, Math.sin(t * 0.3) * 0.2, 0);
+      pen.part(head, 'rbox', [0, -0.2, 1.4], [2.0, 2.0, 2.6], '#f6f6f2');
+      pen.part(head, 'rbox', [0, -0.8, 2.8], [1.8, 1.2, 0.8], '#f0a0a8');
+      for (var e = -1; e <= 1; e += 2) {
+        pen.part(head, 'box', [e * 1.4, 0.4, 0.8], [1.0, 0.4, 0.6], '#f6f6f2');
+        pen.part(head, 'cone', [e * 0.7, 1.2, 0.8], [0.4, 0.8, 0.4], '#e8e0c8');
+        if (pen.near) pen.part(head, 'sph', [e * 0.6, 0.2, 2.62], [0.35, 0.35, 0.2], '#1b1b1b');
+      }
+      for (var lx = -1; lx <= 1; lx += 2) {
+        for (var lz = -1; lz <= 1; lz += 2) {
+          var dangle = lift * Math.sin(t * 3 + lx + lz) * 0.4;
+          pen.part(child(f, [lx * 1.1, 2.8, lz * 2.3], dangle, 0, 0), 'box', [0, -1.4, 0], [0.8, 2.8, 0.8],
+                   '#f6f6f2');
+        }
+      }
+      pen.part(f, 'sph', [0, 2.6, -0.6], [1.6, 0.9, 1.6], '#f0a0a8');
+      var swish = Math.sin(t * 2.4) * 0.5;
+      pen.part(child(f, [0, 5.0, -3.2], 0.3, 0, swish), 'box', [0, -1.6, 0], [0.25, 3.2, 0.25], '#e8e0c8');
+    };
+    return me;
+  });
+
+  /* The moon: big, pale, its seas. */
+  Rigs.register('moon', function (spec) {
+    var R = spec.r || 40;
+    var me = { radius: 1e6, at: spec.p, kind: 'moon' };
+    me.draw = function (pen) {
+      var f = Rigs.frame(spec.p, Math.atan2(-spec.p[0], -spec.p[2]), 1);
+      pen.part(f, 'sph', [0, 0, 0], [R * 2, R * 2, R * 2], '#f2eedc', { m: 'neon' });
+      pen.part(f, 'sph', [0, 0, 0], [R * 2.6, R * 2.6, R * 2.6], '#dde4ff', { m: 'neon', a: 0.08 });
+      [[0.3, 0.25, 0.32], [-0.2, -0.3, 0.26], [-0.35, 0.3, 0.2], [0.15, -0.1, 0.16]].forEach(function (c) {
+        pen.part(f, 'sph', [c[0] * R, c[1] * R, R * 0.92], [c[2] * R * 2, c[2] * R * 2, R * 0.2], '#d0ccbc',
+                 { m: 'neon' });
+      });
+    };
+    return me;
+  });
+
+  /* The light in the sky: a saucer wandering over the corral, its rim
+     lights chasing, a little someone in its dome -- every so often it
+     lowers its beam over the cow (and gives her back), and when a flag is
+     captured it is off across the sky in a blink.  The array follows it
+     when there is no flag to follow. */
+  Rigs.register('ufo', function (spec, ctx) {
+    var home = spec.p, R = spec.r || 40, cow = spec.cow_p;
+    var pos = home.slice();
+    var me = { radius: 1e6, at: pos, kind: 'ufo', zip: -100 };
+    me.event = function (kind) { if (kind === 'flag_capture') me.zip = Rigs.clock(); };
+    me.update = function (dt, t) {
+      var x = home[0] + R * Math.sin(t * 0.11), z = home[2] + R * 0.6 * Math.sin(t * 0.17 + 1);
+      var y = home[1] + 6 * Math.sin(t * 0.3);
+      var slot = Math.floor(t / 71), into = t - slot * 71;
+      var abduct = cow && hash(slot + 21) < 0.75 ? (into < 3 ? into / 3 : (into < 14 ? 1 : (into < 17 ? (17 - into) / 3 : 0))) : 0;
+      var lift = cow && into > 3 && into < 17 ? Math.sin(Math.min(1, (into - 3) / 11) * Math.PI) : 0;
+      if (abduct > 0) {
+        var k = abduct * abduct * (3 - 2 * abduct);
+        x = x + (cow[0] - x) * k; z = z + (cow[2] - z) * k; y = y + (cow[1] + 48 - y) * k;
+        if (into < 0.1 && ctx.sound) ctx.sound('br_ufo', cow, 2.5);
+      }
+      var zage = t - me.zip;
+      if (zage >= 0 && zage < 2.4) {
+        var zk = Math.sin(zage / 2.4 * Math.PI);
+        x += zk * 260; y += zk * 60;
+      }
+      pos[0] = x; pos[1] = y; pos[2] = z;
+      me.beam = abduct > 0.9 ? 1 : 0;
+      ctx.abduction = lift;
+      ctx.skyTarget = pos;
+    };
+    me.draw = function (pen, t) {
+      var f = child(Rigs.frame(pos, t * 0.6, 1), [0, 0, 0], Math.sin(t * 0.9) * 0.08, 0, Math.cos(t * 0.7) * 0.08);
+      pen.part(f, 'sph', [0, 0, 0], [26, 5, 26], '#c8ccd4', { m: 'metal' });
+      pen.part(f, 'sph', [0, -1.2, 0], [14, 3, 14], '#8a8e98', { m: 'metal' });
+      pen.part(f, 'sph', [0, 2.6, 0], [10, 7, 10], '#a8f0d8', { m: 'glass', a: 0.45 });
+      pen.part(f, 'sph', [0, 2.4, 0], [2.4, 3.0, 2.4], '#7ad85a');
+      pen.part(f, 'sph', [-0.6, 3.4, 1.0], [0.8, 1.0, 0.4], '#0a0a0a');
+      pen.part(f, 'sph', [0.6, 3.4, 1.0], [0.8, 1.0, 0.4], '#0a0a0a');
+      for (var k = 0; k < 12; k++) {
+        var a = k * TAU / 12;
+        var lit = ((k + Math.floor(t * 8)) % 4) === 0;
+        pen.part(f, 'sph', [Math.sin(a) * 11.6, 0.2, Math.cos(a) * 11.6], [1.4, 1.0, 1.4],
+                 lit ? '#ffe26a' : '#6a8aff', { m: 'neon' });
+      }
+      pen.part(f, 'sph', [0, -2.2, 0], [10, 1.4, 10], '#9fe8ff', { m: 'neon', a: 0.5 });
+      if (me.beam && cow) {
+        var top = [pos[0], pos[1] - 2, pos[2]];
+        var h = top[1] - cow[1];
+        pen.part(Rigs.frame([top[0], top[1] - h / 2, top[2]], t, 1), 'cone', [0, 0, 0], [26, h, 26], '#b8fff0',
+                 { m: 'neon', a: 0.16, rx: Math.PI });
+      }
+    };
+    return me;
+  });
+
+  /* Satellites: dots crossing the night, now and then one flaring. */
+  Rigs.register('satellites', function (spec) {
+    var n = spec.n || 3, R = spec.r || 600;
+    var me = { radius: 1e6, at: spec.p, kind: 'satellites' };
+    me.draw = function (pen, t) {
+      for (var i = 0; i < n; i++) {
+        var period = 70 + i * 23;
+        var ph = ((t + i * 31) % period) / period;
+        var a0 = hash(i * 4.4) * TAU;
+        var a = a0 + (ph - 0.5) * 2.6;
+        var el = 0.5 + 0.4 * Math.sin(ph * Math.PI);
+        var at = [spec.p[0] + Math.sin(a) * Math.cos(el) * R, spec.p[1] + Math.sin(el) * R * 0.7,
+                  spec.p[2] + Math.cos(a) * Math.cos(el) * R];
+        var flare = Math.abs(ph - 0.5 - i * 0.07) < 0.012 ? 3 : 1;
+        pen.part(Rigs.frame(at, 0, 1), 'sph', [0, 0, 0], [2.2 * flare, 2.2 * flare, 2.2 * flare], '#ffffff',
+                 { m: 'neon', a: 0.9 });
+      }
+    };
+    return me;
+  });
+
   global.BlackoutRelayRigs = true;
 })(window);

@@ -1577,6 +1577,135 @@
     }
   });
 
+  /* Big Ear Array: the dishes on the skyline under the Milky Way, all
+     turning together; a scope trace jumps; then the printout comes up out
+     of the printer with the name on it, and somebody circles it in red pen
+     and writes WOW! beside it. */
+  Intro.register('br_bigear', {
+    tagline: 'They are listening. Carry the flag and the whole sky knows.',
+    accent: '#9ab8ff',
+    cues: [[0.3, 'br_howl', 0.45], [1.0, 'br_beep', 0.5], [1.4, 'br_beep', 0.6], [1.8, 'br_whirr', 0.5],
+           [2.1, 'br_tick', 0.6], [2.25, 'br_tick', 0.6], [2.4, 'br_tick', 0.6], [2.55, 'br_tick', 0.6],
+           [3.1, 'br_ufo', 0.4]],
+    tagY: 846, tagAt: 3.3,
+    setup: function (r) {
+      var d = { stars: [], milky: [], dishes: [], rocks: [] };
+      for (var i = 0; i < 260; i++) d.stars.push({ x: r() * VW, y: r() * 520, s: between(r, 0.6, 2.2), p: r() * TAU });
+      for (i = 0; i < 420; i++) {
+        var u = r();
+        d.milky.push({ x: u * VW, y: 420 - u * 330 + (r() - 0.5) * 120 * (0.4 + r()), s: between(r, 0.4, 1.4) });
+      }
+      for (i = 0; i < 7; i++) d.dishes.push({ x: 140 + i * 220 + between(r, -20, 20), s: between(r, 0.7, 1.15) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, VH);
+      g.addColorStop(0, '#03040c'); g.addColorStop(0.55, '#141a3a'); g.addColorStop(0.75, '#3a2a48'); g.addColorStop(1, '#1a1018');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+      additive(ctx, function () {
+        d.milky.forEach(function (m) { ctx.fillStyle = 'rgba(200,210,255,0.22)'; ctx.fillRect(m.x, m.y, m.s, m.s); });
+        d.stars.forEach(function (st) {
+          var tw = 0.5 + 0.5 * Math.sin(t * 3 + st.p);
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * tw) + ')';
+          ctx.fillRect(st.x, st.y, st.s, st.s);
+        });
+      });
+      // the skyline: mesas, and the dishes all turning together
+      ctx.fillStyle = '#0c0a14';
+      ctx.beginPath(); ctx.moveTo(0, 640);
+      [[120, 600], [260, 600], [300, 560], [520, 560], [560, 610], [900, 620], [960, 580], [1180, 580],
+       [1220, 630], [1600, 620]].forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+      ctx.lineTo(1600, 900); ctx.lineTo(0, 900); ctx.fill();
+      var turn = -0.6 + 1.1 * inOut(seg(t, 0.6, 2.2));
+      d.dishes.forEach(function (dd, i) {
+        var x = dd.x, y = 640, s = dd.s;
+        ctx.fillStyle = '#05050a';
+        ctx.fillRect(x - 6 * s, y - 70 * s, 12 * s, 70 * s);
+        ctx.fillRect(x - 26 * s, y - 14 * s, 52 * s, 14 * s);
+        ctx.save();
+        ctx.translate(x, y - 76 * s);
+        ctx.rotate(turn);
+        ctx.beginPath(); ctx.ellipse(0, 0, 70 * s, 26 * s, 0, Math.PI, TAU); ctx.fill();
+        ctx.strokeStyle = '#05050a'; ctx.lineWidth = 3 * s;
+        ctx.beginPath(); ctx.moveTo(-50 * s, -6 * s); ctx.lineTo(0, -70 * s); ctx.lineTo(50 * s, -6 * s); ctx.stroke();
+        if (Math.sin(t * 4 + i) > 0.3) additive(ctx, function () { dot(ctx, '#ff3020', 0, -72 * s, 10, 0.9); });
+        ctx.restore();
+      });
+      // the scope: a trace along the bottom, jumping at 1.4
+      var k = seg(t, 0.8, 1.2);
+      if (k > 0) {
+        ctx.globalAlpha = Math.min(1, k) * (1 - seg(t, 2.6, 3.0) * 0.6);
+        ctx.fillStyle = 'rgba(4,20,10,0.85)';
+        roundRect(ctx, 60, 690, 520, 150, 10); ctx.fill();
+        ctx.strokeStyle = 'rgba(122,255,154,0.25)'; ctx.lineWidth = 1;
+        for (var gx = 60; gx <= 580; gx += 52) { ctx.beginPath(); ctx.moveTo(gx, 690); ctx.lineTo(gx, 840); ctx.stroke(); }
+        additive(ctx, function () {
+          ctx.strokeStyle = '#7aff9a'; ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          for (var x = 0; x <= 500; x += 4) {
+            var u = x / 500;
+            var spike = Math.exp(-Math.pow((u - 0.62) * 14, 2)) * seg(t, 1.35, 1.6) * 52;
+            var y = 765 + Math.sin(u * 40 + t * 9) * 6 + Math.sin(u * 97 - t * 13) * 4 - spike;
+            if (x === 0) ctx.moveTo(70 + x, y); else ctx.lineTo(70 + x, y);
+          }
+          ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Big Ear Array').toUpperCase();
+      var k = seg(t, 1.9, 2.7);
+      if (k <= 0) return;
+      // the printout scrolls up out of the printer
+      var W = 760, top = 900 - k * 560;
+      ctx.save();
+      ctx.translate(800 - W / 2, top);
+      ctx.fillStyle = '#f4f1e6'; ctx.fillRect(0, 0, W, 620);
+      ctx.fillStyle = 'rgba(80,150,110,0.12)';
+      for (var band = 0; band < 620; band += 64) ctx.fillRect(0, band, W, 32);
+      ctx.fillStyle = '#d8d4c8';
+      for (var hole = 18; hole < 620; hole += 26) {
+        ctx.beginPath(); ctx.arc(14, hole, 5, 0, TAU); ctx.arc(W - 14, hole, 5, 0, TAU); ctx.fill();
+      }
+      ctx.font = 'bold 20px Consolas, Menlo, monospace';
+      ctx.fillStyle = '#3a3a48'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      var rows = ['1 1  1   1  1 1   1 1  1   1', '1  1 1  1 1   1 1  1 1 1  1', '  1 1  6EQUJ5  1   1  1 1 1',
+                  '1   1 1  1  1 1  1   1  1  1'];
+      rows.forEach(function (row, i) { ctx.fillText(row, 60, 40 + i * 30); });
+      var size = fitSize(ctx, name, 'bold #px Consolas, Menlo, monospace', 58, W - 160, 0.12);
+      ctx.font = 'bold ' + size + 'px Consolas, Menlo, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1a1a2a';
+      spaced(ctx, name, W / 2 - 40, 214, size * 0.12);
+      // the red pen: round the name, then WOW!
+      var pen = seg(t, 2.55, 3.15);
+      if (pen > 0) {
+        ctx.strokeStyle = '#d8221a'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath();
+        var steps = 60, rx = W * 0.42, ry = 52;
+        for (var i = 0; i <= steps * pen; i++) {
+          var a = -Math.PI * 0.9 + (i / steps) * TAU * 1.08;
+          var x = W / 2 - 40 + Math.cos(a) * rx * (1 + 0.03 * Math.sin(i * 0.7));
+          var y = 214 + Math.sin(a) * ry * (1 + 0.05 * Math.sin(i * 1.3));
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        var wow = seg(t, 3.0, 3.3);
+        if (wow > 0) {
+          ctx.save();
+          ctx.translate(W - 70, 150); ctx.rotate(-0.15);
+          ctx.font = 'italic bold 52px Georgia, serif';
+          ctx.fillStyle = '#d8221a'; ctx.textAlign = 'center';
+          ctx.globalAlpha = wow;
+          ctx.fillText('Wow!', 0, 0);
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };

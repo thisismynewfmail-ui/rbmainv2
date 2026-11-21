@@ -69,6 +69,12 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "keep shaking it. Muster in the town hall under its clock, past the carousel "
               "and the toy train; the flags are in the chalets on the hills, each with an "
               "ice tunnel from beside the flag to the edge of the village."},
+    {"id": "bigear", "name": "Big Ear Array", "thumb": "br_bigear",
+     "captures": 3, "minutes": 15,
+     "blurb": "A radio telescope field in the desert at night, and every dish on it turns to "
+              "follow whoever carries a flag. Muster in the control building, run the rails "
+              "to the receiver houses -- or take the arroyo, and the cable duct up into the "
+              "flag room."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [

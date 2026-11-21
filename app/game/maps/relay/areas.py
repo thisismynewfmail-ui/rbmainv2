@@ -18,4 +18,5 @@ ORDER = [
     ("meteora", "Meteora"),
     ("circuit", "Circuit City"),
     ("snowglobe", "Snowglobe Hollow"),
+    ("bigear", "Big Ear Array"),
 ]
