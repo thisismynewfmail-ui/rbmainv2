@@ -63,6 +63,40 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "processor, fight through the heatsink's fins under its fan, run the copper "
               "traces past capacitor towers to the flags in the I/O blocks -- or the cable "
               "trenches under the board."},
+    {"id": "snowglobe", "name": "Snowglobe Hollow", "thumb": "br_snowglobe",
+     "captures": 3, "minutes": 15,
+     "blurb": "An alpine village inside a snow globe on somebody's mantelpiece -- and they "
+              "keep shaking it. Muster in the town hall under its clock, past the carousel "
+              "and the toy train; the flags are in the chalets on the hills, each with an "
+              "ice tunnel from beside the flag to the edge of the village."},
+    {"id": "bigear", "name": "Big Ear Array", "thumb": "br_bigear",
+     "captures": 3, "minutes": 15,
+     "blurb": "A radio telescope field in the desert at night, and every dish on it turns to "
+              "follow whoever carries a flag. Muster in the control building, run the rails "
+              "to the receiver houses -- or take the arroyo, and the cable duct up into the "
+              "flag room."},
+    {"id": "polder", "name": "Polderhaven", "thumb": "br_polder",
+     "captures": 3, "minutes": 15,
+     "blurb": "Spring in the polder: dikes, canals, tulips, and nothing flat. Muster in the "
+              "steam pumping station, cross the drawbridge and climb the dike to the great "
+              "windmills where the flags are -- or come up the mill's drain from the sluice."},
+    {"id": "leviathan", "name": "Leviathan Quarry", "thumb": "br_leviathan",
+     "captures": 3, "minutes": 15,
+     "blurb": "A sea monster's bones in a sandstone quarry at sunset. Muster in the dig "
+              "station inside its skull, climb its ribs and run its spine, and take the flags "
+              "from the winding houses up on the rim -- or come up the old adit beside them."},
+    {"id": "stacks", "name": "The Grand Stacks", "thumb": "br_stacks",
+     "captures": 3, "minutes": 15,
+     "blurb": "A library the size of a cathedral, all of it indoors. Muster in the rotunda "
+              "round the great globe, run the nave between the shelves or take the library "
+              "steps up onto their tops, and lift the flags from the map tables. Books fly. "
+              "The librarian is dead, and does not care for gunfire."},
+    {"id": "steamworks", "name": "Steamworks Caldera", "thumb": "br_steamworks",
+     "captures": 3, "minutes": 15,
+     "blurb": "A geothermal power station in a volcano at dusk. Muster in the turbine hall on "
+              "its island in the steaming lake; the flags are up on the rim in the wellhead "
+              "stations. Run the pipe bridge high over everything, wade the hot lake past the "
+              "geysers, or come up the steam tunnel beside the flag."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [
@@ -160,7 +194,7 @@ WORLDS: List[Dict[str, Any]] = [
         "team_count": 2,
         "mode": "captures",
         "shuffle": True,
-        "round_label": "First to 5 captures",
+        "round_label": "Capture the flag",
         "colors": ["#3f7a4a", "#c4281c", "#0d69ac"],
         "thumb": "relay",
         # This world hides enemy health on the nametags: you can read your
@@ -178,7 +212,8 @@ WORLDS: List[Dict[str, Any]] = [
                       "in half an hour; every other map is first to three in fifteen "
                       "minutes -- and overtime and sudden death everywhere.",
         "thumb_script": "/static/js/worlds/blackout_relay_thumbs.js",
-        "game_scripts": ["/static/js/worlds/blackout_relay.js"],
+        "game_scripts": ["/static/js/worlds/blackout_relay_rigs.js",
+                         "/static/js/worlds/blackout_relay.js"],
         "prefix": "br",
     },
     # Appended last on purpose: the bot director snapshots each bot's world

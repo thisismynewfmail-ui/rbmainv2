@@ -80,6 +80,7 @@ def build(b: kit.RelayArea) -> None:
         _lawn(b, h, random.Random(0x6A55))
     _fence(b, rng)
     _easter_eggs(b)
+    _wildlife(b)
     _landmarks(b)
 
 
@@ -298,26 +299,14 @@ def _fence(b: kit.RelayArea, rng: random.Random) -> None:
         for sx in (-1, 1):
             b.box([sx * (hx + m / 2.0), 70.0 + 3.0, z], [m + 0.6, 6.0, 2 * hz / 9.0 - 1.4],
                   PLANK if i % 2 else "#b08a5a", collide=False)
-    # the cat, chin on the fence top, watching the game
-    cx, cz = 60.0, hz + m / 2.0
-    b.sphere([cx, 88.0, cz], [34.0, 28.0, 26.0], "#e8a04a", collide=False)
-    for dx in (-10.0, 10.0):
-        b.cone([cx + dx, 104.0, cz], [10.0, 14.0, 8.0], "#e8a04a", collide=False)
-        b.sphere([cx + dx * 0.8, 92.0, cz - 12.0], [5.0, 6.0, 2.0], "#f2f2d8", collide=False)
-        b.sphere([cx + dx * 0.8, 92.0, cz - 13.2], [2.0, 4.0, 1.0], "#1b1b1b", collide=False)
-    b.sphere([cx, 85.0, cz - 13.0], [3.0, 2.0, 1.6], "#e88a8a", collide=False)
-    for dx in (-14.0, 14.0):
-        b.sphere([cx + dx, 76.0, cz - 6.0], [12.0, 7.0, 16.0], "#e8a04a", collide=False)
-    # sunflowers over the south fence
+    # Marmalade, sitting on the fence top over the middle of the lawn and
+    # watching the game (static/js/worlds/blackout_relay_rigs.js): the
+    # biggest thing in the garden, and the only one that is alive
+    b.rig("garden_cat", 0.0, 76.0, hz + m / 2.0, yaw=math.pi, seed=3)
+    # sunflowers over the south fence, nodding in the breeze
     for k, x in enumerate((-180.0, -70.0, 40.0, 150.0, 250.0)):
         hgt = 96.0 + (k % 3) * 12.0
-        z = -(hz + m / 2.0)
-        b.cyl([x, 70.0 + (hgt - 70.0) / 2.0 + 3.0, z], [3.0, hgt - 70.0, 3.0], "#4a8a2a",
-              collide=False)
-        b.cyl([x, hgt + 4.0, z - 2.0], [30.0, 3.0, 30.0], "#f2c21e", collide=False,
-              r=[math.pi / 2.0 - 0.3, 0.0, 0.0])
-        b.cyl([x, hgt + 4.0, z - 3.6], [14.0, 2.0, 14.0], "#5a3a1a", collide=False,
-              r=[math.pi / 2.0 - 0.3, 0.0, 0.0])
+        b.rig("sunflower", x, 76.0, -(hz + m / 2.0), h=hgt - 76.0, w=30.0, seed=k * 1.7)
     # the house over the east end, the shed over the west
     b.box([hx + m + 55.0, 90.0, 0.0], [110.0, 180.0, 300.0], "#d8c8b0", collide=False)
     b.box([hx + m - 0.2 + 0.0, 110.0, -60.0], [0.4, 30.0, 26.0], "#ffe8a8", material="neon",
@@ -331,8 +320,29 @@ def _easter_eggs(b: kit.RelayArea) -> None:
     b.box([30.0, 0.8, -70.0], [6.0, 1.6, 2.6], "#4a6a2a", collide=False)
     b.box([34.2, 0.9, -70.0], [2.6, 1.8, 2.4], "#4a6a2a", collide=False)
     b.box([25.0, 0.7, -70.4], [5.0, 1.0, 0.9], "#4a6a2a", collide=False)
-    b.sphere([-58.0, 21.0, 104.0], [3.0, 2.0, 3.0], "#d8221a", collide=False)
-    b.sphere([-58.0, 21.4, 105.6], [1.4, 1.2, 1.2], "#1b1b1b", collide=False)
+    # ladybirds walking round the tops of the cabbages
+    for sx in (-1, 1):
+        b.rig("ladybird", sx * 62.0, 16.0, 103.0, r=3.5, ry=5.0, rr=6.0, seed=sx * 1.3)
+
+
+def _wildlife(b: kit.RelayArea) -> None:
+    """The garden's own: cabbage whites over the cabbages, a red admiral
+    over the pond and one at the fence (Marmalade watches it when nobody
+    else is about), bumblebees doing the rounds of the alpines and the
+    carrot tops, a snail on the hose, goldfish in the pond."""
+    for sx in (-1, 1):
+        b.rig("butterfly", sx * 76.0, 20.0, 126.0, r=26.0, seed=2.0 + sx, c="#f6f2e6",
+              tip="#3a3a3a")
+        b.rig("bee", sx * 114.0, 10.4, -170.0, q=[sx * 124.0, 10.4, -164.0], seed=4.0 + sx)
+        b.rig("bee", sx * 100.0, 16.0, 104.0, q=[sx * 112.0, 16.0, 126.0], seed=7.0 + sx)
+    b.rig("butterfly", 0.0, 6.0, -128.0, r=40.0, seed=11.0, c="#c8341e", tip="#1b1b1b")
+    b.rig("butterfly", 0.0, 58.0, 168.0, r=34.0, seed=5.0, c="#f2a03a", tip="#2a1a10",
+          speed=0.26)
+    b.rig("butterfly", -150.0, 30.0, -20.0, r=50.0, seed=8.0, c="#5a9ae8", tip="#1b2a4a")
+    b.rig("snail", -158.0, HOSE_TOP, 71.0, q=[-92.0, HOSE_TOP, 71.0], speed=0.7)
+    b.rig("goldfish", 0.0, -3.3, -128.0, rx=46.0, rz=12.0, s=0.6, water=-1.2, seed=1.0)
+    b.rig("goldfish", 0.0, -3.3, -130.0, rx=30.0, rz=9.0, s=0.55, water=-1.2, seed=4.0,
+          speed=-0.42)
 
 
 def _landmarks(b: kit.RelayArea) -> None:

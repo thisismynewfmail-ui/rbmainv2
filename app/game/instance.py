@@ -334,6 +334,7 @@ class GameInstance:
         self.map = map_data
         self.colliders = self._build_colliders(map_data)
         self.collider_grid = self._build_collider_grid(self.colliders)
+        self.coord_limit = self._coord_limit(map_data)
         self.max_players = int(world_def.get("max_players", 16))
         self.players: Dict[int, Player] = {}
         self.projectiles: List[Projectile] = []
@@ -456,6 +457,30 @@ class GameInstance:
             boxes.append(([px - size[0] / 2, py - size[1] / 2, pz - size[2] / 2],
                           [px + size[0] / 2, py + size[1] / 2, pz + size[2] / 2]))
         return boxes
+
+    @staticmethod
+    def _coord_limit(map_data: Dict[str, Any]) -> float:
+        """How far from the origin a reported position may be before it is
+        thrown out as nonsense.
+
+        It was a flat 5000, which every map fitted inside until Blackout
+        Relay's rotation laid its maps out along the z axis, 1600 apart: the
+        fifth pair sits 6400 out, and every move a player made there was
+        refused, so they stood stuck where they spawned.  So it is the map's
+        own reach (its farthest part, decoration included) and a margin, and
+        never less than the old figure.
+        """
+        reach = 0.0
+        for part in map_data.get("parts", ()):
+            p, s = part.get("p"), part.get("s")
+            if not p or not s:
+                continue
+            try:
+                for i in range(3):
+                    reach = max(reach, abs(float(p[i])) + abs(float(s[i])) / 2.0)
+            except (TypeError, ValueError, IndexError):
+                continue
+        return max(5000.0, reach + 1000.0)
 
     @staticmethod
     def _build_collider_grid(
@@ -850,7 +875,8 @@ class GameInstance:
                 pos = [float(pos[0]), float(pos[1]), float(pos[2])]
             except (TypeError, ValueError):
                 return
-            if any(math.isnan(v) or math.isinf(v) or abs(v) > 5000 for v in pos):
+            if any(math.isnan(v) or math.isinf(v) or abs(v) > getattr(self, "coord_limit", 5000.0)
+                   for v in pos):
                 self.correct(player)
                 return
             moment = now()

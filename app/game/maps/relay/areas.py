@@ -17,4 +17,10 @@ ORDER = [
     ("lantern", "Lantern Terraces"),
     ("meteora", "Meteora"),
     ("circuit", "Circuit City"),
+    ("snowglobe", "Snowglobe Hollow"),
+    ("bigear", "Big Ear Array"),
+    ("polder", "Polderhaven"),
+    ("leviathan", "Leviathan Quarry"),
+    ("stacks", "The Grand Stacks"),
+    ("steamworks", "Steamworks Caldera"),
 ]

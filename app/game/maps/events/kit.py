@@ -124,6 +124,22 @@ class ArenaArea(Area):
         self.dynamics[key] = {"parts": parts, "boxes": boxes, "on": bool(on),
                               "group": group}
 
+    # -------------------------------------------------------------- rigs
+    def rig(self, kind: str, x: float, y: float, z: float, yaw: float = 0.0,
+            **params: Any) -> None:
+        """Something on the map that moves: drawn by the client every frame
+        from the kind registered for it (static/js/game/rigs.js), never
+        solid and never sent to the server's physics.  Points among
+        ``params`` (any list of three numbers under a key ending in ``q``
+        or ``_p``) are placed like ``(x, y, z)``."""
+        entry: Dict[str, Any] = {"kind": kind, "p": self.at(x, y, z), "yaw": round(yaw, 4)}
+        for key, value in params.items():
+            if (key == "q" or key.endswith("_p")) and isinstance(value, (list, tuple)) \
+                    and len(value) == 3:
+                value = self.at(*value)
+            entry[key] = value
+        self.extra.setdefault("rigs", []).append(entry)
+
     # ----------------------------------------------------------- finish
     def rect_world(self) -> List[float]:
         m = self.margin

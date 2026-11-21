@@ -306,6 +306,212 @@
     }
   });
 
+  Thumbs.registerWorld('br_snowglobe', {
+    camera: [[0, 22, 44], [0, 9, -2], 50],
+    sky: { top: '#3a3048', horizon: '#c89a7a', sun: [0.3, 0.6, 0.5], clouds: 0.2, tint: '#ffe8d0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [110, 1, 80], '#f2f5f8', { st: 1 });
+      // the globe's base curving round the back
+      for (var i = -5; i <= 5; i++) {
+        var a = i * 0.24;
+        k.box([Math.sin(a) * 46, 5, -Math.cos(a) * 30 - 4], [10, 10, 3], '#6a2e22');
+        k.box([Math.sin(a) * 46, 10.3, -Math.cos(a) * 30 - 4], [10, 0.6, 3], '#e8c050', { m: 'metal' });
+      }
+      // the town hall and its clock tower
+      k.box([0, 3, -10], [16, 6, 10], '#f2ead8');
+      k.box([0, 6.5, -10], [17, 1, 11], '#eef2f6', { st: 1 });
+      k.box([0, 11, -10], [5, 9, 5], '#e8d8c0');
+      k.shape('cyl', [0, 12, -7.4], [3.4, 0.2, 3.4], '#f4ecd8', { r: [Math.PI / 2, 0, 0] });
+      k.shape('cone', [0, 17.5, -10], [6, 4, 6], '#4a5060');
+      // a chalet on its hill, its flag before it
+      k.box([-30, 1, -6], [26, 2, 24], '#dde4ec', { st: 1 });
+      k.box([-30, 3, -6], [20, 2, 18], '#f2f5f8', { st: 1 });
+      k.box([-31, 8, -8], [12, 6, 10], '#7a4e2e');
+      k.box([-31, 11.6, -8], [14, 1.2, 12], '#eef2f6', { st: 1 });
+      pedestal(k, -22, 4, -2, RED, RED_NEON);
+      // the carousel
+      k.shape('cyl', [14, 0.6, 4], [10, 1.2, 10], '#c8a060');
+      k.shape('cone', [14, 8, 4], [11, 3, 11], '#f8f2e8');
+      k.shape('cyl', [14, 6.4, 4], [11, 0.8, 11], '#d8322a');
+      k.shape('cyl', [14, 3.6, 4], [0.5, 6, 0.5], '#e8c050', { m: 'metal' });
+      // the toy train going round
+      k.box([-6, 1.2, 10], [3, 2, 5], '#2a6a3a');
+      k.box([-6, 3, 8.6], [3, 2, 2], '#c42b20');
+      k.box([0, 1.2, 10], [3, 1.6, 4], '#2a6aa8');
+      k.box([0, 2.6, 10], [1.6, 1.6, 1.6], '#f2c21e');
+      // pines with snow, a snowman
+      [[-44, -16], [24, -16], [36, -6], [-14, -20]].forEach(function (p) {
+        k.shape('cone', [p[0], 5, p[1]], [6, 8, 6], '#2a5a3a');
+        k.shape('cone', [p[0], 8.4, p[1]], [2.4, 2, 2.4], '#ffffff');
+      });
+      k.shape('sph', [24, 1.4, 10], [3, 2.8, 3], '#ffffff');
+      k.shape('sph', [24, 3.6, 10], [2, 2, 2], '#ffffff');
+      k.shape('cone', [23.2, 3.7, 10.9], [0.4, 1.4, 0.4], '#e87a2a', { r: [Math.PI / 2, 0, 0] });
+      k.player(-8, 2.2, 2, { anim: 'run', time: 0.3, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(8, 0.0, 14, { anim: 'run', time: 0.7, wear: cap(RED) });
+    }
+  });
+
+  Thumbs.registerWorld('br_bigear', {
+    camera: [[22, 20, 46], [0, 10, -4], 50],
+    sky: { top: '#04050c', horizon: '#26244a', sun: [-0.35, 0.55, 0.3], clouds: 0.08, tint: '#a8b8ff' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#b8925e', { st: 1 });
+      // the rails, two dishes on their stepped bases, all looking one way
+      k.box([0, 0.3, 0], [110, 0.6, 6], '#8a8a84', { st: 1 });
+      [[-24, 1], [18, 0.8]].forEach(function (d) {
+        var x = d[0], s = d[1];
+        k.box([x, 1, 0], [14 * s, 2, 14 * s], '#9a9a94', { st: 1 });
+        k.box([x, 3, 0], [9 * s, 2, 9 * s], '#c8c8c0', { st: 1 });
+        k.box([x - 3 * s, 8, 0], [1, 8 * s, 2], '#d8dce0', { m: 'metal' });
+        k.box([x + 3 * s, 8, 0], [1, 8 * s, 2], '#d8dce0', { m: 'metal' });
+        k.shape('cyl', [x, 13 * s + 2, 1.5], [18 * s, 1.0, 18 * s], '#f2f4f6', { r: [-1.0, 0, 0] });
+        k.shape('cyl', [x, 13 * s + 2, 1.0], [19 * s, 0.5, 19 * s], '#9aa0a8', { r: [-1.0, 0, 0], m: 'metal' });
+        k.shape('cyl', [x, 13 * s + 5.5, 5.2], [1.2, 2, 1.2], '#6a6e74', { r: [-1.0, 0, 0], m: 'metal' });
+      });
+      // the control building, the Big Ear behind it
+      k.box([0, 3, -18], [24, 6, 12], '#c8c8c0');
+      k.box([0, 6.5, -18], [25, 1, 13], '#7a7a78', { st: 1 });
+      k.shape('cyl', [0, 24, -33], [34, 1.4, 34], '#f2f4f6', { r: [-0.9, 0, 0] });
+      k.shape('cyl', [0, 24, -33.6], [36, 0.7, 36], '#9aa0a8', { r: [-0.9, 0, 0], m: 'metal' });
+      k.box([0, 10, -34], [8, 20, 8], '#c8c8c0');
+      // a saguaro, the light in the sky with its beam
+      k.shape('cyl', [34, 6, 6], [2.4, 12, 2.4], '#3a7a3e');
+      k.shape('cyl', [36.4, 8, 6], [1.6, 5, 1.6], '#3a7a3e');
+      k.shape('sph', [-30, 34, -26], [16, 3.2, 16], '#c8ccd4', { m: 'metal' });
+      k.shape('sph', [-30, 36, -26], [6, 4, 6], '#a8f0d8', { m: 'glass', a: 0.5 });
+      k.shape('cone', [-30, 18, -26], [12, 30, 12], '#b8fff0', { m: 'neon', a: 0.25, r: [Math.PI, 0, 0] });
+      pedestal(k, 30, 0, -6, BLUE, BLUE_NEON);
+      k.player(-4, 0.6, 6, { anim: 'run', time: 0.5, holding: flagItem(BLUE), wear: cap(RED) });
+      k.player(10, 0.6, 12, { anim: 'run', time: 0.1, wear: cap(BLUE) });
+    }
+  });
+
+  Thumbs.registerWorld('br_polder', {
+    camera: [[26, 20, 46], [0, 12, -6], 50],
+    sky: { top: '#4a8ae8', horizon: '#e8f2fa', sun: [0.45, 0.75, 0.35], clouds: 0.75, tint: '#fff8e8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#5aa040', { st: 1 });
+      // the canal and its white drawbridge
+      k.box([14, 0.06, 0], [10, 0.12, 90], '#3a7a9a');
+      k.box([14, 0.4, 6], [12, 0.8, 8], '#8a7a6a', { st: 1 });
+      [[9, 2.6], [19, 2.6], [9, 9.4], [19, 9.4]].forEach(function (p) { k.box([p[0], 5.5, p[1]], [0.8, 10, 0.8], '#f4f2ea'); });
+      k.box([14, 10.6, 2.6], [11, 0.8, 0.8], '#f4f2ea'); k.box([14, 10.6, 9.4], [11, 0.8, 0.8], '#f4f2ea');
+      // the dike, the tulips beyond it in their bands
+      k.box([26, 1, 0], [8, 2, 90], '#4a8a34', { st: 1 });
+      k.box([26, 3, 0], [5, 2, 90], '#5aa040', { st: 1 });
+      ['#e8302a', '#f2c21e', '#f07aa8', '#ffffff', '#8a4ac8'].forEach(function (c, i) {
+        k.box([40, 0.6, -20 + i * 6], [16, 1.2, 4], c, { st: 1 });
+      });
+      // the great mill with its sails in the team's colour
+      k.box([-26, 3, -12], [14, 6, 14], '#a84a32', { st: 1 });
+      k.box([-26, 9, -12], [11, 6, 11], '#3a4a3a');
+      k.box([-26, 14, -12], [8, 4, 8], '#4a5a4a');
+      k.box([-26, 16.6, -12], [9, 1.4, 9], '#2a3a2a');
+      [[0.4], [2.0], [3.55], [5.1]].forEach(function (a) {
+        var ang = a[0];
+        k.box([-26 + Math.sin(ang) * 7, 17 + Math.cos(ang) * 7, -6.6], [2.4, 14, 0.3], '#e8705e',
+              { r: [0, 0, -ang] });
+      });
+      pedestal(k, -26, 0, 2, RED, RED_NEON);
+      k.player(2, 0, 10, { anim: 'run', time: 0.6, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-10, 0, 14, { anim: 'run', time: 0.2, wear: cap(RED) });
+    }
+  });
+
+  Thumbs.registerWorld('br_leviathan', {
+    camera: [[30, 26, -40], [0, 8, 6], 52],
+    sky: { top: '#3a2a5a', horizon: '#ff9a5a', sun: [0.55, 0.16, -0.35], clouds: 0.55, tint: '#ffc8a0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [140, 1, 110], '#c8a070', { st: 1 });
+      // the benches behind, in their strata
+      ['#e8d0a0', '#b8603a', '#f0e0b8', '#9a5a3a', '#e0c090'].forEach(function (c, i) {
+        k.box([0, 1 + i * 2, 40 + i * 4], [140, 2, 30], c, { st: 1 });
+      });
+      // the skull: stepped cranium, sockets aglow, jaws open towards us
+      for (var i = 0; i < 5; i++) k.box([0, 2 + i * 2, 4 + i * 0.6], [26 - i * 3.6, 2, 20 - i * 2.6], i % 2 ? '#c8b898' : '#e8dcc0', { st: 1 });
+      k.box([0, 6, -6.2], [26, 8, 1], '#e8dcc0');
+      [-5, 5].forEach(function (x) { k.shape('sph', [x, 7.4, -6.8], [3.4, 2.4, 0.6], '#ff7a2a', { m: 'neon' }); });
+      k.box([0, 3.4, -16], [10, 2.4, 20], '#e8dcc0', { st: 1 });
+      [-4.2, 4.2].forEach(function (x) {
+        for (var t2 = 0; t2 < 5; t2++) k.shape('cone', [x, 1.6, -22 + t2 * 3.4], [1.2, 2.2, 1.2], '#f8f2e2', { r: [Math.PI, 0, 0] });
+        k.box([x * 1.2, 0.8, -16], [1.6, 1.6, 20], '#c8b898');
+      });
+      // the spine and ribs running away from it
+      for (var v = 0; v < 6; v++) {
+        k.box([0, 5, 16 + v * 5], [3, 2, 3.6], '#e8dcc0', { st: 1 });
+        [-1, 1].forEach(function (sx) { k.box([sx * 5, 2.4, 16 + v * 5], [7, 1.2, 1.2], '#e8dcc0', { r: [0, 0, sx * 0.6] }); });
+      }
+      // a headframe on the rim
+      k.box([-40, 18, 44], [1, 16, 1], '#a85a32', { m: 'metal' });
+      k.box([-36, 18, 44], [1, 16, 1], '#a85a32', { m: 'metal' });
+      k.shape('torus', [-38, 27, 44], [5, 2, 5], '#3a3a40', { r: [0, 0, Math.PI / 2] });
+      pedestal(k, 22, 0, -10, BLUE, BLUE_NEON);
+      k.player(-12, 0, -22, { anim: 'run', time: 0.3, holding: flagItem(BLUE), wear: cap(RED) });
+      k.player(14, 0, -24, { anim: 'run', time: 0.8, wear: cap(BLUE) });
+    }
+  });
+
+  Thumbs.registerWorld('br_stacks', {
+    camera: [[30, 22, 40], [0, 9, -4], 52],
+    sky: { top: '#6a8ab8', horizon: '#e8e0d0', sun: [0.3, 0.85, 0.2], clouds: 0.5, tint: '#fff0d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#7a4a2e', { st: 1 });
+      // rows of shelves, books on their faces, a catwalk over them
+      var BOOK = ['#8a2a2a', '#2a4a8a', '#2a6a3a', '#c89a3a', '#5a2a6a'];
+      [-26, -14, 14, 26].forEach(function (x, i) {
+        k.box([x, 7, -14], [2.4, 14, 22], '#4a2a16');
+        for (var row = 0; row < 4; row++) k.box([x + 1.25, 2 + row * 3.2, -14], [0.1, 2.4, 20], BOOK[(i + row) % 5]);
+      });
+      k.box([0, 14.3, -14], [60, 0.6, 3], '#6a3e22', { st: 1 });
+      // the rotunda behind: its drum, its stepped dome, the globe through the door
+      k.box([0, 7, -36], [26, 14, 14], '#e8e0d0');
+      k.box([0, 15, -36], [22, 2, 12], '#c8bca8');
+      k.box([0, 17, -36], [16, 2, 9], '#e8e0d0');
+      k.shape('sph', [0, 6, -28], [8, 8, 8], '#3a6ab8');
+      // flying books
+      [[-8, 20, 4], [6, 23, -2], [14, 19, 6]].forEach(function (p, i) {
+        k.box([p[0] - 1.2, p[1], p[2]], [2.4, 0.2, 3], BOOK[i], { r: [0, 0, 0.5] });
+        k.box([p[0] + 1.2, p[1], p[2]], [2.4, 0.2, 3], BOOK[i], { r: [0, 0, -0.5] });
+      });
+      // the map table with its flag, the nave's runner
+      k.box([0, 0.05, 10], [8, 0.1, 40], '#8a2a2a');
+      k.box([-22, 1.5, 16], [14, 3, 9], '#4a2a16', { st: 1 });
+      pedestal(k, -22, 3, 16, RED, RED_NEON);
+      k.player(6, 0, 14, { anim: 'run', time: 0.4, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-6, 0, 22, { anim: 'run', time: 0.9, wear: cap(RED) });
+    }
+  });
+
+  Thumbs.registerWorld('br_steamworks', {
+    camera: [[28, 26, 44], [0, 6, -4], 52],
+    sky: { top: '#2a2a4a', horizon: '#e87a5a', sun: [-0.5, 0.12, 0.4], clouds: 0.45, tint: '#ffb890' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [130, 1, 100], '#5a5560', { st: 1 });
+      // the benches stepping up behind, a crack glowing in one
+      ['#5a5560', '#4a4550', '#6a6470', '#524c58'].forEach(function (c, i) {
+        k.box([0, 1 + i * 2, -26 - i * 5], [130, 2, 20], c, { st: 1 });
+      });
+      k.box([-10, 4.2, -30.9], [14, 0.4, 0.2], '#ff6a2a', { m: 'neon' });
+      // the lake, the island hall, the pipe bridge going up to the rim
+      k.box([0, 0.05, 2], [60, 0.1, 30], '#3ac8c8', { m: 'glass', a: 0.85 });
+      k.box([0, 4, 2], [18, 8, 12], '#b8bcc0');
+      k.box([0, 8.4, 2], [19, 0.8, 13], '#f2c21e');
+      k.box([24, 8, 2], [30, 0.8, 4], '#5a6068');
+      k.box([24, 9.2, 0.2], [30, 1.6, 0.4], '#f2c21e');
+      k.shape('cyl', [24, 7, 3], [1.6, 30, 1.6], '#c8ccd0', { r: [0, 0, Math.PI / 2], m: 'metal' });
+      [14, 26, 36].forEach(function (x) { k.box([x, 3.5, 2], [1, 7, 1], '#5a6068'); });
+      // a cooling tower with its plume, a geyser going up
+      for (var i = 0; i < 6; i++) k.shape('cyl', [-34, 10 + i * 3, -40], [16 - Math.sin(i / 5 * 2.6) * 6, 3, 16 - Math.sin(i / 5 * 2.6) * 6], '#c8c4bc');
+      k.shape('sph', [-30, 32, -40], [18, 10, 14], '#f2f2f4', { a: 0.8 });
+      k.shape('cyl', [-16, 6, 10], [2.4, 12, 2.4], '#e8fafa', { a: 0.8 });
+      k.shape('sph', [-16, 13, 10], [7, 4, 7], '#ffffff', { a: 0.6 });
+      pedestal(k, 34, 0, 18, BLUE, BLUE_NEON);
+      k.player(-4, 0, 20, { anim: 'run', time: 0.2, holding: flagItem(BLUE), wear: cap(RED) });
+      k.player(12, 0, 22, { anim: 'run', time: 0.7, wear: cap(BLUE) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

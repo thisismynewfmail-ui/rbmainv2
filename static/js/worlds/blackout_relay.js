@@ -86,6 +86,58 @@
     var bannerNode = null;
     var clock = 0;
 
+    // ------------------------------------------------- living scenery
+    // the map's rigs (static/js/game/rigs.js; the kinds are registered in
+    // blackout_relay_rigs.js), and what they are told about the game
+    var rigs = [];
+    var rigCtx = {
+      critters: [],
+      players: function () {
+        var out = [];
+        if (client.myId && client.local && client.local.alive !== false) {
+          out.push({ id: client.myId, pos: client.local.pos, team: client.myTeam, me: true });
+        }
+        Object.keys(client.players || {}).forEach(function (id) {
+          var p = client.players[id];
+          if (p && p.alive && p.pos) out.push({ id: p.id, pos: p.pos, team: p.team });
+        });
+        return out;
+      },
+      flagSpots: function () {
+        var flags = (client.extras && client.extras.flags) || {};
+        return Object.keys(flags).map(function (team) {
+          var f = flags[team] || {};
+          var pos = f.p;
+          if (f.state === 'carried') {
+            var who = f.carrier === client.myId ? client.local : (client.players || {})[f.carrier];
+            pos = who && who.pos ? who.pos : pos;
+          }
+          return { team: team, state: f.state || 'home', pos: pos };
+        });
+      },
+      viewer: function () {
+        var cam = client.cameraPosition ? client.cameraPosition() : null;
+        var at = cam && cam.eye ? cam.eye : client.local.pos;
+        var yaw = client.local.yaw || 0, pitch = client.local.pitch || 0, cp = Math.cos(pitch);
+        return { eye: at, dir: [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp] };
+      },
+      round: function () {
+        var st = client.state || {};
+        var mk = (client.map && client.map.markers) || {};
+        return { time_left: st.time_left, length: mk.round_seconds || 900,
+                 sudden: !!st.sudden_death, overtime: !!st.overtime };
+      },
+      sound: function (name, at, volume) {
+        if (!client.audio || !at) return;
+        client.audio.play(name, { volume: (volume || 1) * client.volumeAt(at) });
+      }
+    };
+
+    function buildRigs(map) {
+      rigCtx.critters = [];
+      rigs = global.Rigs ? global.Rigs.build(map, rigCtx) : [];
+    }
+
     function el(id) { return document.getElementById(id); }
     function esc(text) {
       return String(text == null ? '' : text).replace(/[&<>"]/g, function (c) {
@@ -115,6 +167,7 @@
       current.accent = extra.accent || '#ffd27a';
       drops.length = 0;
       document.documentElement.style.setProperty('--ar-accent', current.accent);
+      buildRigs(map);
     }
 
     function swap(map) {
@@ -265,6 +318,12 @@
         net.on('brarea', onArea);
         net.on('brnext', onNext);
         net.on('round_start', function () { if (reel) { reel.stop(); reel = null; } });
+        net.on('evt', function (msg) {
+          if (global.Rigs && msg && msg.k) global.Rigs.notify(rigs, msg.k, msg, rigCtx);
+        });
+      },
+      notify: function (kind, msg) {
+        if (global.Rigs) global.Rigs.notify(rigs, kind, msg, rigCtx);
       },
       onMap: function (map, first) {
         setMap(map);
@@ -277,6 +336,9 @@
       },
       draw: function (renderer, dt, time) {
         clock += dt;
+        if (rigs.length && global.Rigs) {
+          global.Rigs.draw(rigs, renderer, dt, eye(), rigCtx, (client.map && client.map.fog) || 900);
+        }
         drawWeather(renderer, dt, time);
         drawFlash(renderer, dt);
       }
@@ -1336,6 +1398,754 @@
         spaced(ctx, shown + pad, 0, 4, size * 0.1);
       });
       ctx.restore();
+    }
+  });
+
+  /* Snowglobe Hollow: a souvenir snow globe on the mantelpiece, the fire
+     glowing.  Somebody shakes it -- the snow goes everywhere -- and as it
+     settles the village's windows come on one by one, the toy train goes
+     round the square, and the name comes up on the brass plaque. */
+  Intro.register('br_snowglobe', {
+    tagline: 'Shake it up. Take the chalet. Bring it home.',
+    accent: '#bfe8ff',
+    cues: [[0.15, 'br_musicbox', 0.7], [0.7, 'br_rumble', 0.7], [1.95, 'br_musicbox', 0.5],
+           [2.5, 'br_whistle', 0.45], [3.3, 'br_toll', 0.5]],
+    tagY: 856, tagAt: 3.1,
+    setup: function (r) {
+      var d = { flakes: [], houses: [], pines: [], stripes: [] };
+      for (var i = 0; i < 190; i++) {
+        d.flakes.push({ a: r() * TAU, rr: Math.sqrt(r()), y: between(r, -1, 1), s: between(r, 1.6, 4.2),
+                        sp: between(r, 0.6, 1.4), ph: r() * TAU });
+      }
+      for (i = 0; i < 9; i++) {
+        d.houses.push({ x: -190 + i * 47 + between(r, -8, 8), w: between(r, 30, 44), h: between(r, 26, 44),
+                        c: ['#f2e0c8', '#f2ead8', '#e8d8e8', '#f2e8c0', '#e0e8f0'][i % 5], on: between(r, 1.7, 3.0) });
+      }
+      for (i = 0; i < 14; i++) d.pines.push({ x: between(r, -250, 250), y: between(r, 120, 200), s: between(r, 0.6, 1.2) });
+      for (i = 0; i < 26; i++) d.stripes.push(i);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      // the room: a dark papered wall, the fire's glow coming up from below
+      ctx.fillStyle = '#2a1a1e';
+      ctx.fillRect(0, 0, VW, VH);
+      ctx.fillStyle = 'rgba(255,255,255,0.025)';
+      d.stripes.forEach(function (i) { ctx.fillRect(i * 64, 0, 22, VH); });
+      var flick = 0.8 + 0.2 * Math.sin(t * 9) * Math.sin(t * 5.3);
+      additive(ctx, function () {
+        dot(ctx, '#ff8a3a', 160, 900, 520, 0.4 * flick);
+        dot(ctx, '#ff8a3a', 1440, 900, 520, 0.4 * flick);
+      });
+      // the mantelpiece
+      ctx.fillStyle = '#5a2a1a'; ctx.fillRect(0, 770, VW, 44);
+      ctx.fillStyle = '#7a3e26'; ctx.fillRect(0, 770, VW, 8);
+      ctx.fillStyle = '#3a1a10'; ctx.fillRect(0, 814, VW, 86);
+      // the shake: the globe rocks for a second, then settles
+      var shake = seg(t, 0.55, 1.75), hump = Math.sin(shake * Math.PI);
+      var rock = Math.sin(t * 26) * 0.07 * hump, lift = -38 * hump;
+      ctx.save();
+      ctx.translate(800, 770 + lift);
+      ctx.rotate(rock);
+      // the base: dark wood, a gold band, (the plaque is the title)
+      ctx.fillStyle = '#4a1e14';
+      ctx.beginPath(); ctx.moveTo(-330, 0); ctx.lineTo(330, 0); ctx.lineTo(270, -136); ctx.lineTo(-270, -136); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#6a2e22'; ctx.fillRect(-276, -150, 552, 18);
+      ctx.fillStyle = '#e8c050'; ctx.fillRect(-280, -156, 560, 8);
+      // the globe
+      var R = 268, cy = -156 - R * 0.86;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(0, cy, R, 0, TAU); ctx.clip();
+      var sky = ctx.createLinearGradient(0, cy - R, 0, cy + R);
+      sky.addColorStop(0, '#3a3058'); sky.addColorStop(0.55, '#c89a8a'); sky.addColorStop(1, '#f2e0d0');
+      ctx.fillStyle = sky; ctx.fillRect(-R, cy - R, R * 2, R * 2);
+      // far peaks
+      ctx.fillStyle = '#e8eef4';
+      [[-220, 90], [-120, 130], [10, 100], [140, 140], [240, 96]].forEach(function (p) {
+        ctx.beginPath(); ctx.moveTo(p[0] - 110, cy + 60); ctx.lineTo(p[0], cy + 60 - p[1]); ctx.lineTo(p[0] + 110, cy + 60); ctx.fill();
+      });
+      // the snowy ground, the two chalet hills
+      ctx.fillStyle = '#f6f8fa';
+      ctx.beginPath(); ctx.ellipse(0, cy + 190, R * 1.1, 150, 0, 0, TAU); ctx.fill();
+      [[-1, '#c42b20'], [1, '#0d69ac']].forEach(function (side) {
+        var hx = side[0] * 215;
+        ctx.fillStyle = '#eef2f6';
+        ctx.beginPath(); ctx.ellipse(hx, cy + 108, 110, 64, 0, Math.PI, TAU); ctx.fill();
+        ctx.fillStyle = '#6a4a2e'; ctx.fillRect(hx - 34, cy + 22, 68, 40);
+        ctx.fillStyle = '#4a5060';
+        ctx.beginPath(); ctx.moveTo(hx - 44, cy + 24); ctx.lineTo(hx, cy - 8); ctx.lineTo(hx + 44, cy + 24); ctx.fill();
+        ctx.fillStyle = '#f6f8fa';
+        ctx.beginPath(); ctx.moveTo(hx - 38, cy + 18); ctx.lineTo(hx, cy - 6); ctx.lineTo(hx + 38, cy + 18); ctx.lineTo(hx, cy + 6); ctx.fill();
+        if (t > 2.0) { ctx.fillStyle = '#ffd890'; ctx.fillRect(hx - 22, cy + 34, 10, 10); ctx.fillRect(hx + 12, cy + 34, 10, 10); }
+        pennant(ctx, hx + side[0] * 40, cy + 14, 44, side[1], t, side[0] < 0 ? 1 : -1);
+      });
+      // the town: houses, lit window by window, the church and the clock tower
+      d.houses.forEach(function (h) {
+        var y0 = cy + 150;
+        ctx.fillStyle = h.c; ctx.fillRect(h.x - h.w / 2, y0 - h.h, h.w, h.h);
+        ctx.fillStyle = '#f6f8fa';
+        ctx.beginPath(); ctx.moveTo(h.x - h.w / 2 - 4, y0 - h.h); ctx.lineTo(h.x, y0 - h.h - 18); ctx.lineTo(h.x + h.w / 2 + 4, y0 - h.h); ctx.fill();
+        ctx.fillStyle = t > h.on ? '#ffd27a' : '#6a6a78';
+        ctx.fillRect(h.x - 8, y0 - h.h + 10, 7, 8); ctx.fillRect(h.x + 2, y0 - h.h + 10, 7, 8);
+        if (t > h.on) additive(ctx, function () { dot(ctx, '#ffcf7a', h.x, y0 - h.h + 14, 18, 0.5); });
+      });
+      ctx.fillStyle = '#e8d8c0'; ctx.fillRect(-16, cy - 30, 32, 150);
+      ctx.fillStyle = '#4a5060';
+      ctx.beginPath(); ctx.moveTo(-22, cy - 30); ctx.lineTo(0, cy - 78); ctx.lineTo(22, cy - 30); ctx.fill();
+      ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.arc(0, cy + 2, 12, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a2218'; ctx.lineWidth = 2.5;
+      var ang = t * 1.4;
+      ctx.beginPath(); ctx.moveTo(0, cy + 2); ctx.lineTo(Math.sin(ang) * 9, cy + 2 - Math.cos(ang) * 9);
+      ctx.moveTo(0, cy + 2); ctx.lineTo(Math.sin(ang / 12) * 6, cy + 2 - Math.cos(ang / 12) * 6); ctx.stroke();
+      ctx.fillStyle = '#3a6a4a'; ctx.beginPath(); ctx.arc(-96, cy + 46, 16, Math.PI, TAU); ctx.fill();
+      ctx.fillStyle = '#f2ead8'; ctx.fillRect(-108, cy + 46, 24, 40);
+      // the carousel, the toy train going round
+      ctx.fillStyle = '#d8322a';
+      ctx.beginPath(); ctx.moveTo(80, cy + 120); ctx.lineTo(104, cy + 98); ctx.lineTo(128, cy + 120); ctx.fill();
+      ctx.fillStyle = '#c8a060'; ctx.fillRect(84, cy + 120, 40, 18);
+      for (var c = 0; c < 5; c++) {
+        var ta = t * 0.9 - c * 0.16;
+        var tx = Math.cos(ta) * 160, ty = cy + 196 + Math.sin(ta) * 22;
+        ctx.fillStyle = c === 0 ? '#2a6a3a' : (c === 4 ? '#c42b20' : ['#2a6aa8', '#f2c21e', '#c42b20'][c % 3]);
+        ctx.fillRect(tx - 10, ty - 8, 20, 12);
+      }
+      // pines
+      d.pines.forEach(function (p) {
+        var y = cy + p.y;
+        ctx.fillStyle = '#2a5a3a';
+        ctx.beginPath(); ctx.moveTo(p.x - 14 * p.s, y); ctx.lineTo(p.x, y - 40 * p.s); ctx.lineTo(p.x + 14 * p.s, y); ctx.fill();
+        ctx.fillStyle = '#f6f8fa';
+        ctx.beginPath(); ctx.moveTo(p.x - 6 * p.s, y - 26 * p.s); ctx.lineTo(p.x, y - 40 * p.s); ctx.lineTo(p.x + 6 * p.s, y - 26 * p.s); ctx.fill();
+      });
+      // the snow: whirled up by the shake, then settling
+      d.flakes.forEach(function (f) {
+        var whirl = hump * 3.2 + shake * 2;
+        var a = f.a + whirl * f.sp + t * 0.2;
+        var settle = seg(t, 1.6, 4.6);
+        var x = Math.cos(a) * f.rr * R * 0.95;
+        var yv = f.y * R * 0.85 * (1 - hump * 0.3) + settle * 140 * f.sp + Math.sin(t * 2 + f.ph) * 6;
+        var y = cy + ((yv + R) % (R * 2)) - R;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(x, y, f.s * (0.7 + hump * 0.4), 0, TAU); ctx.fill();
+      });
+      ctx.restore();
+      // the glass: a rim, the window's reflection, the fire's
+      ctx.strokeStyle = 'rgba(220,240,255,0.5)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, cy, R, 0, TAU); ctx.stroke();
+      additive(ctx, function () {
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 16;
+        ctx.beginPath(); ctx.arc(0, cy, R - 30, Math.PI * 1.12, Math.PI * 1.42); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,170,90,' + (0.18 * flick) + ')'; ctx.lineWidth = 22;
+        ctx.beginPath(); ctx.arc(0, cy, R - 24, Math.PI * 0.2, Math.PI * 0.55); ctx.stroke();
+      });
+      ctx.restore();
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Snowglobe Hollow').toUpperCase();
+      var k = seg(t, 2.05, 2.5);
+      if (k <= 0) return;
+      var shake = seg(t, 0.55, 1.75), hump = Math.sin(shake * Math.PI);
+      ctx.save();
+      ctx.translate(800, 770 - 38 * hump);
+      ctx.rotate(Math.sin(t * 26) * 0.07 * hump);
+      ctx.translate(0, -70);
+      ctx.globalAlpha = k;
+      var w = 420, h = 64;
+      var plate = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+      plate.addColorStop(0, '#f2d27a'); plate.addColorStop(0.5, '#c89a3a'); plate.addColorStop(1, '#e8c060');
+      ctx.fillStyle = plate;
+      roundRect(ctx, -w / 2, -h / 2, w, h, 10); ctx.fill();
+      ctx.strokeStyle = '#7a5a1a'; ctx.lineWidth = 3; ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 40, w - 50, 0.08);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,240,200,0.6)';
+      spaced(ctx, name, 0, 2, size * 0.08);
+      ctx.fillStyle = '#4a3010';
+      spaced(ctx, name, 0, 0, size * 0.08);
+      // a shine running along the brass
+      var sweep = seg(t, 2.5, 3.2);
+      if (sweep > 0 && sweep < 1) {
+        additive(ctx, function () {
+          var x = -w / 2 + sweep * w;
+          var g = ctx.createLinearGradient(x - 40, 0, x + 40, 0);
+          g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,250,220,0.55)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g; ctx.fillRect(x - 40, -h / 2, 80, h);
+        });
+      }
+      ctx.restore();
+    }
+  });
+
+  /* Big Ear Array: the dishes on the skyline under the Milky Way, all
+     turning together; a scope trace jumps; then the printout comes up out
+     of the printer with the name on it, and somebody circles it in red pen
+     and writes WOW! beside it. */
+  Intro.register('br_bigear', {
+    tagline: 'They are listening. Carry the flag and the whole sky knows.',
+    accent: '#9ab8ff',
+    cues: [[0.3, 'br_howl', 0.45], [1.0, 'br_beep', 0.5], [1.4, 'br_beep', 0.6], [1.8, 'br_whirr', 0.5],
+           [2.1, 'br_tick', 0.6], [2.25, 'br_tick', 0.6], [2.4, 'br_tick', 0.6], [2.55, 'br_tick', 0.6],
+           [3.1, 'br_ufo', 0.4]],
+    tagY: 846, tagAt: 3.3,
+    setup: function (r) {
+      var d = { stars: [], milky: [], dishes: [], rocks: [] };
+      for (var i = 0; i < 260; i++) d.stars.push({ x: r() * VW, y: r() * 520, s: between(r, 0.6, 2.2), p: r() * TAU });
+      for (i = 0; i < 420; i++) {
+        var u = r();
+        d.milky.push({ x: u * VW, y: 420 - u * 330 + (r() - 0.5) * 120 * (0.4 + r()), s: between(r, 0.4, 1.4) });
+      }
+      for (i = 0; i < 7; i++) d.dishes.push({ x: 140 + i * 220 + between(r, -20, 20), s: between(r, 0.7, 1.15) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, VH);
+      g.addColorStop(0, '#03040c'); g.addColorStop(0.55, '#141a3a'); g.addColorStop(0.75, '#3a2a48'); g.addColorStop(1, '#1a1018');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+      additive(ctx, function () {
+        d.milky.forEach(function (m) { ctx.fillStyle = 'rgba(200,210,255,0.22)'; ctx.fillRect(m.x, m.y, m.s, m.s); });
+        d.stars.forEach(function (st) {
+          var tw = 0.5 + 0.5 * Math.sin(t * 3 + st.p);
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * tw) + ')';
+          ctx.fillRect(st.x, st.y, st.s, st.s);
+        });
+      });
+      // the skyline: mesas, and the dishes all turning together
+      ctx.fillStyle = '#0c0a14';
+      ctx.beginPath(); ctx.moveTo(0, 640);
+      [[120, 600], [260, 600], [300, 560], [520, 560], [560, 610], [900, 620], [960, 580], [1180, 580],
+       [1220, 630], [1600, 620]].forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+      ctx.lineTo(1600, 900); ctx.lineTo(0, 900); ctx.fill();
+      var turn = -0.6 + 1.1 * inOut(seg(t, 0.6, 2.2));
+      d.dishes.forEach(function (dd, i) {
+        var x = dd.x, y = 640, s = dd.s;
+        ctx.fillStyle = '#05050a';
+        ctx.fillRect(x - 6 * s, y - 70 * s, 12 * s, 70 * s);
+        ctx.fillRect(x - 26 * s, y - 14 * s, 52 * s, 14 * s);
+        ctx.save();
+        ctx.translate(x, y - 76 * s);
+        ctx.rotate(turn);
+        ctx.beginPath(); ctx.ellipse(0, 0, 70 * s, 26 * s, 0, Math.PI, TAU); ctx.fill();
+        ctx.strokeStyle = '#05050a'; ctx.lineWidth = 3 * s;
+        ctx.beginPath(); ctx.moveTo(-50 * s, -6 * s); ctx.lineTo(0, -70 * s); ctx.lineTo(50 * s, -6 * s); ctx.stroke();
+        if (Math.sin(t * 4 + i) > 0.3) additive(ctx, function () { dot(ctx, '#ff3020', 0, -72 * s, 10, 0.9); });
+        ctx.restore();
+      });
+      // the scope: a trace along the bottom, jumping at 1.4
+      var k = seg(t, 0.8, 1.2);
+      if (k > 0) {
+        ctx.globalAlpha = Math.min(1, k) * (1 - seg(t, 2.6, 3.0) * 0.6);
+        ctx.fillStyle = 'rgba(4,20,10,0.85)';
+        roundRect(ctx, 60, 690, 520, 150, 10); ctx.fill();
+        ctx.strokeStyle = 'rgba(122,255,154,0.25)'; ctx.lineWidth = 1;
+        for (var gx = 60; gx <= 580; gx += 52) { ctx.beginPath(); ctx.moveTo(gx, 690); ctx.lineTo(gx, 840); ctx.stroke(); }
+        additive(ctx, function () {
+          ctx.strokeStyle = '#7aff9a'; ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          for (var x = 0; x <= 500; x += 4) {
+            var u = x / 500;
+            var spike = Math.exp(-Math.pow((u - 0.62) * 14, 2)) * seg(t, 1.35, 1.6) * 52;
+            var y = 765 + Math.sin(u * 40 + t * 9) * 6 + Math.sin(u * 97 - t * 13) * 4 - spike;
+            if (x === 0) ctx.moveTo(70 + x, y); else ctx.lineTo(70 + x, y);
+          }
+          ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Big Ear Array').toUpperCase();
+      var k = seg(t, 1.9, 2.7);
+      if (k <= 0) return;
+      // the printout scrolls up out of the printer
+      var W = 760, top = 900 - k * 560;
+      ctx.save();
+      ctx.translate(800 - W / 2, top);
+      ctx.fillStyle = '#f4f1e6'; ctx.fillRect(0, 0, W, 620);
+      ctx.fillStyle = 'rgba(80,150,110,0.12)';
+      for (var band = 0; band < 620; band += 64) ctx.fillRect(0, band, W, 32);
+      ctx.fillStyle = '#d8d4c8';
+      for (var hole = 18; hole < 620; hole += 26) {
+        ctx.beginPath(); ctx.arc(14, hole, 5, 0, TAU); ctx.arc(W - 14, hole, 5, 0, TAU); ctx.fill();
+      }
+      ctx.font = 'bold 20px Consolas, Menlo, monospace';
+      ctx.fillStyle = '#3a3a48'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      var rows = ['1 1  1   1  1 1   1 1  1   1', '1  1 1  1 1   1 1  1 1 1  1', '  1 1  6EQUJ5  1   1  1 1 1',
+                  '1   1 1  1  1 1  1   1  1  1'];
+      rows.forEach(function (row, i) { ctx.fillText(row, 60, 40 + i * 30); });
+      var size = fitSize(ctx, name, 'bold #px Consolas, Menlo, monospace', 58, W - 160, 0.12);
+      ctx.font = 'bold ' + size + 'px Consolas, Menlo, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1a1a2a';
+      spaced(ctx, name, W / 2 - 40, 214, size * 0.12);
+      // the red pen: round the name, then WOW!
+      var pen = seg(t, 2.55, 3.15);
+      if (pen > 0) {
+        ctx.strokeStyle = '#d8221a'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath();
+        var steps = 60, rx = W * 0.42, ry = 52;
+        for (var i = 0; i <= steps * pen; i++) {
+          var a = -Math.PI * 0.9 + (i / steps) * TAU * 1.08;
+          var x = W / 2 - 40 + Math.cos(a) * rx * (1 + 0.03 * Math.sin(i * 0.7));
+          var y = 214 + Math.sin(a) * ry * (1 + 0.05 * Math.sin(i * 1.3));
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        var wow = seg(t, 3.0, 3.3);
+        if (wow > 0) {
+          ctx.save();
+          ctx.translate(W - 70, 150); ctx.rotate(-0.15);
+          ctx.font = 'italic bold 52px Georgia, serif';
+          ctx.fillStyle = '#d8221a'; ctx.textAlign = 'center';
+          ctx.globalAlpha = wow;
+          ctx.fillText('Wow!', 0, 0);
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+  });
+
+  /* Polderhaven: a Delft tile, painted stroke by stroke in blue -- the
+     mill, the canal, a barge, the clouds -- and then the colour floods
+     in: the sky, and the tulip fields in their bands. */
+  Intro.register('br_polder', {
+    tagline: 'Below the sea, above the tulips. Mind the sails.',
+    accent: '#ffb84a',
+    cues: [[0.1, 'br_chime', 0.5], [0.8, 'br_wind', 0.4], [1.7, 'br_chime', 0.6], [2.2, 'br_bell', 0.6],
+           [2.9, 'br_quack', 0.6]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { stripes: [], birds: [], clouds: [] };
+      for (var i = 0; i < 12; i++) d.stripes.push({ c: ['#e8302a', '#f2c21e', '#f07aa8', '#ffffff', '#8a4ac8', '#f28a2a'][i % 6] });
+      for (i = 0; i < 5; i++) d.birds.push({ x: between(r, 500, 1300), y: between(r, 150, 320), p: r() * TAU });
+      for (i = 0; i < 4; i++) d.clouds.push({ x: between(r, 120, 1480), y: between(r, 120, 260), s: between(r, 0.8, 1.4) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var BLUE = '#1f4aa8', paint = seg(t, 0.05, 1.6), colour = seg(t, 1.5, 2.6);
+      ctx.fillStyle = '#f4f0e4'; ctx.fillRect(0, 0, VW, VH);
+      // the sky comes in with the colour
+      if (colour > 0) {
+        ctx.globalAlpha = colour;
+        var g = ctx.createLinearGradient(0, 80, 0, 600);
+        g.addColorStop(0, '#5a9ae8'); g.addColorStop(1, '#e8f2fa');
+        ctx.fillStyle = g; ctx.fillRect(60, 60, VW - 120, 560);
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = BLUE; ctx.fillStyle = BLUE; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      // the tile's border and corner flourishes
+      ctx.lineWidth = 10; ctx.strokeRect(40, 40, VW - 80, VH - 80);
+      ctx.lineWidth = 3; ctx.strokeRect(60, 60, VW - 120, VH - 120);
+      [[100, 100], [VW - 100, 100], [100, VH - 100], [VW - 100, VH - 100]].forEach(function (c) {
+        for (var k = 0; k < 4; k++) {
+          ctx.beginPath(); ctx.arc(c[0] + Math.cos(k * Math.PI / 2) * 14, c[1] + Math.sin(k * Math.PI / 2) * 14, 10, 0, TAU);
+          ctx.stroke();
+        }
+      });
+      function stroke(at, fn) {
+        var k = seg(paint, at, at + 0.25);
+        if (k <= 0) return;
+        ctx.globalAlpha = Math.min(1, k * 1.5);
+        fn(k);
+        ctx.globalAlpha = 1;
+      }
+      // the land and the dike
+      stroke(0.0, function (k) {
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(60, 560); ctx.lineTo(60 + (VW - 120) * k, 560); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(60, 600); ctx.quadraticCurveTo(400, 590, 760, 612); ctx.stroke();
+      });
+      // the canal: wavy lines
+      stroke(0.15, function () {
+        ctx.lineWidth = 3;
+        for (var w = 0; w < 4; w++) {
+          ctx.beginPath();
+          for (var x = 820; x < 1500; x += 10) {
+            var y = 650 + w * 22 + Math.sin(x * 0.05 + t * 2 + w) * 4;
+            if (x === 820) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      });
+      // the mill: its body, its cap, its sails going round
+      stroke(0.3, function () {
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(300, 560); ctx.lineTo(330, 340); ctx.lineTo(410, 340); ctx.lineTo(440, 560); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(318, 340); ctx.quadraticCurveTo(370, 290, 422, 340); ctx.stroke();
+        ctx.strokeRect(350, 480, 40, 80);
+        ctx.strokeRect(358, 400, 24, 24);
+      });
+      stroke(0.45, function () {
+        var spin = t * 1.1;
+        ctx.save(); ctx.translate(370, 330);
+        for (var k = 0; k < 4; k++) {
+          ctx.save(); ctx.rotate(spin + k * Math.PI / 2);
+          ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -230); ctx.stroke();
+          ctx.lineWidth = 2;
+          ctx.strokeRect(4, -220, 34, 170);
+          for (var b2 = 0; b2 < 6; b2++) { ctx.beginPath(); ctx.moveTo(4, -210 + b2 * 28); ctx.lineTo(38, -210 + b2 * 28); ctx.stroke(); }
+          if (colour > 0) { ctx.globalAlpha = colour * 0.85; ctx.fillStyle = '#c42b20'; ctx.fillRect(6, -218, 30, 166); ctx.globalAlpha = 1; ctx.fillStyle = BLUE; }
+          ctx.restore();
+        }
+        ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.fill();
+        ctx.restore();
+      });
+      // a barge on the canal, a cyclist on the dike
+      stroke(0.6, function () {
+        var bx = 860 + ((t * 40) % 500);
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(bx, 690); ctx.lineTo(bx + 120, 690); ctx.lineTo(bx + 104, 708); ctx.lineTo(bx + 12, 708); ctx.closePath(); ctx.stroke();
+        ctx.strokeRect(bx + 30, 672, 40, 18);
+        var cx = 120 + ((t * 70) % 620);
+        ctx.beginPath(); ctx.arc(cx, 586, 10, 0, TAU); ctx.arc(cx + 30, 586, 10, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, 586); ctx.lineTo(cx + 14, 566); ctx.lineTo(cx + 30, 586); ctx.moveTo(cx + 14, 566); ctx.lineTo(cx + 16, 548); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx + 16, 540, 7, 0, TAU); ctx.stroke();
+      });
+      // clouds and birds
+      stroke(0.75, function () {
+        ctx.lineWidth = 3;
+        d.clouds.forEach(function (c) {
+          var x = c.x + Math.sin(t * 0.3 + c.s) * 20;
+          for (var k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(x + k * 30 * c.s, c.y - (k % 2) * 12 * c.s, 22 * c.s, Math.PI, TAU); ctx.stroke(); }
+        });
+        d.birds.forEach(function (b2) {
+          var y = b2.y + Math.sin(t * 2 + b2.p) * 6, x = b2.x + t * 30;
+          ctx.beginPath(); ctx.moveTo(x - 14, y); ctx.quadraticCurveTo(x - 7, y - 8, x, y); ctx.quadraticCurveTo(x + 7, y - 8, x + 14, y); ctx.stroke();
+        });
+      });
+      // the tulip fields in their bands, sliding in with the colour
+      if (colour > 0) {
+        for (var i = 0; i < d.stripes.length; i++) {
+          var y0 = 740 + i * 8 - 100, k = seg(colour, i * 0.04, i * 0.04 + 0.4);
+          if (k <= 0) continue;
+          ctx.fillStyle = d.stripes[i].c;
+          ctx.globalAlpha = 0.95;
+          ctx.beginPath(); ctx.moveTo(60, y0 + 10); ctx.lineTo(60 + 700 * k, y0); ctx.lineTo(60 + 700 * k, y0 + 7); ctx.lineTo(60, y0 + 18); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Polderhaven').toUpperCase();
+      var k = seg(t, 2.0, 2.6);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(1060, 250);
+      ctx.scale(0.7 + 0.3 * outBack(k), 0.7 + 0.3 * outBack(k));
+      ctx.globalAlpha = Math.min(1, k * 2);
+      ctx.fillStyle = '#f4f0e4';
+      ctx.strokeStyle = '#1f4aa8'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(-330, -60); ctx.lineTo(330, -60); ctx.lineTo(370, 0); ctx.lineTo(330, 60);
+      ctx.lineTo(-330, 60); ctx.lineTo(-370, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 64, 600, 0.12);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1f4aa8';
+      spaced(ctx, name, 0, 4, size * 0.12);
+      ctx.restore();
+    }
+  });
+
+  /* Leviathan Quarry: the strata at sunset, and a brush going over the
+     rock -- and under it, bone: the skull, the spine, the ribs.  Its eye
+     kindles; it sings; the name is cut into the stone. */
+  Intro.register('br_leviathan', {
+    tagline: 'Ninety million years asleep. Run along its back.',
+    accent: '#ff9a5a',
+    cues: [[0.1, 'br_wind', 0.5], [0.4, 'br_song', 0.6], [1.5, 'br_gull', 0.5],
+           [2.25, 'br_thud', 0.8], [2.45, 'br_thud', 0.8], [2.65, 'br_thud', 0.8]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { strata: [], dust: [], ribs: [] };
+      var cols = ['#e8d0a0', '#b8603a', '#f0e0b8', '#9a5a3a', '#e0c090', '#a86a48', '#f2dcb0', '#8a4a30'];
+      for (var i = 0; i < 9; i++) d.strata.push({ y: 300 + i * 70, c: cols[i % cols.length], w: between(r, 0.6, 1.4) });
+      for (i = 0; i < 70; i++) d.dust.push({ x: r() * VW, y: between(r, 250, 900), s: between(r, 1, 3), p: r() * TAU });
+      for (i = 0; i < 9; i++) d.ribs.push({ x: 720 + i * 82, l: 150 - Math.abs(i - 3) * 12 });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, 330);
+      g.addColorStop(0, '#3a2a5a'); g.addColorStop(0.6, '#c86a5a'); g.addColorStop(1, '#ffb070');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, 330);
+      additive(ctx, function () { dot(ctx, '#ffd890', 1250, 300, 220, 0.6); });
+      d.strata.forEach(function (st, i) {
+        ctx.fillStyle = st.c;
+        ctx.beginPath(); ctx.moveTo(0, st.y);
+        for (var x = 0; x <= VW; x += 80) ctx.lineTo(x, st.y + Math.sin(x * 0.004 * st.w + i) * 10);
+        ctx.lineTo(VW, VH); ctx.lineTo(0, VH); ctx.fill();
+      });
+      // the brush goes along, and the bone comes up under it
+      var reveal = seg(t, 0.5, 2.3);
+      var brushX = 260 + reveal * 1180;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, brushX, VH); ctx.clip();
+      ctx.fillStyle = '#efe4c8'; ctx.strokeStyle = '#c8b898'; ctx.lineWidth = 4;
+      // the skull
+      ctx.beginPath(); ctx.moveTo(300, 560); ctx.quadraticCurveTo(360, 420, 560, 430);
+      ctx.quadraticCurveTo(680, 440, 700, 540); ctx.lineTo(690, 600); ctx.lineTo(300, 600); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(300, 590); ctx.lineTo(160, 610); ctx.lineTo(170, 650); ctx.lineTo(320, 640); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#f8f2e2';
+      for (var tooth = 0; tooth < 7; tooth++) {
+        var tx = 180 + tooth * 20;
+        ctx.beginPath(); ctx.moveTo(tx, 612 - tooth * 1.5); ctx.lineTo(tx + 8, 636); ctx.lineTo(tx + 14, 610 - tooth * 1.5); ctx.fill();
+      }
+      ctx.fillStyle = '#2a1a12';
+      ctx.beginPath(); ctx.ellipse(470, 505, 44, 30, -0.1, 0, TAU); ctx.fill();
+      // the spine and ribs
+      ctx.fillStyle = '#efe4c8';
+      for (var v = 0; v < 16; v++) {
+        var vx = 700 + v * 52, vy = 520 + Math.sin(v * 0.4) * 14;
+        roundRect(ctx, vx, vy - 18, 40, 36, 8); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(vx + 8, vy - 18); ctx.lineTo(vx + 20, vy - 46); ctx.lineTo(vx + 32, vy - 18); ctx.fill();
+      }
+      ctx.strokeStyle = '#efe4c8'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+      d.ribs.forEach(function (rb) {
+        ctx.beginPath(); ctx.moveTo(rb.x, 540); ctx.quadraticCurveTo(rb.x + 30, 600 + rb.l * 0.3, rb.x - 10, 540 + rb.l); ctx.stroke();
+      });
+      ctx.restore();
+      // the brush and the dust it raises
+      if (reveal > 0 && reveal < 1) {
+        ctx.save(); ctx.translate(brushX, 470 + Math.sin(t * 30) * 30); ctx.rotate(0.5);
+        ctx.fillStyle = '#8a5a2a'; ctx.fillRect(-8, -110, 16, 90);
+        ctx.fillStyle = '#d8c090'; ctx.fillRect(-16, -20, 32, 40);
+        ctx.restore();
+      }
+      d.dust.forEach(function (p) {
+        var a = 0.25 + 0.2 * Math.sin(t * 2 + p.p);
+        ctx.fillStyle = 'rgba(255,230,190,' + a + ')';
+        ctx.fillRect(p.x + Math.sin(t + p.p) * 20, p.y - t * 18 % 60, p.s, p.s);
+      });
+      // its eye kindles
+      var eye = seg(t, 1.6, 2.4);
+      if (eye > 0) additive(ctx, function () { dot(ctx, '#ff7a2a', 470, 505, 50, eye * (0.7 + 0.3 * Math.sin(t * 5))); });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Leviathan Quarry').toUpperCase();
+      var k = seg(t, 2.15, 2.75);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 190);
+      ctx.fillStyle = '#5a4a44';
+      ctx.beginPath(); ctx.moveTo(-480, -70); ctx.lineTo(470, -78); ctx.lineTo(490, 64); ctx.lineTo(-490, 72); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7a6a64'; ctx.lineWidth = 6; ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 70, 880, 0.1);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var shown = name.slice(0, Math.ceil(name.length * k));
+      var pad = name.slice(shown.length).replace(/./g, ' ');
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      spaced(ctx, shown + pad, 3, 3, size * 0.1);
+      ctx.fillStyle = '#e8d8b8';
+      spaced(ctx, shown + pad, 0, 0, size * 0.1);
+      ctx.restore();
+    }
+  });
+
+  /* The Grand Stacks: a great book falls open, its pages riffle and
+     settle on an ink drawing of the rotunda, and the name is lettered in
+     with an illuminated capital -- while books flap across the light.
+     Somebody says shhh. */
+  Intro.register('br_stacks', {
+    tagline: 'Silence in the stacks. Take the map from the table.',
+    accent: '#e8c070',
+    cues: [[0.3, 'br_page', 0.8], [0.6, 'br_page', 0.8], [0.8, 'br_page', 0.8], [1.0, 'br_page', 0.8],
+           [1.5, 'br_flutter', 0.7], [3.2, 'br_shh', 0.7]],
+    tagY: 846, tagAt: 3.0,
+    setup: function (r) {
+      var d = { motes: [], books: [] };
+      for (var i = 0; i < 60; i++) d.motes.push({ x: between(r, 900, 1300), y: between(r, 0, 900), p: r() * TAU, s: between(r, 1, 2.6) });
+      for (i = 0; i < 6; i++) d.books.push({ y: between(r, 120, 380), sp: between(r, 220, 380), p: r() * TAU, c: ['#8a2a2a', '#2a4a8a', '#2a6a3a', '#c89a3a'][i % 4], at: between(r, 1.2, 2.6) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      ctx.fillStyle = '#2a1a10'; ctx.fillRect(0, 0, VW, VH);
+      // a shaft of light from high up, dust turning in it
+      additive(ctx, function () {
+        ctx.fillStyle = 'rgba(255,240,200,0.07)';
+        ctx.beginPath(); ctx.moveTo(980, 0); ctx.lineTo(1180, 0); ctx.lineTo(1400, 900); ctx.lineTo(1020, 900); ctx.fill();
+        d.motes.forEach(function (m) {
+          var y = (m.y + t * 20) % 900;
+          ctx.fillStyle = 'rgba(255,240,200,' + (0.4 + 0.4 * Math.sin(t * 2 + m.p)) + ')';
+          ctx.fillRect(m.x + y * 0.24 + Math.sin(t + m.p) * 8, y, m.s, m.s);
+        });
+      });
+      // the book: it opens, the pages riffle
+      var open = outCubic(seg(t, 0.1, 0.7));
+      var cx = 800, cy = 520;
+      ctx.fillStyle = '#5a1a12';
+      roundRect(ctx, cx - 560, cy - 300, 1120, 600, 18); ctx.fill();
+      ctx.save();
+      ctx.translate(cx, cy);
+      // left page
+      ctx.fillStyle = '#efe4c8';
+      ctx.fillRect(-530 * open, -280, 525 * open, 560);
+      // right page
+      ctx.fillRect(5, -280, 525, 560);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-12, -280, 24, 560);
+      // riffling pages over the right half
+      var riff = seg(t, 0.5, 1.3);
+      if (riff > 0 && riff < 1) {
+        for (var p = 0; p < 4; p++) {
+          var a = ((riff * 4 + p * 0.25) % 1) * Math.PI;
+          var w = Math.cos(a) * 520;
+          ctx.fillStyle = p % 2 ? '#f4ead2' : '#e8dcc0';
+          ctx.fillRect(Math.min(0, w), -276, Math.abs(w), 552);
+        }
+      }
+      // the drawing of the rotunda on the left page, inked in
+      var ink = seg(t, 1.2, 2.2);
+      if (ink > 0 && open > 0.9) {
+        ctx.strokeStyle = 'rgba(50,30,20,' + Math.min(1, ink * 1.4) + ')'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(-260, -40, 150 * Math.min(1, ink * 1.3), Math.PI, TAU); ctx.stroke();
+        for (var c = 0; c < 9; c++) {
+          var x = -400 + c * 35;
+          if (ink > c / 9) { ctx.beginPath(); ctx.moveTo(x, -40); ctx.lineTo(x, 160); ctx.stroke(); }
+        }
+        ctx.beginPath(); ctx.moveTo(-430, 160); ctx.lineTo(-90, 160); ctx.moveTo(-430, -40); ctx.lineTo(-90, -40); ctx.stroke();
+        if (ink > 0.6) { ctx.beginPath(); ctx.arc(-260, -190, 18, 0, TAU); ctx.stroke(); }
+        ctx.beginPath(); ctx.arc(-260, 60, 40 * Math.min(1, ink * 1.2), 0, TAU); ctx.stroke();
+        // lines of text below it
+        ctx.fillStyle = 'rgba(60,40,30,0.5)';
+        for (var ln = 0; ln < 6; ln++) if (ink > ln / 6) ctx.fillRect(-480, 190 + ln * 14, 400 - (ln % 3) * 40, 4);
+      }
+      ctx.restore();
+      // books flapping across the light
+      d.books.forEach(function (bk) {
+        var k = t - bk.at;
+        if (k < 0) return;
+        var x = -100 + k * bk.sp, y = bk.y + Math.sin(k * 3 + bk.p) * 20;
+        var flap = Math.abs(Math.sin(t * 9 + bk.p));
+        ctx.save(); ctx.translate(x, y);
+        ctx.fillStyle = bk.c;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-40, -30 * flap); ctx.lineTo(-44, 6); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(40, -30 * flap); ctx.lineTo(44, 6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f2ead8'; ctx.fillRect(-3, -4, 6, 12);
+        ctx.restore();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = run.info.name || 'The Grand Stacks';
+      var k = seg(t, 1.9, 2.8);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(1070, 470);
+      // the illuminated capital
+      var cap = name.charAt(0);
+      var size = 150;
+      ctx.globalAlpha = Math.min(1, k * 3);
+      ctx.fillStyle = '#a82a1a';
+      roundRect(ctx, -250, -120, 130, 150, 10); ctx.fill();
+      ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 6; ctx.stroke();
+      ctx.font = 'bold ' + size * 0.8 + 'px Georgia, serif';
+      ctx.fillStyle = '#f2d27a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(cap, -185, -40);
+      // the rest, lettered in
+      var rest = name.slice(1);
+      var shown = rest.slice(0, Math.ceil(rest.length * seg(t, 2.0, 2.8)));
+      var fs = fitSize(ctx, rest, 'italic bold #px Georgia, serif', 74, 380, 0.02);
+      ctx.font = 'italic bold ' + fs + 'px Georgia, serif';
+      ctx.fillStyle = '#3a2214'; ctx.textAlign = 'left';
+      var words = shown.split(' ');
+      var line1 = words.slice(0, 2).join(' '), line2 = words.slice(2).join(' ');
+      ctx.fillText(line1, -110, -60);
+      if (line2) ctx.fillText(line2, -110, 24);
+      ctx.restore();
+    }
+  });
+
+  /* Steamworks Caldera: the crater at dusk, the cooling towers smoking,
+     the lake glowing; a pressure gauge in the foreground climbs into the
+     red -- the whistle goes -- and a geyser goes up.  The name drops in on a
+     riveted plate. */
+  Intro.register('br_steamworks', {
+    tagline: 'Pressure is rising. Hold the island. Run the pipes.',
+    accent: '#ff9a5a',
+    cues: [[0.2, 'br_hum', 0.6], [0.9, 'br_gurgle', 0.6], [1.6, 'br_shift', 0.6], [1.9, 'br_geyser', 0.6],
+           [2.6, 'br_clank', 0.6]],
+    shakes: [[1.95, 5, 0.4]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { peaks: [], puffs: [] };
+      for (var i = 0; i < 9; i++) d.peaks.push({ x: i * 200 - 40 + between(r, -30, 30), h: between(r, 220, 360) });
+      for (i = 0; i < 26; i++) d.puffs.push({ a: r() * TAU, s: between(r, 0.6, 1.4) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, 620);
+      g.addColorStop(0, '#2a2a4a'); g.addColorStop(0.65, '#c86a5a'); g.addColorStop(1, '#ffa070');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+      ctx.fillStyle = '#2a2632';
+      d.peaks.forEach(function (p) {
+        ctx.beginPath(); ctx.moveTo(p.x - 160, 620); ctx.lineTo(p.x, 620 - p.h); ctx.lineTo(p.x + 160, 620); ctx.fill();
+      });
+      // the crater's rim, the lake glowing in it
+      ctx.fillStyle = '#3a3440'; ctx.fillRect(0, 600, VW, 300);
+      var lake = ctx.createRadialGradient(800, 700, 40, 800, 700, 520);
+      lake.addColorStop(0, 'rgba(90,240,230,0.9)'); lake.addColorStop(1, 'rgba(40,140,150,0.2)');
+      ctx.fillStyle = lake;
+      ctx.beginPath(); ctx.ellipse(800, 700, 520, 90, 0, 0, TAU); ctx.fill();
+      // the cooling towers and their plumes
+      [[300, 1], [1300, -1]].forEach(function (tw) {
+        var x = tw[0];
+        ctx.fillStyle = '#b8b4ac';
+        ctx.beginPath(); ctx.moveTo(x - 70, 600); ctx.quadraticCurveTo(x - 30, 470, x - 50, 360); ctx.lineTo(x + 50, 360);
+        ctx.quadraticCurveTo(x + 30, 470, x + 70, 600); ctx.fill();
+        d.puffs.forEach(function (pf, i) {
+          var ph = (t * 0.25 + i / d.puffs.length) % 1;
+          ctx.fillStyle = 'rgba(240,240,244,' + (0.5 * (1 - ph)) + ')';
+          ctx.beginPath(); ctx.arc(x + ph * 160 * tw[1] + Math.sin(pf.a + t) * 10, 350 - ph * 260, 30 + ph * 60 * pf.s, 0, TAU); ctx.fill();
+        });
+      });
+      // the turbine hall on its island, the pipe bridge to the rim
+      ctx.fillStyle = '#d8dce0'; ctx.fillRect(720, 610, 160, 60);
+      ctx.fillStyle = '#f2c21e'; ctx.fillRect(712, 604, 176, 8);
+      ctx.fillRect(880, 618, 600, 6); ctx.fillRect(120, 618, 600, 6);
+      // the geyser
+      var gk = seg(t, 1.9, 3.6);
+      if (gk > 0) {
+        var rise = Math.min(1, gk * 4) * (1 - Math.max(0, gk - 0.7) / 0.3);
+        var top = 700 - 420 * rise;
+        ctx.fillStyle = 'rgba(232,250,250,0.85)';
+        ctx.beginPath(); ctx.moveTo(1040, 700); ctx.quadraticCurveTo(1030, (700 + top) / 2, 1046, top);
+        ctx.lineTo(1066, top); ctx.quadraticCurveTo(1080, (700 + top) / 2, 1072, 700); ctx.fill();
+        for (var sp = 0; sp < 14; sp++) {
+          var a = sp / 14 * Math.PI - Math.PI;
+          ctx.beginPath(); ctx.arc(1056 + Math.cos(a) * 60 * rise, top + 20 - Math.sin(a) * 40 * rise, 10 + sp % 3 * 4, 0, TAU); ctx.fill();
+        }
+      }
+      // the gauge, close up: the needle climbing into the red
+      var nk = inOut(seg(t, 0.3, 1.6));
+      ctx.save();
+      ctx.translate(330, 640);
+      ctx.fillStyle = '#c8a040'; ctx.beginPath(); ctx.arc(0, 0, 190, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f4f2ea'; ctx.beginPath(); ctx.arc(0, 0, 166, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#d8321a'; ctx.lineWidth = 26;
+      ctx.beginPath(); ctx.arc(0, 0, 130, -0.35, 0.55); ctx.stroke();
+      ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 4;
+      for (var tick = 0; tick <= 10; tick++) {
+        var ta = -Math.PI * 1.2 + tick * Math.PI * 1.75 / 10;
+        ctx.beginPath(); ctx.moveTo(Math.cos(ta) * 150, Math.sin(ta) * 150); ctx.lineTo(Math.cos(ta) * 126, Math.sin(ta) * 126); ctx.stroke();
+      }
+      var na = -Math.PI * 1.2 + (0.1 + nk * 0.63 + Math.sin(t * 30) * 0.01 * nk) * Math.PI * 1.75;
+      ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-Math.cos(na) * 20, -Math.sin(na) * 20); ctx.lineTo(Math.cos(na) * 140, Math.sin(na) * 140); ctx.stroke();
+      ctx.fillStyle = '#c8a040'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, TAU); ctx.fill();
+      ctx.restore();
+      // the whistle's steam, when it blows
+      var wk = seg(t, 1.6, 2.6);
+      if (wk > 0 && wk < 1) {
+        for (var w = 0; w < 10; w++) {
+          ctx.fillStyle = 'rgba(244,246,248,' + (0.6 * (1 - wk)) + ')';
+          ctx.beginPath(); ctx.arc(560 + w * 14 + wk * 80, 380 - w * 18 - wk * 60, 20 + w * 4, 0, TAU); ctx.fill();
+        }
+      }
+    },
+    title: function (ctx, t, d, run) {
+      stencilPlate(ctx, t, (run.info.name || 'Steamworks Caldera').toUpperCase(), 1020, 220, 860, 150,
+                   '#5a6068', '#f2c21e', 2.3);
     }
   });
 

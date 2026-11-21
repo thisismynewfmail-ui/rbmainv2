@@ -11,6 +11,9 @@
      fire         one shot / swing / use, aimed where the camera looks
      hold:S       hold the trigger for S seconds (beams, automatics)
      look:Y,P     set the view yaw/pitch (radians)
+     walk:S       hold forward for S seconds (hopping now and then)
+     goto:X;Z>... walk through waypoints in the area's coordinates ("s20":
+                  20 out on your own team's side)
      wait:S       let S seconds of play pass
      shot         save a PNG (<out>/<n>.png)
      holdshot:S   hold the trigger S seconds and save a PNG while it is down
@@ -100,6 +103,54 @@ function loadPlaywright() {
         c.local.yaw = v[0];
         c.local.pitch = v[1] || 0;
       }, yp);
+    } else if (name === 'walk' || name === 'run') {
+      // hold forward (and jump now and then, for kerbs) for S seconds
+      await page.evaluate(function () { window.gameClient.keys.forward = true; });
+      var stop = Date.now() + parseFloat(value || '1') * 1000;
+      while (Date.now() < stop) {
+        await page.evaluate(function () {
+          var c = window.gameClient;
+          c.keys.jump = Math.random() < 0.15;
+        });
+        await page.waitForTimeout(120);
+      }
+      await page.evaluate(function () {
+        var c = window.gameClient;
+        c.keys.forward = false;
+        c.keys.jump = false;
+      });
+    } else if (name === 'goto') {
+      // walk through waypoints "x;z>x;z..." in the area's own coordinates;
+      // an x written "s20" is 20 out on your own team's side
+      var points = value.split('>').map(function (w) { return w.split(';'); });
+      for (var wp = 0; wp < points.length; wp++) {
+        var deadline = Date.now() + 20000;
+        while (Date.now() < deadline) {
+          var done = await page.evaluate(function (w) {
+            var c = window.gameClient;
+            var centre = ((c.map || {}).markers || {}).centre || [0, 0, 0];
+            var side = c.myTeam === 'red' ? -1 : 1;
+            var x = w[0].charAt(0) === 's' ? side * parseFloat(w[0].slice(1)) : parseFloat(w[0]);
+            var tx = centre[0] + x, tz = centre[2] + parseFloat(w[1]);
+            var dx = tx - c.local.pos[0], dz = tz - c.local.pos[2];
+            if (Math.hypot(dx, dz) < 3) { c.keys.forward = false; return true; }
+            c.local.yaw = Math.atan2(dx, dz);
+            c.keys.forward = true;
+            var moved = c._gotoLast ? Math.hypot(c.local.pos[0] - c._gotoLast[0],
+                                                 c.local.pos[2] - c._gotoLast[1]) : 1;
+            c._gotoLast = [c.local.pos[0], c.local.pos[2]];
+            c.keys.jump = moved < 0.4;
+            return false;
+          }, points[wp]);
+          if (done) break;
+          await page.waitForTimeout(100);
+        }
+      }
+      await page.evaluate(function () {
+        var c = window.gameClient;
+        c.keys.forward = false;
+        c.keys.jump = false;
+      });
     } else if (name === 'wait') {
       await page.waitForTimeout(parseFloat(value) * 1000);
     } else if (name === 'dump') {
