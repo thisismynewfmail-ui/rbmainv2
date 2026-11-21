@@ -2792,5 +2792,218 @@
     return me;
   });
 
+  // ===================================================== The Grand Stacks
+  if (GA) {
+    GA.register('br_shh', function (vol) {
+      this.noise({ filter: 'highpass', freq: 3800, freqEnd: 2600, dur: 0.9, gain: 0.09 * vol });
+    });
+    GA.register('br_page', function (vol) {
+      this.noise({ filter: 'bandpass', freq: 2200, freqEnd: 900, dur: 0.18, gain: 0.04 * vol });
+    });
+    GA.register('br_flutter', function (vol) {
+      for (var i = 0; i < 6; i++) {
+        this.later(i * 70, function () { this.noise({ filter: 'bandpass', freq: 1400, dur: 0.05, gain: 0.03 * vol }); });
+      }
+    });
+  }
+
+  /* A globe on its stand: the seas, the lands, tipped on its axis in a
+     brass meridian, turning (faster while a flag is out). */
+  Rigs.register('globe', function (spec, ctx) {
+    var R = spec.r || 3, seed = spec.seed || 0;
+    var lands = [];
+    for (var i = 0; i < 9; i++) lands.push([hash(i * 3.1 + seed) * 1.6 - 0.8, hash(i * 7.3 + seed) * TAU, 0.2 + hash(i * 1.9) * 0.25]);
+    var me = { radius: R + 4, at: spec.p, kind: 'globe', spin: seed };
+    me.update = function (dt) {
+      var out = ctx.flagSpots && ctx.flagSpots().some(function (f) { return f.state !== 'home'; });
+      me.rate = approach(me.rate || 0.15, out ? 0.9 : 0.15, 1, dt);
+      me.spin += dt * me.rate;
+    };
+    me.draw = function (pen, t) {
+      var tilt = child(Rigs.frame(spec.p, 0.3, 1), [0, 0, 0], 0, 0, 0.41);
+      var g = child(tilt, [0, 0, 0], 0, me.spin, 0);
+      pen.part(g, 'sph', [0, 0, 0], [R * 2, R * 2, R * 2], '#3a6ab8');
+      for (var i = 0; i < lands.length; i++) {
+        var la = lands[i][0], lo = lands[i][1], s2 = lands[i][2] * R * 2;
+        var off = [Math.cos(la) * Math.sin(lo) * R * 0.9, Math.sin(la) * R * 0.9, Math.cos(la) * Math.cos(lo) * R * 0.9];
+        pen.part(g, 'sph', off, [s2, s2 * 0.6, s2], i % 3 ? '#5a9a4a' : '#c8b070');
+      }
+      pen.part(g, 'sph', [0, R * 0.92, 0], [R * 0.7, R * 0.25, R * 0.7], '#f4f8fa');
+      // the meridian: a ring of brass segments
+      for (var k = 0; k < 16; k++) {
+        var a = k * TAU / 16;
+        pen.part(child(tilt, [0, 0, 0], a, 0, 0), 'box', [0, R * 1.12, 0], [R * 0.08 + 0.15, R * 0.42, R * 0.1 + 0.15],
+                 '#c8a040', { m: 'metal' });
+      }
+      if (spec.big) {
+        // little pins where the flags are kept, in their colours
+        pen.part(g, 'sph', [R * 0.6, R * 0.6, R * 0.55], [R * 0.12, R * 0.12, R * 0.12], '#ff6a54', { m: 'neon' });
+        pen.part(g, 'sph', [-R * 0.6, R * 0.6, -R * 0.55], [R * 0.12, R * 0.12, R * 0.12], '#63c0ff', { m: 'neon' });
+      }
+    };
+    return me;
+  });
+
+  /* A rolling library ladder, hooked on its brass rail at the top of the
+     shelves, rolled along to a new spot every so often. */
+  Rigs.register('library_ladder', function (spec) {
+    var L = spec.len || 40, H = spec.h || 20, seed = spec.seed || 0;
+    var me = { radius: L / 2 + H, at: spec.p, kind: 'library_ladder' };
+    me.draw = function (pen, t) {
+      var slot = Math.floor((t + seed * 5) / 13), into = (t + seed * 5) - slot * 13;
+      var from = (hash(slot + seed) - 0.5) * L, to = (hash(slot + 1 + seed) - 0.5) * L;
+      var k = Math.min(1, Math.max(0, (into - 9) / 3));
+      k = k * k * (3 - 2 * k);
+      var z = from + (to - from) * k;
+      var base = Rigs.frame([spec.p[0], spec.p[1], spec.p[2]], spec.yaw || 0, 1);
+      var foot = child(base, [z, 0, 4.0], 0, 0, 0);
+      var lean = child(foot, [0, 0, 0], -0.2, 0, 0);
+      for (var side = -1; side <= 1; side += 2) {
+        pen.part(lean, 'box', [side * 1.3, H / 2 + 0.4, 0], [0.3, H + 0.8, 0.3], '#8a5a32');
+        pen.part(foot, 'cyl', [side * 1.3, 0.35, 0], [0.7, 0.3, 0.7], '#c8a040', { rz: Math.PI / 2, m: 'metal' });
+      }
+      for (var r = 0; r < Math.floor(H / 1.6); r++) {
+        pen.part(lean, 'box', [0, 1.2 + r * 1.6, 0], [2.6, 0.2, 0.35], '#8a5a32');
+      }
+      pen.part(base, 'box', [0, H - 0.4, 0.2], [L, 0.25, 0.25], '#c8a040', { m: 'metal' });
+    };
+    return me;
+  });
+
+  /* A great book open on a lectern, its pages turning one by one in no
+     draught anybody can feel; a candle by it. */
+  Rigs.register('lectern_book', function (spec, ctx) {
+    var me = { radius: 10, at: spec.p, kind: 'lectern_book' };
+    me.draw = function (pen, t) {
+      var f = child(Rigs.frame(spec.p, spec.yaw || 0, 1), [0, 0, 0], -0.35, 0, 0);
+      pen.part(f, 'box', [0, 0.1, 0], [6.4, 0.2, 4.4], '#5a2a1a');
+      pen.part(f, 'box', [-1.6, 0.35, 0], [3.0, 0.3, 4.0], '#f2ead8');
+      pen.part(f, 'box', [1.6, 0.35, 0], [3.0, 0.3, 4.0], '#f2ead8');
+      var ph = (t * 0.4) % 1;
+      if (ph < 0.5) {
+        var a = ph / 0.5 * Math.PI;
+        var page = child(f, [0, 0.5, 0], 0, 0, a);
+        pen.part(page, 'box', [1.5, 0, 0], [3.0, 0.06, 4.0], '#f8f2e4');
+        if (ph < 0.02 && ctx.viewer) {
+          var v = ctx.viewer();
+          if (v && dist(v.eye, spec.p) < 30 && ctx.sound) ctx.sound('br_page', spec.p, 1.5);
+        }
+      }
+      var cf = Rigs.frame([spec.p[0] + 3.6, spec.p[1] - 1.2, spec.p[2] + 1.6], 0, 1);
+      pen.part(cf, 'cyl', [0, 0.8, 0], [0.5, 1.6, 0.5], '#f2ead8');
+      var flick = 0.8 + 0.2 * Math.sin(t * 13);
+      pen.part(cf, 'cone', [0, 2.0, 0], [0.35, 0.8 * flick, 0.35], '#ffb84a', { m: 'neon' });
+      pen.part(cf, 'sph', [0, 2.0, 0], [2.2, 2.2, 2.2], '#ffd890', { m: 'neon', a: 0.12 });
+    };
+    return me;
+  });
+
+  /* Books that fly: covers beating like wings, wheeling round the dome --
+     or up and down the length of the nave. */
+  Rigs.register('book_flock', function (spec, ctx) {
+    var n = spec.n || 10, R = spec.r || 20, long = !!spec.long;
+    var me = { radius: long ? R + 30 : R + 20, at: spec.p, kind: 'book_flock' };
+    me.update = function (dt, t) {
+      var slot = Math.floor(t / 11);
+      if (slot !== me.slot) {
+        me.slot = slot;
+        var v = ctx.viewer ? ctx.viewer() : null;
+        if (v && dist(v.eye, spec.p) < (long ? 160 : 70) && hash(slot + n) < 0.5 && ctx.sound) {
+          ctx.sound('br_flutter', spec.p, 1.2);
+        }
+      }
+    };
+    me.draw = function (pen, t) {
+      for (var i = 0; i < n; i++) {
+        var sp = 0.25 + hash(i * 2.7) * 0.25, a = t * sp + i * TAU / n;
+        var x = Math.sin(a) * R, z = Math.cos(a) * (long ? 22 : R * 0.8);
+        var y = Math.sin(t * 0.7 + i * 1.9) * (long ? 4 : 5) + hash(i) * 4;
+        var heading = a + Math.PI / 2;
+        var f = child(Rigs.frame([spec.p[0] + x, spec.p[1] + y, spec.p[2] + z], heading, 1), [0, 0, 0], 0, 0,
+                      Math.sin(a) * 0.3);
+        var flap = 0.35 + Math.abs(Math.sin(t * 6 + i)) * 0.9;
+        var colour = BOOKS_COLOURS[i % BOOKS_COLOURS.length];
+        pen.part(f, 'box', [0, 0, 0], [0.4, 0.6, 3.0], '#3a2a1a');
+        for (var side = -1; side <= 1; side += 2) {
+          var cover = child(f, [0, 0, 0], 0, 0, -side * flap);
+          pen.part(cover, 'box', [side * 1.2, 0, 0], [2.4, 0.18, 3.0], colour);
+          if (pen.near) pen.part(cover, 'box', [side * 1.1, -side * 0.0 - 0.15, 0], [2.0, 0.16, 2.7], '#f2ead8');
+        }
+      }
+    };
+    return me;
+  });
+  var BOOKS_COLOURS = ['#8a2a2a', '#2a4a8a', '#2a6a3a', '#c89a3a', '#5a2a6a', '#a85a2a'];
+
+  /* The librarian: dead these hundred years and still on duty, drifting
+     round her library through shelves and walls alike.  Shoot near her and
+     she turns on you, finger to her lips -- SHHH.  Capture a flag and she
+     rises to the dome in disgust, and comes back down. */
+  Rigs.register('librarian', function (spec, ctx) {
+    var R = spec.r || 200;
+    var me = { radius: 1e6, at: spec.p.slice(), kind: 'librarian', shush: -10, rise: -100, look: 0 };
+    me.event = function (kind, msg) {
+      var t = Rigs.clock();
+      if (kind === 'shot' && msg && msg.from && dist(msg.from, me.at) < 70 && t - me.shush > 4) {
+        me.shush = t;
+        me.towards = msg.from;
+        if (ctx.sound) ctx.sound('br_shh', me.at, 2.5);
+      } else if (kind === 'flag_capture') {
+        me.rise = t;
+      }
+    };
+    me.update = function (dt, t) {
+      var a = t * 0.045;
+      var x = spec.p[0] + Math.sin(a) * R, z = spec.p[2] * Math.cos(a * 2.0);
+      var rage = t - me.rise;
+      var y = spec.p[1] + 3.6 + Math.sin(t * 0.9) * 0.6 + (rage >= 0 && rage < 12 ? Math.sin(rage / 12 * Math.PI) * 34 : 0);
+      me.at = [x, y, z];
+      var heading = Math.atan2(Math.cos(a) * R, -Math.sin(a * 2.0) * spec.p[2] * 2.0);
+      if (t - me.shush < 2.5 && me.towards) {
+        heading = Math.atan2(me.towards[0] - x, me.towards[2] - z);
+      }
+      me.look = Rigs.approachAngle(me.look, heading, 4, dt);
+    };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(me.at, me.look, 1.3);
+      var o = { a: 0.42, m: 'glass' };
+      pen.part(f, 'cone', [0, 1.6, 0], [3.6, 4.4, 3.0], '#bfe0f0', o);
+      pen.part(f, 'rbox', [0, 4.6, 0], [2.0, 2.2, 1.2], '#bfe0f0', o);
+      pen.part(f, 'rhead', [0, 6.4, 0], [1.6, 1.6, 1.6], '#d8f0ff', o);
+      pen.part(f, 'sph', [0, 7.4, -0.5], [1.2, 1.1, 1.1], '#d8f0ff', o);
+      pen.part(f, 'box', [0, 6.5, 0.82], [1.3, 0.35, 0.1], '#8ab0c8', { a: 0.6 });
+      var shush = t - me.shush < 2.5;
+      var arm = child(f, [0.9, 5.2, 0.2], shush ? -1.9 : -0.3, 0, shush ? -0.4 : 0.15);
+      pen.part(arm, 'box', [0, -0.9, 0], [0.5, 1.8, 0.5], '#bfe0f0', o);
+      if (shush) {
+        pen.part(f, 'box', [0.3, 6.1, 0.9], [0.18, 0.7, 0.18], '#d8f0ff', o);
+        pen.part(f, 'sph', [0, 6.4, 0], [5, 5, 5], '#9fe8ff', { m: 'neon', a: 0.12 });
+      }
+      pen.part(f, 'sph', [0, 3.6, 0], [6, 9, 6], '#9fe8ff', { m: 'neon', a: 0.05 });
+    };
+    return me;
+  });
+
+  /* Light coming down from a skylight: a faint shaft, dust turning in it. */
+  Rigs.register('light_shaft', function (spec) {
+    var W = spec.w || 12, D = spec.d || 8, H = spec.h || 40;
+    var me = { radius: H + W, at: [spec.p[0], spec.p[1] - H / 2, spec.p[2]], kind: 'light_shaft' };
+    me.draw = function (pen, t) {
+      var top = spec.p;
+      pen.part(Rigs.frame([top[0] + H * 0.12, top[1] - H / 2, top[2]], 0, 1), 'box', [0, 0, 0], [W, H, D], '#fff4d0',
+               { m: 'neon', a: 0.05, rz: -0.24 });
+      if (!pen.near) return;
+      for (var i = 0; i < 16; i++) {
+        var ph = (t * 0.03 + hash(i * 1.7)) % 1;
+        var y = top[1] - ph * H;
+        var x = top[0] + (hash(i * 3.3) - 0.5) * W + (top[1] - y) * 0.24 + Math.sin(t * 0.5 + i) * 0.6;
+        var z = top[2] + (hash(i * 5.9) - 0.5) * D;
+        pen.part(Rigs.frame([x, y, z], 0, 1), 'sph', [0, 0, 0], [0.25, 0.25, 0.25], '#fff8e0',
+                 { m: 'neon', a: 0.6 * Math.sin(ph * Math.PI) });
+      }
+    };
+    return me;
+  });
+
   global.BlackoutRelayRigs = true;
 })(window);

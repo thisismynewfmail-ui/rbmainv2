@@ -452,6 +452,37 @@
     }
   });
 
+  Thumbs.registerWorld('br_stacks', {
+    camera: [[30, 22, 40], [0, 9, -4], 52],
+    sky: { top: '#6a8ab8', horizon: '#e8e0d0', sun: [0.3, 0.85, 0.2], clouds: 0.5, tint: '#fff0d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#7a4a2e', { st: 1 });
+      // rows of shelves, books on their faces, a catwalk over them
+      var BOOK = ['#8a2a2a', '#2a4a8a', '#2a6a3a', '#c89a3a', '#5a2a6a'];
+      [-26, -14, 14, 26].forEach(function (x, i) {
+        k.box([x, 7, -14], [2.4, 14, 22], '#4a2a16');
+        for (var row = 0; row < 4; row++) k.box([x + 1.25, 2 + row * 3.2, -14], [0.1, 2.4, 20], BOOK[(i + row) % 5]);
+      });
+      k.box([0, 14.3, -14], [60, 0.6, 3], '#6a3e22', { st: 1 });
+      // the rotunda behind: its drum, its stepped dome, the globe through the door
+      k.box([0, 7, -36], [26, 14, 14], '#e8e0d0');
+      k.box([0, 15, -36], [22, 2, 12], '#c8bca8');
+      k.box([0, 17, -36], [16, 2, 9], '#e8e0d0');
+      k.shape('sph', [0, 6, -28], [8, 8, 8], '#3a6ab8');
+      // flying books
+      [[-8, 20, 4], [6, 23, -2], [14, 19, 6]].forEach(function (p, i) {
+        k.box([p[0] - 1.2, p[1], p[2]], [2.4, 0.2, 3], BOOK[i], { r: [0, 0, 0.5] });
+        k.box([p[0] + 1.2, p[1], p[2]], [2.4, 0.2, 3], BOOK[i], { r: [0, 0, -0.5] });
+      });
+      // the map table with its flag, the nave's runner
+      k.box([0, 0.05, 10], [8, 0.1, 40], '#8a2a2a');
+      k.box([-22, 1.5, 16], [14, 3, 9], '#4a2a16', { st: 1 });
+      pedestal(k, -22, 3, 16, RED, RED_NEON);
+      k.player(6, 0, 14, { anim: 'run', time: 0.4, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-6, 0, 22, { anim: 'run', time: 0.9, wear: cap(RED) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

@@ -85,6 +85,12 @@ RELAY_AREAS: List[Dict[str, Any]] = [
      "blurb": "A sea monster's bones in a sandstone quarry at sunset. Muster in the dig "
               "station inside its skull, climb its ribs and run its spine, and take the flags "
               "from the winding houses up on the rim -- or come up the old adit beside them."},
+    {"id": "stacks", "name": "The Grand Stacks", "thumb": "br_stacks",
+     "captures": 3, "minutes": 15,
+     "blurb": "A library the size of a cathedral, all of it indoors. Muster in the rotunda "
+              "round the great globe, run the nave between the shelves or take the library "
+              "steps up onto their tops, and lift the flags from the map tables. Books fly. "
+              "The librarian is dead, and does not care for gunfire."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [

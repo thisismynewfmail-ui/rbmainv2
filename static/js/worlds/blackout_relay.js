@@ -1944,6 +1944,118 @@
     }
   });
 
+  /* The Grand Stacks: a great book falls open, its pages riffle and
+     settle on an ink drawing of the rotunda, and the name is lettered in
+     with an illuminated capital -- while books flap across the light.
+     Somebody says shhh. */
+  Intro.register('br_stacks', {
+    tagline: 'Silence in the stacks. Take the map from the table.',
+    accent: '#e8c070',
+    cues: [[0.3, 'br_page', 0.8], [0.6, 'br_page', 0.8], [0.8, 'br_page', 0.8], [1.0, 'br_page', 0.8],
+           [1.5, 'br_flutter', 0.7], [3.2, 'br_shh', 0.7]],
+    tagY: 846, tagAt: 3.0,
+    setup: function (r) {
+      var d = { motes: [], books: [] };
+      for (var i = 0; i < 60; i++) d.motes.push({ x: between(r, 900, 1300), y: between(r, 0, 900), p: r() * TAU, s: between(r, 1, 2.6) });
+      for (i = 0; i < 6; i++) d.books.push({ y: between(r, 120, 380), sp: between(r, 220, 380), p: r() * TAU, c: ['#8a2a2a', '#2a4a8a', '#2a6a3a', '#c89a3a'][i % 4], at: between(r, 1.2, 2.6) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      ctx.fillStyle = '#2a1a10'; ctx.fillRect(0, 0, VW, VH);
+      // a shaft of light from high up, dust turning in it
+      additive(ctx, function () {
+        ctx.fillStyle = 'rgba(255,240,200,0.07)';
+        ctx.beginPath(); ctx.moveTo(980, 0); ctx.lineTo(1180, 0); ctx.lineTo(1400, 900); ctx.lineTo(1020, 900); ctx.fill();
+        d.motes.forEach(function (m) {
+          var y = (m.y + t * 20) % 900;
+          ctx.fillStyle = 'rgba(255,240,200,' + (0.4 + 0.4 * Math.sin(t * 2 + m.p)) + ')';
+          ctx.fillRect(m.x + y * 0.24 + Math.sin(t + m.p) * 8, y, m.s, m.s);
+        });
+      });
+      // the book: it opens, the pages riffle
+      var open = outCubic(seg(t, 0.1, 0.7));
+      var cx = 800, cy = 520;
+      ctx.fillStyle = '#5a1a12';
+      roundRect(ctx, cx - 560, cy - 300, 1120, 600, 18); ctx.fill();
+      ctx.save();
+      ctx.translate(cx, cy);
+      // left page
+      ctx.fillStyle = '#efe4c8';
+      ctx.fillRect(-530 * open, -280, 525 * open, 560);
+      // right page
+      ctx.fillRect(5, -280, 525, 560);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-12, -280, 24, 560);
+      // riffling pages over the right half
+      var riff = seg(t, 0.5, 1.3);
+      if (riff > 0 && riff < 1) {
+        for (var p = 0; p < 4; p++) {
+          var a = ((riff * 4 + p * 0.25) % 1) * Math.PI;
+          var w = Math.cos(a) * 520;
+          ctx.fillStyle = p % 2 ? '#f4ead2' : '#e8dcc0';
+          ctx.fillRect(Math.min(0, w), -276, Math.abs(w), 552);
+        }
+      }
+      // the drawing of the rotunda on the left page, inked in
+      var ink = seg(t, 1.2, 2.2);
+      if (ink > 0 && open > 0.9) {
+        ctx.strokeStyle = 'rgba(50,30,20,' + Math.min(1, ink * 1.4) + ')'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(-260, -40, 150 * Math.min(1, ink * 1.3), Math.PI, TAU); ctx.stroke();
+        for (var c = 0; c < 9; c++) {
+          var x = -400 + c * 35;
+          if (ink > c / 9) { ctx.beginPath(); ctx.moveTo(x, -40); ctx.lineTo(x, 160); ctx.stroke(); }
+        }
+        ctx.beginPath(); ctx.moveTo(-430, 160); ctx.lineTo(-90, 160); ctx.moveTo(-430, -40); ctx.lineTo(-90, -40); ctx.stroke();
+        if (ink > 0.6) { ctx.beginPath(); ctx.arc(-260, -190, 18, 0, TAU); ctx.stroke(); }
+        ctx.beginPath(); ctx.arc(-260, 60, 40 * Math.min(1, ink * 1.2), 0, TAU); ctx.stroke();
+        // lines of text below it
+        ctx.fillStyle = 'rgba(60,40,30,0.5)';
+        for (var ln = 0; ln < 6; ln++) if (ink > ln / 6) ctx.fillRect(-480, 190 + ln * 14, 400 - (ln % 3) * 40, 4);
+      }
+      ctx.restore();
+      // books flapping across the light
+      d.books.forEach(function (bk) {
+        var k = t - bk.at;
+        if (k < 0) return;
+        var x = -100 + k * bk.sp, y = bk.y + Math.sin(k * 3 + bk.p) * 20;
+        var flap = Math.abs(Math.sin(t * 9 + bk.p));
+        ctx.save(); ctx.translate(x, y);
+        ctx.fillStyle = bk.c;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-40, -30 * flap); ctx.lineTo(-44, 6); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(40, -30 * flap); ctx.lineTo(44, 6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f2ead8'; ctx.fillRect(-3, -4, 6, 12);
+        ctx.restore();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = run.info.name || 'The Grand Stacks';
+      var k = seg(t, 1.9, 2.8);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(1070, 470);
+      // the illuminated capital
+      var cap = name.charAt(0);
+      var size = 150;
+      ctx.globalAlpha = Math.min(1, k * 3);
+      ctx.fillStyle = '#a82a1a';
+      roundRect(ctx, -250, -120, 130, 150, 10); ctx.fill();
+      ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 6; ctx.stroke();
+      ctx.font = 'bold ' + size * 0.8 + 'px Georgia, serif';
+      ctx.fillStyle = '#f2d27a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(cap, -185, -40);
+      // the rest, lettered in
+      var rest = name.slice(1);
+      var shown = rest.slice(0, Math.ceil(rest.length * seg(t, 2.0, 2.8)));
+      var fs = fitSize(ctx, rest, 'italic bold #px Georgia, serif', 74, 380, 0.02);
+      ctx.font = 'italic bold ' + fs + 'px Georgia, serif';
+      ctx.fillStyle = '#3a2214'; ctx.textAlign = 'left';
+      var words = shown.split(' ');
+      var line1 = words.slice(0, 2).join(' '), line2 = words.slice(2).join(' ');
+      ctx.fillText(line1, -110, -60);
+      if (line2) ctx.fillText(line2, -110, 24);
+      ctx.restore();
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };
