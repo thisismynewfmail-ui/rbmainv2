@@ -270,8 +270,8 @@ def _vet(b: Area, s: Surfaces) -> None:
     for k in range(3):
         b.box([10.0, floor + 2.0 + k * 2.4, -24.4], [13.0, 0.3, 0.2], "#e8e8e8")
     flight(b, "x", 18.0, 44.0, -26.0, -18.0, floor, VET_ROOF, CONCRETE_DARK, fill=floor)
-    supply_ammo(b, -42.5, floor, 12.0, "x+")
-    supply_med(b, 42.0, floor, 10.0, "x-")
+    supply_ammo(b, -30.0, floor, 14.0, "z-")
+    supply_med(b, 30.0, floor, 14.0, "z-")
     def rail(xa, xb, za, zb, y):
         b.box([(xa + xb) / 2.0, y + 1.6, (za + zb) / 2.0], [xb - xa, 3.2, zb - za], STEEL,
               material="metal")

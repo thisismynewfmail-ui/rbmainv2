@@ -129,6 +129,13 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the petting farm": "ec", "the gift shop": "e", "the main gate": "e",
         "primate island": "er", "the panda grove": "ec", "the flamingo pond": "h",
     },
+    "aquarium": {
+        "the rescue centre": "shp", "the great hall": "shp", "the reef": "e",
+        "the shark tunnel": "se", "the deep sea room": "e", "the jellyfish gallery": "e",
+        "the dolphin stadium": "hp", "the cliff stair": "e", "the sea cave": "r",
+        "the rock pools": "er", "the pier": "er", "the shark's jaws": "ec",
+        "the car park": "e", "the staff yard": "ec", "the west point": "pe", "the beach": "her",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.

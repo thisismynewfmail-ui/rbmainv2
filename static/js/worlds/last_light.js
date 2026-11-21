@@ -855,5 +855,119 @@
     }
   });
 
+  /* Harrow Point Aquarium: the headland in the storm, the Great Hall
+     lit blue with the whale's bones hung inside it, the sea throwing
+     itself at the cliff -- and in the lightning, people walking up out of
+     the surf who should not be. */
+  Intro.register('aquarium', {
+    tagline: 'The sharks are the least of it.',
+    accent: '#4ac8e8',
+    cues: [[0.2, 'll_rain', 0.6], [0.75, 'll_thunder', 0.7], [1.5, 'll_splash', 0.6],
+           [2.55, 'll_thunder', 0.8], [3.2, 'll_gull', 0.5]],
+    shakes: [[0.78, 6, 0.35], [2.58, 8, 0.4]],
+    tagY: 850, tagAt: 2.7,
+    setup: function (r) {
+      var d = { rain: LL.makeRain(r, 170), waves: [], zeds: [], bubbles: [] };
+      for (var i = 0; i < 6; i++) d.waves.push({ y: 640 + i * 34, p: r() * 6, a: between(r, 10, 22) });
+      var looks = [['#1a1d24', '#1a1d24', '#6fae55'], ['#f2c83a', '#3a5a8a', '#7fb069'],
+                   ['#e8c81a', '#e8c81a', '#5f9a4c'], ['#2a8a9a', '#e8e0c8', '#86b86a']];
+      for (i = 0; i < 6; i++) d.zeds.push({ x: 120 + i * 90 + between(r, -20, 20), p: r() * 6, look: looks[i % 4],
+                                            at: 1.2 + i * 0.18 });
+      for (i = 0; i < 30; i++) d.bubbles.push({ x: between(r, 320, 1280), s: between(r, 3, 9), v: between(r, 40, 90), p: r() });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var flash = Math.max(Math.exp(-Math.pow((t - 0.8) * 9, 2)), Math.exp(-Math.pow((t - 2.6) * 7, 2)));
+      sky(ctx, [[0, mix('#03060c', '#8a9ab8', flash * 0.6)], [0.6, mix('#0c1a26', '#5a6a8a', flash * 0.5)],
+                [1, '#16303a']], 600);
+      if (flash > 0.3) {
+        ctx.strokeStyle = 'rgba(230,240,255,' + flash + ')'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(300, 0);
+        [[320, 90], [280, 180], [340, 260], [300, 360], [330, 470]].forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+        ctx.stroke();
+      }
+      // the sea, heaving
+      ctx.fillStyle = '#0e2a34'; ctx.fillRect(0, 560, VW, 340);
+      d.waves.forEach(function (w, i) {
+        ctx.fillStyle = mix('#1a4a5a', '#0e2a34', i / 6);
+        ctx.beginPath(); ctx.moveTo(0, VH);
+        for (var x = 0; x <= 900; x += 30) ctx.lineTo(x, w.y + Math.sin(x * 0.012 + t * 2 + w.p) * w.a);
+        ctx.lineTo(900, VH); ctx.closePath(); ctx.fill();
+      });
+      // the headland and the cliff
+      ctx.fillStyle = '#1a1e22';
+      ctx.beginPath(); ctx.moveTo(700, VH); ctx.lineTo(760, 600); ctx.lineTo(820, 560); ctx.lineTo(VW, 540);
+      ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#262c32';
+      ctx.fillRect(820, 548, 780, 16);
+      // the surf at the cliff's foot
+      for (var k = 0; k < 4; k++) {
+        var u = (t * 0.7 + k * 0.25) % 1;
+        ctx.fillStyle = 'rgba(230,245,250,' + (0.7 * (1 - u)) + ')';
+        ctx.beginPath(); ctx.ellipse(740 + k * 14, 700 - u * 120, 50 + u * 60, 18 + u * 30, -0.3, 0, TAU); ctx.fill();
+      }
+      // the Great Hall: glass, lit blue, the whale's bones inside
+      var gx = 960, gy = 300, gw = 460, gh = 248;
+      ctx.fillStyle = '#0a1a26'; ctx.fillRect(gx - 10, gy - 10, gw + 20, gh + 18);
+      var g = ctx.createLinearGradient(0, gy, 0, gy + gh);
+      g.addColorStop(0, '#1a5a7a'); g.addColorStop(1, '#3ab8d8');
+      ctx.fillStyle = g; ctx.fillRect(gx, gy, gw, gh);
+      ctx.strokeStyle = '#0a1a26'; ctx.lineWidth = 4;
+      for (var c = 1; c < 8; c++) { ctx.beginPath(); ctx.moveTo(gx + c * gw / 8, gy); ctx.lineTo(gx + c * gw / 8, gy + gh); ctx.stroke(); }
+      for (c = 1; c < 4; c++) { ctx.beginPath(); ctx.moveTo(gx, gy + c * gh / 4); ctx.lineTo(gx + gw, gy + c * gh / 4); ctx.stroke(); }
+      var sway = Math.sin(t * 0.8) * 4;
+      ctx.fillStyle = '#e8e0cc';
+      for (var v = 0; v < 22; v++) {
+        var vx = gx + 60 + v * 16, vy = gy + 90 + Math.sin(v * 0.3 + t) * 3 + sway * (v / 22);
+        ctx.fillRect(vx, vy, 12, 10);
+        if (v > 2 && v < 13) { ctx.fillRect(vx + 3, vy + 10, 4, 34 - Math.abs(v - 7) * 2); }
+      }
+      ctx.fillRect(gx + 18, gy + 82, 44, 24);
+      ctx.strokeStyle = 'rgba(30,40,50,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(gx + 120, gy); ctx.lineTo(gx + 120, gy + 90); ctx.moveTo(gx + 330, gy); ctx.lineTo(gx + 330, gy + 92);
+      ctx.stroke();
+      additive(ctx, function () { dot(ctx, '#4ac8e8', gx + gw / 2, gy + gh / 2, 360, 0.18); });
+      // the rain over everything, and the shark's jaws at the right edge
+      LL.rainOver(ctx, d.rain, t, 'rgba(180,210,230,0.35)', 0.25);
+      ctx.fillStyle = '#5a6a7a';
+      ctx.beginPath(); ctx.moveTo(1460, VH); ctx.lineTo(1460, 650); ctx.quadraticCurveTo(1530, 560, 1600, 600);
+      ctx.lineTo(1600, VH); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e8e8dc';
+      for (var tooth = 0; tooth < 6; tooth++) {
+        ctx.beginPath(); ctx.moveTo(1466, 660 + tooth * 36); ctx.lineTo(1490, 672 + tooth * 36); ctx.lineTo(1466, 684 + tooth * 36);
+        ctx.fill();
+      }
+      // the infected walking up out of the surf onto the rocks, in the flash
+      d.zeds.forEach(function (z, i) {
+        var k2 = seg(t, z.at, z.at + 0.8);
+        if (k2 <= 0) return;
+        var x = z.x + (t - z.at) * 26;
+        var y = 760 - k2 * 70 + i * 14;
+        ctx.save(); ctx.globalAlpha = 0.55 + flash * 0.45;
+        LL.shambler(ctx, x, y, 2.4, t, flash > 0.3 ? z.look : ['#0a1a20', '#0a1a20', '#0a1a20'], 1, z.p);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(230,245,250,0.5)';
+        ctx.fillRect(x - 26, y - 6, 52, 6);
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Harrow Point Aquarium').toUpperCase();
+      var k = seg(t, 1.5, 2.1);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = k;
+      var y = 214 + Math.sin(t * 1.4) * 4;
+      LL.neonTitle(ctx, t, name, 760, y, 1100, '#6ae8ff', 1.5, 0.05);
+      additive(ctx, function () {
+        d.bubbles.forEach(function (bb) {
+          var u = (t * 0.5 + bb.p) % 1;
+          ctx.strokeStyle = 'rgba(160,240,255,' + (0.7 * (1 - u)) + ')'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(bb.x - 160 + Math.sin(t * 2 + bb.p * 9) * 8, y + 60 - u * 140, bb.s, 0, TAU); ctx.stroke();
+        });
+      });
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

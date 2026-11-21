@@ -298,6 +298,12 @@ WORLDS: List[Dict[str, Any]] = [
                       "the penguins from the gallery under their pool -- and "
                       "play the showtime jingle to send the horde down into "
                       "the sea lion arena. The animals are watching you."},
+            {"id": "aquarium", "name": "Harrow Point Aquarium",
+             "blurb": "On the headland, the night the storm came in. Hold the "
+                      "marine rescue centre, walk the shark tunnel, climb the "
+                      "Great Hall's balcony under the whale -- and start the "
+                      "dolphin show to send the horde into the pool on the "
+                      "cliff edge. They are coming up out of the sea."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

@@ -195,6 +195,24 @@
       { shirt: shirt('#6a7a4a', '#6a7a4a', { weave: 'camo' }), pants: pants('#4a5a34', { weave: 'camo' }),
         hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.2, 0.12, 2.2], c: '#5a6a3a' },
                   { t: 'cyl', p: [0, 0.4, 0], s: [1.3, 0.6, 1.3], c: '#5a6a3a' }]) }
+    ],
+    // Harrow Point Aquarium: aquarists, divers, the night's last visitors
+    aquarium: [
+      CLASSIC,
+      { shirt: shirt('#1a1d24', '#1a1d24', { stripe: '#3ab8e8' }), pants: pants('#1a1d24') },
+      { shirt: shirt('#f2c83a', '#f2c83a', { hood: true, weave: 'vinyl' }), pants: pants('#3a5a8a', { weave: 'denim' }) },
+      { shirt: shirt('#2a8a9a', '#2a8a9a', { sleeves: 0.35, decal: 'logo_block' }), pants: pants('#e8e0c8') },
+      { shirt: shirt('#1a1d24', '#e8783a', { stripe: '#e8783a' }), pants: pants('#1a1d24'),
+        hat: hat([{ t: 'box', p: [0, -0.3, 0.84], s: [1.3, 0.6, 0.2], c: '#3a8ac8', a: 0.6 },
+                  { t: 'box', p: [0, -0.3, 0.0], s: [1.66, 0.3, 1.66], c: '#1a1d24' }]) },
+      { shirt: shirt('#e8c81a', '#e8c81a', { weave: 'vinyl' }), pants: pants('#e8c81a'),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, -0.1], s: [2.0, 0.14, 2.2], c: '#e8c81a' },
+                  { t: 'sph', p: [0, 0.34, 0], s: [1.6, 0.9, 1.6], c: '#e8c81a' }]) },
+      { shirt: shirt('#3a8ac8', '#3a8ac8', { sleeves: 0.3 }), pants: pants('#2a2f38', { length: 0.6 }),
+        hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.7, 1.1, 1.8], c: '#7a8a9a' },
+                  { t: 'box', p: [0, 1.0, -0.1], s: [0.2, 0.9, 0.8], c: '#7a8a9a' },
+                  { t: 'box', p: [0, 0.0, 0.9], s: [1.3, 0.3, 0.2], c: '#f2f2f2' }]) },
+      { shirt: shirt('#f2f2f2', '#f2f2f2', { decal: 'tux' }), pants: pants('#4a4f58') }
     ]
   };
 

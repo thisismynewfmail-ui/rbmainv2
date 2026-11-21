@@ -14,6 +14,7 @@ from __future__ import annotations
 ORDER = [
     ("drivein", "Starlite Drive-In", "#3f5a34", 640.0),
     ("zoo", "Harrow County Zoo", "#5a7a3a", 720.0),
+    ("aquarium", "Harrow Point Aquarium", "#c8b48a", 600.0),
 ]
 
 # where each new place sits, in units of the spacing, in the order above

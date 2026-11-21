@@ -121,5 +121,46 @@
     }
   });
 
+  /* Harrow Point Aquarium: inside the shark tunnel -- the glass all
+     round, the sharks going over, the team at this end and the infected
+     coming down it from the other. */
+  Thumbs.registerWorld('ll_aquarium', {
+    camera: [[-2.6, 7.4, -40], [1, 6.4, 30], 60],
+    sky: { top: '#0a2a4a', horizon: '#1a5a7a', sun: [0.2, 0.8, 0.2], clouds: 0, tint: '#7ad8f8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 10], [120, 1, 160], '#c8b48a', { st: 1 });
+      // the tank's walls far off, its water, its floor
+      k.box([0, 14, 70], [120, 30, 2], '#1a3a5a');
+      k.box([-50, 14, 10], [2, 30, 120], '#1a3a5a');
+      k.box([50, 14, 10], [2, 30, 120], '#1a3a5a');
+      k.box([0, 28, 10], [100, 0.4, 120], '#3a8ac8', { m: 'glass', a: 0.5 });
+      for (var r = 0; r < 6; r++) k.shape('sph', [-30 + r * 13, 0.8, 20 + (r * 17) % 40], [5, 3, 4], '#5a5a5a');
+      // the tunnel: floor, glass walls and roof, ribs
+      k.box([0, 0.4, 10], [8, 0.8, 120], '#5a6a7a', { st: 1 });
+      k.box([-4.2, 4.4, 10], [0.4, 7.2, 120], '#3a8ac8', { m: 'glass', a: 0.32 });
+      k.box([4.2, 4.4, 10], [0.4, 7.2, 120], '#3a8ac8', { m: 'glass', a: 0.32 });
+      k.box([0, 8.2, 10], [8.8, 0.4, 120], '#3a8ac8', { m: 'glass', a: 0.32 });
+      for (var z = -20; z <= 60; z += 12) {
+        k.box([-4.6, 4.4, z], [0.4, 7.6, 1.2], '#3a4a5a', { m: 'metal' });
+        k.box([4.6, 4.4, z], [0.4, 7.6, 1.2], '#3a4a5a', { m: 'metal' });
+        k.box([0, 8.6, z], [9.6, 0.4, 1.2], '#3a4a5a', { m: 'metal' });
+      }
+      // the sharks over it
+      [[-1, 11.4, 2, 0.4], [6, 14, 18, -0.6], [-9, 10.6, 26, 0.9]].forEach(function (sh) {
+        var c = Math.cos(sh[3]), s = Math.sin(sh[3]);
+        k.box([sh[0], sh[1], sh[2]], [2, 2, 7], '#6a7a8a', { r: [0, sh[3], 0] });
+        k.box([sh[0], sh[1] - 0.6, sh[2]], [1.7, 0.9, 6], '#e8ecee', { r: [0, sh[3], 0] });
+        k.box([sh[0] - s * 0.2, sh[1] + 1.8, sh[2] - c * 0.2], [0.3, 2, 1.6], '#6a7a8a', { r: [-0.4, sh[3], 0] });
+        k.box([sh[0] - s * 4.4, sh[1] + 0.4, sh[2] - c * 4.4], [0.3, 3, 1.2], '#6a7a8a', { r: [0.3, sh[3], 0] });
+      });
+      // the team at this end, the infected coming down the tunnel
+      k.survivor(-1.6, -8, 0.05, 0, 0.8);
+      k.survivor(1.8, -10, -0.1, 1, 0.8);
+      k.horde(6, 0, 24, 0, 44, Math.PI, 'aquarium', 4);
+      k.zombie('spitter', 1.4, 20, Math.PI, 0, 'aquarium', 11, 0.8);
+      k.box([0, 7.9, -6], [6, 0.3, 1.4], '#9fe8ff', { m: 'neon' });
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);
