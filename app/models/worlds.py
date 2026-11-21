@@ -259,6 +259,11 @@ WORLDS: List[Dict[str, Any]] = [
         "features": ["24 players", "Endless waves", "Tank every 5th wave",
                      "11 special infected", "4 shuffled locations",
                      "Revive your team", "Spectate while dead"],
+        # the newer places' moving scenery, weather and arrival scenes, and
+        # their pictures on the world page (static/js/worlds/last_light*.js)
+        "thumb_script": "/static/js/worlds/last_light_thumbs.js",
+        "game_scripts": ["/static/js/worlds/last_light_rigs.js",
+                         "/static/js/worlds/last_light.js"],
         # The places a round can be played in, in shuffle order, for the
         # world page's location gallery.  Each id is the map's own area id.
         "areas": [
@@ -281,6 +286,12 @@ WORLDS: List[Dict[str, Any]] = [
                       "dinner bell, a fire lookout tower, a boathouse on "
                       "the lake and a terraced ridge with an old mine "
                       "running under it."},
+            {"id": "drivein", "name": "Starlite Drive-In",
+             "blurb": "A drive-in on the county line, the night the feature "
+                      "was the end of the world. Hold the snack bar on its "
+                      "mound, climb the scaffold behind the screen to the "
+                      "walkway on top, and crank the movie's sound to send "
+                      "the horde for the screen. They come out of the corn."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

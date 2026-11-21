@@ -88,6 +88,11 @@ var ENGINE = ['static/js/engine/gl.js', 'static/js/engine/geometry.js',
           flagSpots: function () { return st.flags || []; },
           viewer: function () { return st.viewer || null; },
           round: function () { return st.round || {}; },
+          zombies: function () { return st.zombies || []; },
+          wave: function () {
+            return st.wave || { wave: 3, phase: 'active', left: 0, zleft: 20, alive: 12,
+                                lure: false, tank: false };
+          },
           sound: function () {}
         };
         window.__rigs = Rigs.build(map, window.__rigCtx);

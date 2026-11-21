@@ -150,6 +150,28 @@
                   { t: 'cyl', p: [0, 0.48, 0], s: [1.3, 0.8, 1.3], c: '#8a7a4a' }]) },
       { shirt: shirt('#2a6aa8', '#2a6aa8', { hood: true, weave: 'canvas' }), pants: pants('#3a3a3a') },
       { shirt: shirt('#f2f2f2', '#f2f2f2', { sleeves: 0.3, decal: 'flowers' }), pants: pants('#3f63a8', { length: 0.5 }) }
+    ],
+    // Starlite Drive-In: the late show's crowd and the people who ran it
+    drivein: [
+      CLASSIC,
+      { shirt: shirt('#1b1b1b', '#1b1b1b', { weave: 'leather' }), pants: pants('#2a3a5a', { weave: 'denim' }),
+        hair: hair([{ p: [0, 0.36, 0.14], s: [1.08, 0.52, 1.12], c: '#141414' }]) },
+      { shirt: shirt('#e890b0', '#f2f2ee', { sleeves: 0.3, stripe: '#f2f2ee' }), pants: pants('#e890b0', { length: 0.45 }),
+        hat: hat([{ t: 'box', p: [0, 0.2, 0], s: [1.5, 0.4, 1.0], c: '#f2f2ee' },
+                  { t: 'box', p: [0, 0.22, 0.52], s: [0.5, 0.2, 0.02], c: '#e83a5a' }]) },
+      { shirt: shirt('#c43a32', '#f2f2ee', { decal: 'letter_R' }), pants: pants('#c8b890') },
+      { shirt: shirt('#8a1a2a', '#8a1a2a', { stripe: '#d8b84a', decal: 'tux' }), pants: pants('#1b1b1b', { stripe: '#d8b84a' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.24, 0], s: [1.2, 0.5, 1.2], c: '#8a1a2a' },
+                  { t: 'cyl', p: [0, 0.02, 0], s: [1.24, 0.08, 1.24], c: '#d8b84a' }]) },
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { weave: 'popcorn_stripes', sleeves: 0.3 }), pants: pants('#c43a32'),
+        hat: hat([{ t: 'box', p: [0, 0.2, 0], s: [1.5, 0.4, 1.0], c: '#f2f2ee' }]) },
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { sleeves: 0.25 }), pants: pants('#e890b0', { length: 0.55 }),
+        hair: hair([{ p: [0, 0.34, -0.06], s: [1.08, 0.46, 1.06], c: '#8a5a2a' },
+                    { p: [0, 0.08, -0.62], s: [0.36, 0.9, 0.36], c: '#8a5a2a' }]) },
+      { shirt: shirt('#3a5a8a', '#3a5a8a', { weave: 'flannel' }), pants: pants('#2f4f7a', { weave: 'denim' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.4, 0.12, 2.4], c: '#d8c070' },
+                  { t: 'cyl', p: [0, 0.44, 0], s: [1.3, 0.7, 1.3], c: '#d8c070' },
+                  { t: 'cyl', p: [0, 0.22, 0], s: [1.34, 0.14, 1.34], c: '#8a3a2a' }]) }
     ]
   };
 

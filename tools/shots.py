@@ -24,6 +24,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 
+def _scene_id(world, area):
+    """The arrival scene an area plays: Last Light's are named by the area,
+    the rotation's by its prefix and the area, an event world's by its
+    thumbnail."""
+    if world["id"] == "last_light":
+        return area["id"]
+    if world.get("prefix"):
+        return "%s_%s" % (world["prefix"], area["id"])
+    return area["thumb"]
+
+
+def _scene_info(world, area):
+    if world["id"] == "last_light":
+        return {"name": area["name"], "round": 3, "attempt": 1, "tries": 3}
+    return {"name": area["name"], "round": 3, "logo": world["name"],
+            "line": "One round, then the server moves on", "kicker": "NOW ENTERING"}
+
+
 def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("world")
@@ -50,15 +68,13 @@ def main(argv):
     job = {"width": 1280, "height": 720}
     if args.thumbs:
         job.update(kind="thumb", scripts=[world["thumb_script"]],
-                   thumbs=[world["thumb"]] + [a["thumb"] for a in world.get("areas") or []])
+                   thumbs=[world["thumb"]] + [a.get("thumb") or ("ll_" + a["id"])
+                                              for a in world.get("areas") or []])
     elif args.intros:
         times = [float(t) for t in args.times.split(",")]
         areas = [a for a in world.get("areas") or [] if not args.area or a["id"] == args.area]
         job.update(kind="intro", scripts=[], post=list(world.get("game_scripts") or []),
-                   scenes=[[("%s_%s" % (world["prefix"], a["id"])) if world.get("prefix")
-                            else a["thumb"], t, {"name": a["name"], "round": 3, "logo": world["name"],
-                                            "line": "One round, then the server moves on",
-                                            "kicker": "NOW ENTERING"}]
+                   scenes=[[_scene_id(world, a), t, _scene_info(world, a)]
                            for a in areas for t in times])
     else:
         import importlib
@@ -66,6 +82,10 @@ def main(argv):
         if args.world == "blackout_relay":
             # the map rotation is its own package, with its own payloads
             from app.game.maps import relay as package
+            data = package.build()
+            payload = package.area_payload(data, args.area)
+        elif args.world == "last_light":
+            from app.game.maps import lastlight as package
             data = package.build()
             payload = package.area_payload(data, args.area)
         else:
@@ -106,7 +126,7 @@ def main(argv):
 
             def place(p):
                 return [p[0] + ox, p[1], p[2] + oz]
-            for who in state.get("players") or []:
+            for who in (state.get("players") or []) + (state.get("zombies") or []):
                 who["pos"] = place(who["pos"])
             for flag in state.get("flags") or []:
                 if flag.get("pos"):

@@ -1274,8 +1274,20 @@
               s: [(6 - i * 1.5) * scale, 3.6 * scale, (6 - i * 1.5) * scale], c: leaf || '#24502e' });
       }
     }
+    /* Last Light's people: one of the infected in ``area``'s clothes, a
+       strung-out horde of them, and a survivor (LL_SURVIVORS[look]). */
+    function zombie(kind, x, z, yaw, variant, area, anim, y) {
+      llZombie(parts, kind, x, z, yaw, variant, area, anim, y);
+    }
+    function horde(count, x0, z0, x1, z1, yaw, area, seed) {
+      llHorde(parts, count, x0, z0, x1, z1, yaw, area, seed);
+    }
+    function survivor(x, z, yaw, look, y) {
+      llSurvivor(parts, x, z, yaw, LL_SURVIVORS[(look || 0) % LL_SURVIVORS.length], y);
+    }
     return { add: add, box: box, shape: shape, player: player, attach: attach,
-             tracer: tracer, tree: tree, pine: pine, gun: LL_GUN, CLASSIC: CLASSIC };
+             tracer: tracer, tree: tree, pine: pine, gun: LL_GUN, CLASSIC: CLASSIC,
+             zombie: zombie, horde: horde, survivor: survivor };
   }
   Thumbs.worldKit = worldKit;
 
