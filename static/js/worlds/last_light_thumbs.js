@@ -69,5 +69,57 @@
     }
   });
 
+  /* Harrow County Zoo: the sea lion arena with the horde lured down into
+     its pool, the team firing from the top of the seats, the monorail on
+     its stilts behind with the stalled train, and a giraffe looking over. */
+  Thumbs.registerWorld('ll_zoo', {
+    camera: [[30, 30, -60], [0, 8, 26], 54],
+    sky: { top: '#3a4a8a', horizon: '#f2a868', sun: [0.6, 0.22, 0.7], clouds: 0.3, tint: '#ffd0a0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 10], [200, 1, 200], '#5a7a3a', { st: 1 });
+      // the arena: steps of seats down to the pool
+      k.box([0, -3, 10], [64, 6, 34], '#a8b4b8');
+      k.box([0, -1.4, -10.5], [64, 2.8, 7], '#4a7aa8', { st: 1 });
+      k.box([0, -0.5, -15.5], [64, 1.0, 5], '#e8e2d4', { st: 1 });
+      k.box([-29, -1.4, 10], [6, 2.8, 34], '#4a7aa8', { st: 1 });
+      k.box([29, -1.4, 10], [6, 2.8, 34], '#4a7aa8', { st: 1 });
+      k.box([0, -4.0, 14], [40, 0.4, 18], '#2f7aa8', { m: 'glass', a: 0.8 });
+      k.box([0, 3, 28], [70, 12, 3], '#3a6a9a');
+      k.box([0, 9.4, 28], [72, 1, 4], '#f2f2f2');
+      k.box([0, -2.4, 14], [6, 3, 4], '#9a8a72', { st: 1 });
+      k.box([0, 0.4, 14], [1.6, 2.6, 2.2], '#4a3a2e');
+      k.shape('sph', [0.2, 2.6, 15], [1.4, 1.4, 1.4], '#e83a3a');
+      k.horde(8, -14, 8, 12, 18, Math.PI, 'zoo', 5);
+      k.zombie('brute', -6, 20, Math.PI + 0.3, 0, 'zoo', 10, -4);
+      k.survivor(-14, -16, 0.1, 0, 0);
+      k.survivor(-6, -18, 0, 1, 0);
+      k.survivor(6, -17, -0.1, 2, 0);
+      k.survivor(15, -15, -0.2, 3, 0);
+      // the monorail behind: stilts, the deck, the train
+      for (var x = -60; x <= 60; x += 24) k.box([x, 8, 44], [2.4, 16, 2.4], '#b8bcc0');
+      k.box([0, 16.6, 44], [140, 1.2, 7], '#d8dcd8', { st: 1 });
+      k.box([-14, 20.5, 44], [26, 6.6, 6], '#f2f2f2');
+      k.box([14, 20.5, 44], [26, 6.6, 6], '#f2f2f2');
+      k.box([0, 21.0, 40.9], [52, 2, 0.2], '#8fb8c8', { m: 'glass', a: 0.7 });
+      k.box([0, 24.0, 44], [54, 0.6, 6.4], '#3a7a4a');
+      k.box([0, 18.6, 40.9], [52, 0.6, 0.2], '#3a7a4a');
+      // the giraffe looking over it
+      var gx = -40, gz = 30, G = 1.5;
+      [[-1, 1.6], [1, 1.6], [-1, -1.6], [1, -1.6]].forEach(function (l) {
+        k.box([gx + l[0] * G, 4 * G, gz + l[1] * G], [0.7 * G, 8 * G, 0.7 * G], '#e8b858');
+      });
+      k.box([gx, 9 * G, gz], [2.8 * G, 2.8 * G, 5.2 * G], '#e8b858');
+      k.box([gx, 15.5 * G, gz - 2.4 * G], [1.1 * G, 11 * G, 1.2 * G], '#e8b858', { r: [-0.25, 0, 0] });
+      k.box([gx, 21 * G, gz - 4.4 * G], [1.2 * G, 1.2 * G, 2.6 * G], '#e8b858');
+      k.box([gx + 0.3 * G, 22 * G, gz - 4.0 * G], [0.2 * G, 0.8 * G, 0.2 * G], '#8a5a2a');
+      k.box([gx - 0.3 * G, 22 * G, gz - 4.0 * G], [0.2 * G, 0.8 * G, 0.2 * G], '#8a5a2a');
+      [[1.42, 0.4, 1.2], [-1.42, -0.3, -0.8], [1.42, -0.5, -1.6], [-1.42, 0.6, 1.6]].forEach(function (p) {
+        k.box([gx + p[0] * G, (9 + p[1]) * G, gz + p[2] * G], [0.06 * G, 0.8 * G, 1.0 * G], '#8a5a2a');
+      });
+      // trees round it
+      k.tree(-60, 40, 1.4); k.tree(64, 30, 1.2); k.tree(-46, 62, 1.6); k.tree(70, 70, 1.3);
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

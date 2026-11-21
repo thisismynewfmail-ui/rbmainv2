@@ -292,6 +292,12 @@ WORLDS: List[Dict[str, Any]] = [
                       "mound, climb the scaffold behind the screen to the "
                       "walkway on top, and crank the movie's sound to send "
                       "the horde for the screen. They come out of the corn."},
+            {"id": "zoo", "name": "Harrow County Zoo",
+             "blurb": "Golden hour on the last day it was open. Hold the vet "
+                      "hospital, run the monorail's loop on its stilts, watch "
+                      "the penguins from the gallery under their pool -- and "
+                      "play the showtime jingle to send the horde down into "
+                      "the sea lion arena. The animals are watching you."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

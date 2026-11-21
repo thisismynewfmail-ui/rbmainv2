@@ -172,6 +172,29 @@
         hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.4, 0.12, 2.4], c: '#d8c070' },
                   { t: 'cyl', p: [0, 0.44, 0], s: [1.3, 0.7, 1.3], c: '#d8c070' },
                   { t: 'cyl', p: [0, 0.22, 0], s: [1.34, 0.14, 1.34], c: '#8a3a2a' }]) }
+    ],
+    // Harrow County Zoo: keepers, the last day's visitors, the mascot
+    zoo: [
+      CLASSIC,
+      { shirt: shirt('#b8a070', '#b8a070', { sleeves: 0.4, decal: 'logo_block' }), pants: pants('#6a5a3a', { length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.3, 0.12, 2.3], c: '#c8b080' },
+                  { t: 'sph', p: [0, 0.4, 0], s: [1.5, 0.9, 1.5], c: '#c8b080' }]) },
+      { shirt: shirt('#3ab0b0', '#3ab0b0', { sleeves: 0.3, decal: 'flowers' }), pants: pants('#e8e0c8', { length: 0.5 }),
+        hat: hat([{ t: 'box', p: [0, 0.16, 0], s: [1.64, 0.3, 1.64], c: '#e8503a' },
+                  { t: 'box', p: [0, 0.05, 0.98], s: [1.4, 0.1, 0.7], c: '#e8503a' }]) },
+      { shirt: shirt('#d8a050', '#d8a050', { weave: 'fur' }), pants: pants('#d8a050', { weave: 'fur' }),
+        hat: hat([{ t: 'sph', p: [0, 0.1, -0.2], s: [2.6, 2.5, 2.0], c: '#8a4a1a' },
+                  { t: 'box', p: [0.55, 0.85, 0.3], s: [0.5, 0.5, 0.2], c: '#d8a050' },
+                  { t: 'box', p: [-0.55, 0.85, 0.3], s: [0.5, 0.5, 0.2], c: '#d8a050' }]) },
+      { shirt: shirt('#3aa0a0', '#3aa0a0', { sleeves: 0.3 }), pants: pants('#3aa0a0'),
+        hat: hat([{ t: 'sph', p: [0, 0.25, 0], s: [1.62, 0.8, 1.62], c: '#3aa0a0' }]) },
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { stripe: '#e890b0' }), pants: pants('#e890b0'),
+        hat: hat([{ t: 'box', p: [0, 0.2, 0], s: [1.5, 0.4, 1.0], c: '#f2f2ee' },
+                  { t: 'box', p: [0, 0.22, 0.52], s: [1.0, 0.16, 0.02], c: '#e890b0' }]) },
+      { shirt: shirt('#3a7a4a', '#3a7a4a', { sleeves: 0.35, decal: 'logo_block' }), pants: pants('#2a2f38') },
+      { shirt: shirt('#6a7a4a', '#6a7a4a', { weave: 'camo' }), pants: pants('#4a5a34', { weave: 'camo' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.2, 0.12, 2.2], c: '#5a6a3a' },
+                  { t: 'cyl', p: [0, 0.4, 0], s: [1.3, 0.6, 1.3], c: '#5a6a3a' }]) }
     ]
   };
 

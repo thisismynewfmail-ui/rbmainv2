@@ -674,5 +674,186 @@
     }
   });
 
+  /* Harrow County Zoo: the sun going down behind the monorail's track,
+     parrots going over; a giraffe leans into the picture to see who has
+     come, the flamingos in the pond at the front -- and then the infected
+     come through the turnstiles and the flamingos go up all at once. */
+  Intro.register('zoo', {
+    tagline: 'Please do not feed the infected.',
+    accent: '#f2a868',
+    cues: [[0.2, 'll_squawk', 0.6], [1.1, 'll_trumpet', 0.45], [1.7, 'll_clunk', 0.5],
+           [2.3, 'll_squawk', 0.8], [2.9, 'll_lion', 0.5], [3.4, 'll_showtime', 0.35]],
+    shakes: [[1.72, 5, 0.3]],
+    tagY: 846, tagAt: 2.6,
+    setup: function (r) {
+      var d = { birds: [], flam: [], trees: [], zeds: [], clouds: [] };
+      for (var i = 0; i < 9; i++) {
+        d.birds.push({ x: between(r, -400, 200), y: between(r, 120, 320), v: between(r, 160, 260), p: r() * 6,
+                       c: ['#e83a3a', '#3a7ac8', '#f2c83a', '#3ab85a'][i % 4] });
+      }
+      for (i = 0; i < 9; i++) d.flam.push({ x: between(r, 420, 1180), y: between(r, 760, 800), p: r() * 6, s: between(r, 0.8, 1.1) });
+      for (i = 0; i < 12; i++) d.trees.push({ x: between(r, -40, VW + 40), h: between(r, 90, 170), p: r() * 6 });
+      var looks = [['#b8a070', '#6a5a3a', '#6fae55'], ['#3ab0b0', '#e8e0c8', '#7fb069'],
+                   ['#d8a050', '#d8a050', '#5f9a4c'], ['#3aa0a0', '#3aa0a0', '#86b86a']];
+      for (i = 0; i < 7; i++) d.zeds.push({ x: 560 + i * 80 + between(r, -20, 20), p: r() * 6, look: looks[i % 4],
+                                            at: 1.7 + i * 0.12 });
+      for (i = 0; i < 5; i++) d.clouds.push([between(r, 0, VW + 600), between(r, 140, 360), between(r, 220, 520),
+                                             between(r, 6, 14), between(r, 4, 9)]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#2a3a7a'], [0.45, '#8a5a8a'], [0.75, '#e88a5a'], [1, '#f2c07a']], 640);
+      // the sun, low and huge, behind everything
+      additive(ctx, function () { dot(ctx, '#ffb070', 980, 560, 520, 0.4, 340); });
+      ctx.fillStyle = '#ffd890';
+      ctx.beginPath(); ctx.arc(980, 560 + t * 6, 120, 0, TAU); ctx.fill();
+      bands(ctx, d.clouds, t, 'rgba(140,70,110,0.55)');
+      // the far trees, the monorail's stilts and track, the stalled train
+      ctx.fillStyle = '#3a2a3a';
+      d.trees.forEach(function (tr) {
+        ctx.beginPath(); ctx.arc(tr.x, 640 - tr.h * 0.5, tr.h * 0.42, 0, TAU); ctx.fill();
+        ctx.fillRect(tr.x - 6, 640 - tr.h * 0.5, 12, tr.h * 0.5);
+      });
+      ctx.fillRect(0, 600, VW, 60);
+      ctx.fillStyle = '#2a1e2e';
+      for (var sx = 40; sx < VW; sx += 170) ctx.fillRect(sx, 420, 16, 220);
+      ctx.fillRect(0, 404, VW, 22);
+      ctx.fillRect(0, 398, VW, 6);
+      ctx.fillStyle = '#3a2a3e';
+      roundRect(ctx, 260, 330, 330, 74, 18); ctx.fill();
+      roundRect(ctx, 600, 330, 330, 74, 18); ctx.fill();
+      ctx.fillStyle = 'rgba(255,210,140,0.5)';
+      for (var w = 0; w < 10; w++) ctx.fillRect(282 + w * 64 + (w > 4 ? 20 : 0), 346, 40, 22);
+      // the beacon on the train
+      var blink = Math.sin(t * 9) > 0 ? 1 : 0.2;
+      additive(ctx, function () { dot(ctx, '#ff8a2a', 760, 322, 30, 0.6 * blink); });
+      // parrots across the sky
+      d.birds.forEach(function (b) {
+        var x = b.x + b.v * t, y = b.y + Math.sin(t * 3 + b.p) * 18;
+        var flap = Math.sin(t * 16 + b.p);
+        ctx.fillStyle = b.c;
+        ctx.beginPath(); ctx.moveTo(x - 14, y - flap * 10); ctx.lineTo(x, y); ctx.lineTo(x + 14, y - flap * 10);
+        ctx.lineTo(x, y + 5); ctx.closePath(); ctx.fill();
+        ctx.fillRect(x - 3, y - 2, 12, 5);
+      });
+      // the ground, the pond, the flamingos
+      var g = ctx.createLinearGradient(0, 640, 0, VH);
+      g.addColorStop(0, '#5a4a3a'); g.addColorStop(1, '#2a2018');
+      ctx.fillStyle = g; ctx.fillRect(0, 640, VW, VH - 640);
+      ctx.fillStyle = '#6a8ab0';
+      ctx.beginPath(); ctx.ellipse(800, 790, 470, 70, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,200,140,0.35)';
+      ctx.fillRect(560, 784, 480, 6);
+      var scatter = seg(t, 2.2, 3.4);
+      d.flam.forEach(function (f, i) {
+        var up = scatter * (1 + (i % 3) * 0.3);
+        var x = f.x + up * (i % 2 ? 260 : -260), y = f.y - up * 420;
+        ctx.save(); ctx.translate(x, y); ctx.scale(f.s, f.s);
+        ctx.fillStyle = '#f28aa0';
+        if (up < 0.05) {
+          ctx.fillRect(-2, -60, 4, 60);
+          ctx.beginPath(); ctx.ellipse(0, -66, 22, 12, 0, 0, TAU); ctx.fill();
+          ctx.strokeStyle = '#f28aa0'; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.moveTo(14, -70); ctx.quadraticCurveTo(30, -110 + Math.sin(t * 2 + f.p) * 6, 18, -118); ctx.stroke();
+          ctx.fillStyle = '#1a1a1a'; ctx.fillRect(18, -122, 10, 5);
+        } else {
+          var flap = Math.sin(t * 20 + f.p) * 26;
+          ctx.beginPath(); ctx.ellipse(0, 0, 22, 10, 0, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-30, -flap); ctx.lineTo(10, 0); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-30, flap * 0.6); ctx.lineTo(10, 0); ctx.fill();
+          ctx.fillRect(20, -2, 26, 4);
+        }
+        ctx.restore();
+      });
+      // the infected through the turnstiles at the front
+      d.zeds.forEach(function (z, i) {
+        var k = seg(t, z.at, z.at + 0.5);
+        if (k <= 0) return;
+        ctx.globalAlpha = k;
+        LL.shambler(ctx, z.x + (t - z.at) * 20 * (i % 2 ? 1 : -0.6), 900 - 40 * k + 60, 3.2, t, z.look, i % 2 ? 1 : -1, z.p);
+        ctx.globalAlpha = 1;
+      });
+      ctx.fillStyle = '#1e1a1a';
+      for (var ts = 0; ts < 6; ts++) ctx.fillRect(470 + ts * 130, 836, 16, 64);
+      ctx.fillRect(440, 832, 760, 10);
+      // the giraffe leaning in from the right to look
+      var lean = outBack(seg(t, 0.9, 1.7), 1.3);
+      if (lean > 0) {
+        ctx.save();
+        ctx.translate(1600 + 60 - lean * 300, 900);
+        ctx.rotate(-0.35 + lean * 0.12 + Math.sin(t * 1.2) * 0.02);
+        ctx.fillStyle = '#e8b858';
+        ctx.fillRect(-26, -640, 52, 640);
+        ctx.fillStyle = '#8a5a2a';
+        for (var sp = 0; sp < 8; sp++) {
+          roundRect(ctx, -22 + (sp % 2) * 16, -600 + sp * 72, 22, 30, 8); ctx.fill();
+        }
+        ctx.fillStyle = '#5a3a1a'; ctx.fillRect(-30, -620, 10, 560);
+        ctx.save(); ctx.translate(0, -650); ctx.rotate(-1.1 + Math.sin(t * 1.6) * 0.05);
+        ctx.fillStyle = '#e8b858'; roundRect(ctx, -40, -34, 150, 68, 26); ctx.fill();
+        ctx.fillStyle = '#c89848'; roundRect(ctx, 80, -24, 44, 50, 18); ctx.fill();
+        ctx.fillStyle = '#5a3a1a'; ctx.fillRect(-20, -62, 8, 30); ctx.fillRect(4, -62, 8, 30);
+        ctx.fillStyle = '#2a1a0a'; ctx.beginPath(); ctx.arc(-16, -64, 7, 0, TAU); ctx.arc(8, -64, 7, 0, TAU); ctx.fill();
+        var blinkEye = Math.sin(t * 2.7) > 0.95 ? 0.2 : 1;
+        ctx.fillStyle = '#141414'; ctx.fillRect(34, -14, 12, 12 * blinkEye);
+        ctx.restore();
+        ctx.restore();
+      }
+      // the elephant's trunk up at the left edge, trumpeting
+      var tr = seg(t, 1.0, 1.4);
+      if (tr > 0) {
+        ctx.fillStyle = '#5a5458';
+        ctx.beginPath(); ctx.ellipse(-40, 820, 220, 200, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#5a5458'; ctx.lineWidth = 46; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(120, 760);
+        ctx.quadraticCurveTo(220 + 20 * tr, 640, 180 + Math.sin(t * 4) * 10, 520 - 60 * tr); ctx.stroke();
+        ctx.fillStyle = '#4a4448';
+        ctx.beginPath(); ctx.ellipse(70, 700, 70, 110, -0.3, 0, TAU); ctx.fill();
+      }
+      // dust in the low sun
+      additive(ctx, function () {
+        for (var m = 0; m < 40; m++) {
+          var mx = (m * 137 + t * 20) % VW, my = 420 + (m * 71) % 300 + Math.sin(t + m) * 10;
+          dot(ctx, '#ffd890', mx, my, 2, 0.5);
+        }
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Harrow County Zoo').toUpperCase();
+      var k = outBack(seg(t, 1.6, 2.15), 1.4);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, lerp(-200, 168, k));
+      ctx.rotate(wobble(t, 2.15, 0.04, 9, 2.4));
+      // the arch-topped board, green with cream letters, on two chains
+      ctx.strokeStyle = '#3a3a3a'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(-420, -60); ctx.lineTo(-440, -260); ctx.moveTo(420, -60); ctx.lineTo(440, -260); ctx.stroke();
+      ctx.fillStyle = '#2e6a3e';
+      ctx.beginPath(); ctx.moveTo(-480, 70); ctx.lineTo(-480, -40); ctx.quadraticCurveTo(0, -130, 480, -40);
+      ctx.lineTo(480, 70); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#f2e8d2'; ctx.lineWidth = 6; ctx.stroke();
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 84, 860, 0.07);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1a3a22';
+      var lay = spaced(ctx, name, 4, 16, size * 0.07);
+      ctx.fillStyle = '#f2e8d2';
+      spaced(ctx, name, 0, 12, size * 0.07);
+      // a monkey hanging off the last letter, a parrot on the first
+      var mx = lay.left + lay.width - 10, swing = Math.sin(t * 3) * 0.3;
+      ctx.save(); ctx.translate(mx, 40); ctx.rotate(swing);
+      ctx.strokeStyle = '#5a3a22'; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 30); ctx.stroke();
+      ctx.fillStyle = '#5a3a22'; ctx.beginPath(); ctx.ellipse(0, 50, 16, 22, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 22, 13, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#c8a070'; ctx.beginPath(); ctx.arc(0, 25, 8, 0, TAU); ctx.fill();
+      ctx.restore();
+      var px = lay.left + 20;
+      ctx.fillStyle = '#e83a3a'; ctx.beginPath(); ctx.ellipse(px, -48, 12, 18, 0.3, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#3a7ac8'; ctx.fillRect(px - 12, -38, 8, 22);
+      ctx.fillStyle = '#f2c83a'; ctx.fillRect(px + 6, -64, 8, 6);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

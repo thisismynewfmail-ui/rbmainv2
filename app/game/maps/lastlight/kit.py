@@ -451,6 +451,15 @@ def wall_sign(b: MapBuilder, x: float, y: float, z: float, w: float, h: float,
     b.box([x, y, z], [w, h, 0.7], colour, r=[0, turn, 0], decal=decal)
 
 
+def post_sign(b: MapBuilder, x: float, z: float, y: float, height: float, w: float,
+              h: float, decal: str, facing: str = "z-", colour: str = "#f2f3f3",
+              post: str = WOOD_DARK) -> None:
+    """A sign board on a post, both solid: the post from ``y`` up
+    ``height``, the board on top of it."""
+    b.cyl([x, y + height / 2.0, z], [1.0, height, 1.0], post)
+    wall_sign(b, x, y + height + h / 2.0, z, w, h, decal, facing, colour)
+
+
 def flood(b: MapBuilder, x: float, z: float, y: float = 0.0,
           height: float = 24.0, colour: str = LAMP) -> None:
     """A floodlight mast with a solid head (the head is somewhere you can

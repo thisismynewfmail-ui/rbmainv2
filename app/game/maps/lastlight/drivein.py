@@ -46,7 +46,7 @@ from .kit import (
     ASPHALT, ASPHALT_DARK, CONCRETE, CONCRETE_DARK, FLOOR, LAMP, LINE_YELLOW,
     STEEL, STEEL_DARK, WARM, WOOD, WOOD_DARK, WOOD_LIGHT, Area, Surfaces,
     barrel_spot, bench, boundary, building, car, carve, chain_fence, crate,
-    deploy_pad, flight, holed_wall, lamp_post, plate, rect, room_walls,
+    deploy_pad, flight, holed_wall, lamp_post, plate, post_sign, rect, room_walls,
     sign_decal, slab, solid_fence, strip_light, supply_ammo, supply_med,
     threshold, wall_sign)
 from ..relay.kit import board_letters, pine, rails, ridge, tier_stack
@@ -145,13 +145,6 @@ def build(b: Area) -> None:
     b.camera(-150.0, 70.0, 150.0, 0.0, 0.0, 0.0)
     b.camera(0.0, 74.0, 238.0, 0.0, 0.0, 40.0)
     b.camera(150.0, 30.0, -150.0, 60.0, 4.0, -220.0)
-
-
-def post_sign(b: Area, x: float, z: float, y: float, height: float, w: float, h: float,
-              decal: str, facing: str = "z-", colour: str = "#f2f3f3") -> None:
-    """A sign board on a post, both solid."""
-    b.cyl([x, y + height / 2.0, z], [1.0, height, 1.0], WOOD_DARK)
-    wall_sign(b, x, y + height + h / 2.0, z, w, h, decal, facing, colour)
 
 
 # ================================================================ ground
