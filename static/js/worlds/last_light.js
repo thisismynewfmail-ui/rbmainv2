@@ -1349,5 +1349,185 @@
     }
   });
 
+  /* Redwater Cranberry Bogs: a full moon over the flooded bog, the water
+     red from bank to bank, mist lying on it; the windmill turning on its
+     knoll, the screenhouse lit; a heron crosses the moon -- and out of the
+     berries, one after another, they stand up and come wading.  The name
+     goes on like a fruit-crate label. */
+  Intro.register('bogs', {
+    tagline: 'The water was red before any of this.',
+    accent: '#e83a4a',
+    cues: [[0.1, 'll_wind', 0.4], [0.5, 'll_clunk', 0.7], [1.0, 'll_heron', 0.6], [1.6, 'll_splash', 0.6],
+           [2.3, 'll_splash', 0.5], [2.9, 'll_frog', 0.6]],
+    shakes: [[0.62, 3, 0.15]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 160, 0, 420), berries: [], zeds: [], mist: [], lamps: [] };
+      for (var i = 0; i < 260; i++) {
+        var y = 600 + Math.pow(r(), 0.7) * 300;
+        d.berries.push({ x: r() * VW, y: y, s: 1 + (y - 600) / 300 * 4, c: r() < 0.6 ? '#c8243a' : '#8a1022' });
+      }
+      var looks = [['#b8382e', '#2a4a2a', '#6fae55'], ['#f2c81a', '#2a4a2a', '#7fb069'], ['#e8e8e0', '#e8e8e0', '#5f9a4c'],
+                   ['#a8182a', '#a8182a', '#86b86a'], ['#2a3a5a', '#3a3a3a', '#6c9f68'], ['#7a5230', '#3f63a8', '#79a84e']];
+      for (i = 0; i < 7; i++) {
+        d.zeds.push({ x: 160 + i * 205 + between(r, -50, 50), row: i % 2, at: 1.3 + i * 0.17 + r() * 0.2, p: r() * 6,
+                      look: looks[i % looks.length] });
+      }
+      for (i = 0; i < 8; i++) d.mist.push({ x: r() * VW, y: between(r, 560, 760), w: between(r, 300, 600), v: between(r, 8, 22) });
+      for (i = 0; i < 6; i++) d.lamps.push([120 + i * 270 + between(r, -30, 30), i % 2 ? 604 : 640]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050818'], [0.55, '#1a1838'], [0.9, '#4a2a48'], [1, '#6a3a4a']], 580);
+      starsK(ctx, d.stars, t, 1);
+      // the moon, and a heron going across it
+      additive(ctx, function () { dot(ctx, '#e8e0ff', 1180, 190, 260, 0.22); });
+      ctx.fillStyle = '#f2ecd8';
+      ctx.beginPath(); ctx.arc(1180, 190, 92, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(180,170,150,0.45)';
+      ctx.beginPath(); ctx.arc(1150, 170, 18, 0, TAU); ctx.arc(1210, 220, 12, 0, TAU); ctx.arc(1196, 160, 8, 0, TAU); ctx.fill();
+      var hk = seg(t, 0.7, 2.4);
+      if (hk > 0 && hk < 1) {
+        var hx = lerp(1480, 820, hk), hy = 200 - Math.sin(hk * Math.PI) * 30, flap = Math.sin(t * 9) * 26;
+        ctx.fillStyle = '#0c0a14';
+        ctx.beginPath(); ctx.ellipse(hx, hy, 34, 9, -0.1, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx - 10, hy); ctx.lineTo(hx + 14, hy - 4 - flap); ctx.lineTo(hx + 36, hy - 2 - flap * 0.6);
+        ctx.lineTo(hx + 8, hy + 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx - 10, hy); ctx.lineTo(hx - 4, hy - 6 - flap); ctx.lineTo(hx + 20, hy - 4 - flap * 0.6);
+        ctx.lineTo(hx + 6, hy + 2); ctx.fill();
+        ctx.fillRect(hx - 56, hy - 3, 24, 4); ctx.fillRect(hx + 30, hy, 34, 3);
+      }
+      // the tree line, the windmill on its knoll, the screenhouse
+      ctx.fillStyle = '#0c0e14';
+      for (var x = -20; x < VW + 40; x += 30) pineK(ctx, x, 560, 40 + Math.sin(x * 0.37) * 14, '#0c0e14', 0);
+      ctx.fillRect(0, 552, VW, 60);
+      ctx.beginPath(); ctx.moveTo(180, 560); ctx.quadraticCurveTo(300, 520, 420, 560); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(270, 540); ctx.lineTo(282, 420); ctx.lineTo(318, 420); ctx.lineTo(330, 540); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(276, 424); ctx.lineTo(300, 398); ctx.lineTo(324, 424); ctx.fill();
+      ctx.save(); ctx.translate(300, 430); ctx.rotate(t * 0.5);
+      for (var sl = 0; sl < 4; sl++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.fillRect(-3, 0, 6, 110);
+        ctx.fillStyle = 'rgba(20,18,26,0.9)'; ctx.fillRect(4, 22, 22, 84); ctx.fillStyle = '#0c0e14';
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,200,120,0.75)'; ctx.fillRect(296, 470, 8, 12);
+      ctx.fillStyle = '#121218';
+      ctx.fillRect(1240, 500, 300, 64);
+      ctx.beginPath(); ctx.moveTo(1230, 502); ctx.lineTo(1390, 450); ctx.lineTo(1550, 502); ctx.fill();
+      ctx.fillRect(1380, 432, 22, 22);
+      for (var w = 0; w < 6; w++) {
+        ctx.fillStyle = 'rgba(255,196,110,' + (0.55 + 0.2 * Math.sin(t * 3 + w)) + ')';
+        ctx.fillRect(1262 + w * 46, 520, 20, 16);
+      }
+      // the bog: red to the horizon, the moon's road on it, the dikes
+      var g = ctx.createLinearGradient(0, 560, 0, VH);
+      g.addColorStop(0, '#3a0610'); g.addColorStop(0.4, '#6a0c1a'); g.addColorStop(1, '#a01a2a');
+      ctx.fillStyle = g; ctx.fillRect(0, 562, VW, VH - 562);
+      additive(ctx, function () {
+        for (var m = 0; m < 22; m++) {
+          var my = 570 + m * 14 + Math.sin(t * 2 + m) * 2, mw = 30 + m * 6 + Math.sin(t * 3 + m * 1.7) * 10;
+          ctx.fillStyle = 'rgba(255,220,220,' + (0.18 - m * 0.006) + ')';
+          ctx.fillRect(1180 - mw / 2 + Math.sin(t + m) * 8, my, mw, 3);
+        }
+      });
+      ctx.fillStyle = '#1a120e';
+      ctx.fillRect(0, 600, VW, 7); ctx.fillRect(0, 640, VW, 9);
+      d.lamps.forEach(function (lp) {
+        ctx.fillStyle = '#1a120e'; ctx.fillRect(lp[0] - 2, lp[1] - 46, 4, 46);
+        additive(ctx, function () { dot(ctx, '#ffcf7a', lp[0], lp[1] - 48, 26, 0.5); });
+      });
+      // the boom, swinging round in an arc
+      ctx.strokeStyle = '#e8a01a'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(-20, 720); ctx.quadraticCurveTo(500, 680, 900, 712); ctx.stroke();
+      // the berries on the water
+      d.berries.forEach(function (b, i) {
+        ctx.fillStyle = b.c;
+        ctx.beginPath(); ctx.arc(b.x + Math.sin(t * 0.8 + i) * 1.5, b.y + Math.sin(t * 1.3 + i) * 0.8, b.s, 0, TAU); ctx.fill();
+      });
+      // the mist lying on it
+      d.mist.forEach(function (m) {
+        var mx = (m.x + t * m.v) % (VW + m.w) - m.w / 2;
+        var mg = ctx.createRadialGradient(mx, m.y, 0, mx, m.y, m.w / 2);
+        mg.addColorStop(0, 'rgba(220,220,235,0.16)'); mg.addColorStop(1, 'rgba(220,220,235,0)');
+        ctx.fillStyle = mg; ctx.fillRect(mx - m.w / 2, m.y - m.w / 4, m.w, m.w / 2);
+      });
+      // and the infected standing up out of it, wading in
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.8);
+        if (k2 <= 0) return;
+        var water = z.row ? 780 : 730, s = z.row ? 2.6 : 2.0;
+        var rise = outCubic(k2);
+        var y = water + 68 * s - rise * 46 * s + (t - z.at) * 6;
+        var x = z.x + Math.sin(t + z.p) * 4;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, VW, water); ctx.clip();
+        LL.shambler(ctx, x, y, s, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,190,190,0.5)'; ctx.lineWidth = 2;
+        var rr = 14 * s + Math.sin(t * 4 + z.p) * 3;
+        ctx.beginPath(); ctx.ellipse(x, water, rr, rr * 0.22, 0, 0, TAU); ctx.stroke();
+      });
+      // a hand, in the near water
+      var hk2 = seg(t, 1.55, 2.0) * (1 - seg(t, 3.2, 3.8));
+      if (hk2 > 0) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, VW, 858); ctx.clip();
+        var bx = 1430, by = 858 + 90 - hk2 * 120;
+        ctx.fillStyle = '#6fae55';
+        ctx.fillRect(bx - 12, by, 24, 120);
+        ctx.fillRect(bx - 18, by - 22, 36, 26);
+        for (var fg = 0; fg < 4; fg++) ctx.fillRect(bx - 17 + fg * 9.5, by - 44 + Math.sin(t * 8 + fg) * 4, 7, 24);
+        ctx.fillRect(bx + 18, by - 14, 12, 7);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,190,190,0.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(bx, 858, 40 + Math.sin(t * 5) * 4, 8, 0, 0, TAU); ctx.stroke();
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Redwater Cranberry Bogs').toUpperCase();
+      var k = outBack(seg(t, 0.4, 0.62), 1.6);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 236);
+      ctx.rotate(-0.02 + (1 - k) * -0.25);
+      var sc = 0.78 * (1.6 - 0.6 * k);
+      ctx.scale(sc, sc);
+      ctx.globalAlpha = Math.min(1, k * 1.4);
+      // the crate's end boards behind the label
+      for (var pl = 0; pl < 3; pl++) {
+        ctx.fillStyle = ['#8a6a42', '#7a5c38', '#94744a'][pl];
+        ctx.fillRect(-560, -150 + pl * 100, 1120, 96);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-560, -150 + pl * 100 + 92, 1120, 4);
+        ctx.fillStyle = '#3a2a1a';
+        for (var nl = 0; nl < 2; nl++) { ctx.beginPath(); ctx.arc(nl ? 530 : -530, -102 + pl * 100, 5, 0, TAU); ctx.fill(); }
+      }
+      // the label
+      ctx.fillStyle = '#a8182a'; roundRect(ctx, -500, -120, 1000, 240, 16); ctx.fill();
+      ctx.fillStyle = '#f2e6c8'; roundRect(ctx, -488, -108, 976, 216, 10); ctx.fill();
+      ctx.strokeStyle = '#1a2a5a'; ctx.lineWidth = 3; roundRect(ctx, -476, -96, 952, 192, 8); ctx.stroke();
+      // the medallion: berries on a navy ground, two leaves
+      ctx.fillStyle = '#1a2a5a'; ctx.beginPath(); ctx.arc(-370, 0, 86, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#d8b84a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(-370, 0, 78, 0, TAU); ctx.stroke();
+      ctx.fillStyle = '#3a7a3a';
+      ctx.beginPath(); ctx.ellipse(-400, -40, 34, 12, -0.6, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-338, -44, 30, 11, 0.7, 0, TAU); ctx.fill();
+      [[-392, 6, 24], [-350, 0, 26], [-372, 34, 22], [-330, 38, 18], [-410, 40, 16]].forEach(function (b) {
+        ctx.fillStyle = '#c81a2e'; ctx.beginPath(); ctx.arc(b[0], b[1], b[2], 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.arc(b[0] - b[2] * 0.35, b[1] - b[2] * 0.35, b[2] * 0.25, 0, TAU); ctx.fill();
+      });
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#a8182a';
+      spaced(ctx, 'REDWATER  BRAND', 110, -66, 8);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 64, 660, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = 'rgba(26,42,90,0.25)'; spaced(ctx, name, 113, 5, size * 0.04);
+      ctx.fillStyle = '#1a2a5a'; spaced(ctx, name, 110, 2, size * 0.04);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#a8182a';
+      spaced(ctx, 'CHOICE  CRANBERRIES   ·   HARROW  CO.', 110, 66, 4);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

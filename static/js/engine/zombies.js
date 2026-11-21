@@ -273,6 +273,35 @@
                   { t: 'cyl', p: [0, -0.1, 1.0], s: [0.8, 0.5, 0.8], c: '#e88a8a', r: [1.5708, 0, 0] },
                   { t: 'box', p: [0.6, 1.0, 0.2], s: [0.5, 0.5, 0.2], c: '#e88a8a' },
                   { t: 'box', p: [-0.6, 1.0, 0.2], s: [0.5, 0.5, 0.2], c: '#e88a8a' }]) }
+    ],
+    // Redwater Cranberry Bogs: the harvest crew in their waders and
+    // slickers, the beekeeper, the Cranberry Queen, the festival's berry
+    bogs: [
+      CLASSIC,
+      { shirt: shirt('#b8382e', '#b8382e', { weave: 'flannel' }), pants: pants('#2a4a2a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'box', p: [0, 0.16, 0], s: [1.64, 0.3, 1.64], c: '#2a4a2a' },
+                  { t: 'box', p: [0, 0.05, 0.98], s: [1.4, 0.1, 0.7], c: '#2a4a2a' }]) },
+      { shirt: shirt('#f2c81a', '#f2c81a', { hood: true, weave: 'vinyl' }), pants: pants('#2a4a2a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.12, -0.2], s: [2.3, 0.14, 2.6], c: '#f2c81a' },
+                  { t: 'sph', p: [0, 0.4, 0], s: [1.6, 0.9, 1.6], c: '#f2c81a' }]) },
+      { shirt: shirt('#e8e8e0', '#e8e8e0', { weave: 'canvas' }), pants: pants('#e8e8e0', { weave: 'canvas' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.14, 0], s: [2.6, 0.12, 2.6], c: '#e8e8e0' },
+                  { t: 'cyl', p: [0, 0.5, 0], s: [1.5, 0.8, 1.5], c: '#e8e8e0' },
+                  { t: 'cyl', p: [0, -0.5, 0], s: [2.3, 1.2, 2.3], c: '#2a2a2a', a: 0.45 }]) },
+      { shirt: shirt('#a8182a', '#f2f2ee', { stripe: '#f2f2ee', sleeves: 0.3 }), pants: pants('#a8182a', { length: 0.6 }),
+        hat: hat([{ t: 'box', p: [0, 0.34, 0], s: [1.2, 0.2, 0.2], c: '#d8b84a', m: 'metal' },
+                  { t: 'box', p: [0, 0.5, 0.06], s: [0.3, 0.4, 0.1], c: '#d8b84a', m: 'metal' },
+                  { t: 'sph', p: [0, 0.6, 0.12], s: [0.24, 0.24, 0.12], c: '#c81a2a' }]),
+        hair: hair([{ p: [0, 0.32, -0.08], s: [1.1, 0.5, 1.1], c: '#3a2014' },
+                    { p: [0, -0.2, -0.56], s: [1.0, 1.2, 0.3], c: '#3a2014' }]) },
+      { shirt: shirt('#2a3a5a', '#2a3a5a', { weave: 'denim' }), pants: pants('#3a3a3a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.6, 0.14, 2.6], c: '#3a3a2a' },
+                  { t: 'cyl', p: [0, 0.48, 0], s: [1.4, 0.8, 1.4], c: '#3a3a2a' }]) },
+      { shirt: shirt('#e8a81a', '#2a3a5a', { stripe: '#c8cbcd', weave: 'hivis' }), pants: pants('#2a3a5a') },
+      { shirt: shirt('#b81a2e', '#b81a2e', { sleeves: 0.0 }), pants: pants('#2a4a2a'),
+        hat: hat([{ t: 'sph', p: [0, -0.4, 0], s: [3.2, 3.0, 3.0], c: '#b81a2e' },
+                  { t: 'box', p: [0, 1.25, 0], s: [0.3, 0.6, 0.3], c: '#5a3a1a' },
+                  { t: 'box', p: [0.35, 1.3, 0], s: [0.7, 0.12, 0.4], c: '#3a7a3a' }]) }
     ]
   };
 

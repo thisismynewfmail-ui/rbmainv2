@@ -2274,5 +2274,505 @@
     };
   });
 
+  // ========================================== Redwater Cranberry Bogs
+  if (GA) {
+    GA.register('ll_floodgate', function (vol) {
+      // the klaxon, the gate's screw groaning up, then the water
+      for (var i = 0; i < 3; i++) {
+        this.later(i * 420, function () {
+          this.tone({ type: 'square', freq: 440, freqEnd: 330, dur: 0.36, gain: 0.07 * vol });
+        });
+      }
+      this.later(1300, function () {
+        this.tone({ type: 'sawtooth', freq: 70, freqEnd: 110, dur: 1.1, gain: 0.08 * vol });
+        this.noise({ filter: 'bandpass', freq: 600, freqEnd: 900, dur: 1.1, gain: 0.05 * vol });
+      });
+      this.later(2300, function () { this.noise({ freq: 1400, freqEnd: 300, dur: 3.2, gain: 0.2 * vol }); });
+      this.later(2400, function () { this.noise({ filter: 'lowpass', freq: 220, dur: 3.0, gain: 0.18 * vol }); });
+    });
+    GA.register('ll_heron', function (vol) {
+      this.tone({ type: 'sawtooth', freq: 320, freqEnd: 190, dur: 0.42, gain: 0.07 * vol });
+      this.noise({ filter: 'bandpass', freq: 900, freqEnd: 500, dur: 0.42, gain: 0.05 * vol });
+    });
+    GA.register('ll_plop', function (vol) {
+      this.tone({ type: 'sine', freq: 700, freqEnd: 180, dur: 0.14, gain: 0.08 * vol });
+      this.noise({ filter: 'bandpass', freq: 1200, dur: 0.1, gain: 0.03 * vol });
+    });
+    GA.register('ll_frog', function (vol) {
+      for (var i = 0; i < 3; i++) {
+        this.later(i * 140, function () { this.tone({ type: 'square', freq: 118, freqEnd: 96, dur: 0.11, gain: 0.05 * vol }); });
+      }
+    });
+    GA.register('ll_chug', function (vol) {
+      this.tone({ type: 'sine', freq: 62, freqEnd: 44, dur: 0.22, gain: 0.09 * vol });
+      this.later(260, function () { this.noise({ freq: 500, freqEnd: 160, dur: 0.3, gain: 0.04 * vol }); });
+    });
+  }
+
+  /* A water reel ("beater"): the reel at the front of its frame turning in
+     the flooded bog, knocking the berries off the vines -- they fly up
+     and patter back down -- with a foam wake behind. */
+  Rigs.register('water_reel', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var spray = [];
+    for (var i = 0; i < 10; i++) spray.push({ ph: hash(i + 3), side: hash(i + 7) * 2 - 1 });
+    return {
+      radius: 30,
+      draw: function (pen, t) {
+        for (var sd = -1; sd <= 1; sd += 2) pen.part(f0, 'box', [1.1, 1.1, sd * 3.4], [2.6, 0.5, 0.5], '#c8a83a', { m: 'metal' });
+        var axle = child(f0, [2.2, 1.1, 0], 0, 0, -t * 2.2);
+        pen.part(axle, 'cyl', [0, 0, 0], [1.2, 6.8, 1.2], '#5a5f66', { m: 'metal', rx: Math.PI / 2 });
+        for (var k = 0; k < 8; k++) {
+          var arm = child(axle, [0, 0, 0], 0, 0, k / 8 * TAU);
+          pen.part(arm, 'box', [1.2, 0, 3.0], [2.4, 0.25, 0.25], '#8a8f94', { m: 'metal' });
+          pen.part(arm, 'box', [1.2, 0, -3.0], [2.4, 0.25, 0.25], '#8a8f94', { m: 'metal' });
+          pen.part(arm, 'box', [2.4, 0, 0], [0.3, 0.9, 6.2], '#c8a83a', { m: 'metal' });
+        }
+        for (i = 0; i < spray.length; i++) {
+          var sp = spray[i];
+          var u = (t * 0.9 + sp.ph) % 1;
+          pen.part(f0, 'sph', [3.0 + u * 4.0, 0.6 + u * 4.2 - u * u * 4.8, sp.side * 2.6], [0.5, 0.5, 0.5], '#c8243a');
+        }
+        for (var j = 0; j < 6; j++) {
+          var w = (t * 0.5 + j / 6) % 1;
+          pen.part(f0, 'cyl', [-2 - w * 10, 0.05, Math.sin(j * 2.3) * 2], [1.2 + w * 2.4, 0.06, 1.2 + w * 2.4], '#f2e8e8',
+                   { a: 0.5 * (1 - w) });
+        }
+      }
+    };
+  });
+
+  /* The corralled berries: clumps riding the surface inside the booms,
+     drifting, and jostled when something disturbs the water. */
+  Rigs.register('berry_raft', function (spec) {
+    var a = spec.area, n = spec.n || 20, y = spec.p[1];
+    var clumps = [];
+    for (var i = 0; i < n; i++) {
+      clumps.push({ x: a[0] + (a[1] - a[0]) * hash(i * 3 + 1), z: a[2] + (a[3] - a[2]) * hash(i * 5 + 2), p: hash(i + 11) * 6 });
+    }
+    var stir = -10;
+    return {
+      radius: Math.max(a[1] - a[0], a[3] - a[2]) / 2 + 20,
+      event: function (kind, msg) {
+        var from = msg && (msg.from || msg.pos);
+        if (kind === 'lure' || ((kind === 'shot' || kind === 'blast' || kind === 'kill') && from &&
+            from[0] > a[0] - 30 && from[0] < a[1] + 30 && from[2] > a[2] - 30 && from[2] < a[3] + 30)) stir = Rigs.clock();
+      },
+      draw: function (pen, t) {
+        var k = Math.max(0, 1 - (t - stir) / 6);
+        for (var i = 0; i < clumps.length; i++) {
+          var c = clumps[i];
+          var x = c.x + Math.sin(t * 0.07 + c.p) * 2.5 + Math.sin(t * 3 + c.p) * 0.4 * k;
+          var z = c.z + Math.cos(t * 0.05 + c.p * 1.3) * 2.5;
+          var bob = Math.sin(t * 1.4 + c.p) * 0.08 + k * Math.abs(Math.sin(t * 6 + c.p)) * 0.3;
+          for (var j = 0; j < 4; j++) {
+            pen.part(frame([x + (j % 2) * 0.7 - 0.35, y + 0.05 + bob, z + (j > 1 ? 0.6 : -0.3)], 0), 'sph', [0, 0, 0],
+                     [0.6, 0.5, 0.6], j % 3 ? '#b81a2e' : '#d82a3a');
+          }
+        }
+      }
+    };
+  });
+
+  /* The floodgate: its handwheel spins when somebody opens it, the flume
+     goes from a trickle to a torrent, and the water comes over the spout
+     into the harvest bog in a white sheet, foam spreading out from it. */
+  Rigs.register('floodgate', function (spec) {
+    var wheel = frame(spec.p, 0);
+    var x = spec.p[0], z0 = spec.z0, z1 = spec.z1, fy = spec.trough, pour = spec.pour;
+    var len = Math.abs(z1 - z0), zm = (z0 + z1) / 2;
+    var open = -100;
+    return {
+      radius: len + 50,
+      event: function (kind) { if (kind === 'lure') open = Rigs.clock(); },
+      draw: function (pen, t) {
+        var u = t - open;
+        var flow = u >= 0 && u < 18 ? Math.min(1, u / 1.5) * (u > 15 ? (18 - u) / 3 : 1) : 0;
+        var wf = child(wheel, [0, 0, 0], 0, flow > 0 ? -u * 3 : 0, 0);
+        for (var k = 0; k < 4; k++) {
+          pen.part(child(wf, [0, 0, 0], 0, k * Math.PI / 4, 0), 'box', [0, 0.05, 0], [3.4, 0.2, 0.25], '#e8e8e8', { m: 'metal' });
+        }
+        pen.part(wf, 'box', [1.5, 0.5, 0], [0.3, 0.8, 0.3], '#1b1b1b');
+        var depth = 0.25 + flow * 0.9;
+        pen.part(frame([x, fy + depth / 2, zm], 0), 'box', [0, 0, 0], [4.6, depth, len - 0.2], '#8ab8d8', { a: 0.55 });
+        for (var f = 0; f < 10; f++) {
+          var v = (t * (0.25 + flow * 0.8) + f / 10) % 1;
+          pen.part(frame([x + Math.sin(f * 2.1) * 1.4, fy + depth + 0.02, z1 - v * len], 0), 'box', [0, 0, 0], [1.2, 0.06, 0.8],
+                   '#f2f6f8', { a: 0.7 });
+        }
+        var h = fy - pour, w = 1.2 + flow * 3.0;
+        pen.part(frame([x, pour + h / 2, z0 - 0.3 - flow * 0.6], 0), 'box', [0, 0, 0], [w, h, 0.4 + flow * 0.8], '#cfe6f2',
+                 { a: 0.4 + flow * 0.3 });
+        for (var s2 = 0; s2 < 8; s2++) {
+          var q = (t * 1.6 + s2 / 8) % 1, ang = s2 / 8 * TAU, rr = 0.5 + q * (2 + flow * 6);
+          pen.part(frame([x + Math.cos(ang) * rr, pour + 0.1 + Math.sin(q * Math.PI) * (0.6 + flow * 1.6), z0 - 1 + Math.sin(ang) * rr], 0),
+                   'sph', [0, 0, 0], [0.6, 0.6, 0.6], '#f2f6f8', { a: 0.7 * (1 - q) });
+        }
+        if (flow > 0) {
+          for (var r2 = 0; r2 < 3; r2++) {
+            var ring = (u * 0.4 + r2 / 3) % 1;
+            pen.part(frame([x, pour + 0.03, z0 - 6], 0), 'cyl', [0, 0, 0], [6 + ring * 50, 0.05, 6 + ring * 50], '#f2e8e8',
+                     { a: 0.25 * (1 - ring) * flow });
+          }
+        }
+      }
+    };
+  });
+
+  /* The frost sprinklers over the dry bog: off most of the time; a wave
+     coming in (or every couple of minutes) and every head starts ticking
+     round, throwing its jet in an arc. */
+  Rigs.register('frost_sprinklers', function (spec) {
+    var heads = spec.heads || [];
+    var on = -100;
+    return {
+      radius: 150,
+      event: function (kind) { if (kind === 'wave' || kind === 'lure') on = Rigs.clock(); },
+      draw: function (pen, t) {
+        var running = t - on < 25 || (t % 140) < 30;
+        if (!running) return;
+        for (var i = 0; i < heads.length; i++) {
+          var hd = heads[i];
+          var ang = Math.sin(t * 0.5 + i * 1.7) * 1.8 + i;
+          var tick = Math.floor(t * 5) % 2 ? 0.08 : 0;
+          var arm = frame(hd, ang + tick);
+          pen.part(arm, 'box', [0, 0.25, 0.3], [0.2, 0.2, 0.9], '#c8a83a', { m: 'metal' });
+          for (var k = 0; k < 7; k++) {
+            var u = ((k + (t * 3) % 1) / 7);
+            pen.part(arm, 'sph', [0, 0.3 + 5.2 * u * (1 - u), 0.5 + u * 9], [0.35, 0.35, 0.35], '#e8f4ff', { a: 0.55 * (1 - u * 0.5) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The steam pump: the flywheel turning beside its bed, the crank and the
+     rod going, the governor's balls flung out -- chuffing when somebody's
+     near -- and smoke going up off the stack. */
+  Rigs.register('pump_engine', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var stack = spec.stack_p || spec.p;
+    var last = 0;
+    return {
+      radius: 50,
+      update: function (dt, t, ctx) {
+        if (t - last > 1.6) {
+          last = t;
+          if (nearest(ctx.players ? ctx.players() : [], spec.p, 30) && ctx.sound) ctx.sound('ll_chug', spec.p, 0.7);
+        }
+      },
+      draw: function (pen, t) {
+        var a = t * 2.4;
+        var fw = child(f0, [4.0, 1.6, 3.6], 0, 0, -a);
+        for (var k = 0; k < 10; k++) {
+          pen.part(child(fw, [0, 0, 0], 0, 0, k / 10 * TAU), 'box', [2.6, 0, 0], [0.5, 1.7, 0.8], '#3a3f46', { m: 'metal' });
+        }
+        for (var sp = 0; sp < 3; sp++) {
+          pen.part(child(fw, [0, 0, 0], 0, 0, sp * Math.PI / 3), 'box', [0, 0, 0], [5.2, 0.3, 0.3], '#5a5f66', { m: 'metal' });
+        }
+        pen.part(fw, 'cyl', [0, 0, 0], [0.9, 1.2, 0.9], '#c8a83a', { m: 'metal', rx: Math.PI / 2 });
+        var cx = Math.cos(a), cy = Math.sin(a);
+        var piston = -2.4 + cx;
+        pen.rod(Rigs.point(f0, [4.0 + cx, 1.6 + cy, 2.9]), Rigs.point(f0, [piston, 0.8, 2.9]), 0.3, '#c8c8c8', { m: 'metal' });
+        pen.part(f0, 'box', [piston - 0.6, 0.8, 2.9], [1.2, 0.8, 0.8], '#8a8f94', { m: 'metal' });
+        var gv = child(f0, [-1.0, 0.0, 0], 0, t * 4, 0);
+        pen.part(gv, 'box', [0, 0.8, 0], [0.2, 1.6, 0.2], '#c8a83a', { m: 'metal' });
+        for (var s2 = -1; s2 <= 1; s2 += 2) pen.part(gv, 'sph', [s2 * 0.9, 1.3, 0], [0.5, 0.5, 0.5], '#c8a83a', { m: 'metal' });
+        for (var p2 = 0; p2 < 5; p2++) {
+          var u = (t * 0.15 + p2 / 5) % 1, sz = 2 + u * 5;
+          pen.part(frame([stack[0] + u * 6, stack[1] + 1 + u * 14, stack[2] + u * 2], 0), 'sph', [0, 0, 0], [sz, sz, sz], '#9a9a98',
+                   { a: 0.35 * (1 - u) });
+        }
+      }
+    };
+  });
+
+  /* The windmill's four sails, lattice and canvas, turning slowly on the
+     west face. */
+  Rigs.register('windmill_sails', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var r = spec.r || 12;
+    return {
+      radius: r + 30,
+      draw: function (pen, t) {
+        pen.part(f0, 'cyl', [0, 0, 1.2], [1.6, 2.4, 1.6], '#3a2a1a', { rx: Math.PI / 2 });
+        var hub = child(f0, [0, 0, 2.4], 0, 0, t * 0.45);
+        pen.part(hub, 'box', [0, 0, 0], [1.6, 1.6, 0.8], '#4a3a2a');
+        for (var k = 0; k < 4; k++) {
+          var arm = child(hub, [0, 0, 0], 0, 0, k * Math.PI / 2);
+          pen.part(arm, 'box', [r / 2, 0, 0], [r, 0.5, 0.5], '#4a3a2a');
+          for (var b2 = 0; b2 < 5; b2++) pen.part(arm, 'box', [2.4 + b2 * (r - 3) / 4, 1.2, 0], [0.25, 2.4, 0.25], '#5a4a3a');
+          pen.part(arm, 'box', [(r + 2.4) / 2, 2.4, 0], [r - 2.4, 0.25, 0.25], '#5a4a3a');
+          pen.part(arm, 'box', [(r + 2.4) / 2, 1.2, -0.12], [r - 2.6, 2.2, 0.08], '#e8e0cc', { a: 0.85 });
+        }
+      }
+    };
+  });
+
+  /* A great blue heron wading the west bog: stalking, stopping, now and
+     then stabbing at the water; anybody close, or a shot, and it heaves
+     itself up with a croak, flies over, and comes down somewhere else. */
+  Rigs.register('heron', function (spec) {
+    var a = spec.area, floor = spec.p[1];
+    function pick(seed) { return [a[0] + (a[1] - a[0]) * hash(seed), a[2] + (a[3] - a[2]) * hash(seed + 7)]; }
+    var st = { x: spec.p[0], z: spec.p[2], yaw: 0, tx: spec.p[0], tz: spec.p[2], next: 0, fly: -100,
+               from: null, to: null, strike: -10, walking: false, alt: 0 };
+    var scare = -100;
+    return {
+      radius: 140,
+      event: function (kind, msg) {
+        var from = msg && (msg.from || msg.pos);
+        if ((kind === 'shot' || kind === 'blast' || kind === 'kill') && (!from || Math.hypot(from[0] - st.x, from[2] - st.z) < 70)) {
+          scare = Rigs.clock();
+        }
+      },
+      update: function (dt, t, ctx) {
+        if (t - st.fly < 10) {
+          var u = (t - st.fly) / 10, e = u * u * (3 - 2 * u);
+          st.x = st.from[0] + (st.to[0] - st.from[0]) * e;
+          st.z = st.from[1] + (st.to[1] - st.from[1]) * e;
+          st.alt = Math.sin(u * Math.PI) * 30;
+          st.yaw = approachAngle(st.yaw, Math.atan2(st.to[0] - st.from[0], st.to[1] - st.from[1]), 3, dt);
+          return;
+        }
+        st.alt = 0;
+        var ps = ctx.players ? ctx.players() : [], zs = ctx.zombies ? ctx.zombies() : [];
+        if ((nearest(ps.concat(zs), [st.x, 0, st.z], 14) || t - scare < 0.5) && t - st.fly > 14) {
+          st.fly = t; st.from = [st.x, st.z]; st.to = pick(Math.floor(t * 13));
+          st.tx = st.to[0]; st.tz = st.to[1];
+          if (ctx.sound) ctx.sound('ll_heron', [st.x, 0, st.z], 1);
+          return;
+        }
+        if (t > st.next) { var p2 = pick(Math.floor(t * 3) + 1); st.tx = p2[0]; st.tz = p2[1]; st.next = t + 14 + hash(t) * 10; }
+        var dx = st.tx - st.x, dz = st.tz - st.z, d = Math.hypot(dx, dz);
+        st.walking = d > 0.5 && (t % 6) < 3.5;
+        if (st.walking) {
+          st.x += dx / d * 1.2 * dt; st.z += dz / d * 1.2 * dt;
+          st.yaw = approachAngle(st.yaw, Math.atan2(dx, dz), 2, dt);
+        } else if (Math.sin(t * 0.7) > 0.97 && t - st.strike > 4) st.strike = t;
+      },
+      draw: function (pen, t) {
+        var grey = '#7a8aa0', dark = '#3a4250';
+        var flying = st.alt > 0.2;
+        var f = frame([st.x, floor + st.alt, st.z], st.yaw);
+        if (flying) {
+          var body = child(f, [0, 3.6, 0], 0, 0, 0);
+          pen.part(body, 'box', [0, 0, 0], [1.0, 0.9, 2.4], grey);
+          pen.part(body, 'box', [0, 0.2, 1.5], [0.5, 0.5, 0.9], grey);
+          pen.part(body, 'box', [0, 0.3, 2.1], [0.4, 0.4, 0.5], '#e8e8ee');
+          pen.part(body, 'box', [0, 0.25, 2.8], [0.14, 0.14, 1.0], '#e8c83a');
+          pen.part(body, 'box', [0, -0.1, -2.6], [0.4, 0.2, 2.4], dark);
+          var flap = Math.sin(t * 5) * 0.7;
+          for (var sd = -1; sd <= 1; sd += 2) {
+            var wing = child(body, [sd * 0.5, 0.3, 0.2], 0, 0, sd * flap);
+            pen.part(wing, 'box', [sd * 2.4, 0, 0], [4.8, 0.12, 1.8], sd < 0 ? grey : '#6a7a90');
+            pen.part(wing, 'box', [sd * 4.4, 0, -0.2], [1.2, 0.12, 1.4], dark);
+          }
+          return;
+        }
+        var stab = t - st.strike < 0.5 ? Math.sin((t - st.strike) / 0.5 * Math.PI) : 0;
+        var step = st.walking ? Math.sin(t * 3) * 0.4 : 0;
+        for (var lg = -1; lg <= 1; lg += 2) {
+          var leg = child(f, [lg * 0.25, 3.3, 0], lg * step, 0, 0);
+          pen.part(leg, 'box', [0, -1.65, 0], [0.16, 3.3, 0.16], '#6a5a3a');
+        }
+        var torso = child(f, [0, 3.8, 0], -0.25, 0, 0);
+        pen.part(torso, 'box', [0, 0, 0], [1.0, 1.0, 2.2], grey);
+        pen.part(torso, 'box', [0, -0.2, -1.4], [0.8, 0.6, 1.0], dark);
+        var neck = child(torso, [0, 0.4, 0.9], -0.3 + stab * 1.3, 0, 0);
+        pen.part(neck, 'box', [0, 0.9, 0], [0.32, 1.8, 0.32], '#c8ccd4');
+        var head = child(neck, [0, 1.8, 0], 1.4 - stab * 0.3, 0, 0);
+        pen.part(head, 'box', [0, 0.1, 0.2], [0.42, 0.42, 0.7], '#e8e8ee');
+        pen.part(head, 'box', [0, 0.32, -0.3], [0.1, 0.1, 0.7], '#1a1a1a');
+        pen.part(head, 'box', [0, 0.05, 1.05], [0.14, 0.14, 1.1], '#e8c83a');
+        pen.part(head, 'box', [0.22, 0.2, 0.3], [0.04, 0.1, 0.1], '#e8c83a');
+      }
+    };
+  });
+
+  /* Out by the duck blind: come near, and a hand comes up out of the red
+     water, grasping, and goes back under. */
+  Rigs.register('bog_hand', function (spec) {
+    var f0 = frame(spec.p, 0);
+    var rise = -100, next = 0;
+    var skin = '#6fae55';
+    return {
+      radius: 40,
+      update: function (dt, t, ctx) {
+        if (t > next && nearest(ctx.players ? ctx.players() : [], spec.p, 28)) {
+          rise = t; next = t + 25 + hash(Math.floor(t)) * 20;
+          if (ctx.sound) ctx.sound('ll_splash', spec.p, 0.8);
+        }
+      },
+      draw: function (pen, t) {
+        var u = t - rise;
+        if (u < 0 || u > 6) return;
+        var up = u < 1.5 ? 1 - Math.pow(1 - u / 1.5, 2) : (u < 4.2 ? 1 : Math.max(0, 1 - (u - 4.2) / 1.8));
+        var arm = child(f0, [0, -3.0 + up * 4.2, 0], Math.sin(t * 3) * 0.15, 0, Math.sin(t * 2.2) * 0.12);
+        pen.part(arm, 'box', [0, 0, 0], [0.9, 4.0, 0.9], skin);
+        pen.part(arm, 'box', [0, -1.2, 0], [1.05, 1.4, 1.05], '#7a5230');
+        pen.part(arm, 'box', [0, 2.3, 0], [1.3, 0.9, 0.5], skin);
+        for (var g = 0; g < 4; g++) {
+          var curl = u > 1.5 && u < 4.2 ? 0.4 + Math.sin(t * 6 + g) * 0.4 : 0.1;
+          pen.part(child(arm, [-0.45 + g * 0.3, 2.75, 0], curl, 0, 0), 'box', [0, 0.45, 0], [0.2, 0.9, 0.24], skin);
+        }
+        pen.part(child(arm, [0.65, 2.2, 0], 0, 0, -0.8), 'box', [0, 0.35, 0], [0.22, 0.7, 0.24], skin);
+        for (var r = 0; r < 2; r++) {
+          var q = (u * 0.6 + r * 0.5) % 1;
+          pen.part(f0, 'cyl', [0, 0.04, 0], [1.6 + q * 8, 0.04, 1.6 + q * 8], '#e8c8c8', { a: 0.35 * (1 - q) });
+        }
+      }
+    };
+  });
+
+  /* Wooden duck decoys bobbing off the blind. */
+  Rigs.register('decoys', function (spec) {
+    var a = spec.area, n = spec.n || 5, y = spec.p[1];
+    return {
+      radius: 60,
+      draw: function (pen, t) {
+        for (var i = 0; i < n; i++) {
+          var x = a[0] + (a[1] - a[0]) * hash(i * 3 + 2) + Math.sin(t * 0.1 + i) * 1.5;
+          var z = a[2] + (a[3] - a[2]) * hash(i * 7 + 5) + Math.cos(t * 0.08 + i) * 1.5;
+          var f = frame([x, y + Math.sin(t * 1.2 + i) * 0.05, z], i * 1.7 + Math.sin(t * 0.2 + i) * 0.6);
+          pen.part(f, 'box', [0, 0.2, 0], [0.9, 0.6, 1.8], '#6a4a2a');
+          pen.part(f, 'box', [0, 0.3, -0.85], [0.5, 0.3, 0.5], '#2a2a2a');
+          pen.part(f, 'box', [0, 0.75, 0.7], [0.55, 0.55, 0.6], '#1a5a3a');
+          pen.part(f, 'box', [0, 0.42, 0.7], [0.6, 0.12, 0.62], '#f2f2ee');
+          pen.part(f, 'box', [0, 0.7, 1.15], [0.3, 0.16, 0.4], '#e8c83a');
+        }
+      }
+    };
+  });
+
+  /* Frogs on the ditch banks: they croak while nobody's near, and when
+     somebody comes along they hop into the ditch -- plop -- and come back
+     a while later. */
+  Rigs.register('frogs', function (spec) {
+    var spots = spec.spots_p || [];
+    var centre = spec.p;
+    var st = spots.map(function (s0) {
+      var dx = centre[0] - s0[0], dz = centre[2] - s0[2];
+      var yaw = Math.abs(dx) < Math.abs(dz) ? (dx > 0 ? Math.PI / 2 : -Math.PI / 2) : (dz > 0 ? 0 : Math.PI);
+      return { hop: -100, back: 0, yaw: yaw };
+    });
+    var croak = 0;
+    return {
+      radius: 130,
+      update: function (dt, t, ctx) {
+        var ps = ctx.players ? ctx.players() : [];
+        for (var i = 0; i < spots.length; i++) {
+          if (t < st[i].back) continue;
+          if (nearest(ps, spots[i], 9)) {
+            st[i].hop = t; st[i].back = t + 20;
+            if (ctx.sound) ctx.sound('ll_plop', spots[i], 0.8);
+          }
+        }
+        if (t > croak && spots.length) {
+          croak = t + 3 + hash(Math.floor(t)) * 6;
+          var k = Math.floor(hash(Math.floor(t * 7)) * spots.length);
+          if (t > st[k].back && nearest(ps, spots[k], 70) && !nearest(ps, spots[k], 10) && ctx.sound) {
+            ctx.sound('ll_frog', spots[k], 0.7);
+            st[k].croakAt = t;
+          }
+        }
+      },
+      draw: function (pen, t) {
+        for (var i = 0; i < spots.length; i++) {
+          var s0 = spots[i], u = t - st[i].hop;
+          if (u > 0.6 && t < st[i].back) continue;
+          var h = 0, fwd = 0;
+          if (u >= 0 && u <= 0.6) { var q = u / 0.6; h = Math.sin(q * Math.PI) * 1.4 - q * 1.6; fwd = q * 3.2; }
+          var yaw = st[i].yaw;
+          var f = frame([s0[0] + Math.sin(yaw) * fwd, s0[1] + h, s0[2] + Math.cos(yaw) * fwd], yaw);
+          var puff = st[i].croakAt && t - st[i].croakAt < 0.5 ? Math.abs(Math.sin((t - st[i].croakAt) * 20)) : 0;
+          pen.part(f, 'box', [0, 0.3, 0], [0.9, 0.5, 1.0], '#4a7a2a');
+          pen.part(f, 'box', [0, 0.55, 0.35], [0.7, 0.35, 0.5], '#5a8a3a');
+          pen.part(f, 'sph', [0.25, 0.8, 0.45], [0.25, 0.25, 0.25], '#e8c83a');
+          pen.part(f, 'sph', [-0.25, 0.8, 0.45], [0.25, 0.25, 0.25], '#e8c83a');
+          pen.part(f, 'sph', [0, 0.3, 0.6], [0.3 + puff * 0.4, 0.25 + puff * 0.35, 0.25 + puff * 0.2], '#e8e0a8');
+          pen.part(f, 'box', [0.5, 0.15, -0.3], [0.3, 0.3, 0.7], '#4a7a2a');
+          pen.part(f, 'box', [-0.5, 0.15, -0.3], [0.3, 0.3, 0.7], '#4a7a2a');
+        }
+      }
+    };
+  });
+
+  /* A weathervane: the compass letters fixed, the arrow and its rooster
+     swinging round with the wind. */
+  Rigs.register('weathervane', function (spec) {
+    var f0 = frame(spec.p, 0);
+    var dir = 0;
+    var letters = ['N', 'E', 'S', 'W'];
+    return {
+      radius: 30,
+      update: function (dt, t) { dir = approachAngle(dir, Math.sin(t * 0.05) * 1.2 + Math.sin(t * 0.31) * 0.3, 0.6, dt); },
+      draw: function (pen) {
+        pen.part(f0, 'box', [0, 1.6, 0], [0.2, 3.2, 0.2], '#2a2a2a');
+        for (var k = 0; k < 4; k++) {
+          var arm = child(f0, [0, 1.4, 0], 0, k * Math.PI / 2, 0);
+          pen.part(arm, 'box', [0, 0, 0.9], [0.1, 0.1, 1.8], '#2a2a2a');
+          pen.part(arm, 'box', [0, 0, 1.9], [0.6, 0.6, 0.06], '#2a2a2a', { dec: textDecal(letters[k], '#2a2a2a', '#d8d8d8', 1) });
+        }
+        var v = child(f0, [0, 2.6, 0], 0, dir, 0);
+        pen.part(v, 'box', [0, 0, 0], [0.12, 0.12, 3.2], '#2a2a2a');
+        pen.part(v, 'box', [0, 0, 1.7], [0.1, 0.5, 0.5], '#2a2a2a', { rx: 0.785 });
+        pen.part(v, 'box', [0, 0, -1.5], [0.08, 0.9, 0.7], '#2a2a2a');
+        pen.part(v, 'box', [0, 0.7, -0.3], [0.1, 0.9, 1.3], '#2a2a2a');
+        pen.part(v, 'box', [0, 1.3, 0.2], [0.1, 0.5, 0.4], '#2a2a2a');
+        pen.part(v, 'box', [0, 1.65, 0.25], [0.1, 0.3, 0.2], '#a8282e');
+        pen.part(v, 'box', [0, 1.0, -1.0], [0.1, 1.2, 0.5], '#2a2a2a', { rx: -0.4 });
+      }
+    };
+  });
+
+  /* Sheets on the farmhouse line, swinging in the wind. */
+  Rigs.register('clothesline', function (spec) {
+    var w = spec.w || 20, n = 5;
+    var colours = ['#f2f2ee', '#8ab8d8', '#e8c8c8', '#f2f2ee', '#c8a83a'];
+    return {
+      radius: 40,
+      draw: function (pen, t) {
+        var cw = w / n - 0.6;
+        for (var i = 0; i < n; i++) {
+          var x = spec.p[0] - w / 2 + (i + 0.5) * w / n;
+          var hang = child(frame([x, spec.p[1] - 0.2, spec.p[2]], 0), [0, 0, 0], Math.sin(t * 1.3 + i) * 0.25 + 0.1, 0, 0);
+          pen.part(hang, 'box', [0, -1.8, 0], [cw, 3.6, 0.08], colours[i % colours.length]);
+          pen.part(hang, 'box', [-cw / 2 + 0.3, 0.05, 0], [0.2, 0.4, 0.2], '#c8a070');
+          pen.part(hang, 'box', [cw / 2 - 0.3, 0.05, 0], [0.2, 0.4, 0.2], '#c8a070');
+        }
+      }
+    };
+  });
+
+  /* Festival bunting: strings of pennants between the poles, sagging,
+     the pennants flapping. */
+  Rigs.register('bunting', function (spec) {
+    var poles = spec.poles || [], h = spec.h || 12;
+    var colours = ['#c43a32', '#f2ece0', '#3a7ac8', '#e8c83a'];
+    return {
+      radius: 90,
+      draw: function (pen, t) {
+        for (var k = 0; k < poles.length; k++) {
+          var a = poles[k], b2 = poles[(k + 1) % poles.length];
+          var yaw = Math.atan2(b2[0] - a[0], b2[1] - a[1]);
+          var last = null;
+          for (var j = 0; j <= 8; j++) {
+            var v = j / 8;
+            var pt = [a[0] + (b2[0] - a[0]) * v, spec.p[1] + h - 0.3 - Math.sin(v * Math.PI) * 2.2, a[1] + (b2[1] - a[1]) * v];
+            if (last) pen.rod(last, pt, 0.06, '#e8e8e8');
+            last = pt;
+          }
+          for (var i = 0; i < 12; i++) {
+            var u = (i + 0.5) / 12;
+            var at = [a[0] + (b2[0] - a[0]) * u, spec.p[1] + h - 0.3 - Math.sin(u * Math.PI) * 2.2, a[1] + (b2[1] - a[1]) * u];
+            var f = child(frame(at, yaw), [0, 0, 0], 0, 0, Math.sin(t * 3 + i + k) * 0.35);
+            pen.part(f, 'box', [0, -0.7, 0], [0.1, 1.4, 1.0], colours[(i + k) % 4]);
+          }
+        }
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);

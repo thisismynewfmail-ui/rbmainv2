@@ -318,6 +318,13 @@ WORLDS: List[Dict[str, Any]] = [
                       "the hay pyramid and the grain elevator -- and start the "
                       "demolition derby from the grandstand to send the horde "
                       "into the mud pit. The rides are still turning."},
+            {"id": "bogs", "name": "Redwater Cranberry Bogs",
+             "blurb": "Harvest night, the bogs flooded and the water solid with "
+                      "floating berries, red from bank to bank. Hold the "
+                      "screenhouse, wade the bogs between the narrow dikes, take "
+                      "the windmill's stage and the duck blind -- and open the "
+                      "reservoir's floodgate to pull the horde out into the "
+                      "harvest bog. The water was red before any of this."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

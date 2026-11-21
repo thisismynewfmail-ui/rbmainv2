@@ -17,6 +17,7 @@ ORDER = [
     ("aquarium", "Harrow Point Aquarium", "#c8b48a", 600.0),
     ("backlot", "Silver Screen Studios", "#4a6438", 700.0),
     ("fair", "Harrow County Fair", "#5a7a38", 720.0),
+    ("bogs", "Redwater Cranberry Bogs", "#4a5a34", 560.0),
 ]
 
 # where each new place sits, in units of the spacing, in the order above

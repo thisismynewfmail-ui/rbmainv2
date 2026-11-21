@@ -319,5 +319,80 @@
     }
   });
 
+  /* Redwater Cranberry Bogs: across the flooded bog by moonlight, the
+     water solid red with berries inside the booms, a water reel churning,
+     the infected wading in; the screenhouse lit on the right, the windmill
+     on its knoll on the left, the team on the near dike. */
+  Thumbs.registerWorld('ll_bogs', {
+    camera: [[2, 17, -40], [0, 3, 46], 56],
+    sky: { top: '#070b1c', horizon: '#4a2c48', sun: [0.2, 0.35, 0.9], clouds: 0.2, tint: '#b8c0e8' },
+    build: function (parts, k) {
+      k.box([0, -1.5, 40], [240, 1, 240], '#3a2a22');
+      // the bog: red to the far dike
+      k.box([0, -0.2, 34], [130, 0.8, 76], '#a01a2a', { st: 1 });
+      // the dikes round it, raised
+      k.box([0, 0.6, -10], [240, 2.4, 16], '#4a5a34', { st: 1 });
+      k.box([0, 0.6, 80], [240, 2.4, 16], '#4a5a34', { st: 1 });
+      k.box([73, 0.6, 34], [16, 2.4, 76], '#4a5a34', { st: 1 });
+      k.box([-73, 0.6, 34], [16, 2.4, 76], '#4a5a34', { st: 1 });
+      k.box([0, 1.85, -10], [240, 0.1, 6], '#7a6a4e');
+      k.box([0, 1.85, 80], [240, 0.1, 6], '#7a6a4e');
+      // the booms: a corral on the right, the berries packed inside it
+      k.box([-30, 0.45, 20], [1.2, 0.6, 30], '#f2a81a');
+      k.box([-47.5, 0.45, 5.4], [34, 0.6, 1.2], '#f2a81a');
+      k.box([-47.5, 0.45, 34.6], [34, 0.6, 1.2], '#f2a81a');
+      for (var b = 0; b < 40; b++) {
+        k.shape('sph', [-34 - (b % 8) * 3.6, 0.35, 8 + Math.floor(b / 8) * 5.6], [1.4, 0.9, 1.4], b % 3 ? '#c81a2e' : '#e83a4a');
+      }
+      // a water reel, its paddles
+      k.box([10, 1.2, 40], [8, 2.6, 6], '#c8a83a');
+      k.box([8, 3.4, 40], [3, 1.8, 3], '#4a5057');
+      k.shape('cyl', [16, 1.2, 40], [1.2, 6.6, 1.2], '#5a5f66', { r: [Math.PI / 2, 0, 0] });
+      for (var pd = 0; pd < 4; pd++) {
+        k.box([16 + Math.cos(pd * Math.PI / 2 + 0.4) * 2.4, 1.2 + Math.sin(pd * Math.PI / 2 + 0.4) * 2.4, 40], [0.4, 0.4, 6.2], '#c8a83a');
+      }
+      for (var sp = 0; sp < 6; sp++) k.shape('sph', [19 + sp * 0.9, 1.6 + Math.sin(sp * 0.6) * 2.2, 37 + sp * 1.1], [0.6, 0.6, 0.6], '#e83a4a');
+      // the heron standing in it
+      k.box([36, 2.2, 54], [0.2, 3.6, 0.2], '#6a5a3a');
+      k.box([36, 4.6, 54], [1.0, 1.0, 2.2], '#7a8aa0');
+      k.box([36, 6.0, 55.2], [0.3, 2.0, 0.3], '#c8ccd4');
+      k.box([36, 7.0, 55.8], [0.4, 0.4, 0.7], '#e8e8ee');
+      k.box([36, 6.9, 56.6], [0.14, 0.14, 1.0], '#e8c83a');
+      // the infected wading in, the berries round their knees
+      k.zombie('common', 0, 14, Math.PI, 2, 'bogs', 0, -1.6);
+      k.zombie('common', -10, 22, Math.PI + 0.2, 6, 'bogs', 2, -1.6);
+      k.zombie('common', 14, 26, Math.PI - 0.2, 1, 'bogs', 0, -1.6);
+      k.zombie('common', -4, 34, Math.PI, 4, 'bogs', 0, -1.6);
+      k.zombie('common', 24, 46, Math.PI, 5, 'bogs', 2, -1.6);
+      k.zombie('common', -16, 50, Math.PI, 3, 'bogs', 0, -1.6);
+      k.zombie('common', 6, 60, Math.PI, 7, 'bogs', 0, -1.6);
+      // the team on the near dike
+      k.survivor(-8, -8, 0.2, 0, 1.8);
+      k.survivor(4, -6, -0.1, 1, 1.8);
+      k.survivor(14, -9, -0.4, 2, 1.8);
+      // lamps along the far dike
+      for (var lp = 0; lp < 4; lp++) {
+        var lx = -60 + lp * 40;
+        k.box([lx, 7, 74], [0.8, 12, 0.8], '#3a3a3a');
+        k.box([lx, 13.2, 74], [2.2, 0.6, 2.2], '#ffcf7a', { m: 'neon' });
+      }
+      // the screenhouse on the right
+      k.box([-62, 8.2, 100], [44, 14, 22], '#8a8a82');
+      for (var t = 0; t < 4; t++) k.box([-62, 15.8 + t * 1.6, 100], [46, 1.6, 22 - t * 5.2], '#4a4a48');
+      for (var w = 0; w < 5; w++) k.box([-80 + w * 8, 7, 88.9], [3.4, 3.4, 0.2], '#ffcf7a', { m: 'neon' });
+      k.box([-62, 24.4, 100], [5, 4, 5], '#f2ece0');
+      // the windmill on its knoll on the left
+      k.box([64, 1.2, 112], [36, 2.4, 30], '#4a5a34', { st: 1 });
+      k.box([64, 3.6, 112], [26, 2.4, 22], '#55663e', { st: 1 });
+      k.box([64, 15.8, 112], [12, 22, 12], '#8a8a82');
+      for (var g = 0; g < 3; g++) k.box([64, 27.6 + g * 1.4, 112], [13 - g * 3.6, 1.4, 13], '#4a4a48');
+      for (var sl = 0; sl < 4; sl++) {
+        k.box([64, 22, 105.4], [22, 1.0, 0.3], '#4a3a2a', { r: [0, 0, Math.PI / 4 + sl * Math.PI / 2] });
+      }
+      k.box([64, 22, 105.6], [3, 3, 0.6], '#3a2a1a');
+      for (var tr = 0; tr < 10; tr++) k.pine(-110 + tr * 24, 132 + (tr % 2) * 6, 2.4 + (tr % 3) * 0.3, '#1e2a1e');
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

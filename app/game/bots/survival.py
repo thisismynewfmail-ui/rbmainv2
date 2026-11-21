@@ -151,6 +151,14 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the grain elevator": "spc", "the giant pumpkin": "ec", "the fair gate": "e",
         "the tractor pull": "he", "the pig races": "he",
     },
+    "bogs": {
+        "the screenhouse": "shp", "the boardwalk": "e", "the gazebo": "he",
+        "the harvest bog": "er", "the drowned bog": "er", "the dry bog": "e",
+        "the floodgate": "ep", "the reservoir": "er", "the pump house": "se",
+        "the sand pit": "spc", "the farmhouse": "sp", "the windmill": "spc",
+        "the harvester barn": "se", "the receiving shed": "he", "the bucket elevator": "spc",
+        "the festival stage": "he", "the duck blind": "spc", "the farm stand": "e",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.
