@@ -113,6 +113,12 @@ class Dormant:
             self.round_len = 1800.0 if relay else 600.0
             self.rate = 0.085 if relay else 0.21   # captures/min, full team
             self.captures = {"red": 0, "blue": 0}
+            # a rotation (Blackout Relay): each round on a map of its own,
+            # each map with its own length and target
+            self.maps = {a["id"]: a for a in world.get("areas") or []}
+            self.areas = list(self.maps)
+            self.area = self.rng.choice(self.areas) if self.areas else ""
+            self._map_numbers()
         elif self.mode == "payload":
             self.attackers, self.defenders = "blue", "red"
             self.progress = 0.0
@@ -267,6 +273,17 @@ class Dormant:
         # 8s of scores, 30s of voting, 4s to restart
         self.phase_until = t + 42.0
 
+    def _map_numbers(self) -> None:
+        """The current map's target and length (and a capture rate that
+        fits them), for a world whose maps differ."""
+        entry = self.maps.get(self.area) if self.maps else None
+        if not entry:
+            return
+        self.target = int(entry.get("captures", self.target) or self.target)
+        self.round_len = float(entry.get("minutes", self.round_len / 60.0)) * 60.0
+        # about the same share of rounds settled by captures as Ironvale's
+        self.rate = 0.085 * (1800.0 / self.round_len) * (self.target / 5.0)
+
     def _new_round(self, t: float) -> None:
         self.round += 1
         self.phase = "active"
@@ -276,6 +293,11 @@ class Dormant:
             member.d = 0
         if self.mode == "captures":
             self.captures = {"red": 0, "blue": 0}
+            if getattr(self, "areas", None):
+                # the rotation rolls the next map, never the same one twice
+                self.area = self.rng.choice([a for a in self.areas if a != self.area]
+                                            or self.areas)
+                self._map_numbers()
             # the shuffle vote passes now and then
             if self.rng.random() < 0.3:
                 ids = list(self.members)
@@ -560,6 +582,9 @@ class Dormant:
                "humans": 0, "bots": len(self.members)}
         if self.mode == "survival":
             out["summary"] = "Wave %d" % max(1, self.wave)
+        if self.mode == "captures" and getattr(self, "area", ""):
+            out["summary"] = "%s · %d-%d" % (self._area_name(), self.captures["red"],
+                                             self.captures["blue"])
         if self.engine == "arena":
             out["summary"] = "Round %d · %s" % (max(1, self.round), self._area_name())
         return out
@@ -648,6 +673,8 @@ class Dormant:
         if self.mode == "captures":
             state["captures"] = dict(self.captures)
             state["time_left"] = max(30.0, self.round_started + self.round_len - now)
+            if getattr(self, "area", ""):
+                state["area"] = self.area
             # a flag is often out when you arrive
             if self.phase == "active" and self.rng.random() < 0.35:
                 state["flag_out"] = self.rng.choice(TEAMS)
@@ -705,6 +732,9 @@ class Dormant:
             self.phase = "voting"
             self.phase_until = max(self.phase_until, now + 10.0)
         if self.mode == "captures":
+            if getattr(self, "areas", None) and live.get("area") in self.areas:
+                self.area = live["area"]
+                self._map_numbers()
             caps = live.get("captures") or {}
             self.captures = {t: int(caps.get(t, 0) or 0) for t in TEAMS}
             left = float(live.get("time_left", 300) or 300)
@@ -750,6 +780,8 @@ class Dormant:
             return data
         if self.mode == "captures":
             data["captures"] = self.captures
+            if getattr(self, "area", ""):
+                data["area"] = self.area
         elif self.mode == "payload":
             data.update({"attackers": self.attackers, "progress": self.progress,
                          "checkpoints": self.checkpoints, "round_wins": self.round_wins,
@@ -780,6 +812,9 @@ class Dormant:
             return inst
         if inst.mode == "captures" and "captures" in data:
             inst.captures = data["captures"]
+            if data.get("area") in (getattr(inst, "areas", None) or []):
+                inst.area = data["area"]
+                inst._map_numbers()
         elif inst.mode == "payload":
             for key in ("attackers", "progress", "checkpoints", "round_wins",
                         "round_ends"):

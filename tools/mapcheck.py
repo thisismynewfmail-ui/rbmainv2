@@ -73,13 +73,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.game.instance import PLAYER_SIZE  # noqa: E402
 from app.game.maps import (  # noqa: E402
-    crossroads, ironvale, lastlight, payload, tycoon)
+    crossroads, ironvale, lastlight, payload, relay, tycoon)
 
 MAPS = {
     "crossroads": crossroads,
     "ironvale": ironvale,
     "lastlight": lastlight,
     "payload": payload,
+    # Blackout Relay's whole rotation (Ironvale is its first area)
+    "relay": relay,
     "tycoon": tycoon,
 }
 
@@ -990,6 +992,11 @@ def audit(name: str, module) -> int:
         for team, spawns in (area.get("spawns") or {}).items():
             for i, spawn in enumerate(spawns):
                 points.append(("%s %s spawn %d" % (area["id"], team, i), list(spawn["p"])))
+        # and anything else a body has to fit at (Blackout Relay's flags,
+        # muster pads and outposts)
+        for i, probe in enumerate(area.get("probes") or []):
+            points.append(("%s %s %d" % (area["id"], probe.get("label", "probe"), i),
+                           list(probe["p"])))
     lobby = (data.get("markers") or {}).get("lobby")
     if lobby:
         for i, spawn in enumerate(lobby.get("safe") or []):

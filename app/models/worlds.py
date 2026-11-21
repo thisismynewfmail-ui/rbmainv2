@@ -10,6 +10,22 @@ from typing import Any, Dict, List, Optional
 
 from .. import db
 
+# Blackout Relay's rotation, as the world page shows it.  The game side's
+# list of the same maps is app/game/maps/relay/areas.py (and Ironvale).
+RELAY_AREAS: List[Dict[str, Any]] = [
+    {"id": "ironvale", "name": "Ironvale Relay", "thumb": "relay",
+     "captures": 5, "minutes": 30,
+     "blurb": "Dusk over a long green valley: both teams deploy out of the concrete "
+              "relay station in the middle, the keeps are a long run apart, and a "
+              "hatch behind each keep drops into tunnels that surface in all four "
+              "bunkers."},
+    {"id": "substation", "name": "Substation Nine", "thumb": "br_substation",
+     "captures": 3, "minutes": 15,
+     "blurb": "A city in a blackout, in the rain. Deploy from the substation's control "
+              "house, climb the terraces to the office towers at each end, and take "
+              "the dead subway line under it all."},
+]
+
 WORLDS: List[Dict[str, Any]] = [
     {
         "id": "burger_tycoon",
@@ -111,9 +127,20 @@ WORLDS: List[Dict[str, Any]] = [
         # This world hides enemy health on the nametags: you can read your
         # own team's condition at a glance, but an enemy is just a name.
         "ally_health_only": True,
-        "features": ["24 players", "30 minute rounds", "Respawn waves",
-                     "Outpost lockdown", "Secret tunnels",
+        "features": ["24 players", "A rotation of maps", "Respawn waves",
+                     "Outpost lockdown", "Secret routes",
                      "Overtime + sudden death"],
+        # The rotation (app/game/maps/relay/): when a round ends the server
+        # rolls the next map at random.  ``captures`` and ``minutes`` are
+        # each map's round; the sleeping rounds read them too.
+        "areas": RELAY_AREAS,
+        "areas_note": "When a round ends the server rolls the next map at random and "
+                      "everybody goes there. Ironvale's long valley is first to five "
+                      "in half an hour; every other map is first to three in fifteen "
+                      "minutes -- and overtime and sudden death everywhere.",
+        "thumb_script": "/static/js/worlds/blackout_relay_thumbs.js",
+        "game_scripts": ["/static/js/worlds/blackout_relay.js"],
+        "prefix": "br",
     },
     # Appended last on purpose: the bot director snapshots each bot's world
     # as an index into this list, so a new world goes on the end.

@@ -20,17 +20,27 @@ A grab in the last ten seconds is a real grab.
 **Sudden death.**  Level when the clock finally stops, both flags reset and
 the next capture wins it.
 
+**The rotation.**  Ironvale is one map of several (app/game/maps/relay/):
+when a round ends the server rolls one of the others at random, says where
+it is going, and moves everybody there for the next round -- each map with
+its own arrival sequence, its own relay, flags and outposts, and its own
+length (Ironvale's long valley keeps its five captures and half an hour; the
+rest are first to three in fifteen minutes).  A client is only ever sent the
+map being played.
+
 Everything else -- the flags themselves, pickups, returns, the shuffle vote
 -- is inherited from :class:`CaptureTheFlag` unchanged.
 """
 from __future__ import annotations
 
 import math
+import os
+import random
 import time
 from typing import Any, Dict, List, Optional
 
 from ..instance import Player, now
-from ..maps import ironvale
+from ..maps import relay as relay_maps
 from .capture_the_flag import CaptureTheFlag, Flag
 
 WAVE_SECONDS = 5.0          # deploy every five seconds...
@@ -59,30 +69,133 @@ class BlackoutRelay(CaptureTheFlag):
 
     @staticmethod
     def build_map() -> Dict[str, Any]:
-        return ironvale.build()
+        return relay_maps.build()
 
     # ------------------------------------------------------------- lifecycle
     def setup(self) -> None:
-        super().setup()
         markers = self.map.get("markers", {})
-        self.outposts: Dict[str, List[Dict[str, Any]]] = {
-            team: list(markers.get("outpost_%s" % team) or [])
-            for team in self.team_names()
-        }
+        self.areas: Dict[str, Dict[str, Any]] = {
+            a["id"]: a for a in markers.get("areas") or []}
+        self.area_order = [a["id"] for a in markers.get("areas") or []]
+        self.rng = random.Random()
+        self._payloads: Dict[str, Dict[str, Any]] = {}
+        self.area_id = self._first_area()
+        self.next_area_id = ""
+        self.captures = {"red": 0, "blue": 0}
+        self.flags: Dict[str, Flag] = {}
+        self.outposts: Dict[str, List[Dict[str, Any]]] = {}
+        self._arm_area()
+        self.round_ends = now() + self.round_seconds
+        self.phase = "active"
         self.lockdown = {team: False for team in self.team_names()}
         self.overtime = False
         self.sudden_death = False
         self.sudden_death_ends = 0.0
         self.wave_origin = now()
 
+    # ------------------------------------------------------------ the maps
+    def _first_area(self) -> str:
+        """Where a new server opens: anywhere in the rotation (or the map
+        named by ``BLOCKHAVEN_RELAY_MAP``, which the tests use)."""
+        forced = os.environ.get("BLOCKHAVEN_RELAY_MAP", "")
+        if forced in self.areas:
+            return forced
+        return self.rng.choice(self.area_order) if self.area_order else ""
+
+    @property
+    def area(self) -> Dict[str, Any]:
+        return self.areas[self.area_id]
+
+    def area_markers(self) -> Dict[str, Any]:
+        return self.area.get("markers") or {}
+
+    def _arm_area(self) -> None:
+        """The flags on their pedestals, the outposts and the round's length,
+        as the current map has them."""
+        markers = self.area_markers()
+        self.flags = {team: Flag(team, list((markers.get("flag_%s" % team) or
+                                             {"p": [0, 6, 0]})["p"]))
+                      for team in self.team_names()}
+        self.outposts = {team: list(markers.get("outpost_%s" % team) or [])
+                         for team in self.team_names()}
+        self.captures_to_win = int(markers.get("captures_to_win") or
+                                   type(self).captures_to_win)
+        self.round_seconds = float(markers.get("round_seconds") or
+                                   type(self).round_seconds)
+
+    def map_payload(self, player: Optional[Player] = None) -> Dict[str, Any]:
+        cached = self._payloads.get(self.area_id)
+        if cached is None:
+            cached = relay_maps.area_payload(self.map, self.area_id)
+            self._payloads[self.area_id] = cached
+        return cached
+
+    def flag_field(self, team: str) -> str:
+        """The name of the bots' flow field to ``team``'s flag: one per map,
+        since every map puts its flags somewhere else."""
+        return "flag_%s@%s" % (team, self.area_id)
+
+    def roll_next_area(self) -> str:
+        """The next map, at random, never the one just played."""
+        options = [a for a in self.area_order if a != self.area_id] or self.area_order
+        return self.rng.choice(options)
+
+    def reel(self) -> List[Dict[str, Any]]:
+        return [{"id": a, "name": self.areas[a]["name"],
+                 "accent": (self.areas[a].get("extra") or {}).get("accent", "#ffd27a")}
+                for a in self.area_order]
+
+    def move_to(self, area_id: str) -> bool:
+        """Everybody to ``area_id`` (between rounds): the map, its arrival
+        sequence and its flags.  The respawn that follows puts them in it."""
+        if area_id not in self.areas:
+            return False
+        moved = area_id != self.area_id
+        self.area_id = area_id
+        self._arm_area()
+        if not moved:
+            return False
+        markers = self.area_markers()
+        payload = {"t": "brarea", "area": area_id, "name": self.area["name"],
+                   "map": self.map_payload(), "round": self.round_number + 1,
+                   "target": self.captures_to_win,
+                   "minutes": int(round(self.round_seconds / 60.0)),
+                   "accent": (self.area.get("extra") or {}).get("accent", "#ffd27a"),
+                   "intro": True}
+        for player in list(self.players.values()):
+            player.send(payload)
+            if player.brain is not None:
+                player.brain.waypoints = []
+                player.brain.dest_key = ""
+        self.push_event("relay_area", what=self.area["name"])
+        del markers
+        return True
+
+    def resume_area(self, area_id: Optional[str]) -> None:
+        """A sleeping round wakes on the map it had got to: its flags, and
+        everybody already seated put down at its musters."""
+        if area_id in self.areas and area_id != self.area_id:
+            self.area_id = area_id
+            self._arm_area()
+            for player in list(self.players.values()):
+                self.spawn_player(player)
+                if player.brain is not None:
+                    player.brain.on_spawn()
+
+    def describe(self) -> Dict[str, Any]:
+        info = super().describe()
+        info["summary"] = "%s · %d-%d" % (self.area["name"], self.captures.get("red", 0),
+                                          self.captures.get("blue", 0))
+        return info
+
     def on_player_ready(self, player: Player) -> None:
         super().on_player_ready(player)
-        for line in (
-                "Ironvale Relay -- deploy from the Relay, run the flag home.",
-                "Lose your own flag and your team falls back to the bunkers,"
-                " right across the carrier's way out.",
-                "There is a hatch behind every keep. The tunnels come out"
-                " inside all four bunkers."):
+        lines = list(self.area_markers().get("intro") or [])
+        if self.area_id != "ironvale":
+            lines.append("First to %d captures, %d minutes on the clock -- then the "
+                         "server rolls the next map." % (self.captures_to_win,
+                                                         int(self.round_seconds // 60)))
+        for line in lines:
             player.send({"t": "chat", "kind": "system", "from": "", "id": 0,
                          "m": line, "at": time.time()})
 
@@ -103,13 +216,14 @@ class BlackoutRelay(CaptureTheFlag):
         return round(remaining, 2)
 
     def spawn_points(self, team: str) -> List[Dict[str, Any]]:
-        """Muster at the Relay, or fall back to the bunkers under lockdown."""
+        """Muster at the relay, or fall back to the outposts under lockdown."""
         flag = self.flags.get(team)
         if flag is not None and flag.state != "home":
             forward = self.outposts.get(team)
             if forward:
                 return list(forward)
-        return super().spawn_points(team)
+        spawns = (self.area.get("spawns") or {}).get(team) or []
+        return list(spawns) or super().spawn_points(team)
 
     # ----------------------------------------------------------------- flow
     def round_state(self) -> Dict[str, Any]:
@@ -121,6 +235,9 @@ class BlackoutRelay(CaptureTheFlag):
             "sudden_death": self.sudden_death,
             "lockdown": dict(self.lockdown),
             "wave": self.wave_seconds,
+            "area": self.area_id,
+            "area_name": self.area["name"],
+            "next_area": self.next_area_id,
         })
         return state
 
@@ -233,11 +350,25 @@ class BlackoutRelay(CaptureTheFlag):
                            "%s takes it in sudden death!" % player.team.upper())
 
     def end_round(self, winner: str, reason: str = "") -> None:
-        if winner and self.phase == "active":
+        live = self.phase == "active"
+        if winner and live:
             for player in self.players.values():
                 if player.team == winner:
                     self.badge(player, "br_wins")
+                    self.badge(player, "br_map_%s" % self.area_id, 1, "max")
         super().end_round(winner, reason)
+        if not live:
+            return
+        # roll where the server goes next, and say so while the card is up
+        self.next_area_id = self.roll_next_area()
+        nxt = self.areas[self.next_area_id]
+        self.broadcast({"t": "brnext", "next": self.next_area_id, "name": nxt["name"],
+                        "from": self.area_id, "reel": self.reel(),
+                        "target": int(nxt["markers"].get("captures_to_win", 3)),
+                        "minutes": int(round(float(nxt["markers"].get("round_seconds",
+                                                                         900.0)) / 60.0))})
+        self.system_message("Next map: %s -- the server moves there for the next round."
+                            % nxt["name"])
 
     def restart_round(self) -> None:
         self.overtime = False
@@ -245,4 +376,7 @@ class BlackoutRelay(CaptureTheFlag):
         self.sudden_death_ends = 0.0
         self.lockdown = {team: False for team in self.team_names()}
         self.wave_origin = now()
+        nxt = self.next_area_id or self.roll_next_area()
+        self.next_area_id = ""
+        self.move_to(nxt)
         super().restart_round()

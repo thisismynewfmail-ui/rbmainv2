@@ -99,6 +99,9 @@ KINDS: List[Kind] = [
          "Time is up but a flag is still out."),
     Kind("sudden_death", "Sudden death", "relay", 60,
          "Level at the end: the next capture wins."),
+    Kind("relay_area", "New map", "relay", 25,
+         "A round is over and the server rolls everybody on to the next map of "
+         "Blackout Relay's rotation."),
     Kind("setup_end", "Gates open", "payload", 25,
          "Setup is over and the attackers can push."),
     Kind("checkpoint", "Checkpoint reached", "payload", 45,
@@ -289,6 +292,10 @@ def describe(event: Dict[str, Any], name: str, team: str) -> Tuple[str, str]:
                 % _score(event, team), "neutral")
     if kind == "sudden_death":
         return ("Sudden death: the next capture wins the round.", "neutral")
+    if kind == "relay_area":
+        where = str(event.get("what") or "a new map")
+        return ("The server just rolled the next map and moved everybody there: %s. "
+                "New flags, new relay, new routes." % where, "neutral")
     if kind == "setup_end":
         attackers = str(event.get("attackers") or "")
         if team and attackers == team:
@@ -542,6 +549,9 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("time_low", "neutral"): ["1 min left", "hurry", "clock", "last minute"],
     ("sudden_death", "neutral"): ["sudden death lets go", "next cap wins", "this is it"],
     ("overtime", "neutral"): ["overtime!!", "ot", "dont let them cap"],
+    ("relay_area", "neutral"): ["new map", "ooh this one", "where is their flag on this one",
+                                "i love this map", "lets go", "find the hidden route",
+                                "everyone push mid", "first time here lol"],
     ("setup_end", "ally"): ["push push", "go go go", "on the cart"],
     ("setup_end", "victim"): ["here they come", "hold the line", "defend"],
     ("checkpoint", "ally"): ["checkpoint!", "keep pushing", "nice push"],
