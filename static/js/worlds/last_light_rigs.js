@@ -3403,5 +3403,278 @@
     };
   });
 
+  // =================================================== The Underneath
+  if (GA) {
+    GA.register('ll_pumps', function (vol) {
+      // the big pumps spinning up, then roaring
+      this.tone({ type: 'sawtooth', freq: 28, freqEnd: 62, dur: 3.0, gain: 0.16 * vol });
+      this.tone({ type: 'sine', freq: 56, freqEnd: 124, dur: 3.0, gain: 0.08 * vol });
+      this.noise({ filter: 'lowpass', freq: 200, freqEnd: 600, dur: 3.0, gain: 0.12 * vol });
+      this.later(2800, function () {
+        this.tone({ type: 'sawtooth', freq: 62, dur: 4.0, gain: 0.14 * vol });
+        this.noise({ filter: 'lowpass', freq: 600, dur: 4.0, gain: 0.16 * vol });
+        this.noise({ filter: 'bandpass', freq: 1800, dur: 4.0, gain: 0.04 * vol });
+      });
+    });
+    GA.register('ll_squeak', function (vol) {
+      this.tone({ type: 'sine', freq: 2600, freqEnd: 3100, dur: 0.08, gain: 0.03 * vol });
+      this.later(110, function () { this.tone({ type: 'sine', freq: 2800, freqEnd: 3300, dur: 0.07, gain: 0.03 * vol }); });
+    });
+  }
+
+  /* The storm coming in: water racing down an intake channel from the
+     culvert's mouth, white where it gushes out and where it spills into
+     the cistern; heavier when a wave comes. */
+  Rigs.register('storm_inflow', function (spec) {
+    var x = spec.p[0], y = spec.p[1], w = spec.w || 12, z0 = spec.z0, z1 = spec.z1, pour = spec.pour;
+    var surge = -100;
+    return {
+      radius: Math.abs(z1 - z0) / 2 + 40,
+      event: function (kind) { if (kind === 'wave') surge = Rigs.clock(); },
+      draw: function (pen, t) {
+        var k = t - surge < 12 ? 1.6 : 1;
+        for (var i = 0; i < 14; i++) {
+          var u = (t * 0.22 * k + i / 14) % 1;
+          var z = z1 - u * (z1 - z0);
+          pen.part(frame([x + Math.sin(i * 2.3 + t) * (w * 0.3), y + 0.04, z], 0), 'box', [0, 0, 0], [1.2, 0.05, 4 + (i % 3) * 2],
+                   '#d8e8ec', { a: 0.45 });
+        }
+        for (var g = 0; g < 6; g++) {
+          var q = (t * 1.5 + g / 6) % 1;
+          pen.part(frame([x + Math.sin(g * 1.9) * w * 0.3, y + 3.5 - q * 3.5, z1 - 1.5 - q * 3], 0), 'sph', [0, 0, 0],
+                   [1.6 * k, 1.6 * k, 1.6 * k], '#e8f2f4', { a: 0.6 * (1 - q) });
+        }
+        pen.part(frame([x, y + 1.6, z1 - 1.2], 0), 'box', [0, 0, 0], [w * 0.9, 3.2 * k, 0.6], '#cfe2e8', { a: 0.5 });
+        for (var f = 0; f < 5; f++) {
+          var v = (t * 0.9 + f / 5) % 1;
+          pen.part(frame([x + (f - 2) * w * 0.18, pour + 0.05, z0 - v * 6], 0), 'cyl', [0, 0, 0], [1 + v * 3, 0.06, 1 + v * 3],
+                   '#e8f2f4', { a: 0.5 * (1 - v) });
+        }
+      }
+    };
+  });
+
+  /* The overflow: the cistern going over the weir's crest and down the
+     steps into the low channel, white water on every step. */
+  Rigs.register('weir_cascade', function (spec) {
+    var x = spec.p[0], y = spec.p[1], w = spec.w || 60, drop = spec.drop || 6, run = spec.run || 30;
+    var steps = 4;
+    return {
+      radius: w / 2 + 40,
+      draw: function (pen, t) {
+        for (var k = 0; k < steps; k++) {
+          var sx = x - (k + 0.5) * run / steps, sy = y - (k + 1) * drop / (steps + 0.5);
+          pen.part(frame([sx, sy + 0.25, spec.p[2]], 0), 'box', [0, 0, 0], [run / steps, 0.3, w], '#a8c8d0', { a: 0.45 });
+          pen.part(frame([x - (k + 1) * run / steps + 0.3, sy - 0.6, spec.p[2]], 0), 'box', [0, 0, 0], [0.4, 1.8, w],
+                   '#e8f2f4', { a: 0.55 });
+          for (var f = 0; f < 6; f++) {
+            var u = (t * 1.2 + f / 6 + k * 0.3) % 1;
+            pen.part(frame([sx + run / steps * (0.5 - u), sy + 0.45, spec.p[2] - w / 2 + ((f * 5 + k * 3) % 12 + 0.5) * w / 12], 0),
+                     'box', [0, 0, 0], [1.4, 0.06, 3], '#f2f8fa', { a: 0.6 });
+          }
+        }
+      }
+    };
+  });
+
+  /* The pumps: fans turning on the motor houses; started (the lure) they
+     shake on their mounts and the pit churns -- a vortex at each intake --
+     for a long while. */
+  Rigs.register('pumps', function (spec) {
+    var xs = spec.xs || [], pit = spec.pit, z = spec.p[2];
+    var on = -100;
+    return {
+      radius: 160,
+      event: function (kind) { if (kind === 'lure') on = Rigs.clock(); },
+      draw: function (pen, t) {
+        var run = t - on >= 1.5 && t - on < 40;
+        var spin = run ? t * 14 : t * 0.4;
+        for (var i = 0; i < xs.length; i++) {
+          var shake = run ? Math.sin(t * 50 + i) * 0.05 : 0;
+          var fan = child(frame([xs[i] + shake, spec.p[1] + 24.6, z], 0), [0, 0, 0], 0, spin + i, 0);
+          for (var b2 = 0; b2 < 3; b2++) {
+            pen.part(child(fan, [0, 0, 0], 0, b2 * TAU / 3, 0), 'box', [1.6, 0, 0], [3.0, 0.15, 0.8], '#8a8f94', { m: 'metal' });
+          }
+          if (run) {
+            for (var r2 = 0; r2 < 3; r2++) {
+              var q = (t * 1.4 + r2 / 3 + i * 0.2) % 1;
+              pen.part(frame([xs[i], pit + 0.05, z - 26], 0), 'cyl', [0, 0, 0], [8 - q * 6, 0.06, 8 - q * 6], '#d8e8ec',
+                       { a: 0.4 * q });
+            }
+          }
+        }
+      }
+    };
+  });
+
+  /* The light shaft: the street lamp's light down through the grate, and
+     the rain with it, splashing at the bottom. */
+  Rigs.register('light_shaft', function (spec) {
+    var x = spec.p[0], top = spec.p[1], z = spec.p[2], w = spec.w || 20;
+    return {
+      radius: 90,
+      draw: function (pen, t) {
+        pen.part(frame([x, top / 2, z], 0), 'box', [0, 0, 0], [w * 0.7, top, w * 0.7], '#e8eccf', { m: 'neon', a: 0.05 });
+        for (var i = 0; i < 24; i++) {
+          var u = (t * 0.8 + hash(i) ) % 1;
+          var dx = (hash(i + 3) - 0.5) * w * 0.8, dz = (hash(i + 7) - 0.5) * w * 0.8;
+          pen.part(frame([x + dx, top - u * top, z + dz], 0), 'box', [0, 0, 0], [0.08, 1.6, 0.08], '#c8d8e8', { a: 0.6 });
+        }
+        for (var sp = 0; sp < 6; sp++) {
+          var q = (t * 2 + sp / 6) % 1;
+          pen.part(frame([x + (hash(sp + 11) - 0.5) * 6, 1.3 + q * 0.6, z + (hash(sp + 13) - 0.5) * 6], 0), 'cyl', [0, 0, 0],
+                   [0.3 + q * 1.4, 0.05, 0.3 + q * 1.4], '#d8e8f0', { a: 0.6 * (1 - q) });
+        }
+      }
+    };
+  });
+
+  /* Work lamps hung on their cables from the vault, swaying; one or two
+     flicker; a Tank's roar sets them all swinging. */
+  Rigs.register('work_lamps', function (spec) {
+    var lamps = spec.lamps || [];
+    var kick = -100;
+    return {
+      radius: 600,
+      event: function (kind) { if (kind === 'roar' || kind === 'blast') kick = Rigs.clock(); },
+      draw: function (pen, t) {
+        var amp = 0.05 + Math.max(0, 1 - (t - kick) / 6) * 0.35;
+        for (var i = 0; i < lamps.length; i++) {
+          var sw = Math.sin(t * 0.9 + i * 1.3) * amp;
+          var f = child(frame(lamps[i], 0), [0, 0, 0], sw, 0, Math.cos(t * 0.7 + i) * amp * 0.6);
+          pen.part(f, 'box', [0, -4, 0], [0.12, 8, 0.12], '#2a2a2a');
+          var flick = i % 3 === 1 && Math.sin(t * 13 + i) > 0.85 ? 0.2 : 1;
+          pen.part(f, 'cone', [0, -8.6, 0], [2.4, 1.2, 2.4], '#3a3a2a');
+          pen.part(f, 'sph', [0, -9.3, 0], [0.9, 0.9, 0.9], '#ffe8a8', { m: 'neon', a: flick });
+        }
+      }
+    };
+  });
+
+  /* The camp's fire in its barrel. */
+  Rigs.register('barrel_fire', function (spec) {
+    var x = spec.p[0], y = spec.p[1], z = spec.p[2];
+    return {
+      radius: 60,
+      draw: function (pen, t) {
+        for (var i = 0; i < 6; i++) {
+          var h = 1.4 + Math.sin(t * 9 + i * 2) * 0.5;
+          pen.part(frame([x + Math.sin(i * 2.1) * 0.6, y + h / 2, z + Math.cos(i * 1.7) * 0.6], 0), 'cone', [0, 0, 0],
+                   [1.0, h, 1.0], i % 2 ? '#ff8a2a' : '#ffd84a', { m: 'neon', a: 0.85 });
+        }
+        for (var e = 0; e < 8; e++) {
+          var u = (t * 0.5 + e / 8) % 1;
+          pen.part(frame([x + Math.sin(e * 3 + t) * u * 2, y + 1 + u * 12, z + Math.cos(e * 2 + t) * u * 2], 0), 'box', [0, 0, 0],
+                   [0.2, 0.2, 0.2], '#ffae4a', { m: 'neon', a: 1 - u });
+        }
+        for (var sm = 0; sm < 3; sm++) {
+          var v = (t * 0.15 + sm / 3) % 1;
+          pen.part(frame([x, y + 3 + v * 20, z], 0), 'sph', [0, 0, 0], [2 + v * 6, 2 + v * 6, 2 + v * 6], '#5a5450',
+                   { a: 0.3 * (1 - v) });
+        }
+      }
+    };
+  });
+
+  /* The sewer gator, albino, cruising the east channel -- pale as paper,
+     pink-eyed; it sinks out of sight when someone comes near. */
+  Rigs.register('sewer_gator', function (spec) {
+    var a = spec.area, y = spec.p[1];
+    var st = { z: spec.p[2], dir: -1, sink: 0 };
+    return {
+      radius: 120,
+      update: function (dt, t, ctx) {
+        st.z += st.dir * 2.2 * dt;
+        if (st.z < a[2] + 6) st.dir = 1;
+        if (st.z > a[3] - 6) st.dir = -1;
+        var near = nearest(ctx.players ? ctx.players() : [], [spec.p[0], y, st.z], 16);
+        st.sink = approach(st.sink, near ? 1 : 0, 1.5, dt);
+      },
+      draw: function (pen, t) {
+        var x = (a[0] + a[1]) / 2 + Math.sin(t * 0.3) * 1.5;
+        var f = frame([x, y - 0.35 - st.sink * 1.6, st.z], st.dir > 0 ? 0 : Math.PI);
+        var pale = '#e8e4dc';
+        pen.part(f, 'box', [0, 0, 0], [1.5, 0.6, 5.0], pale);
+        for (var sc = 0; sc < 5; sc++) pen.part(f, 'box', [0, 0.35, -1.8 + sc * 0.9], [0.8, 0.2, 0.4], '#d8d0c4');
+        pen.part(f, 'box', [0, 0.05, 3.2], [1.0, 0.5, 1.6], pale);
+        pen.part(f, 'box', [0.3, 0.4, 2.7], [0.22, 0.2, 0.22], '#ff6a8a', { m: 'neon' });
+        pen.part(f, 'box', [-0.3, 0.4, 2.7], [0.22, 0.2, 0.22], '#ff6a8a', { m: 'neon' });
+        pen.part(child(f, [0, 0, -2.5], 0, Math.sin(t * 1.4) * 0.4, 0), 'box', [0, 0, -1.8], [0.7, 0.4, 3.6], pale);
+      }
+    };
+  });
+
+  /* A paper boat, folded from a newspaper, riding the west channel down
+     toward the cistern -- and then another one. */
+  Rigs.register('paper_boat', function (spec) {
+    var z0 = spec.z0, z1 = spec.z1, y = spec.p[1];
+    return {
+      radius: Math.abs(z1 - z0) / 2 + 30,
+      draw: function (pen, t) {
+        var u = (t * 0.02) % 1;
+        var z = z1 - u * (z1 - z0);
+        var f = child(frame([spec.p[0] + Math.sin(t * 0.8) * 1.5, y + 0.05 + Math.sin(t * 2.1) * 0.05, z], t * 0.3), [0, 0, 0],
+                      Math.sin(t * 1.7) * 0.08, 0, Math.sin(t * 1.3) * 0.1);
+        pen.part(f, 'box', [0, 0.2, 0], [0.9, 0.4, 2.0], '#e8e4d8');
+        pen.part(f, 'box', [0, 0.7, 0], [0.1, 0.8, 1.4], '#e8e4d8', { dec: textDecal('HERALD', '#e8e4d8', '#2a2a2a', 1.75) });
+      }
+    };
+  });
+
+  /* Rats, running the foot of the walls, scattering from anyone close. */
+  Rigs.register('rats', function (spec) {
+    var runs = spec.runs || [];
+    var flee = [], squeaked = -10;
+    for (var i = 0; i < runs.length * 3; i++) flee.push(0);
+    return {
+      radius: 400,
+      update: function (dt, t, ctx) {
+        var ps = ctx.players ? ctx.players() : [];
+        for (var i = 0; i < runs.length * 3; i++) {
+          var r = runs[Math.floor(i / 3)];
+          var u = (Math.sin(t * 0.13 + i * 1.7) + 1) / 2;
+          var p = [r[0] + (r[2] - r[0]) * u, 0, r[1] + (r[3] - r[1]) * u];
+          var near = nearest(ps, p, 8);
+          flee[i] = approach(flee[i], near ? 1 : 0, 3, dt);
+          if (near && t - squeaked > 4 && ctx.sound) { squeaked = t; ctx.sound('ll_squeak', p, 0.8); }
+        }
+      },
+      draw: function (pen, t) {
+        for (var i = 0; i < runs.length * 3; i++) {
+          if (flee[i] > 0.9) continue;
+          var r = runs[Math.floor(i / 3)];
+          var u = (Math.sin(t * 0.13 + i * 1.7) + 1) / 2;
+          var dir = Math.cos(t * 0.13 + i * 1.7) > 0 ? 1 : -1;
+          var p = [r[0] + (r[2] - r[0]) * u, 0.05, r[1] + (r[3] - r[1]) * u];
+          var f = frame(p, Math.atan2((r[2] - r[0]) * dir, (r[3] - r[1]) * dir));
+          var hop = Math.abs(Math.sin(t * 16 + i)) * 0.1;
+          pen.part(f, 'box', [0, 0.25 + hop, 0], [0.5, 0.4, 1.0], '#5a5048');
+          pen.part(f, 'box', [0, 0.25 + hop, 0.6], [0.3, 0.3, 0.4], '#6a6058');
+          pen.part(f, 'box', [0, 0.2, -0.9], [0.08, 0.08, 1.0], '#c8a8a0', { ry: Math.sin(t * 6 + i) * 0.4 });
+        }
+      }
+    };
+  });
+
+  /* The flood siren on the pump hall wall: its red lamp turning when the
+     pumps are started. */
+  Rigs.register('flood_siren', function (spec) {
+    var f0 = frame(spec.p, 0);
+    var on = -100;
+    return {
+      radius: 160,
+      event: function (kind) { if (kind === 'lure') on = Rigs.clock(); },
+      draw: function (pen, t) {
+        var run = t - on < 30;
+        pen.part(f0, 'box', [0, 0, 0.6], [1.6, 1.6, 1.2], '#3a3a3a');
+        pen.part(f0, 'cyl', [0, 1.4, 0.8], [1.6, 1.4, 1.6], run ? '#ff2a2a' : '#6a1a1a', { m: run ? 'neon' : '', a: 0.9 });
+        if (run) {
+          var a = t * 6;
+          pen.part(child(f0, [0, 1.4, 0.8], 0, a, 0), 'cone', [0, 0, 6], [3, 12, 3], '#ff3a3a', { m: 'neon', a: 0.12, rx: Math.PI / 2 });
+        }
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);

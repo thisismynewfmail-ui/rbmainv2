@@ -20,6 +20,7 @@ ORDER = [
     ("bogs", "Redwater Cranberry Bogs", "#4a5a34", 560.0),
     ("mill", "Kettle Falls Mill", "#5a6a34", 680.0),
     ("launchpad", "Launch Complex 9", "#5a6a3a", 760.0),
+    ("cistern", "The Underneath", "#3a3a3a", 420.0),
 ]
 
 # where each new place sits, in units of the spacing, in the order above

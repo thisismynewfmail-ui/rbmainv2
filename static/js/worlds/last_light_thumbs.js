@@ -511,5 +511,45 @@
     }
   });
 
+  /* The Underneath: down the great cistern under the vault, pillars in
+     rows standing in black water, a catwalk down the middle with its
+     lamps, the infected wading in, the team on the catwalk. */
+  Thumbs.registerWorld('ll_cistern', {
+    camera: [[0, 12, -50], [0, 6, 40], 62],
+    sky: { top: '#05060a', horizon: '#14161c', sun: [0.2, 0.9, 0.3], clouds: 0, tint: '#8a9ab8' },
+    build: function (parts, k) {
+      k.box([0, -4.5, 30], [200, 1, 220], '#2a2a24');
+      k.box([0, -1.9, 30], [200, 0.8, 220], '#1a2a2a', { a: 0.85 });
+      k.box([0, 41, 30], [200, 2, 220], '#4a2a22');
+      for (var row = 0; row < 6; row++) {
+        for (var sd = -1; sd <= 1; sd += 2) {
+          for (var c = 0; c < 2; c++) {
+            var x = sd * (14 + c * 26), z = -20 + row * 26;
+            k.box([x, 18, z], [6, 44, 6], '#6a3a2e');
+            k.box([x, 38.5, z], [8, 3, 8], '#4a2a22');
+          }
+        }
+      }
+      k.box([0, 0.8, 30], [6, 0.4, 200], '#7a5335', { st: 1 });
+      for (var p2 = 0; p2 < 10; p2++) {
+        k.box([-2.6, -1.6, -40 + p2 * 18], [0.8, 4.8, 0.8], '#543923');
+        k.box([2.6, -1.6, -40 + p2 * 18], [0.8, 4.8, 0.8], '#543923');
+      }
+      for (var l = 0; l < 6; l++) {
+        k.box([0, 34, -10 + l * 24], [0.1, 12, 0.1], '#2a2a2a');
+        k.shape('sph', [0, 27.6, -10 + l * 24], [1.2, 1.2, 1.2], '#ffe8a8', { m: 'neon' });
+      }
+      k.zombie('common', -9, 16, Math.PI, 1, 'cistern', 0, -3.6);
+      k.zombie('common', 8, 26, Math.PI + 0.3, 2, 'cistern', 2, -3.6);
+      k.zombie('common', -6, 38, Math.PI, 4, 'cistern', 0, -3.6);
+      k.zombie('common', 10, 48, Math.PI, 5, 'cistern', 0, -3.6);
+      k.zombie('common', -12, 58, Math.PI, 3, 'cistern', 2, -3.6);
+      k.zombie('common', 0, 20, Math.PI, 7, 'cistern', 0, 1.0);
+      k.survivor(-1, -14, 0.1, 0, 1.0);
+      k.survivor(1.5, -20, -0.1, 1, 1.0);
+      k.box([-34, 20, 70], [12, 40, 0.5], '#e8eccf', { m: 'neon', a: 0.08 });
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

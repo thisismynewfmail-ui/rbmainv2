@@ -356,6 +356,32 @@
                   { t: 'box', p: [-0.42, -0.1, 0.84], s: [0.6, 0.4, 0.08], c: '#1a1a1a' },
                   { t: 'box', p: [0, -0.02, 0.84], s: [0.3, 0.1, 0.08], c: '#1a1a1a' }]),
         hair: hair([{ p: [0, 0.38, 0.0], s: [1.08, 0.36, 1.08], c: '#3a2a1a' }]) }
+    ],
+    // The Underneath: the floodworks' crews in waders and headlamps, the
+    // night watchman, commuters off the last train, the camp's people,
+    // the urban explorers who came down to look
+    cistern: [
+      CLASSIC,
+      { shirt: shirt('#e8c81a', '#2a3a5a', { stripe: '#c8cbcd', weave: 'hivis' }), pants: pants('#2a4a2a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0], s: [1.7, 1.0, 1.7], c: '#f2f2f2' },
+                  { t: 'box', p: [0, 0.2, 0.86], s: [0.5, 0.36, 0.2], c: '#fff2b0', m: 'neon' }]) },
+      { shirt: shirt('#2a3040', '#2a3040', { decal: 'logo_block' }), pants: pants('#2a3040'),
+        hat: hat([{ t: 'box', p: [0, 0.14, 0], s: [1.66, 0.28, 1.66], c: '#1a2030' },
+                  { t: 'box', p: [0, 0.06, 0.95], s: [1.3, 0.1, 0.5], c: '#1a1a1a' }]) },
+      { shirt: shirt('#8a7a5a', '#8a7a5a', { weave: 'ea25_houndstooth' }), pants: pants('#3a3a40'),
+        hair: hair([{ p: [0, 0.36, 0.06], s: [1.08, 0.46, 1.1], c: '#2a2014' }]) },
+      { shirt: shirt('#5a4a3a', '#4a5a3a', { weave: 'patched_denim' }), pants: pants('#3a3a2a', { weave: 'patched_denim' }),
+        hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.66, 0.9, 1.66], c: '#8a2a24' }]) },
+      { shirt: shirt('#2a2a2e', '#2a2a2e', { hood: true, weave: 'canvas' }), pants: pants('#3a3a3a'),
+        hat: hat([{ t: 'box', p: [0, 0.2, 0.86], s: [0.5, 0.36, 0.2], c: '#fff2b0', m: 'neon' },
+                  { t: 'box', p: [0, 0.2, 0.0], s: [1.7, 0.2, 1.7], c: '#1a1a1a' }]) },
+      { shirt: shirt('#3a3a5a', '#3a3a5a', { decal: 'tux' }), pants: pants('#2a2a3a'),
+        hat: hat([{ t: 'cyl', p: [0, 0.24, 0], s: [1.7, 0.5, 1.7], c: '#2a2a3a' },
+                  { t: 'box', p: [0, 0.06, 0.92], s: [1.3, 0.1, 0.5], c: '#1a1a1a' },
+                  { t: 'box', p: [0, 0.3, 0.86], s: [0.5, 0.2, 0.04], c: '#c8a83a', m: 'metal' }]) },
+      { shirt: shirt('#1a1a1e', '#1a1a1e', { weave: 'vinyl' }), pants: pants('#1a1a1e', { weave: 'vinyl' }),
+        hat: hat([{ t: 'box', p: [0, -0.2, 0.86], s: [1.3, 0.6, 0.2], c: '#3a8ac8', a: 0.6 },
+                  { t: 'sph', p: [0, 0.1, 0], s: [1.7, 1.5, 1.7], c: '#1a1a1e' }]) }
     ]
   };
 

@@ -339,6 +339,13 @@ WORLDS: List[Dict[str, Any]] = [
                       "rocket -- and resume the countdown to light the engines "
                       "in the flame trench and bring the horde onto the pad. "
                       "Mind the canal."},
+            {"id": "cistern", "name": "The Underneath",
+             "blurb": "Harrow's floodworks, under the town, the night of the "
+                      "storm. Hold the gatekeeper's office, cross the great "
+                      "cistern on its catwalks among the pillars, walk the old "
+                      "subway platform the floodworks swallowed -- and start the "
+                      "pumps to pull the horde into the pit. The only sky is a "
+                      "grate."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

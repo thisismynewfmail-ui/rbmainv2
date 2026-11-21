@@ -1850,5 +1850,139 @@
     }
   });
 
+  /* The Underneath: down the great cistern -- rows of brick pillars going
+     away into the dark, a lamp hung over the catwalk every so often, black
+     water throwing the lamps back; rain coming down a shaft of light from a
+     grate.  Between the pillars, eyes; then they stand up out of the water.
+     The name is cast in a manhole cover, dropped into place. */
+  Intro.register('cistern', {
+    tagline: "Under the town, the water's rising. So are they.",
+    accent: '#5ab8c8',
+    cues: [[0.0, 'll_rain', 0.35], [0.55, 'll_clunk', 0.9], [1.5, 'll_splash', 0.5], [2.1, 'll_splash', 0.4],
+           [2.6, 'll_squeak', 0.5]],
+    shakes: [[0.58, 5, 0.2]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { rain: [], eyes: [], zeds: [] };
+      for (var i = 0; i < 70; i++) d.rain.push({ x: between(r, 160, 420), y: r() * 900, v: between(r, 700, 1100) });
+      for (i = 0; i < 9; i++) d.eyes.push({ x: between(r, 300, 1300), y: between(r, 430, 520), at: between(r, 0.6, 1.6), s: between(r, 0.5, 1.2) });
+      var looks = [['#e8c81a', '#2a4a2a', '#6fae55'], ['#2a3040', '#2a3040', '#7fb069'], ['#8a7a5a', '#3a3a40', '#5f9a4c'],
+                   ['#5a4a3a', '#3a3a2a', '#86b86a'], ['#2a2a2e', '#3a3a3a', '#6c9f68']];
+      for (i = 0; i < 7; i++) d.zeds.push({ x: 260 + i * 180 + between(r, -40, 40), row: i % 2, at: 1.3 + i * 0.18, p: r() * 6,
+                                            look: looks[i % looks.length] });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      ctx.fillStyle = '#06070a'; ctx.fillRect(0, 0, VW, VH);
+      var vx = 800, vy = 430;
+      // the vault and the rows of pillars going away
+      for (var row = 6; row >= 0; row--) {
+        var k = 1 / (1 + row * 0.55);
+        var span = 900 * k, h = 640 * k;
+        var shade = Math.floor(40 + 50 * k);
+        ctx.strokeStyle = 'rgb(' + (shade + 30) + ',' + Math.floor(shade * 0.6) + ',' + Math.floor(shade * 0.5) + ')';
+        ctx.lineWidth = 10 * k;
+        ctx.beginPath(); ctx.arc(vx, vy - h * 0.28, span * 0.52, Math.PI, 0); ctx.stroke();
+        for (var sd = -1; sd <= 1; sd += 2) {
+          var px = vx + sd * span * 0.52;
+          ctx.fillStyle = 'rgb(' + (shade + 22) + ',' + Math.floor(shade * 0.55) + ',' + Math.floor(shade * 0.45) + ')';
+          ctx.fillRect(px - 26 * k, vy - h * 0.3, 52 * k, h * 0.62);
+          ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(px + sd * 6 * k - 26 * k * (sd < 0 ? 0 : 0), vy - h * 0.3, 10 * k, h * 0.62);
+        }
+        // a lamp over the catwalk
+        var ly = vy - h * 0.18;
+        var flick = row === 3 && Math.sin(t * 17) > 0.7 ? 0.3 : 1;
+        ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(vx, vy - h * 0.55); ctx.lineTo(vx, ly); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,232,168,' + flick + ')'; ctx.beginPath(); ctx.arc(vx, ly, 6 * k + 2, 0, TAU); ctx.fill();
+        additive(ctx, function () { dot(ctx, '#ffe0a0', vx, ly, 120 * k, 0.35 * flick); });
+      }
+      // the water, the lamps in it, the catwalk down the middle
+      var wg = ctx.createLinearGradient(0, vy + 10, 0, VH);
+      wg.addColorStop(0, '#0a1416'); wg.addColorStop(1, '#122426');
+      ctx.fillStyle = wg; ctx.fillRect(0, vy + 10, VW, VH - vy - 10);
+      for (var rf = 0; rf < 6; rf++) {
+        var rk = 1 / (1 + rf * 0.55);
+        additive(ctx, function () {
+          ctx.fillStyle = 'rgba(255,220,150,' + (0.12 * rk) + ')';
+          ctx.fillRect(vx - 30 * rk + Math.sin(t * 2 + rf) * 4, vy + 20 + (1 - rk) * 0 + 240 * rk, 60 * rk, 6);
+        });
+      }
+      ctx.fillStyle = '#4a3a2a';
+      ctx.beginPath(); ctx.moveTo(vx - 6, vy + 12); ctx.lineTo(vx + 6, vy + 12); ctx.lineTo(vx + 110, VH); ctx.lineTo(vx - 110, VH); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
+      for (var pl = 0; pl < 12; pl++) {
+        var py = vy + 12 + Math.pow(pl / 12, 1.8) * (VH - vy);
+        var pw = 6 + (py - vy) * 0.22;
+        ctx.beginPath(); ctx.moveTo(vx - pw, py); ctx.lineTo(vx + pw, py); ctx.stroke();
+      }
+      // the light shaft and the rain in it
+      additive(ctx, function () {
+        var sg = ctx.createLinearGradient(0, 0, 0, 700);
+        sg.addColorStop(0, 'rgba(220,230,210,0.3)'); sg.addColorStop(1, 'rgba(220,230,210,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath(); ctx.moveTo(220, 0); ctx.lineTo(380, 0); ctx.lineTo(440, 700); ctx.lineTo(160, 700); ctx.fill();
+      });
+      ctx.strokeStyle = 'rgba(200,215,230,0.5)'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      d.rain.forEach(function (rd) {
+        var y = (rd.y + t * rd.v) % 760;
+        ctx.moveTo(rd.x + y * 0.05, y); ctx.lineTo(rd.x + y * 0.05 + 1, y + 16);
+      });
+      ctx.stroke();
+      // eyes in the dark, then them, getting up out of the water
+      d.eyes.forEach(function (e) {
+        var k2 = seg(t, e.at, e.at + 0.3) * (1 - seg(t, 1.8, 2.2));
+        if (k2 <= 0) return;
+        additive(ctx, function () {
+          dot(ctx, '#b6ff4a', e.x - 6 * e.s, e.y, 8 * e.s, 0.8 * k2);
+          dot(ctx, '#b6ff4a', e.x + 6 * e.s, e.y, 8 * e.s, 0.8 * k2);
+        });
+      });
+      d.zeds.forEach(function (z) {
+        var k3 = seg(t, z.at, z.at + 0.8);
+        if (k3 <= 0) return;
+        var water = z.row ? 760 : 640, sc = z.row ? 2.4 : 1.5;
+        var y = water + 68 * sc - outCubic(k3) * 44 * sc + (t - z.at) * 4;
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, water); ctx.clip();
+        LL.shambler(ctx, z.x, y, sc, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(180,220,220,0.4)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(z.x, water, 18 * sc, 4 * sc, 0, 0, TAU); ctx.stroke();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'The Underneath').toUpperCase();
+      var k = seg(t, 0.25, 0.58);
+      if (k <= 0) return;
+      var drop = 1 - Math.pow(1 - k, 3);
+      ctx.save();
+      ctx.translate(800, lerp(-260, 236, drop));
+      var spin = (1 - drop) * 1.4 + (t > 0.58 ? Math.sin((t - 0.58) * 30) * 0.02 * Math.max(0, 1 - (t - 0.58) * 3) : 0);
+      ctx.rotate(spin);
+      ctx.scale(0.8, 0.8);
+      // the cover: an iron disc, its rim, the grid
+      ctx.fillStyle = '#2a2a2c'; ctx.beginPath(); ctx.arc(0, 0, 210, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#4a4a4e'; ctx.lineWidth = 14; ctx.beginPath(); ctx.arc(0, 0, 196, 0, TAU); ctx.stroke();
+      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, 186, 0, TAU); ctx.clip();
+      ctx.strokeStyle = '#3e3e42'; ctx.lineWidth = 6;
+      for (var g = -200; g <= 200; g += 34) {
+        ctx.beginPath(); ctx.moveTo(g, -200); ctx.lineTo(g + 200, 200); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(g, 200); ctx.lineTo(g + 200, -200); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = '#2a2a2c'; roundRect(ctx, -330, -52, 660, 104, 10); ctx.fill();
+      ctx.strokeStyle = '#5a5a5e'; ctx.lineWidth = 5; roundRect(ctx, -322, -44, 644, 88, 8); ctx.stroke();
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 70, 600, 0.06);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#121214'; spaced(ctx, name, 2, 4, size * 0.06);
+      ctx.fillStyle = '#8a8a90'; spaced(ctx, name, 0, 0, size * 0.06);
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#7a7a80';
+      spaced(ctx, 'HARROW  FLOODWORKS', 0, -120, 6);
+      spaced(ctx, 'STORM  DRAIN  1902', 0, 124, 6);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);
