@@ -2536,10 +2536,257 @@
         var z = (hash(i * 7.7) - 0.5) * 2 * R;
         var y = spec.p[1] + hash(i * 3.3) * 60;
         var f = Rigs.frame([spec.p[0] + x, y, spec.p[2] + z], 0, size / 50);
-        pen.part(f, 'sph', [0, 0, 0], [60, 22, 40], '#ffffff', { a: 0.92 });
-        pen.part(f, 'sph', [18, 8, 6], [40, 24, 30], '#ffffff', { a: 0.92 });
-        pen.part(f, 'sph', [-20, 6, -4], [36, 20, 28], '#f4f6fa', { a: 0.92 });
-        pen.part(f, 'sph', [4, -6, 0], [64, 10, 42], '#e4e8f0', { a: 0.9 });
+        var tint = spec.tint || '#ffffff';
+        pen.part(f, 'sph', [0, 0, 0], [60, 22, 40], tint, { a: 0.92 });
+        pen.part(f, 'sph', [18, 8, 6], [40, 24, 30], tint, { a: 0.92 });
+        pen.part(f, 'sph', [-20, 6, -4], [36, 20, 28], spec.tint ? tint : '#f4f6fa', { a: 0.92 });
+        pen.part(f, 'sph', [4, -6, 0], [64, 10, 42], spec.tint ? '#c8a0a8' : '#e4e8f0', { a: 0.9 });
+      }
+    };
+    return me;
+  });
+
+  // ==================================================== Leviathan Quarry
+  if (GA) {
+    GA.register('br_song', function (vol) {
+      // the leviathan's song: long falling and rising moans
+      this.tone({ type: 'sine', freq: 180, freqEnd: 120, dur: 2.2, gain: 0.07 * vol });
+      this.later(1600, function () { this.tone({ type: 'sine', freq: 140, freqEnd: 260, dur: 2.6, gain: 0.06 * vol }); });
+      this.later(3600, function () { this.tone({ type: 'sine', freq: 300, freqEnd: 90, dur: 2.4, gain: 0.05 * vol }); });
+    });
+    GA.register('br_gull', function (vol) {
+      this.tone({ type: 'triangle', freq: 1400, freqEnd: 900, dur: 0.25, gain: 0.03 * vol });
+      this.later(280, function () { this.tone({ type: 'triangle', freq: 1300, freqEnd: 800, dur: 0.3, gain: 0.025 * vol }); });
+    });
+    GA.register('br_thud', function (vol) {
+      this.noise({ filter: 'lowpass', freq: 300, freqEnd: 80, dur: 0.2, gain: 0.12 * vol });
+    });
+  }
+
+  /* An eye socket of the leviathan: dark, with a slow ember in it -- that
+     flares and sings when somebody captures, and again on the minute. */
+  Rigs.register('leviathan_eye', function (spec, ctx) {
+    var me = { radius: 14, at: spec.p, kind: 'leviathan_eye', sung: -100 };
+    me.event = function (kind) {
+      if (kind === 'flag_capture') {
+        var t = Rigs.clock();
+        if (t - me.sung > 6 && spec.p[0] < 0 && ctx.sound) ctx.sound('br_song', spec.p, 3);
+        me.sung = t;
+      }
+    };
+    me.draw = function (pen, t) {
+      var age = t - me.sung;
+      var flare = age >= 0 && age < 7 ? Math.sin(Math.min(1, age / 7) * Math.PI) : 0;
+      var glow = 0.25 + 0.15 * Math.sin(t * 0.8 + spec.p[0]) + flare * 0.75;
+      var f = Rigs.frame(spec.p, 0, spec.s || 1);
+      pen.part(f, 'sph', [0, 0, 0], [5 + flare * 3, 4 + flare * 2.4, 2], '#ff7a2a', { m: 'neon', a: glow });
+      pen.part(f, 'sph', [0, 0, 0], [12, 9, 3], '#ff9a4a', { m: 'neon', a: glow * 0.3 });
+    };
+    return me;
+  });
+
+  /* The winding engine's drum turning, the rope paying off it. */
+  Rigs.register('winding_drum', function (spec) {
+    var R = spec.r || 4, W = spec.w || 8;
+    var me = { radius: R + W, at: spec.p, kind: 'winding_drum' };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(spec.p, spec.yaw || 0, 1);
+      var spin = Math.sin(t * 0.25) * 6;
+      var drum = child(f, [0, 0, 3.6], 0, 0, spin);
+      pen.part(drum, 'cyl', [0, 0, 0], [R * 2, W, R * 2], '#5a5a60', { rz: Math.PI / 2, m: 'metal' });
+      for (var k = 0; k < 6; k++) {
+        pen.part(drum, 'box', [0, Math.cos(k * TAU / 6) * R, Math.sin(k * TAU / 6) * R], [W + 0.4, 0.3, 0.6],
+                 '#c89a3a', { rx: k * TAU / 6, m: 'metal' });
+      }
+    };
+    return me;
+  });
+
+  /* The headframe's sheave wheel, turning one way then the other as the
+     cage goes down the old shaft and up again; the rope to the house. */
+  Rigs.register('sheave', function (spec) {
+    var R = spec.r || 4;
+    var me = { radius: R + 40, at: spec.p, kind: 'sheave' };
+    me.draw = function (pen, t) {
+      var spin = Math.sin(t * 0.25) * 6;
+      var f = child(Rigs.frame(spec.p, spec.yaw || 0, 1), [0, 0, 0], spin, 0, 0);
+      pen.part(f, 'torus', [0, 0, 0], [R * 2, 2.5, R * 2], '#3a3a40', { rz: Math.PI / 2, m: 'metal' });
+      for (var k = 0; k < 4; k++) {
+        pen.part(f, 'box', [0, 0, 0], [0.3, R * 1.8, 0.4], '#a85a32', { rx: k * Math.PI / 4, m: 'metal' });
+      }
+      pen.part(Rigs.frame(spec.p, spec.yaw || 0, 1), 'cyl', [0, 0, 0], [1.2, 3, 1.2], '#2a2a30', { rz: Math.PI / 2 });
+      if (spec.rope_p) {
+        var top = Rigs.point(Rigs.frame(spec.p, spec.yaw || 0, 1), [0, R, 0]);
+        pen.rod(top, spec.rope_p, 0.25, '#2a2a2a');
+        pen.rod([spec.p[0], spec.p[1] - R, spec.p[2] + 0.0], [spec.p[0], spec.p[1] - 30, spec.p[2]], 0.25, '#2a2a2a');
+      }
+    };
+    return me;
+  });
+
+  /* A crane on the pit floor: its jib slewing back and forth, a skip on the
+     hook going up and coming down again. */
+  Rigs.register('crane', function (spec) {
+    var J = spec.jib || 24, seed = spec.seed || 0;
+    var me = { radius: J + 10, at: spec.p, kind: 'crane' };
+    me.draw = function (pen, t) {
+      var slew = Math.sin(t * 0.12 + seed) * 1.4;
+      var f = Rigs.frame(spec.p, slew, 1);
+      pen.part(f, 'box', [0, 1.5, 0], [4, 3, 4], '#e8a020');
+      pen.part(f, 'box', [0, 3.6, J / 2 - 3], [1.6, 1.6, J + 6], '#e8a020', { m: 'metal' });
+      pen.part(f, 'box', [0, 3.0, -7], [3.6, 3.0, 3.0], '#5a5a60');
+      pen.part(f, 'box', [0, 5.0, 0], [1.2, 4.0, 1.2], '#e8a020');
+      pen.rod(Rigs.point(f, [0, 7.0, 0]), Rigs.point(f, [0, 4.4, J]), 0.2, '#3a3a3a');
+      var drop = 10 + Math.sin(t * 0.3 + seed) * 8;
+      var hook = Rigs.point(f, [0, 2.8 - drop, J - 1]);
+      pen.rod(Rigs.point(f, [0, 2.8, J - 1]), hook, 0.15, '#2a2a2a');
+      var skip = Rigs.frame([hook[0], hook[1] - 1.6, hook[2]], slew, 1);
+      pen.part(skip, 'box', [0, 0, 0], [3.4, 2.4, 3.4], '#7a6a5a');
+      pen.part(skip, 'box', [0, 1.3, 0], [3.0, 0.4, 3.0], '#c8a070');
+    };
+    return me;
+  });
+
+  /* A drill rig at the bench foot: the mast, the hammer going up and down,
+     dust puffing at each blow. */
+  Rigs.register('drill_rig', function (spec, ctx) {
+    var H = spec.h || 14, seed = spec.seed || 0;
+    var me = { radius: H + 8, at: spec.p, kind: 'drill_rig' };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(spec.p, seed, 1);
+      pen.part(f, 'box', [0, H / 2, 0], [1.4, H, 1.4], '#c84a2a', { m: 'metal' });
+      var cyc = (t * 1.6 + seed) % 1;
+      var hy = cyc < 0.2 ? H - 3 - cyc / 0.2 * (H - 6) : 3 + (cyc - 0.2) / 0.8 * (H - 6);
+      pen.part(f, 'box', [1.4, hy, 0], [2.2, 2.6, 2.2], '#3a3a40', { m: 'metal' });
+      pen.part(f, 'cyl', [1.4, 1.5, 0], [0.6, 3, 0.6], '#9aa0a8', { m: 'metal' });
+      if (cyc < 0.35) {
+        var k = cyc / 0.35;
+        pen.part(f, 'sph', [1.4, 0.6 + k * 2, 0], [2 + k * 4, 1.4 + k * 2, 2 + k * 4], '#d8c0a0', { a: 0.6 * (1 - k) });
+      }
+      if (cyc < 0.02 && ctx.viewer) {
+        var v = ctx.viewer();
+        if (v && dist(v.eye, spec.p) < 70 && ctx.sound) ctx.sound('br_thud', spec.p, 1.2);
+      }
+    };
+    return me;
+  });
+
+  /* A palaeontologist on their knees at the trench, brushing at a bone. */
+  Rigs.register('digger', function (spec) {
+    var seed = spec.seed || 0;
+    var me = { radius: 8, at: spec.p, kind: 'digger' };
+    me.draw = function (pen, t) {
+      var f = child(Rigs.frame(spec.p, spec.yaw || 0, 1), [0, 0, 0], 0.4, 0, 0);
+      pen.part(f, 'rlimb', [-0.5, 0.6, -0.6], [0.9, 1.2, 2.2], '#6a5a3a', { rx: 1.2 });
+      pen.part(f, 'rlimb', [0.5, 0.6, -0.6], [0.9, 1.2, 2.2], '#6a5a3a', { rx: 1.2 });
+      pen.part(f, 'rbox', [0, 2.4, 0], [2.0, 2.2, 1.1], '#c8a868');
+      pen.part(f, 'rhead', [0, 4.0, 0.3], [1.4, 1.4, 1.4], '#f5cd30');
+      pen.part(f, 'cyl', [0, 4.8, 0.3], [2.6, 0.2, 2.6], '#c8b080');
+      pen.part(f, 'cyl', [0, 5.1, 0.3], [1.5, 0.6, 1.5], '#c8b080');
+      var brush = Math.sin(t * 6 + seed) * 0.5;
+      var arm = child(f, [0.9, 3.0, 0.3], -1.0, 0, brush);
+      pen.part(arm, 'rlimb', [0, -0.9, 0], [0.6, 1.8, 0.6], '#c8a868');
+      pen.part(arm, 'box', [0, -2.0, 0], [0.5, 0.6, 0.3], '#8a5a2a');
+    };
+    return me;
+  });
+
+  /* A conveyor from the pit up to the crusher on the rim: the belt on its
+     trestles, lumps of rock riding up it. */
+  Rigs.register('conveyor', function (spec) {
+    var a = spec.p, b = spec.q, W = spec.w || 3;
+    var len = dist(a, b);
+    var me = { radius: len / 2 + 6, at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], kind: 'conveyor' };
+    me.draw = function (pen, t) {
+      pen.rod(a, b, W, '#2a2a2e', null, 'box');
+      var n = Math.floor(len / 14);
+      for (var k = 1; k < n; k++) {
+        var u = k / n;
+        var p = [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+        pen.rod(p, [p[0], Math.max(0, p[1] - 30), p[2]], 0.6, '#7a6a5a', null, 'box');
+      }
+      for (var r = 0; r < 12; r++) {
+        var ph = ((t * 0.05) + r / 12) % 1;
+        var q = [a[0] + (b[0] - a[0]) * ph, a[1] + (b[1] - a[1]) * ph + W * 0.4, a[2] + (b[2] - a[2]) * ph];
+        pen.part(Rigs.frame(q, r, 1), 'rbox', [0, 0, 0], [1.4, 1.0, 1.2], ['#b8805a', '#c8a070', '#a86a4a'][r % 3]);
+      }
+    };
+    return me;
+  });
+
+  /* Gulls wheeling over the quarry, calling. */
+  Rigs.register('gulls', function (spec, ctx) {
+    var n = spec.n || 6, R = spec.r || 120;
+    var me = { radius: 1e6, at: spec.p, kind: 'gulls' };
+    me.update = function (dt, t) {
+      var slot = Math.floor(t / 9);
+      if (slot !== me.slot) {
+        me.slot = slot;
+        if (hash(slot + 3) < 0.5 && ctx.sound) ctx.sound('br_gull', spec.p, 0.8);
+      }
+    };
+    me.draw = function (pen, t) {
+      for (var i = 0; i < n; i++) {
+        var a = t * (0.12 + i * 0.015) + i * 1.3;
+        var r = R * (0.5 + hash(i * 3.1) * 0.6);
+        var pos = [spec.p[0] + Math.sin(a) * r, spec.p[1] + hash(i) * 30 + Math.sin(t * 0.5 + i) * 4,
+                   spec.p[2] + Math.cos(a) * r * 0.8];
+        var f = child(Rigs.frame(pos, a + Math.PI / 2, 1.2), [0, 0, 0], 0, 0, -0.3);
+        pen.part(f, 'sph', [0, 0, 0], [1.2, 1.0, 2.6], '#f4f4f0');
+        var flap = Math.sin(t * 5 + i) * 0.3;
+        for (var side = -1; side <= 1; side += 2) {
+          var w = child(f, [side * 0.5, 0.2, 0], 0, 0, -side * (0.2 + flap));
+          pen.part(w, 'box', [side * 2.2, 0, 0], [4.4, 0.12, 1.2], '#e8e8e4');
+          pen.part(w, 'box', [side * 4.0, 0.02, -0.2], [1.0, 0.1, 1.0], '#2a2a2a');
+        }
+        pen.part(f, 'cone', [0, 0, 1.6], [0.3, 0.8, 0.3], '#f2b81e', { rx: Math.PI / 2 });
+      }
+    };
+    return me;
+  });
+
+  /* A dust devil skittering about the pit floor. */
+  Rigs.register('dust_devil', function (spec) {
+    var R = spec.r || 30, seed = spec.seed || 0;
+    var me = { radius: R + 20, at: spec.p, kind: 'dust_devil' };
+    me.draw = function (pen, t) {
+      var life = (t + seed * 7) % 24;
+      if (life > 9) return;
+      var k = Math.sin(life / 9 * Math.PI);
+      var cx = spec.p[0] + wander(t * 0.2, seed) * R, cz = spec.p[2] + wander(t * 0.18, seed + 5) * R;
+      for (var i = 0; i < 14; i++) {
+        var y = i * 1.4;
+        var a = t * 6 + i * 0.7;
+        var rr = (0.8 + y * 0.22) * k;
+        pen.part(Rigs.frame([cx + Math.sin(a) * rr, spec.p[1] + y, cz + Math.cos(a) * rr], 0, 1), 'sph',
+                 [0, 0, 0], [1.6 + y * 0.12, 1.2, 1.6 + y * 0.12], '#d8b888', { a: 0.35 * k * (1 - i / 16) });
+      }
+    };
+    return me;
+  });
+
+  /* A haul truck along the rim road and back, laden one way. */
+  Rigs.register('haul_truck', function (spec) {
+    var a = spec.p, b = spec.q, speed = spec.speed || 9;
+    var len = dist(a, b);
+    var me = { radius: len / 2 + 14, at: [(a[0] + b[0]) / 2, a[1], (a[2] + b[2]) / 2], kind: 'haul_truck' };
+    me.draw = function (pen, t) {
+      var period = 2 * len / speed + 8;
+      var ph = t % period;
+      var go = ph < len / speed;
+      var back = ph > len / speed + 4 && ph < 2 * len / speed + 4;
+      var u = go ? ph * speed / len : (back ? 1 - (ph - len / speed - 4) * speed / len : (ph < len / speed + 4 ? 1 : 0));
+      var pos = [a[0] + (b[0] - a[0]) * u, a[1], a[2] + (b[2] - a[2]) * u];
+      var heading = Math.atan2(b[0] - a[0], b[2] - a[2]) + (back ? Math.PI : 0);
+      var f = Rigs.frame(pos, heading, 1);
+      pen.part(f, 'box', [0, 3.6, -1.5], [7.6, 3.6, 11], '#e8b820');
+      pen.part(f, 'box', [0, 4.0, 6.0], [7.0, 4.4, 4.0], '#e8b820');
+      pen.part(f, 'box', [0, 5.0, 8.05], [5.0, 1.6, 0.1], '#3a4a5a');
+      if (go) pen.part(f, 'box', [0, 5.8, -1.5], [6.4, 1.2, 9.6], '#b8805a');
+      for (var wx = -1; wx <= 1; wx += 2) {
+        for (var wz = -1; wz <= 1; wz += 2) {
+          pen.part(child(f, [wx * 3.6, 1.6, wz * 4.4], u * 30, 0, Math.PI / 2), 'cyl', [0, 0, 0], [3.2, 1.6, 3.2], '#1e1e24');
+        }
       }
     };
     return me;

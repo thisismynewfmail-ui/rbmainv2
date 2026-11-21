@@ -1847,6 +1847,103 @@
     }
   });
 
+  /* Leviathan Quarry: the strata at sunset, and a brush going over the
+     rock -- and under it, bone: the skull, the spine, the ribs.  Its eye
+     kindles; it sings; the name is cut into the stone. */
+  Intro.register('br_leviathan', {
+    tagline: 'Ninety million years asleep. Run along its back.',
+    accent: '#ff9a5a',
+    cues: [[0.1, 'br_wind', 0.5], [0.4, 'br_song', 0.6], [1.5, 'br_gull', 0.5],
+           [2.25, 'br_thud', 0.8], [2.45, 'br_thud', 0.8], [2.65, 'br_thud', 0.8]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { strata: [], dust: [], ribs: [] };
+      var cols = ['#e8d0a0', '#b8603a', '#f0e0b8', '#9a5a3a', '#e0c090', '#a86a48', '#f2dcb0', '#8a4a30'];
+      for (var i = 0; i < 9; i++) d.strata.push({ y: 300 + i * 70, c: cols[i % cols.length], w: between(r, 0.6, 1.4) });
+      for (i = 0; i < 70; i++) d.dust.push({ x: r() * VW, y: between(r, 250, 900), s: between(r, 1, 3), p: r() * TAU });
+      for (i = 0; i < 9; i++) d.ribs.push({ x: 720 + i * 82, l: 150 - Math.abs(i - 3) * 12 });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, 330);
+      g.addColorStop(0, '#3a2a5a'); g.addColorStop(0.6, '#c86a5a'); g.addColorStop(1, '#ffb070');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, 330);
+      additive(ctx, function () { dot(ctx, '#ffd890', 1250, 300, 220, 0.6); });
+      d.strata.forEach(function (st, i) {
+        ctx.fillStyle = st.c;
+        ctx.beginPath(); ctx.moveTo(0, st.y);
+        for (var x = 0; x <= VW; x += 80) ctx.lineTo(x, st.y + Math.sin(x * 0.004 * st.w + i) * 10);
+        ctx.lineTo(VW, VH); ctx.lineTo(0, VH); ctx.fill();
+      });
+      // the brush goes along, and the bone comes up under it
+      var reveal = seg(t, 0.5, 2.3);
+      var brushX = 260 + reveal * 1180;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, brushX, VH); ctx.clip();
+      ctx.fillStyle = '#efe4c8'; ctx.strokeStyle = '#c8b898'; ctx.lineWidth = 4;
+      // the skull
+      ctx.beginPath(); ctx.moveTo(300, 560); ctx.quadraticCurveTo(360, 420, 560, 430);
+      ctx.quadraticCurveTo(680, 440, 700, 540); ctx.lineTo(690, 600); ctx.lineTo(300, 600); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(300, 590); ctx.lineTo(160, 610); ctx.lineTo(170, 650); ctx.lineTo(320, 640); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#f8f2e2';
+      for (var tooth = 0; tooth < 7; tooth++) {
+        var tx = 180 + tooth * 20;
+        ctx.beginPath(); ctx.moveTo(tx, 612 - tooth * 1.5); ctx.lineTo(tx + 8, 636); ctx.lineTo(tx + 14, 610 - tooth * 1.5); ctx.fill();
+      }
+      ctx.fillStyle = '#2a1a12';
+      ctx.beginPath(); ctx.ellipse(470, 505, 44, 30, -0.1, 0, TAU); ctx.fill();
+      // the spine and ribs
+      ctx.fillStyle = '#efe4c8';
+      for (var v = 0; v < 16; v++) {
+        var vx = 700 + v * 52, vy = 520 + Math.sin(v * 0.4) * 14;
+        roundRect(ctx, vx, vy - 18, 40, 36, 8); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(vx + 8, vy - 18); ctx.lineTo(vx + 20, vy - 46); ctx.lineTo(vx + 32, vy - 18); ctx.fill();
+      }
+      ctx.strokeStyle = '#efe4c8'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+      d.ribs.forEach(function (rb) {
+        ctx.beginPath(); ctx.moveTo(rb.x, 540); ctx.quadraticCurveTo(rb.x + 30, 600 + rb.l * 0.3, rb.x - 10, 540 + rb.l); ctx.stroke();
+      });
+      ctx.restore();
+      // the brush and the dust it raises
+      if (reveal > 0 && reveal < 1) {
+        ctx.save(); ctx.translate(brushX, 470 + Math.sin(t * 30) * 30); ctx.rotate(0.5);
+        ctx.fillStyle = '#8a5a2a'; ctx.fillRect(-8, -110, 16, 90);
+        ctx.fillStyle = '#d8c090'; ctx.fillRect(-16, -20, 32, 40);
+        ctx.restore();
+      }
+      d.dust.forEach(function (p) {
+        var a = 0.25 + 0.2 * Math.sin(t * 2 + p.p);
+        ctx.fillStyle = 'rgba(255,230,190,' + a + ')';
+        ctx.fillRect(p.x + Math.sin(t + p.p) * 20, p.y - t * 18 % 60, p.s, p.s);
+      });
+      // its eye kindles
+      var eye = seg(t, 1.6, 2.4);
+      if (eye > 0) additive(ctx, function () { dot(ctx, '#ff7a2a', 470, 505, 50, eye * (0.7 + 0.3 * Math.sin(t * 5))); });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Leviathan Quarry').toUpperCase();
+      var k = seg(t, 2.15, 2.75);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 190);
+      ctx.fillStyle = '#5a4a44';
+      ctx.beginPath(); ctx.moveTo(-480, -70); ctx.lineTo(470, -78); ctx.lineTo(490, 64); ctx.lineTo(-490, 72); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7a6a64'; ctx.lineWidth = 6; ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 70, 880, 0.1);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var shown = name.slice(0, Math.ceil(name.length * k));
+      var pad = name.slice(shown.length).replace(/./g, ' ');
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      spaced(ctx, shown + pad, 3, 3, size * 0.1);
+      ctx.fillStyle = '#e8d8b8';
+      spaced(ctx, shown + pad, 0, 0, size * 0.1);
+      ctx.restore();
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };

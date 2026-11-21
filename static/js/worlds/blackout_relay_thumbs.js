@@ -419,6 +419,39 @@
     }
   });
 
+  Thumbs.registerWorld('br_leviathan', {
+    camera: [[30, 26, -40], [0, 8, 6], 52],
+    sky: { top: '#3a2a5a', horizon: '#ff9a5a', sun: [0.55, 0.16, -0.35], clouds: 0.55, tint: '#ffc8a0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [140, 1, 110], '#c8a070', { st: 1 });
+      // the benches behind, in their strata
+      ['#e8d0a0', '#b8603a', '#f0e0b8', '#9a5a3a', '#e0c090'].forEach(function (c, i) {
+        k.box([0, 1 + i * 2, 40 + i * 4], [140, 2, 30], c, { st: 1 });
+      });
+      // the skull: stepped cranium, sockets aglow, jaws open towards us
+      for (var i = 0; i < 5; i++) k.box([0, 2 + i * 2, 4 + i * 0.6], [26 - i * 3.6, 2, 20 - i * 2.6], i % 2 ? '#c8b898' : '#e8dcc0', { st: 1 });
+      k.box([0, 6, -6.2], [26, 8, 1], '#e8dcc0');
+      [-5, 5].forEach(function (x) { k.shape('sph', [x, 7.4, -6.8], [3.4, 2.4, 0.6], '#ff7a2a', { m: 'neon' }); });
+      k.box([0, 3.4, -16], [10, 2.4, 20], '#e8dcc0', { st: 1 });
+      [-4.2, 4.2].forEach(function (x) {
+        for (var t2 = 0; t2 < 5; t2++) k.shape('cone', [x, 1.6, -22 + t2 * 3.4], [1.2, 2.2, 1.2], '#f8f2e2', { r: [Math.PI, 0, 0] });
+        k.box([x * 1.2, 0.8, -16], [1.6, 1.6, 20], '#c8b898');
+      });
+      // the spine and ribs running away from it
+      for (var v = 0; v < 6; v++) {
+        k.box([0, 5, 16 + v * 5], [3, 2, 3.6], '#e8dcc0', { st: 1 });
+        [-1, 1].forEach(function (sx) { k.box([sx * 5, 2.4, 16 + v * 5], [7, 1.2, 1.2], '#e8dcc0', { r: [0, 0, sx * 0.6] }); });
+      }
+      // a headframe on the rim
+      k.box([-40, 18, 44], [1, 16, 1], '#a85a32', { m: 'metal' });
+      k.box([-36, 18, 44], [1, 16, 1], '#a85a32', { m: 'metal' });
+      k.shape('torus', [-38, 27, 44], [5, 2, 5], '#3a3a40', { r: [0, 0, Math.PI / 2] });
+      pedestal(k, 22, 0, -10, BLUE, BLUE_NEON);
+      k.player(-12, 0, -22, { anim: 'run', time: 0.3, holding: flagItem(BLUE), wear: cap(RED) });
+      k.player(14, 0, -24, { anim: 'run', time: 0.8, wear: cap(BLUE) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

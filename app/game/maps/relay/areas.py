@@ -20,4 +20,5 @@ ORDER = [
     ("snowglobe", "Snowglobe Hollow"),
     ("bigear", "Big Ear Array"),
     ("polder", "Polderhaven"),
+    ("leviathan", "Leviathan Quarry"),
 ]

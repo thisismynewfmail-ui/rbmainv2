@@ -151,7 +151,13 @@
   function spaced(ctx, text, cx, y, spacing) {
     var l = layout(ctx, text, spacing);
     var left = cx - l.width / 2;
+    // each letter is placed by its left edge, whatever alignment the
+    // caller left set (centred, every glyph slid back half its own width
+    // and narrow letters opened gaps: "LEV IATHAN")
+    var align = ctx.textAlign;
+    ctx.textAlign = 'left';
     for (var i = 0; i < l.chars.length; i++) ctx.fillText(l.chars[i].ch, left + l.chars[i].x, y);
+    ctx.textAlign = align;
     return { left: left, width: l.width, chars: l.chars };
   }
   // the biggest size up to ``max`` at which ``text`` fits ``width``

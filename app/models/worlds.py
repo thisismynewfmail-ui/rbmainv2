@@ -80,6 +80,11 @@ RELAY_AREAS: List[Dict[str, Any]] = [
      "blurb": "Spring in the polder: dikes, canals, tulips, and nothing flat. Muster in the "
               "steam pumping station, cross the drawbridge and climb the dike to the great "
               "windmills where the flags are -- or come up the mill's drain from the sluice."},
+    {"id": "leviathan", "name": "Leviathan Quarry", "thumb": "br_leviathan",
+     "captures": 3, "minutes": 15,
+     "blurb": "A sea monster's bones in a sandstone quarry at sunset. Muster in the dig "
+              "station inside its skull, climb its ribs and run its spine, and take the flags "
+              "from the winding houses up on the rim -- or come up the old adit beside them."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [
