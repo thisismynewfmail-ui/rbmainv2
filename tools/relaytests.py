@@ -16,6 +16,11 @@ Needs no server::
                ever inside the geometry or needs rescuing from the void, no
                tick stage throws, the bots get about, and somebody takes the
                other team's flag off its pedestal;
+``walk``       on every map, a person (not a bot: bots move server-side and
+               never send a position) walks away from every muster pad and
+               outpost -- the client's own physics in node
+               (tools/walkcheck.js), then that walk replayed to the server
+               as the inputs a client sends, every one of which it accepts;
 ``rotate``     a round ending rolls a different map, says so (``brnext``),
                and the next round starts there (``brarea`` with its map);
 ``sleep``      a sleeping round keeps its map, moves on to another between
@@ -186,6 +191,105 @@ def test_play(areas: List[str], seconds: float) -> None:
         print("      (%s: flags taken %s, %d captured)" % (area, r["taken"], r["captures"]))
 
 
+# ==================================================================== walk
+def _spawn_list(inst) -> List[Dict[str, Any]]:
+    out = []
+    spawns = inst.area.get("spawns") or {}
+    for team in ("red", "blue"):
+        for k, point in enumerate(spawns.get(team) or []):
+            out.append({"p": list(point["p"]), "yaw": float(point.get("yaw", 0.0)),
+                        "label": "%s muster %d" % (team, k), "team": team})
+        for k, point in enumerate(inst.outposts.get(team) or []):
+            out.append({"p": list(point["p"]), "yaw": float(point.get("yaw", 0.0)),
+                        "label": "%s outpost %d" % (team, k), "team": team})
+    return out
+
+
+def walk_map(area: str, seconds: float = 4.0) -> Dict[str, Any]:
+    """Every spawn on ``area``: walked with the client's physics, then the
+    walk sent to the server the way a client sends it."""
+    import json
+    import subprocess
+    import tempfile
+    clock = Clock()
+    originals = _patch(clock)
+    os.environ["BLOCKHAVEN_RELAY_MAP"] = area
+    try:
+        host = _host()
+        inst = host.cls(host, host.world, 11, host.map)
+        payload = inst.map_payload()
+        spawns = _spawn_list(inst)
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            json.dump({"parts": payload["parts"], "kill_y": payload.get("kill_y", -60),
+                       "seconds": seconds, "spawns": spawns}, fh)
+            name = fh.name
+        try:
+            run = subprocess.run(["node", os.path.join(ROOT, "tools", "walkcheck.js"), name],
+                                 capture_output=True, text=True, timeout=300)
+        finally:
+            os.unlink(name)
+        if run.returncode != 0:
+            return {"error": run.stderr.strip()[-400:], "area": inst.area_id}
+        walks = json.loads(run.stdout)
+        sent: List[Dict[str, Any]] = []
+
+        class WS:
+            def send_json(self, msg):
+                sent.append(msg)
+
+            def close(self):
+                pass
+        person = inst.add_player(1, "walker", {"hotbar": []}, WS())
+        refused: List[str] = []
+        for spawn, result in zip(spawns, walks):
+            person.team = spawn["team"]
+            person.alive = True
+            person.pos = list(spawn["p"])
+            person.last_ground_pos = list(spawn["p"])
+            person.vel = [0.0, 0.0, 0.0]
+            person.corrections = 0
+            person.airborne_since = 0.0
+            clock.t += 5.0
+            person.last_pos_time = clock.t
+            before = sum(1 for m in sent if m.get("t") == "correct")
+            for x, y, z, grounded, yaw in result["path"]:
+                clock.t += 0.05
+                inst.handle_input(person, {"t": "in", "p": [x, y, z], "g": bool(grounded),
+                                           "v": [0.0, 0.0, 0.0], "y": yaw, "pi": 0.0})
+            after = sum(1 for m in sent if m.get("t") == "correct")
+            last = result["path"][-1] if result["path"] else None
+            if after > before or (last and math.dist(person.pos, last[:3]) > 0.5):
+                refused.append(spawn["label"])
+        return {"area": inst.area_id, "walks": walks, "refused": refused,
+                "fits": [s["label"] for s in spawns if not inst.body_fits(*s["p"])]}
+    finally:
+        os.environ.pop("BLOCKHAVEN_RELAY_MAP", None)
+        for m, orig in originals:
+            m.now = orig
+
+
+def test_walk(areas: List[str]) -> None:
+    for area in areas:
+        r = walk_map(area)
+        tag = "walk %s" % area
+        if not check("%s: the client physics ran" % tag, "error" not in r, r.get("error")):
+            continue
+        walks = r["walks"]
+        check("%s: the round is on this map" % tag, r["area"] == area, r["area"])
+        bad = [w["label"] for w in walks if w["embedded"]] + r["fits"]
+        check("%s: nobody is put down inside anything" % tag, not bad, bad[:6])
+        bad = [w["label"] for w in walks if not w["grounded"]]
+        check("%s: every spawn stands on a floor" % tag, not bad, bad[:6])
+        bad = ["%s %.1f" % (w["label"], w["reach"]) for w in walks if w["reach"] < 8.0]
+        check("%s: a person can walk away from every spawn" % tag, not bad, bad[:6])
+        bad = ["%s %.1f" % (w["label"], w["drop"]) for w in walks if w["drop"] > 30.0]
+        check("%s: and does not fall through the floor doing it" % tag, not bad, bad[:6])
+        check("%s: the server accepts every step of it" % tag, not r["refused"],
+              r["refused"][:6])
+        print("      (%s: %d spawns, reach %.0f..%.0f)" % (
+            area, len(walks), min(w["reach"] for w in walks), max(w["reach"] for w in walks)))
+
+
 # ================================================================== rotate
 def test_rotate() -> None:
     import tools.bottests as bottests
@@ -292,7 +396,7 @@ def main(argv: List[str]) -> int:
     parser.add_argument("maps", nargs="*")
     parser.add_argument("--seconds", type=float, default=150.0)
     parser.add_argument("--fast", action="store_true", help="skip the route walk")
-    parser.add_argument("--only", default="catalogue,map,play,rotate,sleep")
+    parser.add_argument("--only", default="catalogue,map,walk,play,rotate,sleep")
     args = parser.parse_args(argv[1:])
     sys.argv = [sys.argv[0]]
     import tools.bottests as bottests
@@ -306,6 +410,8 @@ def main(argv: List[str]) -> int:
         test_catalogue()
     if "map" in groups:
         test_map(routes=not args.fast)
+    if "walk" in groups:
+        test_walk(maps)
     if "play" in groups:
         test_play(maps, args.seconds)
     if "rotate" in groups:
