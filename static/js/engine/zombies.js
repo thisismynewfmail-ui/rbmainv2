@@ -302,6 +302,33 @@
         hat: hat([{ t: 'sph', p: [0, -0.4, 0], s: [3.2, 3.0, 3.0], c: '#b81a2e' },
                   { t: 'box', p: [0, 1.25, 0], s: [0.3, 0.6, 0.3], c: '#5a3a1a' },
                   { t: 'box', p: [0.35, 1.3, 0], s: [0.7, 0.12, 0.4], c: '#3a7a3a' }]) }
+    ],
+    // Kettle Falls Mill: the mill girls and the loom fixers, the overseer,
+    // the paymaster, the engineer off the train, a doffer boy, the owner
+    mill: [
+      CLASSIC,
+      { shirt: shirt('#e8e0cc', '#4a3a5a', { weave: 'linen' }), pants: pants('#4a3a5a'),
+        hair: hair([{ p: [0, 0.34, -0.06], s: [1.08, 0.46, 1.06], c: '#5a3a22' },
+                    { p: [0, 0.55, -0.55], s: [0.6, 0.6, 0.6], c: '#5a3a22' }]) },
+      { shirt: shirt('#3a4a6a', '#3a4a6a', { weave: 'denim' }), pants: pants('#3a4a6a', { weave: 'denim' }),
+        hat: hat([{ t: 'box', p: [0, 0.14, 0], s: [1.66, 0.28, 1.66], c: '#4a4a44' },
+                  { t: 'box', p: [0, 0.06, 0.95], s: [1.3, 0.1, 0.5], c: '#4a4a44' }]) },
+      { shirt: shirt('#5a4a3a', '#e8e0cc', { decal: 'tux' }), pants: pants('#3a3a3a'),
+        hat: hat([{ t: 'cyl', p: [0, 0.08, 0], s: [2.2, 0.12, 2.2], c: '#1a1a1a' },
+                  { t: 'sph', p: [0, 0.36, 0], s: [1.6, 1.0, 1.6], c: '#1a1a1a' }]) },
+      { shirt: shirt('#e8e0cc', '#e8e0cc', { sleeves: 0.5 }), pants: pants('#2a2a2a'),
+        hat: hat([{ t: 'box', p: [0, 0.0, 0.7], s: [1.4, 0.1, 0.9], c: '#3a8a4a', a: 0.6 },
+                  { t: 'box', p: [0, 0.05, 0.0], s: [1.66, 0.2, 1.66], c: '#2a2a2a' }]) },
+      { shirt: shirt('#3a4a6a', '#3a4a6a', { weave: 'xm_hickory' }), pants: pants('#3a4a6a', { weave: 'xm_hickory' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.3, 0], s: [1.6, 0.7, 1.6], c: '#5a6a8a' },
+                  { t: 'box', p: [0, 0.06, 0.9], s: [1.3, 0.1, 0.6], c: '#2a2a2a' }]) },
+      { shirt: shirt('#8a6a4a', '#8a6a4a', { sleeves: 0.4 }), pants: pants('#4a4a3a', { length: 0.6 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.16, 0], s: [1.9, 0.3, 1.9], c: '#6a5a4a' },
+                  { t: 'box', p: [0, 0.06, 0.9], s: [1.2, 0.1, 0.6], c: '#6a5a4a' }]) },
+      { shirt: shirt('#1a1a1e', '#1a1a1e', { decal: 'tux' }), pants: pants('#2a2a2e', { weave: 'pinstripe' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.2, 0.12, 2.2], c: '#141414' },
+                  { t: 'cyl', p: [0, 0.75, 0], s: [1.4, 1.4, 1.4], c: '#141414' },
+                  { t: 'cyl', p: [0, 0.2, 0], s: [1.44, 0.16, 1.44], c: '#5a1a1a' }]) }
     ]
   };
 

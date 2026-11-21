@@ -394,5 +394,70 @@
     }
   });
 
+  /* Kettle Falls Mill: down the gorge at dusk -- the brick mill on the far
+     cliff with its windows lit and the wheel turning under it, the falls
+     on the left, the covered bridge, the infected wading the river and the
+     team up on the near bank. */
+  Thumbs.registerWorld('ll_mill', {
+    camera: [[6, 30, -34], [0, -8, 44], 60],
+    sky: { top: '#2e2e4e', horizon: '#d8885a', sun: [-0.7, 0.15, 0.6], clouds: 0.5, tint: '#ffc8a0' },
+    build: function (parts, k) {
+      // the river at the bottom of the gorge, the cliffs either side
+      k.box([0, -18.5, 30], [240, 1, 240], '#3a3a34');
+      k.box([0, -16.2, 30], [240, 0.6, 52], '#2a4a5a', { a: 0.85 });
+      k.box([0, -9, 70], [240, 18, 36], '#5a5650', { st: 1 });
+      k.box([0, -9, -10], [240, 18, 24], '#5a5650', { st: 1 });
+      k.box([0, 0.3, 70], [240, 0.6, 36], '#5a6a34', { st: 1 });
+      k.box([0, 0.3, -10], [240, 0.6, 24], '#5a6a34', { st: 1 });
+      // the mill on the far cliff
+      k.box([-6, 14.6, 68], [76, 28, 28], '#9a4f3a');
+      k.box([-6, 29.2, 68], [78, 1.2, 30], '#4a4a48');
+      for (var row = 0; row < 2; row++) {
+        for (var c = 0; c < 9; c++) {
+          k.box([-40 + c * 8.4, 6.5 + row * 14, 53.9], [3.6, 5, 0.2], '#ffcf7a', { m: 'neon' });
+        }
+      }
+      for (var p = 0; p < 4; p++) k.box([-6 + (p % 2 ? 4 : -4), 35, 68 + (p > 1 ? 4 : -4)], [0.8, 10, 0.8], '#e8e0cc');
+      k.box([-6, 40.4, 68], [11, 0.8, 11], '#4a4a48');
+      k.box([-6, 41.6, 68], [7, 1.6, 7], '#4a4a48');
+      k.box([40, 26, 76], [5, 52, 5], '#7c3d2d');
+      for (var sm = 0; sm < 4; sm++) k.shape('sph', [40 + sm * 4, 54 + sm * 5, 76], [5 + sm * 2, 5 + sm * 2, 5 + sm * 2], '#6a6866', { a: 0.5 });
+      // the wheel under it
+      var wx = -18, wy = -9, wz = 51;
+      k.shape('cyl', [wx, wy, wz], [2, 6, 2], '#3a3a3a', { r: [Math.PI / 2, 0, 0] });
+      for (var b = 0; b < 12; b++) {
+        var a = b / 12 * Math.PI * 2;
+        k.box([wx + Math.cos(a) * 6.4, wy + Math.sin(a) * 6.4, wz], [1.4, 1.4, 4.6], '#6a5a42');
+      }
+      for (var s2 = 0; s2 < 6; s2++) k.box([wx, wy, wz], [12.8, 0.4, 0.4], '#4a3a2a', { r: [0, 0, s2 * Math.PI / 6] });
+      k.box([wx - 20, -3.2, 53], [34, 0.6, 4], '#7a5335');
+      // the falls on the left
+      k.box([62, -8, 30], [10, 22, 52], '#8a8478', { st: 1 });
+      for (var f = 0; f < 6; f++) k.box([56.6, -8.5, 10 + f * 7], [0.6, 15, 6.8], '#cfe6f2', { a: 0.7 });
+      for (var m = 0; m < 6; m++) k.shape('sph', [50 - m, -15, 12 + m * 6], [5, 3, 5], '#f2f6f8', { a: 0.5 });
+      // the covered bridge on the right
+      k.box([-60, -0.5, 30], [16, 1.2, 60], '#7a5335');
+      k.box([-67.4, 5, 30], [1.2, 10, 60], '#8a2a24');
+      k.box([-52.6, 5, 30], [1.2, 10, 60], '#8a2a24');
+      for (var g = 0; g < 3; g++) k.box([-60, 10.6 + g * 1.4, 30], [18 - g * 5, 1.4, 62], '#4a4a48');
+      for (var pr = 0; pr < 2; pr++) k.box([-60, -9.4, 20 + pr * 20], [18, 17.6, 5], '#8a8478');
+      // the infected in the river, the team on the near bank
+      k.zombie('common', 4, 22, Math.PI, 1, 'mill', 0, -17.8);
+      k.zombie('common', -8, 30, Math.PI + 0.2, 2, 'mill', 2, -17.8);
+      k.zombie('common', 16, 34, Math.PI - 0.3, 5, 'mill', 0, -17.8);
+      k.zombie('common', -20, 40, Math.PI, 3, 'mill', 0, -17.8);
+      k.zombie('common', 26, 44, Math.PI, 7, 'mill', 2, -17.8);
+      k.zombie('common', 8, 46, Math.PI, 6, 'mill', 0, -17.8);
+      k.zombie('common', -60, 26, Math.PI, 4, 'mill', 0, 0.6);
+      k.zombie('common', -60, 42, Math.PI, 2, 'mill', 0, 0.6);
+      k.survivor(-6, -6, 0.1, 0, 0.6);
+      k.survivor(6, -8, -0.2, 1, 0.6);
+      k.survivor(16, -4, -0.5, 2, 0.6);
+      // maples along the far bank
+      var cols = ['#c8582a', '#d8a02a', '#a83a24', '#e8c84a'];
+      for (var tr = 0; tr < 8; tr++) k.tree(-110 + tr * 30, 96 + (tr % 2) * 8, 1.8 + (tr % 3) * 0.3, cols[tr % 4]);
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

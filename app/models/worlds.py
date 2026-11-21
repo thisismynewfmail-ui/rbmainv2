@@ -325,6 +325,13 @@ WORLDS: List[Dict[str, Any]] = [
                       "the windmill's stage and the duck blind -- and open the "
                       "reservoir's floodgate to pull the horde out into the "
                       "harvest bog. The water was red before any of this."},
+            {"id": "mill", "name": "Kettle Falls Mill",
+             "blurb": "A mill town in a river gorge, the autumn it ended. Hold "
+                      "the counting house, cross the gorge by the dam, the "
+                      "covered bridge or the swaying footbridge, take the mill "
+                      "roof and its belfry -- and blow the mill whistle to call "
+                      "the dead back to the yard for their shift. The wheel "
+                      "never stopped turning."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

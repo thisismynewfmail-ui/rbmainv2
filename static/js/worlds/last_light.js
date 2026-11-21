@@ -1529,5 +1529,179 @@
     }
   });
 
+  /* Kettle Falls Mill: across the gorge at dusk, the falls coming over
+     the dam, the mill on the far cliff with every window lit, the wheel
+     turning under it, leaves coming down.  The whistle blows -- a jet of
+     steam off the boiler house -- the doors open and the shift files out
+     along the cliff, and below, in the river, more of them wade.  The
+     name is a time card, punched out. */
+  Intro.register('mill', {
+    tagline: 'The whistle still blows at six. They still come.',
+    accent: '#e8883a',
+    cues: [[0.1, 'll_wind', 0.4], [0.3, 'll_rush', 0.5], [0.85, 'll_clunk', 0.9], [1.3, 'll_whistle', 0.7],
+           [2.7, 'll_bell', 0.5]],
+    shakes: [[0.86, 4, 0.15]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { leaves: [], trees: [], walkers: [], waders: [], windows: [] };
+      for (var i = 0; i < 46; i++) {
+        d.leaves.push({ x: r() * VW, y: r() * 900, v: between(r, 30, 70), s: between(r, 5, 10), p: r() * 6,
+                        c: ['#c8582a', '#d8a02a', '#a83a24', '#e8c84a'][i % 4] });
+      }
+      for (i = 0; i < 26; i++) d.trees.push({ x: i * 64 + between(r, -20, 20), y: between(r, 300, 360), s: between(r, 26, 44),
+                                              c: ['#a8482a', '#c87a2a', '#8a3a24', '#b8902a'][i % 4] });
+      var looks = [['#e8e0cc', '#4a3a5a', '#6fae55'], ['#3a4a6a', '#3a4a6a', '#7fb069'], ['#5a4a3a', '#3a3a3a', '#5f9a4c'],
+                   ['#8a6a4a', '#4a4a3a', '#86b86a'], ['#1a1a1e', '#2a2a2e', '#6c9f68']];
+      for (i = 0; i < 9; i++) d.walkers.push({ at: 1.7 + i * 0.22, p: r() * 6, look: looks[i % looks.length] });
+      for (i = 0; i < 5; i++) d.waders.push({ x: 300 + i * 260 + between(r, -40, 40), at: 1.2 + i * 0.25, p: r() * 6,
+                                              look: looks[(i + 2) % looks.length] });
+      for (var row = 0; row < 3; row++) {
+        for (var c = 0; c < 16; c++) d.windows.push({ x: 560 + c * 46, y: 330 + row * 44, f: r() });
+      }
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#24243e'], [0.45, '#6a3a52'], [0.8, '#d87a4a'], [1, '#f2a85a']], 470);
+      additive(ctx, function () { dot(ctx, '#ffb060', 1180, 330, 380, 0.3); });
+      // the far hills in their colours
+      ctx.fillStyle = '#3a2430';
+      ctx.beginPath(); ctx.moveTo(0, 380);
+      for (var hx = 0; hx <= VW; hx += 80) ctx.lineTo(hx, 340 + Math.sin(hx * 0.006) * 30 + Math.sin(hx * 0.02) * 10);
+      ctx.lineTo(VW, 480); ctx.lineTo(0, 480); ctx.fill();
+      d.trees.forEach(function (tr) {
+        ctx.fillStyle = tr.c;
+        ctx.beginPath(); ctx.arc(tr.x, tr.y + 30, tr.s * 0.7, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(40,20,30,0.35)';
+        ctx.beginPath(); ctx.arc(tr.x + tr.s * 0.25, tr.y + 36, tr.s * 0.5, 0, TAU); ctx.fill();
+      });
+      // the far cliff top, the mill on it, the stack
+      ctx.fillStyle = '#2a2a22'; ctx.fillRect(0, 466, VW, 14);
+      ctx.fillStyle = '#5a2a20'; ctx.fillRect(540, 300, 780, 168);
+      ctx.fillStyle = '#3a2a2a';
+      ctx.beginPath(); ctx.moveTo(530, 302); ctx.lineTo(930, 262); ctx.lineTo(1330, 302); ctx.fill();
+      ctx.fillStyle = '#e8e0cc'; ctx.fillRect(914, 222, 32, 40);
+      ctx.fillStyle = '#3a2a2a'; ctx.beginPath(); ctx.moveTo(908, 224); ctx.lineTo(930, 198); ctx.lineTo(952, 224); ctx.fill();
+      d.windows.forEach(function (w) {
+        ctx.fillStyle = 'rgba(255,' + (190 + Math.floor(w.f * 40)) + ',110,' + (0.6 + 0.3 * Math.sin(t * 2 + w.f * 9)) + ')';
+        ctx.fillRect(w.x, w.y, 20, 26);
+      });
+      var door = seg(t, 1.6, 1.9);
+      ctx.fillStyle = door > 0 ? 'rgba(255,210,140,' + (0.5 + door * 0.4) + ')' : '#2a1a14';
+      ctx.fillRect(904, 424, 52, 44);
+      ctx.fillStyle = '#4a2a20'; ctx.fillRect(1366, 120, 34, 350);
+      ctx.fillRect(1330, 400, 110, 68);
+      for (var sm = 0; sm < 7; sm++) {
+        var u = (t * 0.25 + sm / 7) % 1, sr = 16 + u * 50;
+        ctx.fillStyle = 'rgba(90,86,84,' + (0.5 * (1 - u)) + ')';
+        ctx.beginPath(); ctx.arc(1383 + u * 120, 110 - u * 90, sr, 0, TAU); ctx.fill();
+      }
+      var jet = seg(t, 1.3, 1.45) * (1 - seg(t, 3.4, 4.0));
+      if (jet > 0) {
+        for (var js = 0; js < 10; js++) {
+          var q = (t * 1.6 + js / 10) % 1, jr = 8 + q * 40;
+          ctx.fillStyle = 'rgba(245,245,245,' + (0.6 * (1 - q) * jet) + ')';
+          ctx.beginPath(); ctx.arc(1356 + q * 20, 392 - q * 170, jr, 0, TAU); ctx.fill();
+        }
+      }
+      // the shift coming out along the cliff top
+      d.walkers.forEach(function (w) {
+        var k = seg(t, w.at, w.at + 2.0);
+        if (k <= 0) return;
+        LL.shambler(ctx, 930 + k * 330 - Math.min(1, (t - w.at) * 2) * 10, 466, 1.0, t, w.look, 1, w.p);
+      });
+      // the gorge: the far cliff face, the falls on the left, the wheel
+      var cg = ctx.createLinearGradient(0, 480, 0, 650);
+      cg.addColorStop(0, '#4a4440'); cg.addColorStop(1, '#2a2622');
+      ctx.fillStyle = cg; ctx.fillRect(0, 480, VW, 170);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 2;
+      for (var st = 0; st < 5; st++) { ctx.beginPath(); ctx.moveTo(0, 500 + st * 30); ctx.lineTo(VW, 496 + st * 30 + Math.sin(st) * 8); ctx.stroke(); }
+      ctx.fillStyle = '#6a6460'; ctx.fillRect(0, 452, 230, 30);
+      for (var fc = 0; fc < 9; fc++) {
+        var fx = 30 + fc * 20;
+        ctx.fillStyle = 'rgba(200,225,240,0.7)'; ctx.fillRect(fx, 470, 18, 180);
+        for (var fs = 0; fs < 3; fs++) {
+          var fu = (t * 1.3 + fs / 3 + fc * 0.17) % 1;
+          ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(fx + 6, 470 + fu * 170, 5, 22);
+        }
+      }
+      ctx.fillStyle = '#5a4a3a'; ctx.fillRect(230, 512, 470, 10);
+      ctx.save(); ctx.translate(780, 560); ctx.rotate(-t * 0.8);
+      ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(0, 0, 84, 0, TAU); ctx.stroke();
+      for (var bk = 0; bk < 16; bk++) {
+        ctx.rotate(TAU / 16);
+        ctx.fillStyle = '#6a5a42'; ctx.fillRect(70, -5, 22, 10);
+        if (bk % 4 === 0) { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(0, -3, 84, 6); }
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(170,210,230,0.6)'; ctx.fillRect(700, 514, 14, 40);
+      // the river, foam on it
+      var rg = ctx.createLinearGradient(0, 640, 0, VH);
+      rg.addColorStop(0, '#1a3a44'); rg.addColorStop(1, '#0a1a22');
+      ctx.fillStyle = rg; ctx.fillRect(0, 640, VW, VH - 640);
+      for (var fm = 0; fm < 30; fm++) {
+        var fy = 650 + (fm * 37) % 150, fxx = ((fm * 173) % VW + t * (60 + fm % 5 * 20)) % (VW + 100) - 50;
+        ctx.fillStyle = 'rgba(230,242,248,0.35)'; ctx.fillRect(fxx, fy, 30 + (fm % 4) * 14, 3);
+      }
+      additive(ctx, function () { dot(ctx, '#e8f4f8', 130, 650, 160, 0.25); });
+      // and in the river, wading toward us
+      d.waders.forEach(function (w) {
+        var k2 = seg(t, w.at, w.at + 0.8);
+        if (k2 <= 0) return;
+        var water = 760, sc = 2.3;
+        var y = water + 68 * sc - outCubic(k2) * 46 * sc + (t - w.at) * 5;
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, water); ctx.clip();
+        LL.shambler(ctx, w.x + Math.sin(t + w.p) * 4, y, sc, t, w.look, w.x < 800 ? 1 : -1, w.p);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(220,240,248,0.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(w.x, water, 30, 6, 0, 0, TAU); ctx.stroke();
+      });
+      // the leaves coming down
+      d.leaves.forEach(function (l) {
+        var ly = (l.y + t * l.v) % 900, lx = l.x + Math.sin(t * 1.3 + l.p) * 30;
+        ctx.save(); ctx.translate(lx, ly); ctx.rotate(t * 2 + l.p);
+        ctx.fillStyle = l.c; ctx.fillRect(-l.s / 2, -l.s / 4, l.s, l.s / 2);
+        ctx.restore();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Kettle Falls Mill').toUpperCase();
+      var k = outCubic(seg(t, 0.4, 0.82));
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(lerp(-700, 760, k), 226);
+      ctx.rotate(-0.015);
+      // the time clock's slot the card goes into
+      ctx.fillStyle = '#2a2a2e'; roundRect(ctx, 330, -120, 150, 240, 12); ctx.fill();
+      ctx.fillStyle = '#e8e0cc'; ctx.beginPath(); ctx.arc(405, -60, 44, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(405, -60); ctx.lineTo(405, -92); ctx.moveTo(405, -60); ctx.lineTo(430, -60); ctx.stroke();
+      ctx.fillStyle = '#111'; ctx.fillRect(330, -6, 24, 12);
+      // the card
+      ctx.fillStyle = '#efe6cc'; ctx.fillRect(-460, -96, 800, 192);
+      ctx.fillStyle = '#2a3a5a'; ctx.fillRect(-460, -96, 800, 40);
+      ctx.font = 'bold 20px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.fillStyle = '#efe6cc';
+      spaced(ctx, 'KETTLE FALLS MANUFACTURING CO.   ·   TIME CARD', -60, -76, 4);
+      ctx.strokeStyle = 'rgba(42,58,90,0.5)'; ctx.lineWidth = 1.5;
+      for (var ln = 0; ln < 3; ln++) { ctx.beginPath(); ctx.moveTo(-440, 20 + ln * 24); ctx.lineTo(320, 20 + ln * 24); ctx.stroke(); }
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 58, 700, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.fillStyle = '#1a1a1a';
+      spaced(ctx, name, -60, -18, size * 0.04);
+      ctx.font = 'bold 16px ' + HEAVY; ctx.fillStyle = '#2a3a5a';
+      spaced(ctx, 'NO. 1846        IN  6:00 A.M.        OUT  6:00 P.M.', -60, 56, 3);
+      // punched: the stamp
+      var stamp = seg(t, 0.85, 0.95);
+      if (stamp > 0) {
+        ctx.save(); ctx.translate(200, 40); ctx.rotate(-0.14); ctx.scale(1.4 - 0.4 * stamp, 1.4 - 0.4 * stamp);
+        ctx.globalAlpha = stamp * 0.85;
+        ctx.strokeStyle = '#b81a1a'; ctx.lineWidth = 5; roundRect(ctx, -110, -28, 220, 56, 6); ctx.stroke();
+        ctx.font = '900 34px ' + HEAVY; ctx.fillStyle = '#b81a1a';
+        spaced(ctx, 'SHIFT OVER', 0, 2, 3);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

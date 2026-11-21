@@ -159,6 +159,14 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the harvester barn": "se", "the receiving shed": "he", "the bucket elevator": "spc",
         "the festival stage": "he", "the duck blind": "spc", "the farm stand": "e",
     },
+    "mill": {
+        "the counting house": "shp", "the weave room": "se", "the mill roof": "spc",
+        "the mill yard": "her", "the boiler house": "se", "the dam": "ep", "the falls": "er",
+        "the gorge": "er", "the covered bridge": "se", "the footbridge": "er",
+        "the boarding house": "s", "the company store": "se", "the dye works": "e",
+        "the row houses": "ep", "the church": "sp", "the depot": "se", "the coal yard": "ec",
+        "Kettle House": "sp", "the millpond": "r",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.
