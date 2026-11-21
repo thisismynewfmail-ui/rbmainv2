@@ -211,6 +211,101 @@
     }
   });
 
+
+  // ------------------------------------------------- Lantern Terraces
+  Thumbs.registerWorld('br_lantern', {
+    camera: [[28, 16, 38], [0, 8, -4], 50],
+    sky: { top: '#08112a', horizon: '#3a2a4a', sun: [0.2, 0.45, 0.8], clouds: 0.25, tint: '#ffd8a8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#3a5a2e', { st: 1 });
+      k.box([0, 0.5, -4], [40, 1, 30], '#9a968c', { st: 1 });
+      // the pagoda
+      var y = 1;
+      [[16, 5, '#e8d8b8'], [13, 4, '#a8281c'], [10, 3.4, '#e8d8b8'], [7, 3, '#a8281c']].forEach(function (t) {
+        k.box([0, y + t[1] / 2, -8], [t[0], t[1], t[0] * 0.8], t[2]);
+        y += t[1];
+        k.box([0, y + 0.3, -8], [t[0] + 4, 0.6, t[0] * 0.8 + 4], '#2a3a3a', { st: 1 });
+        y += 0.6;
+      });
+      k.shape('cyl', [0, y + 2, -8], [0.4, 4, 0.4], '#e8b84a', { m: 'metal' });
+      // lantern lines to poles
+      [[-16, 6], [16, 6], [-16, -20], [16, -20]].forEach(function (p) {
+        k.shape('cyl', [p[0], 5, p[1]], [0.4, 10, 0.4], '#7a1c14');
+        for (var i = 1; i < 4; i++) {
+          var f = i / 4;
+          k.shape('sph', [p[0] * f, 9 - Math.sin(f * 3.14) * 1.5, -8 + (p[1] + 8) * f], [1, 1.3, 1],
+                  i % 2 ? '#ff6a2a' : '#e8b84a', { m: 'neon' });
+        }
+      });
+      // terraces of tea up the left
+      for (var t2 = 0; t2 < 5; t2++) {
+        k.box([-34 - t2 * 3, 0.5 + t2, 0], [8, 1 + t2 * 2, 60], '#5a4430', { st: 1 });
+        k.box([-31 - t2 * 3, 1.4 + t2 * 2, 0], [1.2, 1, 58], '#2e6a2a', { st: 1 });
+      }
+      pedestal(k, -24, 0, 14, RED, RED_NEON);
+      k.player(-4, 8, 0.8, { anim: 'run', time: 0.4, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(8, 4, -2.6, { anim: 'run', time: 0.9, wear: cap(RED) });
+    }
+  });
+
+  // ------------------------------------------------- Meteora
+  Thumbs.registerWorld('br_meteora', {
+    camera: [[30, 18, 40], [-4, 12, -4], 50],
+    sky: { top: '#7aa8d8', horizon: '#f2e2c8', sun: [0.55, 0.18, -0.6], clouds: 0.5, tint: '#fff0d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#6a8a4a', { st: 1 });
+      // the monastery pillar and the monastery on it
+      k.box([-18, 6, -10], [22, 12, 24], '#8a7a64', { st: 1 });
+      k.box([-18, 15, -10], [20, 6, 22], '#a89880', { st: 1 });
+      k.box([-18, 20, -10], [12, 4, 10], '#ece6da');
+      k.box([-18, 22.4, -10], [13, 0.8, 11], '#b8582e');
+      k.shape('sph', [-18, 23.4, -10], [5, 3.6, 5], '#984624');
+      // the switchback up its face
+      for (var i = 0; i < 6; i++) k.box([-6.4, 1 + i * 2, -18 + i * 3], [2.8, 2 + i * 4, 3], '#bcae96');
+      // the hermit's pillar, hut and rope bridge
+      k.box([-4, 4, 8], [8, 8, 8], '#a89880', { st: 1 });
+      k.box([-4, 9.5, 8], [4, 3, 4], '#ece6da');
+      k.box([-4, 11.3, 8], [4.6, 0.6, 4.6], '#b8582e');
+      k.box([-10, 8.2, 8], [8, 0.3, 2], '#6a4a2a');
+      // St Ezra's in the valley, cypresses
+      k.box([18, 3, 4], [12, 6, 10], '#ece6da');
+      k.box([18, 6.4, 4], [12.6, 0.8, 10.6], '#b8582e');
+      k.shape('sph', [18, 7.6, 4], [5, 3.6, 5], '#984624');
+      [[10, 12], [26, -4]].forEach(function (c) { k.shape('cone', [c[0], 5, c[1]], [2, 10, 2], '#2a4a2a'); });
+      pedestal(k, -18, 18, -14, RED, RED_NEON);
+      k.player(4, 14, 0.6, { anim: 'run', time: 0.4, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-10, 4, 2.4, { anim: 'idle', time: 0.2, wear: cap(RED) });
+    }
+  });
+
+  // ------------------------------------------------- Circuit City
+  Thumbs.registerWorld('br_circuit', {
+    camera: [[30, 18, 40], [0, 6, -4], 50],
+    sky: { top: '#05060c', horizon: '#1a2a4a', sun: [0.3, 0.7, 0.4], clouds: 0.1, tint: '#9ab8e8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#1f5a3a', { st: 1 });
+      // the CPU and its heatsink and fan
+      k.box([0, 3, -10], [18, 6, 18], '#3a3e46');
+      for (var f = 0; f < 6; f++) k.box([-7.5 + f * 3, 9.5, -10], [0.6, 7, 16], '#b8c0c8', { m: 'metal' });
+      k.box([0, 13.3, -10], [18, 0.6, 18], '#2a2e36');
+      k.shape('cyl', [0, 13.8, -10], [14, 0.4, 14], '#ff4aaa', { m: 'neon' });
+      // capacitors and traces
+      [[-16, 6, '#2a4aa8'], [-12, 10, '#22242a'], [14, 8, '#2a4aa8'], [18, 4, '#22242a']].forEach(function (c) {
+        k.shape('cyl', [c[0], 4, c[1]], [4, 8, 4], c[2]);
+        k.shape('cyl', [c[0], 8.1, c[1]], [3.8, 0.2, 3.8], '#c8ccd2', { m: 'metal' });
+      });
+      k.box([0, 0.04, 6], [80, 0.08, 0.8], '#ffb05a', { m: 'neon' });
+      k.box([-20, 0.05, 0], [0.8, 0.1, 30], '#ffb05a', { m: 'neon' });
+      k.box([22, 0.05, -2], [0.8, 0.1, 24], '#ffb05a', { m: 'neon' });
+      // RAM sticks and the I/O block
+      for (var r = 0; r < 3; r++) k.box([30 + r * 3, 4, -16], [0.6, 7, 18], '#1a3a2a');
+      k.box([-34, 6, -6], [14, 12, 20], '#b8c0c8', { m: 'metal' });
+      pedestal(k, -26, 0, 12, RED, RED_NEON);
+      k.player(4, 10, 0.8, { anim: 'run', time: 0.4, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-8, 4, 2.6, { anim: 'run', time: 0.1, wear: cap(RED) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);
