@@ -1703,5 +1703,152 @@
     }
   });
 
+  /* Launch Complex 9: the moon rocket on the pad at night, searchlights
+     crossing it, oxygen venting white; the count runs down in the corner,
+     the engines light -- fire under it, smoke rolling out across the pad
+     -- and up the crawlerway toward us, lit orange from behind, the crew
+     come shambling.  The name is on a mission patch. */
+  Intro.register('launchpad', {
+    tagline: 'T-minus nothing. Light it anyway.',
+    accent: '#e8682a',
+    cues: [[0.1, 'll_wind', 0.3], [0.8, 'll_beep', 0.6], [1.2, 'll_beep', 0.6], [1.6, 'll_beep', 0.6],
+           [2.0, 'll_beep', 0.7], [2.3, 'll_boom', 0.8], [2.4, 'll_rush', 0.8]],
+    shakes: [[2.32, 8, 0.6]],
+    tagY: 850, tagAt: 2.8,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 220, 0, 480), zeds: [], smoke: [] };
+      var looks = [['#f2f2f2', '#2a2a30', '#6fae55'], ['#c8ccd2', '#c8ccd2', '#7fb069'], ['#e8e8e4', '#e8e8e4', '#5f9a4c'],
+                   ['#2a3a6a', '#1a2a4a', '#86b86a'], ['#e86a2a', '#3a3a3a', '#6c9f68']];
+      for (var i = 0; i < 8; i++) {
+        d.zeds.push({ x: 560 + (i % 4) * 140 + between(r, -30, 30), row: Math.floor(i / 4), at: 0.9 + i * 0.15, p: r() * 6,
+                      look: looks[i % looks.length] });
+      }
+      for (i = 0; i < 26; i++) d.smoke.push({ dir: i % 2 ? 1 : -1, p: r(), y: between(r, -20, 30), s: between(r, 60, 140) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#02040e'], [0.6, '#0a1430'], [1, '#1a2a4a']], 620);
+      starsK(ctx, d.stars, t, 1);
+      // the moon, up where it's going
+      ctx.fillStyle = '#f2f2e6'; ctx.beginPath(); ctx.arc(1320, 140, 46, 0, TAU); ctx.fill();
+      additive(ctx, function () { dot(ctx, '#e8e8ff', 1320, 140, 150, 0.2); });
+      var ign = seg(t, 2.25, 2.45);
+      // the horizon, scrub, the sea far off right
+      ctx.fillStyle = '#0a1018'; ctx.fillRect(0, 600, VW, 300);
+      ctx.fillStyle = '#0e1a2a'; ctx.fillRect(1240, 596, 360, 12);
+      // the searchlight beams
+      additive(ctx, function () {
+        [[300, 0.5], [1300, -0.5], [560, 0.25], [1040, -0.2]].forEach(function (sl, i) {
+          var ang = sl[1] + Math.sin(t * 0.7 + i * 1.9) * 0.12;
+          ctx.save(); ctx.translate(sl[0], 600); ctx.rotate(ang);
+          var g = ctx.createLinearGradient(0, 0, 0, -620);
+          g.addColorStop(0, 'rgba(220,230,255,0.28)'); g.addColorStop(1, 'rgba(220,230,255,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.lineTo(60, -620); ctx.lineTo(-60, -620); ctx.fill();
+          ctx.restore();
+        });
+      });
+      // the umbilical tower
+      ctx.strokeStyle = '#c8562a'; ctx.lineWidth = 4;
+      for (var tl = 0; tl < 2; tl++) { ctx.beginPath(); ctx.moveTo(880 + tl * 40, 600); ctx.lineTo(880 + tl * 40, 140); ctx.stroke(); }
+      ctx.lineWidth = 2;
+      for (var br = 0; br < 12; br++) {
+        ctx.beginPath(); ctx.moveTo(880, 600 - br * 38); ctx.lineTo(920, 562 - br * 38); ctx.moveTo(920, 600 - br * 38); ctx.lineTo(880, 562 - br * 38); ctx.stroke();
+      }
+      ctx.fillStyle = '#c8562a'; ctx.fillRect(840, 132, 120, 8);
+      var blink = Math.floor(t * 1.5) % 2;
+      ctx.fillStyle = blink ? '#ff2a2a' : '#4a1010'; ctx.beginPath(); ctx.arc(900, 126, 5, 0, TAU); ctx.fill();
+      if (blink) additive(ctx, function () { dot(ctx, '#ff3a3a', 900, 126, 26, 0.6); });
+      // the rocket
+      var rx = 800, base = 560;
+      [[0, 120, '#eef0f2'], [120, 30, '#1a1c20'], [150, 70, '#eef0f2'], [220, 24, '#1a1c20']].forEach(function (s) {
+        ctx.fillStyle = s[2]; ctx.fillRect(rx - 34, base - s[0] - s[1], 68, s[1]);
+      });
+      ctx.fillStyle = '#eef0f2'; ctx.fillRect(rx - 24, base - 300, 48, 56);
+      ctx.fillStyle = '#1a1c20'; ctx.fillRect(rx - 24, base - 260, 48, 12);
+      ctx.fillStyle = '#eef0f2'; ctx.beginPath(); ctx.moveTo(rx - 22, base - 300); ctx.lineTo(rx, base - 340); ctx.lineTo(rx + 22, base - 300); ctx.fill();
+      ctx.fillStyle = '#e8682a'; ctx.fillRect(rx - 2, base - 384, 4, 46);
+      ctx.fillStyle = '#1a1c20';
+      [[-48, -34], [34, 48]].forEach(function (f) { ctx.beginPath(); ctx.moveTo(rx + f[0], base); ctx.lineTo(rx + (f[0] < 0 ? -34 : 34), base - 50); ctx.lineTo(rx + f[1], base); ctx.fill(); });
+      // the mount and the pad
+      ctx.fillStyle = '#4a5058'; ctx.fillRect(rx - 90, base, 180, 16);
+      ctx.fillStyle = '#5a6068'; ctx.fillRect(0, base + 16, VW, 24);
+      // vapour off it
+      for (var v = 0; v < 8; v++) {
+        var vu = (t * 0.4 + v / 8) % 1, vs = v % 2 ? 1 : -1;
+        ctx.fillStyle = 'rgba(240,244,250,' + (0.4 * (1 - vu)) + ')';
+        ctx.beginPath(); ctx.arc(rx + vs * (40 + vu * 60), base - 60 - (v % 4) * 50 + vu * 20, 10 + vu * 26, 0, TAU); ctx.fill();
+      }
+      // ignition: fire under it, smoke rolling out both ways
+      if (ign > 0) {
+        additive(ctx, function () { dot(ctx, '#ffb04a', rx, base + 30, 420 * ign, 0.6); });
+        for (var fl = 0; fl < 5; fl++) {
+          var fh = (80 + fl * 20) * ign * (0.85 + 0.15 * Math.sin(t * 30 + fl));
+          var g2 = ctx.createLinearGradient(0, base, 0, base + fh);
+          g2.addColorStop(0, 'rgba(255,250,210,0.95)'); g2.addColorStop(1, 'rgba(255,120,40,0)');
+          ctx.fillStyle = g2;
+          ctx.beginPath(); ctx.moveTo(rx - 30 + fl * 15, base); ctx.lineTo(rx - 40 + fl * 15 - 10, base + fh); ctx.lineTo(rx - 20 + fl * 15 + 10, base + fh); ctx.fill();
+        }
+        d.smoke.forEach(function (sm) {
+          var q = Math.min(1, (t - 2.25) * 0.7 + sm.p * 0.3);
+          var sx = rx + sm.dir * q * (300 + sm.p * 500);
+          ctx.fillStyle = 'rgba(' + (q < 0.3 ? '255,180,110' : '200,196,192') + ',' + (0.7 * (1 - q * 0.6)) + ')';
+          ctx.beginPath(); ctx.arc(sx, base + 30 + sm.y - q * 40, sm.s * (0.4 + q), 0, TAU); ctx.fill();
+        });
+      }
+      // the crawlerway toward us, and them on it
+      ctx.fillStyle = '#2a2e34';
+      ctx.beginPath(); ctx.moveTo(700, 640); ctx.lineTo(900, 640); ctx.lineTo(1100, VH); ctx.lineTo(500, VH); ctx.fill();
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var y = 700 + z.row * 90 + (t - z.at) * 26, s = 1.8 + z.row * 0.8;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x, y, s, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+      });
+      // the count in the corner
+      var count = Math.max(0, 10 - Math.floor(seg(t, 0.4, 2.25) * 10));
+      ctx.font = '900 46px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.fillStyle = count === 0 ? '#ffd84a' : '#ff5a2a';
+      ctx.fillText(count === 0 ? 'IGNITION' : 'T-00:00:' + (count < 10 ? '0' : '') + count, 60, 140);
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Launch Complex 9').toUpperCase();
+      var k = outBack(seg(t, 0.4, 0.85), 1.4);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 250);
+      ctx.scale(0.75 * k, 0.75 * k);
+      ctx.rotate((1 - k) * 0.6);
+      // the patch: a stitched border, the night, the moon, the rocket going
+      ctx.fillStyle = '#c8a83a'; ctx.beginPath(); ctx.arc(0, 0, 176, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#0e1a3a'; ctx.beginPath(); ctx.arc(0, 0, 164, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#e8e0c8'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.arc(0, 0, 170, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      for (var st = 0; st < 14; st++) {
+        var a = st / 14 * TAU, rr = 90 + (st % 3) * 22;
+        ctx.fillStyle = '#e8e0c8'; ctx.fillRect(Math.cos(a) * rr - 2, Math.sin(a) * rr - 2, 4, 4);
+      }
+      ctx.fillStyle = '#e8e8dc'; ctx.beginPath(); ctx.arc(70, -70, 42, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#0e1a3a'; ctx.beginPath(); ctx.arc(52, -82, 38, 0, TAU); ctx.fill();
+      ctx.save(); ctx.rotate(0.5);
+      ctx.fillStyle = '#eef0f2'; ctx.fillRect(-10, -60, 20, 100);
+      ctx.beginPath(); ctx.moveTo(-10, -60); ctx.lineTo(0, -88); ctx.lineTo(10, -60); ctx.fill();
+      ctx.fillStyle = '#ff8a2a'; ctx.beginPath(); ctx.moveTo(-10, 40); ctx.lineTo(0, 90); ctx.lineTo(10, 40); ctx.fill();
+      ctx.restore();
+      // the ribbon across it with the name
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 60, 700, 0.05);
+      ctx.fillStyle = '#a8282e';
+      ctx.beginPath(); ctx.moveTo(-430, 60); ctx.lineTo(-360, 60); ctx.lineTo(-360, 150); ctx.lineTo(-430, 150); ctx.lineTo(-400, 105); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(430, 60); ctx.lineTo(360, 60); ctx.lineTo(360, 150); ctx.lineTo(430, 150); ctx.lineTo(400, 105); ctx.fill();
+      ctx.fillStyle = '#c8382e'; roundRect(ctx, -380, 50, 760, 96, 8); ctx.fill();
+      ctx.strokeStyle = '#e8e0c8'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
+      roundRect(ctx, -370, 58, 740, 80, 6); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2ece0';
+      spaced(ctx, name, 0, 98, size * 0.05);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

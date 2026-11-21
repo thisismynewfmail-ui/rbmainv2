@@ -329,6 +329,33 @@
         hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.2, 0.12, 2.2], c: '#141414' },
                   { t: 'cyl', p: [0, 0.75, 0], s: [1.4, 1.4, 1.4], c: '#141414' },
                   { t: 'cyl', p: [0, 0.2, 0], s: [1.44, 0.16, 1.44], c: '#5a1a1a' }]) }
+    ],
+    // Launch Complex 9: launch control in shirtsleeves and ties, the
+    // astronauts suited up, the pad crews, security, the press
+    launchpad: [
+      CLASSIC,
+      { shirt: shirt('#f2f2f2', '#f2f2f2', { sleeves: 0.35, decal: 'tux' }), pants: pants('#2a2a30'),
+        hair: hair([{ p: [0, 0.36, 0.1], s: [1.08, 0.4, 1.12], c: '#2a2014' }]) },
+      { shirt: shirt('#c8ccd2', '#c8ccd2', { weave: 'ea25_foil' }), pants: pants('#c8ccd2', { weave: 'ea25_foil' }),
+        hat: hat([{ t: 'sph', p: [0, -0.3, 0], s: [2.2, 2.2, 2.2], c: '#cfe8ff', a: 0.35 },
+                  { t: 'cyl', p: [0, -1.25, 0], s: [1.9, 0.3, 1.9], c: '#c8ccd2' }]) },
+      { shirt: shirt('#e8e8e4', '#e8e8e4', { weave: 'canvas' }), pants: pants('#e8e8e4', { weave: 'canvas' }),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0], s: [1.7, 1.0, 1.7], c: '#f2f2f2' },
+                  { t: 'box', p: [0, 0.02, 0.84], s: [1.3, 0.1, 0.4], c: '#f2f2f2' }]) },
+      { shirt: shirt('#2a3a6a', '#2a3a6a', { decal: 'logo_block' }), pants: pants('#1a2a4a'),
+        hat: hat([{ t: 'box', p: [0, 0.18, 0], s: [1.66, 0.36, 1.66], c: '#1a2a4a' },
+                  { t: 'box', p: [0, 0.05, 0.98], s: [1.4, 0.1, 0.6], c: '#1a1a1a' }]) },
+      { shirt: shirt('#8a7a5a', '#8a7a5a', { weave: 'ea25_houndstooth' }), pants: pants('#4a4a44'),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.2, 0.12, 2.2], c: '#5a4a3a' },
+                  { t: 'cyl', p: [0, 0.42, 0], s: [1.4, 0.6, 1.4], c: '#5a4a3a' },
+                  { t: 'cyl', p: [0, 0.22, 0], s: [1.44, 0.14, 1.44], c: '#2a2a2a' }]) },
+      { shirt: shirt('#e86a2a', '#e86a2a', { weave: 'hivis', stripe: '#c8cbcd' }), pants: pants('#3a3a3a'),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0], s: [1.7, 1.0, 1.7], c: '#e8c81a' }]) },
+      { shirt: shirt('#f2f2f2', '#f2f2f2', { sleeves: 0.35 }), pants: pants('#5a5a5a'),
+        hat: hat([{ t: 'box', p: [0.42, -0.1, 0.84], s: [0.6, 0.4, 0.08], c: '#1a1a1a' },
+                  { t: 'box', p: [-0.42, -0.1, 0.84], s: [0.6, 0.4, 0.08], c: '#1a1a1a' },
+                  { t: 'box', p: [0, -0.02, 0.84], s: [0.3, 0.1, 0.08], c: '#1a1a1a' }]),
+        hair: hair([{ p: [0, 0.38, 0.0], s: [1.08, 0.36, 1.08], c: '#3a2a1a' }]) }
     ]
   };
 

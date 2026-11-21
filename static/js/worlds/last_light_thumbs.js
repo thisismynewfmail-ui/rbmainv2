@@ -459,5 +459,57 @@
     }
   });
 
+  /* Launch Complex 9: up the crawlerway at night to the moon rocket on its
+     pad, the orange tower beside it and searchlights on it; the service
+     structure rolled back, the infected coming up the crawlerway, the team
+     on top of the structure. */
+  Thumbs.registerWorld('ll_launchpad', {
+    camera: [[-44, 34, -62], [0, 24, 60], 58],
+    sky: { top: '#04081a', horizon: '#1a2a4a', sun: [0.3, 0.6, 0.6], clouds: 0.1, tint: '#a8b8e8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [260, 1, 260], '#5a6a3a', { st: 1 });
+      k.box([-9, 0.15, -10], [10, 0.3, 130], '#9a968a', { st: 1 });
+      k.box([9, 0.15, -10], [10, 0.3, 130], '#9a968a', { st: 1 });
+      for (var t = 0; t < 3; t++) k.box([0, 1 + t * 2, 70], [90 - t * 20, 2, 70 - t * 16], t % 2 ? '#b6bcc1' : '#9aa0a6', { st: 1 });
+      // the rocket
+      var y = 14;
+      [[6, 6.6, '#eef0f2'], [6, 6.6, '#1a1c20'], [14, 6.6, '#eef0f2'], [2, 6.8, '#1a1c20'], [10, 6.3, '#eef0f2'],
+       [6, 6.3, '#1a1c20'], [4, 6.3, '#eef0f2'], [8, 4.4, '#eef0f2'], [4, 4.4, '#1a1c20']].forEach(function (s) {
+        k.shape('cyl', [0, y + s[0] / 2, 70], [s[1] * 2, s[0], s[1] * 2], s[2]);
+        y += s[0];
+      });
+      k.shape('cone', [0, y + 3, 70], [8, 6, 8], '#eef0f2');
+      k.box([0, y + 10, 70], [0.8, 8, 0.8], '#e8682a');
+      k.box([0, 12, 70], [24, 4, 24], '#4a5058');
+      // the tower
+      for (var lx = 0; lx < 2; lx++) for (var lz = 0; lz < 2; lz++) k.box([23 + lx * 10, 45, 65 + lz * 10], [1.6, 78, 1.6], '#e8682a');
+      k.box([28, 85, 70], [20, 1.2, 20], '#e8682a');
+      for (var a = 0; a < 3; a++) k.box([14, 30 + a * 20, 70], [16, 1.2, 2.4], '#8a8f94');
+      k.shape('sph', [28, 87, 70], [1.6, 1.6, 1.6], '#ff2a2a', { m: 'neon' });
+      // searchlight beams
+      for (var b = 0; b < 3; b++) k.box([-30 + b * 30, 40, 40], [2.6, 2.6, 90], '#e8f0ff', { m: 'neon', a: 0.08, r: [0.6, (b - 1) * 0.3, 0] });
+      // the service structure, rolled back, the team on top
+      k.box([0, 10, -10], [40, 0.6, 24], '#8a8f94', { st: 1 });
+      k.box([0, 20, -16], [40, 0.6, 12], '#8a8f94', { st: 1 });
+      k.box([-10, 30, -16], [20, 0.6, 12], '#8a8f94', { st: 1 });
+      for (var p = 0; p < 4; p++) k.box([p % 2 ? 19.4 : -19.4, 5, p < 2 ? -21.4 : 1.4], [1.2, 10, 1.2], '#c8382a');
+      for (var q = 0; q < 2; q++) k.box([q ? 19.4 : -19.4, 15, -21.4], [1.2, 10, 1.2], '#c8382a');
+      k.box([-19.4, 25, -21.4], [1.2, 10, 1.2], '#c8382a');
+      k.survivor(-12, -18, 0.3, 0, 30.3);
+      k.survivor(-6, -14, 0.1, 1, 30.3);
+      k.survivor(8, -16, -0.2, 2, 20.3);
+      // the crew coming up the crawlerway
+      k.zombie('common', -6, 18, 0, 1, 'launchpad', 0, 0.3);
+      k.zombie('common', 8, 22, 0, 2, 'launchpad', 2, 0.3);
+      k.zombie('common', -10, 28, 0, 3, 'launchpad', 0, 0.3);
+      k.zombie('common', 4, 30, 0, 5, 'launchpad', 0, 2.3);
+      k.zombie('common', 12, 16, -0.3, 4, 'launchpad', 2, 0.3);
+      k.zombie('common', -2, 40, 0, 6, 'launchpad', 0, 2.3);
+      // the blockhouse dome off to the side
+      k.box([-70, 6, -40], [50, 12, 40], '#9aa0a6');
+      for (var d2 = 0; d2 < 4; d2++) k.box([-70, 13.2 + d2 * 2, -40], [42 - d2 * 8, 2, 32 - d2 * 8], '#b6bcc1');
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

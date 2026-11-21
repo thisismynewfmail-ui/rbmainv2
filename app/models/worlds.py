@@ -332,6 +332,13 @@ WORLDS: List[Dict[str, Any]] = [
                       "roof and its belfry -- and blow the mill whistle to call "
                       "the dead back to the yard for their shift. The wheel "
                       "never stopped turning."},
+            {"id": "launchpad", "name": "Launch Complex 9",
+             "blurb": "The night of the launch that never went. Hold the domed "
+                      "blockhouse behind its blast door, climb the service "
+                      "structure for the view, cross the pad under the moon "
+                      "rocket -- and resume the countdown to light the engines "
+                      "in the flame trench and bring the horde onto the pad. "
+                      "Mind the canal."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws
