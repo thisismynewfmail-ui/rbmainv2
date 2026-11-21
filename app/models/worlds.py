@@ -311,6 +311,13 @@ WORLDS: List[Dict[str, Any]] = [
                       "subway set, the moon and the castle hall in the sound "
                       "stages, the pirate ship in its tank -- and fire the war "
                       "set's special effects. The infected were the cast."},
+            {"id": "fair", "name": "Harrow County Fair",
+             "blurb": "The last night of the county fair, the lights just on. "
+                      "Hold the exhibition hall among the quilts and the pies, "
+                      "find the lookout in the middle of the corn maze, climb "
+                      "the hay pyramid and the grain elevator -- and start the "
+                      "demolition derby from the grandstand to send the horde "
+                      "into the mud pit. The rides are still turning."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

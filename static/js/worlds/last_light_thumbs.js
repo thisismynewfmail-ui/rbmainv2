@@ -209,5 +209,115 @@
     }
   });
 
+  /* Harrow County Fair: up the midway at dusk to the Ferris wheel, the
+     carousel turning, the team on top of the hay pyramid -- and the county
+     coming out of the corn maze. */
+  Thumbs.registerWorld('ll_fair', {
+    camera: [[-4, 18, -40], [4, 17, 50], 56],
+    sky: { top: '#2a2a5a', horizon: '#e8885a', sun: [-0.5, 0.15, 0.7], clouds: 0.2, tint: '#ffc8a0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [220, 1, 220], '#5a7a38', { st: 1 });
+      k.box([0, 0.2, 18], [14, 0.4, 100], '#b89a6a', { st: 1 });
+      // the Ferris wheel at the end of the midway
+      var wx = 6, wy = 36, wz = 74, R = 26;
+      for (var lx = -1; lx <= 1; lx += 2) {
+        for (var lz = -1; lz <= 1; lz += 2) k.box([wx + lx * 4.8, wy / 2, wz + lz * 3], [1.6, wy, 1.6], '#e8e8e8');
+      }
+      k.box([wx, wy, wz], [9, 2.4, 8], '#e8e8e8');
+      for (var sp = 0; sp < 8; sp++) {
+        k.box([wx, wy, wz - 2.6], [2 * R, 0.5, 0.5], '#d8d8d8', { r: [0, 0, sp * Math.PI / 8] });
+      }
+      var bulbs = ['#ff5a5a', '#ffd84a', '#5ac8ff', '#8aff7a', '#ff8ad8'];
+      for (var b = 0; b < 36; b++) {
+        var a = b / 36 * Math.PI * 2;
+        k.shape('sph', [wx + Math.cos(a) * R, wy + Math.sin(a) * R, wz - 2.6], [1.3, 1.3, 1.3], bulbs[b % 5],
+                { m: 'neon' });
+        k.shape('sph', [wx + Math.cos(a) * R, wy + Math.sin(a) * R, wz + 2.6], [0.9, 0.9, 0.9], '#c8c8c8');
+      }
+      for (var g = 0; g < 12; g++) {
+        var ag = g / 12 * Math.PI * 2 + 0.13;
+        var gx = wx + Math.cos(ag) * R, gy = wy + Math.sin(ag) * R;
+        k.box([gx, gy - 1.4, wz], [0.3, 2.8, 0.3], '#5a5f66');
+        k.box([gx, gy - 4.2, wz], [3.6, 3.0, 3.8], ['#e83a3a', '#3a7ac8', '#f2c83a', '#5aa86a'][g % 4]);
+        k.box([gx, gy - 2.6, wz], [4.0, 0.4, 4.2], '#f2ece0');
+      }
+      // the midway: booths both sides, striped awnings, the prizes
+      var stripes = ['#c43a32', '#3a7ac8', '#e8b83a', '#5aa86a'];
+      for (var i = 0; i < 3; i++) {
+        var bz = -2 + i * 18;
+        for (var side = -1; side <= 1; side += 2) {
+          var bx = side * 13;
+          k.box([bx + side * 4.5, 4, bz], [1, 8, 14], stripes[(i + side + 4) % 4]);
+          k.box([bx - side * 2.5, 1.5, bz], [1.4, 3, 14], '#8a6a48', { st: 1 });
+          for (var st = 0; st < 7; st++) {
+            k.box([bx, 8.4, bz - 6 + st * 2], [10, 0.5, 2], st % 2 ? '#f2ece0' : stripes[(i + 1 + side + 4) % 4]);
+          }
+          for (var pz = 0; pz < 4; pz++) {
+            k.box([bx + side * 3.4, 5.4, bz - 4.5 + pz * 3], [1.2, 1.4, 1.2], ['#e890b0', '#f2d83a', '#8ad8e8', '#c8a070'][pz]);
+          }
+        }
+      }
+      // the strings of lights over the midway
+      for (var ln = 0; ln < 3; ln++) {
+        var sz = 2 + ln * 18;
+        for (var q = 0; q <= 12; q++) {
+          var u = q / 12;
+          k.shape('sph', [-9 + u * 18, 11.6 - Math.sin(u * Math.PI) * 1.8, sz], [0.6, 0.6, 0.6],
+                  ['#fff2a8', '#ffb86a', '#ff8a8a'][(q + ln) % 3], { m: 'neon' });
+        }
+      }
+      // the carousel on the left
+      var cx = -32, cz = 34;
+      k.shape('cyl', [cx, 0.6, cz], [24, 1.2, 24], '#c8a060');
+      k.shape('cyl', [cx, 7, cz], [3, 12, 3], '#e8c83a', { m: 'metal' });
+      k.shape('cyl', [cx, 12.6, cz], [27, 1, 27], '#f2ece0');
+      k.shape('cone', [cx, 15.6, cz], [28, 5.4, 28], '#e83a3a');
+      var horses = ['#f2ece0', '#3a2a1a', '#c8a070', '#8a8a8a'];
+      for (var h = 0; h < 8; h++) {
+        var ah = h / 8 * Math.PI * 2;
+        var hx = cx + Math.cos(ah) * 9, hz = cz + Math.sin(ah) * 9, hy = 3.6 + (h % 2) * 1.2;
+        k.shape('cyl', [hx, 6.6, hz], [0.4, 11, 0.4], '#e8c83a', { m: 'metal' });
+        k.attach(hx, hy, hz, -ah, [
+          { t: 'box', p: [0, 0, 0], s: [1.2, 1.4, 3.4], c: horses[h % 4] },
+          { t: 'box', p: [0, 1.4, 1.7], s: [0.9, 2.0, 1.0], c: horses[h % 4] },
+          { t: 'box', p: [0, 2.0, 2.3], s: [0.8, 0.8, 1.4], c: horses[h % 4] },
+          { t: 'box', p: [0, -1.4, 1.1], s: [0.3, 1.6, 0.3], c: horses[h % 4] },
+          { t: 'box', p: [0, -1.4, -1.1], s: [0.3, 1.6, 0.3], c: horses[h % 4] }]);
+        k.shape('sph', [cx + Math.cos(ah + 0.4) * 13.2, 12.6, cz + Math.sin(ah + 0.4) * 13.2], [0.7, 0.7, 0.7],
+                '#fff2a8', { m: 'neon' });
+      }
+      // the corn maze beyond it, the infected coming out
+      for (var mx = 0; mx < 6; mx++) {
+        for (var mz = 0; mz < 3; mz++) {
+          if ((mx + mz) % 3 === 1) continue;
+          k.box([-74 + mx * 9, 4, 58 + mz * 12], [2, 8, 10], '#7a8a2a', { st: 1 });
+        }
+      }
+      k.horde(12, -60, 50, -40, 16, 0.6, 'fair', 7);
+      // the hay pyramid in front on the right, the team on top
+      for (var t = 0; t < 4; t++) {
+        k.box([31, 1 + t * 2, 16], [16 - t * 3.6, 2, 16 - t * 3.6], t % 2 ? '#c8b060' : '#d8c070', { st: 1 });
+      }
+      k.survivor(30, 15, -0.5, 0, 8.0);
+      k.survivor(33, 18, -0.9, 1, 8.0);
+      k.survivor(26, 10, -0.2, 2, 4.0);
+      // the county coming down the midway
+      k.zombie('common', 1, 8, Math.PI + 0.2, 7, 'fair', 2, 0.4);
+      k.zombie('common', -3, 14, Math.PI, 1, 'fair', 0, 0.4);
+      k.zombie('common', -2, 22, Math.PI, 5, 'fair', 0, 0.4);
+      k.zombie('common', 3, 30, Math.PI, 1, 'fair', 2, 0.4);
+      k.zombie('common', -4, 36, Math.PI, 5, 'fair', 0, 0.4);
+      k.zombie('common', 2, 42, Math.PI, 3, 'fair', 0, 0.4);
+      k.zombie('common', -1, 50, Math.PI, 4, 'fair', 2, 0.4);
+      k.zombie('common', 4, 56, Math.PI, 6, 'fair', 0, 0.4);
+      k.zombie('common', -3, 60, Math.PI, 2, 'fair', 0, 0.4);
+      // the grain elevator off to the right, the tree line
+      for (var si = 0; si < 3; si++) k.shape('cyl', [60 + si * 10, 14, 110], [10, 28, 10], '#c8c4b8');
+      k.box([70, 28.6, 110], [32, 1.2, 12], '#8a8f94');
+      k.box([70, 20, 104.6], [16, 3, 0.4], '#a83a2a');
+      for (var tr = 0; tr < 9; tr++) k.pine(-90 + tr * 22, 130, 2.2 + (tr % 3) * 0.3, '#2a3a24');
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

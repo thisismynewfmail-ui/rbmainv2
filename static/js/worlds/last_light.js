@@ -1093,5 +1093,261 @@
     }
   });
 
+  /* Harrow County Fair: the sun going down behind the Ferris wheel, its
+     lights coming on round the rim and along the strings over the midway;
+     the high striker in front sends its puck up and rings the bell -- and
+     out of the corn in the foreground the county comes shambling, straw
+     hats and all.  The name comes in on a first-prize rosette. */
+  Intro.register('fair', {
+    tagline: 'Last night of the fair. Keep your arms inside the ride.',
+    accent: '#ff8a5a',
+    cues: [[0.1, 'll_wind', 0.4], [0.7, 'll_click', 0.5], [0.95, 'll_click', 0.4], [1.72, 'll_ding', 0.8],
+           [2.6, 'll_moo', 0.5]],
+    shakes: [[1.72, 3, 0.2]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 90, 0, 300), corn: [], zeds: [], tents: [] };
+      for (var i = 0; i < 90; i++) {
+        d.corn.push({ x: between(r, -20, VW + 20), h: between(r, 110, 190), p: r() * 6, row: i % 2 });
+      }
+      var looks = [['#b8382e', '#3a5a8a', '#6fae55', 'straw'], ['#f2ece0', '#2a5a3a', '#7fb069', 'cap'],
+                   ['#c43a32', '#1b1b1b', '#5f9a4c', ''], ['#e8e0cc', '#2a3a5a', '#86b86a', 'bun'],
+                   ['#3a5a8a', '#2f4f7a', '#6c9f68', 'cowboy'], ['#f2b0b0', '#f2b0b0', '#f2b0b0', 'pig']];
+      for (i = 0; i < 7; i++) {
+        d.zeds.push({ x: 420 + i * 175 + between(r, -40, 40), p: r() * 6, look: looks[(i * 5) % looks.length],
+                      at: 1.1 + i * 0.16 + r() * 0.2, s: between(r, 2.5, 3.0) });
+      }
+      for (i = 0; i < 6; i++) {
+        d.tents.push({ x: 40 + i * 150 + between(r, -20, 20), w: between(r, 100, 140), h: between(r, 70, 110),
+                       c: ['#c43a32', '#3a7ac8', '#e8b83a', '#5aa86a'][i % 4] });
+      }
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var dusk = seg(t, 0, 3);
+      sky(ctx, [[0, mix('#2a2a5a', '#14143a', dusk)], [0.55, mix('#c8586a', '#7a3a6a', dusk)],
+                [0.85, '#f2985a'], [1, '#ffc870']], 600);
+      starsK(ctx, d.stars, t, dusk * 0.8);
+      // the sun going down behind the tree line
+      additive(ctx, function () { dot(ctx, '#ffb060', 560, 570, 340, 0.35); });
+      ctx.fillStyle = '#ffd890';
+      ctx.beginPath(); ctx.arc(560, 572 + dusk * 26, 74, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#2a1e2e';
+      for (var x = -20; x < VW + 40; x += 34) pineK(ctx, x, 580, 46 + Math.sin(x * 0.7) * 16, '#2a1e2e', 0);
+      ctx.fillRect(0, 574, VW, 340);
+      // the midway's tents along the horizon, striped
+      d.tents.forEach(function (tn) {
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(tn.x - tn.w / 2, 600); ctx.lineTo(tn.x, 600 - tn.h); ctx.lineTo(tn.x + tn.w / 2, 600);
+        ctx.closePath(); ctx.clip();
+        for (var st = 0; st < 8; st++) {
+          ctx.fillStyle = st % 2 ? '#f2ece0' : tn.c;
+          ctx.fillRect(tn.x - tn.w / 2 + st * tn.w / 8, 600 - tn.h, tn.w / 8 + 1, tn.h);
+        }
+        ctx.fillStyle = 'rgba(40,20,50,' + (0.35 + dusk * 0.35) + ')';
+        ctx.fillRect(tn.x - tn.w / 2, 600 - tn.h, tn.w, tn.h);
+        ctx.restore();
+        ctx.fillStyle = '#2a1e2e'; ctx.fillRect(tn.x - 1, 600 - tn.h - 14, 2, 14);
+      });
+      // the Ferris wheel: legs, rim, spokes, the gondolas hanging level
+      var wx = 1180, wy = 300, R = 220, turn = t * 0.14;
+      ctx.strokeStyle = '#1e1626'; ctx.lineWidth = 12;
+      ctx.beginPath(); ctx.moveTo(wx - 140, 640); ctx.lineTo(wx, wy); ctx.lineTo(wx + 140, 640); ctx.stroke();
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(wx, wy, R, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(wx, wy, R - 26, 0, TAU); ctx.stroke();
+      for (var sp = 0; sp < 16; sp++) {
+        var a = turn + sp / 16 * TAU;
+        ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(wx + Math.cos(a) * R, wy + Math.sin(a) * R); ctx.stroke();
+      }
+      var lightsOn = seg(t, 0.7, 1.2);
+      var bulbs = ['#ff5a5a', '#ffd84a', '#5ac8ff', '#8aff7a', '#ff8ad8'];
+      for (var b = 0; b < 32; b++) {
+        var ab = turn + b / 32 * TAU;
+        var bx = wx + Math.cos(ab) * R, by = wy + Math.sin(ab) * R;
+        var lit = b / 32 < lightsOn && (b + Math.floor(t * 8)) % 4 !== 0;
+        ctx.fillStyle = lit ? bulbs[b % 5] : '#3a2a3a';
+        ctx.beginPath(); ctx.arc(bx, by, 5, 0, TAU); ctx.fill();
+        if (lit) additive(ctx, function () { dot(ctx, bulbs[b % 5], bx, by, 16, 0.4); });
+      }
+      for (var g = 0; g < 12; g++) {
+        var ag = turn + g / 12 * TAU;
+        var gx = wx + Math.cos(ag) * R, gy = wy + Math.sin(ag) * R;
+        var sw = Math.sin(t * 1.4 + g) * 0.08;
+        ctx.save(); ctx.translate(gx, gy); ctx.rotate(sw);
+        ctx.strokeStyle = '#1e1626'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 16); ctx.stroke();
+        ctx.fillStyle = ['#a83a3a', '#3a5aa8', '#c8a03a', '#4a8a5a'][g % 4];
+        roundRect(ctx, -18, 16, 36, 26, 6); ctx.fill();
+        ctx.fillStyle = lightsOn > 0.5 ? 'rgba(255,220,150,0.6)' : 'rgba(30,20,30,0.6)';
+        ctx.fillRect(-12, 20, 24, 8);
+        ctx.restore();
+      }
+      ctx.fillStyle = '#2a1e2e';
+      ctx.beginPath(); ctx.arc(wx, wy, 18, 0, TAU); ctx.fill();
+      // the strings of bulbs over the midway, lighting along
+      for (var line = 0; line < 3; line++) {
+        var x0 = -40 + line * 40, x1 = wx - 60, y0 = 150 + line * 70, sag = 90 + line * 20;
+        ctx.strokeStyle = '#1e1626'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (var u = 0; u <= 1.0001; u += 0.05) {
+          var px = lerp(x0, x1, u), py = lerp(y0, wy + 40, u) + Math.sin(u * Math.PI) * sag;
+          if (u === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        for (var k = 0; k < 26; k++) {
+          var uu = (k + 0.5) / 26;
+          var qx = lerp(x0, x1, uu), qy = lerp(y0, wy + 40, uu) + Math.sin(uu * Math.PI) * sag + 6;
+          var on = seg(t, 0.9 + uu * 0.5 + line * 0.1, 1.0 + uu * 0.5 + line * 0.1);
+          var c2 = ['#fff2a8', '#ffb86a', '#ff8a8a'][(k + line) % 3];
+          ctx.fillStyle = on > 0.5 ? c2 : '#3a2a3a';
+          ctx.beginPath(); ctx.arc(qx, qy, 4, 0, TAU); ctx.fill();
+          if (on > 0.5) additive(ctx, function () { dot(ctx, c2, qx, qy, 12, 0.35); });
+        }
+      }
+      // the field going down to the corn
+      var gr = ctx.createLinearGradient(0, 600, 0, VH);
+      gr.addColorStop(0, '#2a2a1e'); gr.addColorStop(1, '#141410');
+      ctx.fillStyle = gr; ctx.fillRect(0, 610, VW, 300);
+      // the high striker: the pole, its lights, the puck and the bell
+      var hx = 190, hb = 800, ht = 290;
+      ctx.fillStyle = '#a82a24'; ctx.fillRect(hx - 13, ht, 26, hb - ht);
+      ctx.fillStyle = '#f2ece0';
+      ctx.save(); ctx.translate(hx, (ht + hb) / 2); ctx.rotate(-Math.PI / 2);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      spaced(ctx, 'HIGH  STRIKER', 0, 0, 4);
+      ctx.restore(); ctx.textAlign = 'left';
+      var rise = t < 1.32 ? 0 : (t < 1.72 ? outCubic(seg(t, 1.32, 1.72)) : 1 - inOut(seg(t, 1.9, 2.6)));
+      var puckY = lerp(hb - 30, ht + 30, rise);
+      for (var lb = 0; lb < 12; lb++) {
+        var ly = lerp(hb - 40, ht + 40, lb / 11);
+        var lit2 = ly >= puckY - 4;
+        ctx.fillStyle = lit2 ? '#ffd84a' : '#4a2a1a';
+        ctx.fillRect(hx + 16, ly - 5, 10, 10);
+        if (lit2) additive(ctx, function () { dot(ctx, '#ffb84a', hx + 21, ly, 14, 0.3); });
+      }
+      ctx.fillStyle = '#c8c8c8'; ctx.fillRect(hx - 20, puckY - 9, 40, 18);
+      var ring = seg(t, 1.72, 1.74) * (1 - seg(t, 1.74, 2.6));
+      ctx.fillStyle = ring > 0 ? mix('#e8c83a', '#fff8d8', ring) : '#c8a03a';
+      ctx.beginPath(); ctx.arc(hx, ht - 4, 34, Math.PI, 0); ctx.lineTo(hx + 38, ht + 6); ctx.lineTo(hx - 38, ht + 6); ctx.fill();
+      if (ring > 0) {
+        additive(ctx, function () {
+          dot(ctx, '#fff2a8', hx, ht - 10, 160, 0.5 * ring);
+          ctx.strokeStyle = 'rgba(255,242,168,' + (0.8 * ring) + ')'; ctx.lineWidth = 4;
+          for (var w2 = 0; w2 < 3; w2++) {
+            var rr = 40 + ((t - 1.72) * 300 + w2 * 40) % 160;
+            ctx.beginPath(); ctx.arc(hx, ht - 10, rr, -Math.PI * 0.9, -Math.PI * 0.1); ctx.stroke();
+          }
+        });
+      }
+      ctx.fillStyle = '#6a4a2a'; ctx.fillRect(hx - 60, hb - 14, 120, 24);
+      // the corn: the back row, the infected getting up out of it, the front row
+      function corn(row) {
+        d.corn.forEach(function (c) {
+          if (c.row !== row) return;
+          var base = row ? 836 : 770, sway = Math.sin(t * 1.6 + c.p) * 6, ch = row ? c.h * 0.62 : c.h;
+          ctx.strokeStyle = row ? '#2a3a14' : '#3a4a1a'; ctx.lineWidth = row ? 7 : 5;
+          ctx.beginPath(); ctx.moveTo(c.x, base); ctx.quadraticCurveTo(c.x + sway * 0.3, base - ch * 0.5, c.x + sway, base - ch);
+          ctx.stroke();
+          ctx.fillStyle = row ? '#24300f' : '#34441a';
+          for (var lf = 0; lf < 3; lf++) {
+            var ly2 = base - ch * (0.3 + lf * 0.22), side = lf % 2 ? 1 : -1;
+            ctx.beginPath(); ctx.moveTo(c.x + sway * 0.4, ly2);
+            ctx.quadraticCurveTo(c.x + side * 40, ly2 - 26, c.x + side * 58 + sway, ly2 + 6);
+            ctx.quadraticCurveTo(c.x + side * 30, ly2 - 8, c.x + sway * 0.4, ly2 + 4); ctx.fill();
+          }
+          ctx.fillStyle = '#c8a040';
+          ctx.fillRect(c.x + sway - 3, base - ch - 16, 6, 18);
+        });
+      }
+      corn(0);
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.7);
+        if (k2 <= 0) return;
+        var y = lerp(940, 826, outCubic(k2)) + (t - z.at) * 6;
+        var x = z.x + Math.sin(t + z.p) * 5, s = z.s, dir = z.x < 800 ? 1 : -1;
+        LL.shambler(ctx, x, y, s, t, z.look, dir, z.p);
+        var hx2 = x, hy = y - 68 * s;
+        if (z.look[3] === 'straw') {
+          ctx.fillStyle = '#e0c878'; ctx.fillRect(hx2 - 15 * s, hy - 1 * s, 30 * s, 3 * s); ctx.fillRect(hx2 - 8 * s, hy - 8 * s, 16 * s, 8 * s);
+          ctx.fillStyle = '#3a5a2a'; ctx.fillRect(hx2 - 8 * s, hy - 3 * s, 16 * s, 2 * s);
+        } else if (z.look[3] === 'cap') {
+          ctx.fillStyle = '#2a7a3a'; ctx.fillRect(hx2 - 8 * s, hy - 4 * s, 16 * s, 5 * s); ctx.fillRect(hx2, hy - 1 * s, 13 * s * dir, 2 * s);
+        } else if (z.look[3] === 'cowboy') {
+          ctx.fillStyle = '#6a4a2a'; ctx.fillRect(hx2 - 14 * s, hy - 1 * s, 28 * s, 3 * s); ctx.fillRect(hx2 - 7 * s, hy - 9 * s, 14 * s, 9 * s);
+        } else if (z.look[3] === 'bun') {
+          ctx.fillStyle = '#c8a060'; ctx.fillRect(hx2 - 8 * s, hy - 2 * s, 16 * s, 4 * s);
+          ctx.beginPath(); ctx.arc(hx2 - 6 * s * dir, hy - 4 * s, 5 * s, 0, TAU); ctx.fill();
+        } else if (z.look[3] === 'pig') {
+          ctx.fillStyle = '#f2b0b0'; ctx.fillRect(hx2 - 10 * s, hy - 2 * s, 20 * s, 20 * s);
+          ctx.fillStyle = '#e88a8a'; ctx.fillRect(hx2 + 8 * s * dir - 3 * s, hy + 8 * s, 6 * s, 6 * s);
+          ctx.fillRect(hx2 - 9 * s, hy - 7 * s, 6 * s, 6 * s); ctx.fillRect(hx2 + 3 * s, hy - 7 * s, 6 * s, 6 * s);
+          ctx.fillStyle = '#141414'; ctx.fillRect(hx2 + 2 * s * dir, hy + 4 * s, 3 * s, 3 * s);
+        }
+      });
+      corn(1);
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Harrow County Fair').toUpperCase();
+      var k = outBack(seg(t, 0.45, 0.95), 1.4);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 250);
+      ctx.scale(0.78 * k, 0.78 * k);
+      ctx.rotate((1 - k) * -2.4 + wobble(t, 1.0, 0.03, 7, 3));
+      // the tails, hanging and swinging
+      [-1, 1].forEach(function (side) {
+        ctx.save(); ctx.rotate(side * 0.22 + Math.sin(t * 2 + side) * 0.04);
+        ctx.fillStyle = side < 0 ? '#2a4ac8' : '#2350b8';
+        ctx.beginPath(); ctx.moveTo(-34, 60); ctx.lineTo(34, 60); ctx.lineTo(34, 330); ctx.lineTo(0, 296); ctx.lineTo(-34, 330);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e8c83a'; ctx.fillRect(-34, 70, 68, 6);
+        ctx.restore();
+      });
+      // the ruffle: blue, then gold, then the middle
+      function frill(r0, r1, n, colour) {
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        for (var i = 0; i <= n * 2; i++) {
+          var a = i / (n * 2) * TAU + t * 0.2, rr = i % 2 ? r0 : r1;
+          if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.closePath(); ctx.fill();
+      }
+      frill(150, 178, 40, '#2a4ac8');
+      frill(124, 140, 32, '#e8c83a');
+      ctx.fillStyle = '#f2ece0';
+      ctx.beginPath(); ctx.arc(0, 0, 118, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a4ac8'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(0, 0, 108, 0, TAU); ctx.stroke();
+      ctx.fillStyle = '#2a4ac8';
+      ctx.font = '900 44px ' + HEAVY; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '900 38px ' + HEAVY;
+      ctx.fillText('1ST', 0, -80);
+      ctx.font = 'bold 18px ' + HEAVY;
+      spaced(ctx, 'PRIZE', 0, 66, 6);
+      ctx.textAlign = 'left';
+      // the banner across it with the name
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 70, 820, 0.05);
+      var bw = 900, bh = 104;
+      ctx.fillStyle = '#a82a24';
+      ctx.beginPath(); ctx.moveTo(-bw / 2 - 60, -bh / 2 + 20); ctx.lineTo(-bw / 2 + 10, -bh / 2 + 20); ctx.lineTo(-bw / 2 + 10, bh / 2 + 20);
+      ctx.lineTo(-bw / 2 - 60, bh / 2 + 20); ctx.lineTo(-bw / 2 - 36, 20); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(bw / 2 + 60, -bh / 2 + 20); ctx.lineTo(bw / 2 - 10, -bh / 2 + 20); ctx.lineTo(bw / 2 - 10, bh / 2 + 20);
+      ctx.lineTo(bw / 2 + 60, bh / 2 + 20); ctx.lineTo(bw / 2 + 36, 20); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#c43a32';
+      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 8); ctx.fill();
+      ctx.strokeStyle = '#f2ece0'; ctx.lineWidth = 3;
+      roundRect(ctx, -bw / 2 + 10, -bh / 2 + 10, bw - 20, bh - 20, 6); ctx.stroke();
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      spaced(ctx, name, 3, 5, size * 0.05);
+      ctx.fillStyle = '#f2ece0';
+      spaced(ctx, name, 0, 2, size * 0.05);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

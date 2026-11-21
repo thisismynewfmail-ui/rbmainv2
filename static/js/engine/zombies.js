@@ -241,6 +241,38 @@
       { shirt: shirt('#1a1a1a', '#1a1a1a', { sleeves: 0.35, decal: 'logo_block' }), pants: pants('#3a3a3a', { length: 0.6 }),
         hat: hat([{ t: 'sph', p: [0, 0.28, 0], s: [1.6, 1.0, 1.6], c: '#1a1a1a' },
                   { t: 'box', p: [0, 0.07, 0.9], s: [1.4, 0.14, 0.86], c: '#1a1a1a' }]) }
+    ],
+    // Harrow County Fair: farmers, 4-H kids, carnies, the dairy princess,
+    // and the prize pig's mascot suit
+    fair: [
+      CLASSIC,
+      { shirt: shirt('#b8382e', '#b8382e', { weave: 'flannel' }), pants: pants('#3a5a8a', { weave: 'patched_denim' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.5, 0.12, 2.5], c: '#e0c878' },
+                  { t: 'cyl', p: [0, 0.42, 0], s: [1.36, 0.66, 1.36], c: '#e0c878' },
+                  { t: 'cyl', p: [0, 0.22, 0], s: [1.4, 0.14, 1.4], c: '#3a5a2a' }]) },
+      { shirt: shirt('#f2ece0', '#f2ece0', { sleeves: 0.3, decal: 'logo_block' }), pants: pants('#2a5a3a'),
+        hat: hat([{ t: 'box', p: [0, 0.16, 0], s: [1.64, 0.3, 1.64], c: '#2a7a3a' },
+                  { t: 'box', p: [0, 0.05, 0.98], s: [1.4, 0.1, 0.7], c: '#2a7a3a' }]) },
+      { shirt: shirt('#c43a32', '#f2ece0', { weave: 'bigtop_stripes', sleeves: 0.3 }), pants: pants('#1b1b1b'),
+        hair: hair([{ p: [0, 0.36, 0.1], s: [1.08, 0.5, 1.12], c: '#3a2a1a' }]) },
+      { shirt: shirt('#e8e0cc', '#e8e0cc', { weave: 'jl_gingham', sleeves: 0.35 }), pants: pants('#2a3a5a'),
+        hair: hair([{ p: [0, 0.34, -0.06], s: [1.08, 0.46, 1.06], c: '#c8a060' },
+                    { p: [0, 0.6, -0.5], s: [0.6, 0.6, 0.6], c: '#c8a060' }]) },
+      { shirt: shirt('#f2f2f6', '#f2f2f6', { sleeves: 0.3, stripe: '#3a5ae8' }), pants: pants('#f2f2f6', { length: 0.5 }),
+        hat: hat([{ t: 'box', p: [0, 0.34, 0], s: [1.2, 0.2, 0.2], c: '#d8b84a', m: 'metal' },
+                  { t: 'box', p: [0, 0.5, 0.06], s: [0.3, 0.4, 0.1], c: '#d8b84a', m: 'metal' },
+                  { t: 'box', p: [0, 0.6, 0.1], s: [0.16, 0.16, 0.06], c: '#3a5ae8' }]),
+        hair: hair([{ p: [0, 0.32, -0.08], s: [1.1, 0.5, 1.1], c: '#e8d070' },
+                    { p: [0, -0.2, -0.56], s: [1.0, 1.2, 0.3], c: '#e8d070' }]) },
+      { shirt: shirt('#3a5a8a', '#3a5a8a', { weave: 'ea24_flannel' }), pants: pants('#2f4f7a', { weave: 'denim' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.7, 0.12, 2.3], c: '#6a4a2a' },
+                  { t: 'cyl', p: [0, 0.46, 0], s: [1.3, 0.74, 1.3], c: '#6a4a2a' },
+                  { t: 'cyl', p: [0, 0.2, 0], s: [1.34, 0.12, 1.34], c: '#2a1a0a' }]) },
+      { shirt: shirt('#f2b0b0', '#f2b0b0', { weave: 'fur' }), pants: pants('#f2b0b0', { weave: 'fur' }),
+        hat: hat([{ t: 'sph', p: [0, 0.1, -0.1], s: [2.3, 2.2, 2.1], c: '#f2b0b0' },
+                  { t: 'cyl', p: [0, -0.1, 1.0], s: [0.8, 0.5, 0.8], c: '#e88a8a', r: [1.5708, 0, 0] },
+                  { t: 'box', p: [0.6, 1.0, 0.2], s: [0.5, 0.5, 0.2], c: '#e88a8a' },
+                  { t: 'box', p: [-0.6, 1.0, 0.2], s: [0.5, 0.5, 0.2], c: '#e88a8a' }]) }
     ]
   };
 
