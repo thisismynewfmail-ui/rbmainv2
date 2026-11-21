@@ -828,11 +828,11 @@
   }
 
   /* A gear: a disc on local y, teeth round the rim, a hub and spokes. */
-  function drawGear(pen, f, r, n, th, colour, angle) {
+  function drawGear(pen, f, r, n, th, colour, angle, coarse) {
     var g = child(f, [0, 0, 0], 0, angle, 0);
     pen.part(g, 'cyl', [0, 0, 0], [r * 2 - 0.2, th, r * 2 - 0.2], colour, { m: 'metal' });
     pen.part(g, 'cyl', [0, 0, 0], [r * 0.5, th + 0.5, r * 0.5], BRASS_DARK, { m: 'metal' });
-    if (!pen.near) return;
+    if (!pen.near || coarse) return;
     for (var sp = 0; sp < 4; sp++) {
       pen.part(g, 'box', [0, th * 0.5 + 0.03, 0], [r * 1.5, 0.08, r * 0.16], BRASS_DARK,
                { ry: sp * Math.PI / 4 });
@@ -861,12 +861,16 @@
       me.rate = approach(me.rate || 1, rate, 1.5, dt);
       me.spin += dt * base * me.rate;
     };
+    var far = spec.far || 150;
     me.draw = function (pen) {
       for (var i = 0; i < gears.length; i++) {
         var g = gears[i];
-        var f = axisFrame([spec.p[0] + g[0], spec.p[1] + g[1], spec.p[2] + g[2]], spec.axis);
-        drawGear(pen, f, g[3], g[4], spec.th || 0.8, g[6] || (i % 2 ? BRASS_LIGHT : BRASS),
-                 (g[5] || 1) * me.spin * r0 / g[3] + (g[7] || 0));
+        var at = [spec.p[0] + g[0], spec.p[1] + g[1], spec.p[2] + g[2]];
+        var d = pen.away(at);
+        if (d > far) continue;            // (down a tunnel: out of sight anyway)
+        drawGear(pen, axisFrame(at, spec.axis), g[3], g[4], spec.th || 0.8,
+                 g[6] || (i % 2 ? BRASS_LIGHT : BRASS),
+                 (g[5] || 1) * me.spin * r0 / g[3] + (g[7] || 0), d > 55);
       }
     };
     return me;
@@ -1061,6 +1065,7 @@
       pen.part(f, 'cyl', [0, 0, 0.3], [R * 2, 0.3, R * 2], glow > 0.05 ? '#ffd0a0' : '#f4ecd8',
                { rx: Math.PI / 2, m: glow > 0.5 ? 'neon' : '' });
       for (var k = 0; k < 12; k++) {
+        if (!pen.near && k % 3) continue;
         var a = k * TAU / 12;
         var big = k % 3 === 0;
         pen.part(f, 'box', [Math.sin(a) * R * 0.82, Math.cos(a) * R * 0.82, 0.5],
@@ -1264,8 +1269,8 @@
       if (target) {
         var base = Rigs.frame(spec.p, spec.yaw || 0, 1);
         var d = Rigs.local(base, [target[0] - spec.p[0], target[1] - spec.p[1], target[2] - spec.p[2]]);
-        az = clamp(Math.atan2(d[0], d[2]), -1.2, 1.2);
-        el = clamp(Math.atan2(d[1], Math.hypot(d[0], d[2])), -0.2, 1.2);
+        az = clamp(Math.atan2(d[0], d[2]), -0.55, 0.55);
+        el = clamp(Math.atan2(d[1], Math.hypot(d[0], d[2])), 0.12, 1.1);
       }
       me.az = Rigs.approachAngle(me.az, az, target ? 1.6 : 0.4, dt);
       me.el = approach(me.el, el, target ? 1.6 : 0.4, dt);
@@ -1278,6 +1283,21 @@
       pen.part(f, 'cyl', [0, 0, L * 0.86], [4.4, 0.4, 4.4], '#7ac8ff', { rx: Math.PI / 2, m: 'neon', a: 0.7 });
       pen.part(f, 'cyl', [3.4, 2.2, L * 0.4], [1.4, L * 0.4, 1.4], '#3a3a40', { rx: Math.PI / 2 });
       pen.part(f, 'sph', [0, 0, 0], [7, 7, 7], '#5a5a60', { m: 'metal' });
+    };
+    return me;
+  });
+
+  /* A gas lamp's flame: a warm halo that breathes and gutters. */
+  Rigs.register('gaslight', function (spec) {
+    var seed = spec.seed || 0;
+    var me = { radius: 8, at: spec.p, kind: 'gaslight' };
+    me.draw = function (pen, t) {
+      var f = 0.75 + 0.15 * Math.sin(t * 7.3 + seed) + 0.1 * Math.sin(t * 17.1 + seed * 3);
+      if (hash(Math.floor(t * 6) + seed * 11) < 0.03) f *= 0.55;
+      pen.part(Rigs.frame(spec.p, 0, 1), 'sph', [0, 0, 0], [5 * f, 4 * f, 5 * f], '#ffd27a',
+               { m: 'neon', a: 0.16 * f });
+      pen.part(Rigs.frame(spec.p, 0, 1), 'sph', [0, 0, 0], [1.4, 1.6, 1.4], '#fff0c0',
+               { m: 'neon', a: 0.6 + 0.3 * f });
     };
     return me;
   });

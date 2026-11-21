@@ -141,6 +141,13 @@
     this.count++;
   };
 
+  /* How far a world point is from the eye (a rig made of many far-flung
+     pieces -- a gear train down a tunnel -- culls them one by one). */
+  Pen.prototype.away = function (p) {
+    var e = this.eye;
+    return e ? Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2]) : 0;
+  };
+
   /* A rod from a to b (world points), ``w`` thick: a cylinder, or a box
      with ``kind`` 'box'.  For ropes, spokes, beams of light. */
   Pen.prototype.rod = function (a, b, w, colour, o, kind) {
@@ -201,6 +208,7 @@
         var d = eye ? Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]) : 0;
         if (d > reach + rig.radius) continue;
         pen.near = d < 160 + rig.radius;       // close enough for the fine details
+        pen.eye = eye;
         rig.draw(pen, t, ctx);
       } catch (err) {
         rig.dead = true;
