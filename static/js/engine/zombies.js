@@ -382,6 +382,33 @@
       { shirt: shirt('#1a1a1e', '#1a1a1e', { weave: 'vinyl' }), pants: pants('#1a1a1e', { weave: 'vinyl' }),
         hat: hat([{ t: 'box', p: [0, -0.2, 0.86], s: [1.3, 0.6, 0.2], c: '#3a8ac8', a: 0.6 },
                   { t: 'sph', p: [0, 0.1, 0], s: [1.7, 1.5, 1.7], c: '#1a1a1e' }]) }
+    ],
+    // Rooftops of Harrow Heights: December in the city -- overcoats and
+    // scarves, the store's Santa and his elf, the construction crew, the
+    // lounge's bartender and a party guest, the doorman
+    rooftops: [
+      CLASSIC,
+      { shirt: shirt('#3a3a42', '#3a3a42', { weave: 'sp_tweed', stripe: '#a8282e' }), pants: pants('#2a2a30'),
+        hair: hair([{ p: [0, 0.36, 0.06], s: [1.08, 0.44, 1.1], c: '#2a2014' }]) },
+      { shirt: shirt('#c81a2a', '#c81a2a', { weave: 'xm_kfur', stripe: '#f2f2ee' }), pants: pants('#c81a2a'),
+        hat: hat([{ t: 'cone', p: [0, 0.6, -0.1], s: [1.6, 1.6, 1.6], c: '#c81a2a' },
+                  { t: 'cyl', p: [0, 0.0, 0], s: [1.8, 0.4, 1.8], c: '#f2f2ee' },
+                  { t: 'sph', p: [0, 1.45, -0.2], s: [0.5, 0.5, 0.5], c: '#f2f2ee' },
+                  { t: 'box', p: [0, -0.75, 0.86], s: [1.3, 0.9, 0.2], c: '#f2f2ee' }]) },
+      { shirt: shirt('#2a8a3a', '#c81a2a', { stripes: 3, stripe: '#c81a2a' }), pants: pants('#c81a2a', { stripe: '#2a8a3a' }),
+        hat: hat([{ t: 'cone', p: [0, 0.8, 0], s: [1.4, 2.0, 1.4], c: '#2a8a3a' },
+                  { t: 'sph', p: [0, 1.9, 0], s: [0.4, 0.4, 0.4], c: '#f2d23a' }]) },
+      { shirt: shirt('#e8c81a', '#2a3a5a', { stripe: '#c8cbcd', weave: 'hivis' }), pants: pants('#2a3a5a', { weave: 'denim' }),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0], s: [1.7, 1.0, 1.7], c: '#e8c81a' }]) },
+      { shirt: shirt('#f2f2f2', '#f2f2f2', { decal: 'tux' }), pants: pants('#1a1a1a'),
+        hair: hair([{ p: [0, 0.38, 0.08], s: [1.08, 0.36, 1.1], c: '#1a1a1a' }]) },
+      { shirt: shirt('#c8a83a', '#c8a83a', { weave: 'sequins', sleeves: 0.0 }), pants: pants('#c8a83a', { weave: 'sequins', length: 0.5 }),
+        hair: hair([{ p: [0, 0.32, -0.08], s: [1.1, 0.5, 1.1], c: '#a8482a' },
+                    { p: [0, -0.2, -0.56], s: [1.0, 1.2, 0.3], c: '#a8482a' }]) },
+      { shirt: shirt('#2a2a5a', '#2a2a5a', { weave: 'xm_livery' }), pants: pants('#2a2a5a', { stripe: '#d8b84a' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.24, 0], s: [1.7, 0.5, 1.7], c: '#2a2a5a' },
+                  { t: 'box', p: [0, 0.06, 0.92], s: [1.3, 0.1, 0.5], c: '#1a1a1a' },
+                  { t: 'cyl', p: [0, 0.48, 0], s: [1.72, 0.08, 1.72], c: '#d8b84a' }]) }
     ]
   };
 

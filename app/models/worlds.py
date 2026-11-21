@@ -346,6 +346,12 @@ WORLDS: List[Dict[str, Any]] = [
                       "subway platform the floodworks swallowed -- and start the "
                       "pumps to pull the horde into the pit. The only sky is a "
                       "grate."},
+            {"id": "rooftops", "name": "Rooftops of Harrow Heights",
+             "blurb": "A snowy night in December, across the roofs of a city "
+                      "block. Hold the penthouse, cross the alleys on planks, "
+                      "take the construction site's top deck and the "
+                      "billboard's catwalk -- and light the billboard to bring "
+                      "the horde up for it. It's a long way down to the street."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

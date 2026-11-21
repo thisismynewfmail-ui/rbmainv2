@@ -1984,5 +1984,102 @@
     }
   });
 
+  /* Rooftops of Harrow Heights: over the roofs of the city in the snow --
+     water towers, chimneys, the towers behind with a few windows lit; the
+     billboard across the way flickers on, the cola pouring in neon -- and
+     at the near parapet, hands come over the edge, and then the rest of
+     them, climbing up out of the street.  The name, in neon. */
+  Intro.register('rooftops', {
+    tagline: "Don't look down. They're coming up.",
+    accent: '#ff5a7a',
+    cues: [[0.1, 'll_wind', 0.5], [0.45, 'll_neon', 0.6], [1.5, 'll_clunk', 0.4], [2.0, 'll_jingle', 0.4]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 60, 0, 300), snow: [], towers: [], wins: [], climbers: [] };
+      for (var i = 0; i < 160; i++) d.snow.push({ x: r() * VW, y: r() * 900, v: between(r, 30, 80), s: between(r, 1.5, 3.5), p: r() * 6 });
+      for (i = 0; i < 14; i++) {
+        var w = between(r, 80, 160), h = between(r, 200, 420);
+        d.towers.push({ x: i * 120 - 40 + between(r, -20, 20), w: w, h: h });
+        for (var k = 0; k < 10; k++) if (r() < 0.5) d.wins.push({ x: i * 120 - 40 + between(r, 0, w - 12), y: 560 - between(r, 20, h - 20) });
+      }
+      var looks = [['#3a3a42', '#2a2a30', '#6fae55'], ['#c81a2a', '#c81a2a', '#7fb069'], ['#2a8a3a', '#c81a2a', '#5f9a4c'],
+                   ['#e8c81a', '#2a3a5a', '#86b86a'], ['#c8a83a', '#c8a83a', '#6c9f68']];
+      for (i = 0; i < 6; i++) d.climbers.push({ x: 180 + i * 240 + between(r, -40, 40), at: 1.2 + i * 0.22, p: r() * 6, look: looks[i % looks.length] });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#06081a'], [0.6, '#1a1c34'], [1, '#3a3450']], 600);
+      starsK(ctx, d.stars, t, 0.6);
+      // the towers behind
+      d.towers.forEach(function (tw) { ctx.fillStyle = '#14161e'; ctx.fillRect(tw.x, 560 - tw.h, tw.w, tw.h); });
+      d.wins.forEach(function (w, i) { ctx.fillStyle = i % 3 ? 'rgba(255,210,130,0.7)' : 'rgba(200,225,255,0.55)'; ctx.fillRect(w.x, w.y, 10, 12); });
+      // the roofs across the way: a water tower, the billboard
+      ctx.fillStyle = '#1e2028'; ctx.fillRect(0, 520, VW, 120);
+      ctx.fillStyle = '#e8ecf2'; ctx.fillRect(0, 516, VW, 6);
+      ctx.fillStyle = '#2a2422';
+      ctx.fillRect(1260, 420, 6, 100); ctx.fillRect(1310, 420, 6, 100); ctx.fillRect(1250, 340, 76, 84);
+      ctx.beginPath(); ctx.moveTo(1244, 342); ctx.lineTo(1288, 300); ctx.lineTo(1332, 342); ctx.fill();
+      ctx.fillStyle = '#e8ecf2'; ctx.beginPath(); ctx.moveTo(1252, 340); ctx.lineTo(1288, 306); ctx.lineTo(1324, 340); ctx.lineTo(1316, 340); ctx.lineTo(1288, 314); ctx.lineTo(1260, 340); ctx.fill();
+      var bx = 260, by = 300, bw = 560, bh = 190;
+      ctx.fillStyle = '#1a1a22'; ctx.fillRect(bx + 60, by + bh, 8, 40); ctx.fillRect(bx + bw - 68, by + bh, 8, 40);
+      ctx.fillStyle = '#1a2a4a'; ctx.fillRect(bx, by, bw, bh);
+      var on = seg(t, 0.5, 0.6);
+      if (on > 0) {
+        var word = 'FROSTY COLA';
+        ctx.font = '900 58px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        var lay = K.layout(ctx, word, 4);
+        var left = bx + bw * 0.42 - lay.width / 2;
+        for (var c = 0; c < lay.chars.length; c++) {
+          var lit = sputter(t, 0.55 + c * 0.06, c + 2) > 0.5;
+          if (!lit) continue;
+          additive(ctx, function () { dot(ctx, '#ff3a5a', left + lay.chars[c].x + 18, by + 60, 40, 0.3); });
+          ctx.fillStyle = '#ff8aa0'; ctx.fillText(lay.chars[c].ch, left + lay.chars[c].x, by + 60);
+        }
+        var tip = Math.min(1, seg(t, 1.0, 1.6)) * 1.1;
+        ctx.save(); ctx.translate(bx + 90, by + 120); ctx.rotate(-tip);
+        ctx.strokeStyle = '#e8f4ff'; ctx.lineWidth = 4; ctx.strokeRect(-14, -50, 28, 60); ctx.strokeRect(-6, -74, 12, 24);
+        ctx.restore();
+        ctx.strokeStyle = '#e8f4ff'; ctx.strokeRect(bx + 150, by + 120, 40, 50);
+        var fill = seg(t, 1.3, 3.0);
+        ctx.fillStyle = '#c8682a'; ctx.fillRect(bx + 154, by + 166 - 42 * fill, 32, 42 * fill);
+        additive(ctx, function () { dot(ctx, '#ff3a5a', bx + bw / 2, by + bh / 2, 360, 0.15); });
+      } else {
+        ctx.fillStyle = 'rgba(200,215,230,0.25)'; ctx.font = '900 54px ' + HEAVY; ctx.textBaseline = 'middle';
+        ctx.fillText('FROSTY COLA', bx + 120, by + 60);
+      }
+      // the near roof: snow, the parapet, and them coming over it
+      ctx.fillStyle = '#d8dee6'; ctx.fillRect(0, 700, VW, 210);
+      ctx.fillStyle = '#5a3a2e'; ctx.fillRect(0, 680, VW, 30);
+      ctx.fillStyle = '#eef2f6'; ctx.fillRect(0, 674, VW, 8);
+      d.climbers.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 1.0);
+        if (k2 <= 0) return;
+        var hands = Math.min(1, k2 * 3);
+        ctx.fillStyle = z.look[2];
+        ctx.fillRect(z.x - 26, 672 - 6 * hands, 14, 10); ctx.fillRect(z.x + 12, 672 - 6 * hands, 14, 10);
+        var rise = outCubic(Math.max(0, (k2 - 0.25) / 0.75));
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, 676); ctx.clip();
+        LL.shambler(ctx, z.x, 676 + 140 - rise * 140, 2.2, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+      });
+      // and the snow
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      d.snow.forEach(function (f) {
+        var y = (f.y + t * f.v) % 900, x = f.x + Math.sin(t + f.p) * 20;
+        ctx.beginPath(); ctx.arc(x, y, f.s, 0, TAU); ctx.fill();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Rooftops of Harrow Heights').toUpperCase();
+      if (t < 0.3) return;
+      ctx.save();
+      ctx.fillStyle = 'rgba(10,10,20,0.6)'; roundRect(ctx, 260, 150, 1080, 150, 18); ctx.fill();
+      ctx.strokeStyle = '#ff5a7a'; ctx.lineWidth = 3; roundRect(ctx, 270, 160, 1060, 130, 14); ctx.stroke();
+      ctx.restore();
+      LL.neonTitle(ctx, t, name, 800, 226, 980, '#ff7a9a', 0.35, 0.05);
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

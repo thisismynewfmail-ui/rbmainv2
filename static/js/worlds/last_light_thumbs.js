@@ -551,5 +551,56 @@
     }
   });
 
+  /* Rooftops of Harrow Heights: over the snowy roofs of the block -- the
+     penthouse, the water tower, the billboard lit across the alley, the
+     towers behind; the team on the brick roof, the infected coming over
+     the planks. */
+  Thumbs.registerWorld('ll_rooftops', {
+    camera: [[24, 52, 26], [-40, 38, -46], 60],
+    sky: { top: '#0a0e1e', horizon: '#3a3a52', sun: [0.2, 0.5, -0.6], clouds: 0.6, tint: '#c8d0f0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [260, 1, 260], '#5a5e66');
+      var blocks = [[-46, 39, 80, 66, 30, '#9a4f3a'], [46, 39, 80, 66, 26, '#8a6a52'], [-46, -39, 80, 66, 34, '#5a5e6a'],
+                    [46, -39, 80, 66, 22, '#7a5a4a']];
+      blocks.forEach(function (bl) {
+        k.box([bl[0], bl[4] / 2 - 0.2, bl[1]], [bl[2], bl[4] - 0.4, bl[3]], bl[5]);
+        k.box([bl[0], bl[4] - 0.2, bl[1]], [bl[2], 0.4, bl[3]], '#eef2f6', { st: 1 });
+        for (var w = 0; w < 8; w++) {
+          if ((w * 7 + bl[4]) % 3 === 0) continue;
+          k.box([bl[0] - bl[2] / 2 + 6 + w * 9, 6 + (w % 3) * 7, bl[1] + bl[3] / 2 + 0.1], [3, 3, 0.2], '#ffd27a', { m: 'neon' });
+        }
+      });
+      // the penthouse
+      k.box([-51, 36, 41], [50, 12, 38], '#e8e8e0');
+      k.box([-51, 36, 22.1], [44, 8, 0.4], '#8fb8c8', { a: 0.5 });
+      k.box([-51, 42.6, 41], [52, 1.2, 40], '#3a3a42');
+      // the billboard, lit
+      for (var l = 0; l < 3; l++) k.box([-70 + l * 24, 46, -47], [1.2, 24, 1.2], '#4a5057');
+      k.box([-46, 50, -51], [56, 16, 1.2], '#1a2a4a');
+      k.box([-46, 54, -50.2], [40, 4, 0.2], '#ff5a7a', { m: 'neon' });
+      k.box([-64, 47, -50.2], [3, 8, 0.2], '#e8f4ff', { m: 'neon', r: [0, 0, -0.9] });
+      // the water tower
+      for (var lg = 0; lg < 4; lg++) k.box([66 + (lg % 2) * 8, 31, 56 + (lg > 1 ? 8 : 0)], [1, 10, 1], '#543923');
+      k.shape('cyl', [70, 42, 60], [12, 12, 12], '#8a6a4a');
+      k.shape('cone', [70, 50, 60], [13, 4, 13], '#5a4a3a');
+      // planks across the alleys
+      k.box([0, 29.7, 63], [12, 0.6, 6], '#7a5335', { st: 1 });
+      k.box([0, 27.7, -37], [12, 0.6, 6], '#7a5335', { st: 1 });
+      // the towers behind
+      for (var t2 = 0; t2 < 6; t2++) k.box([-120 + t2 * 48, 45, -130], [36, 90 + (t2 % 3) * 16, 30], '#262a34');
+      // the team on the brick roof, them coming over
+      k.survivor(20, -20, -2.4, 0, 22);
+      k.survivor(28, -28, -2.6, 1, 22);
+      k.survivor(14, -30, -2.2, 2, 22);
+      k.zombie('common', -2, -37, Math.PI / 2, 2, 'rooftops', 0, 28.0);
+      k.zombie('common', -24, -30, 0.6, 3, 'rooftops', 2, 34);
+      k.zombie('common', -40, -24, 0.5, 1, 'rooftops', 0, 34);
+      k.zombie('common', -56, -34, 0.3, 5, 'rooftops', 0, 34);
+      k.zombie('common', -70, -20, 0.4, 6, 'rooftops', 2, 34);
+      k.zombie('common', -30, -12, 0.8, 7, 'rooftops', 0, 34);
+      for (var sn = 0; sn < 40; sn++) k.shape('sph', [-100 + (sn * 37) % 200, 10 + (sn * 13) % 60, -80 + (sn * 53) % 160], [0.5, 0.5, 0.5], '#ffffff');
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

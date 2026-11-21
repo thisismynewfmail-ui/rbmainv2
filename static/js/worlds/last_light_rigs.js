@@ -3676,5 +3676,246 @@
     };
   });
 
+  // ======================================= Rooftops of Harrow Heights
+  if (GA) {
+    GA.register('ll_neon', function (vol) {
+      this.noise({ filter: 'lowpass', freq: 300, dur: 0.15, gain: 0.2 * vol });
+      this.later(150, function () {
+        this.tone({ type: 'sawtooth', freq: 120, dur: 4.0, gain: 0.05 * vol });
+        this.tone({ type: 'square', freq: 240, dur: 4.0, gain: 0.02 * vol });
+      });
+      for (var i = 0; i < 4; i++) {
+        this.later(300 + i * 260, function () { this.noise({ filter: 'bandpass', freq: 3000, dur: 0.05, gain: 0.06 * vol }); });
+      }
+    });
+    GA.register('ll_coo', function (vol) {
+      this.tone({ type: 'sine', freq: 330, freqEnd: 290, dur: 0.35, gain: 0.05 * vol });
+      this.later(380, function () { this.tone({ type: 'sine', freq: 300, freqEnd: 260, dur: 0.5, gain: 0.05 * vol }); });
+    });
+    GA.register('ll_jingle', function (vol) {
+      for (var i = 0; i < 6; i++) {
+        this.later(i * 90, function () { this.tone({ type: 'sine', freq: 2600 + (i % 3) * 400, dur: 0.18, gain: 0.025 * vol }); });
+      }
+    });
+  }
+
+  /* The billboard: by day a painted cola ad; lit (the lure), the neon comes
+     on letter by letter, buzzing, and the giant bottle tips and pours into
+     the glass -- for half a minute, then it flickers out. */
+  Rigs.register('billboard_neon', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var w = spec.w || 50, h = spec.h || 14;
+    var lit = -100;
+    var word = 'FROSTY COLA';
+    return {
+      radius: 160,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      draw: function (pen, t) {
+        var u = t - lit;
+        var on = u >= 0 && u < 30;
+        var dying = u > 27 && Math.sin(t * 40) > 0;
+        pen.part(f0, 'box', [0, 0, 0.05], [w * 0.98, h * 0.96, 0.1], '#1a2a4a',
+                 { dec: textDecal(on ? ' ' : 'FROSTY COLA  ICE COLD', '#1a2a4a', '#c8d8e8', w * 0.98 / (h * 0.96)) });
+        if (!on) return;
+        for (var c = 0; c < word.length; c++) {
+          if (word[c] === ' ') continue;
+          var shown = u > 0.3 + c * 0.15 && !(dying && c % 3 === 0);
+          if (!shown) continue;
+          var x = w * 0.05 + (c - word.length / 2) * 3.0;
+          pen.part(f0, 'box', [x, h * 0.22, 0.3], [2.6, 3.4, 0.2], '#ff3a5a',
+                   { m: 'neon', dec: textDecal(word[c], '#1a2a4a', '#ff6a8a', 0.76) });
+        }
+        // the bottle tipping over the glass, the cola pouring
+        var tip = Math.min(1, u / 2) * 1.2;
+        var bottle = child(f0, [-w * 0.36, -h * 0.05, 0.4], 0, 0, -tip);
+        pen.part(bottle, 'box', [0, 2.5, 0], [2.4, 5.0, 0.2], '#e8f4ff', { m: 'neon', a: 0.9 });
+        pen.part(bottle, 'box', [0, 5.6, 0], [1.0, 1.6, 0.2], '#e8f4ff', { m: 'neon', a: 0.9 });
+        pen.part(bottle, 'box', [0, 1.8, 0.05], [2.0, 1.4, 0.2], '#ff3a5a', { m: 'neon' });
+        var gx = -w * 0.2, gy = -h * 0.32;
+        pen.part(f0, 'box', [gx, gy, 0.35], [3.2, 4.0, 0.2], '#e8f4ff', { m: 'neon', a: 0.6 });
+        var fill = Math.min(1, Math.max(0, (u - 1.5) / 6));
+        pen.part(f0, 'box', [gx, gy - 2.0 + fill * 1.9, 0.4], [2.6, 3.8 * fill + 0.01, 0.2], '#8a3a1a', { m: 'neon' });
+        if (u > 1.2 && u < 8) {
+          for (var d = 0; d < 6; d++) {
+            var q = (t * 2.2 + d / 6) % 1;
+            pen.part(f0, 'box', [gx - 2.6 + q * 2.4, gy + 5.4 - q * 5.0, 0.45], [0.5, 0.5, 0.1], '#c8682a', { m: 'neon' });
+          }
+        }
+      }
+    };
+  });
+
+  /* The department store's tree: strings of coloured bulbs round every tier
+     twinkling, and the star on top. */
+  Rigs.register('christmas_lights', function (spec) {
+    var levels = spec.levels || 4;
+    var colours = ['#ff3a3a', '#3a8aff', '#ffd84a', '#3aff7a', '#ff8ad8'];
+    return {
+      radius: 120,
+      draw: function (pen, t) {
+        for (var k = 0; k < levels; k++) {
+          var r = (18 - k * 3.4) / 2 * 0.86, y = spec.p[1] + k * 4.0 + 0.6;
+          var n = Math.max(6, Math.round(r * 2.4));
+          for (var i = 0; i < n; i++) {
+            var a = i / n * TAU + k * 0.5;
+            var on = Math.sin(t * 2.2 + i * 1.7 + k) > -0.3;
+            pen.part(frame([spec.p[0] + Math.cos(a) * r, y, spec.p[2] + Math.sin(a) * r], 0), 'sph', [0, 0, 0], [0.5, 0.5, 0.5],
+                     on ? colours[(i + k) % 5] : '#3a3a3a', { m: on ? 'neon' : '' });
+          }
+        }
+        var top = spec.p[1] + levels * 4.0 + 1.6;
+        var pulse = 0.8 + 0.2 * Math.sin(t * 3);
+        var star = child(frame([spec.p[0], top, spec.p[2]], 0), [0, 0, 0], 0, t * 0.6, 0);
+        pen.part(star, 'box', [0, 0, 0], [2.4 * pulse, 0.4, 0.4], '#fff2a8', { m: 'neon' });
+        pen.part(star, 'box', [0, 0, 0], [0.4, 2.4 * pulse, 0.4], '#fff2a8', { m: 'neon' });
+        pen.part(star, 'box', [0, 0, 0], [1.6, 1.6, 0.3], '#fff2a8', { m: 'neon', rz: 0.785 });
+      }
+    };
+  });
+
+  /* The reindeer in harness in front of the sleigh, heads bobbing, the one
+     at the front with his nose blinking red; bells when you come close. */
+  Rigs.register('reindeer', function (spec) {
+    var n = spec.n || 4, rang = -10;
+    return {
+      radius: 80,
+      update: function (dt, t, ctx) {
+        if (t - rang > 8 && nearest(ctx.players ? ctx.players() : [], spec.p, 24)) {
+          rang = t; if (ctx.sound) ctx.sound('ll_jingle', spec.p, 1);
+        }
+      },
+      draw: function (pen, t) {
+        var fur = '#8a5a3a', pale = '#e8d8c0';
+        for (var k = 0; k < n; k++) {
+          for (var sd = -1; sd <= 1; sd += 2) {
+            var f = frame([spec.p[0] + sd * 2.2, spec.p[1], spec.p[2] + k * 6.0], 0);
+            legsAt(pen, f, [[-0.5, 1.2], [0.5, 1.2], [-0.5, -1.2], [0.5, -1.2]], 2.2, 0.4, fur, t * 2 + k, 0.1);
+            pen.part(f, 'box', [0, 2.9, 0], [1.4, 1.4, 3.2], fur);
+            pen.part(f, 'box', [0, 2.6, -1.4], [0.8, 0.6, 0.4], pale);
+            var head = child(f, [0, 3.4, 1.6], -0.4 + Math.sin(t * 1.3 + k + sd) * 0.15, 0, 0);
+            pen.part(head, 'box', [0, 0.8, 0.2], [0.6, 1.6, 0.6], fur);
+            pen.part(head, 'box', [0, 1.6, 0.6], [0.7, 0.7, 1.2], fur);
+            var lead = k === n - 1;
+            var blink = lead && Math.sin(t * 4) > 0;
+            pen.part(head, 'sph', [0, 1.6, 1.25], [0.45, 0.45, 0.45], lead ? (blink ? '#ff2a2a' : '#8a1a1a') : '#2a1a1a',
+                     { m: lead && blink ? 'neon' : '' });
+            for (var a = -1; a <= 1; a += 2) {
+              pen.part(child(head, [a * 0.3, 2.0, 0.3], 0, 0, a * 0.5), 'box', [0, 0.6, 0], [0.12, 1.2, 0.12], pale);
+              pen.part(child(head, [a * 0.3, 2.0, 0.3], 0.5, 0, a * 0.9), 'box', [0, 0.9, 0.2], [0.1, 0.1, 0.7], pale);
+            }
+            pen.part(f, 'box', [0, 3.0, 0], [1.5, 0.3, 0.6], '#a8182a');
+          }
+        }
+      }
+    };
+  });
+
+  /* String lights strung round the lounge's canopy posts, twinkling. */
+  Rigs.register('string_lights', function (spec) {
+    var poles = spec.poles || [];
+    var colours = ['#ffe8a8', '#ff8ad8', '#8ad8ff', '#ffd84a'];
+    return {
+      radius: 120,
+      draw: function (pen, t) {
+        for (var k = 0; k < poles.length; k++) {
+          var a = poles[k], b2 = poles[(k + 1) % poles.length];
+          for (var i = 0; i <= 14; i++) {
+            var u = i / 14;
+            var pt = [a[0] + (b2[0] - a[0]) * u, spec.p[1] - 0.6 - Math.sin(u * Math.PI) * 1.8, a[1] + (b2[1] - a[1]) * u];
+            var on = Math.sin(t * 3 + i * 0.9 + k) > -0.5;
+            pen.part(frame(pt, 0), 'sph', [0, 0, 0], [0.45, 0.45, 0.45], on ? colours[(i + k) % 4] : '#4a4a3a',
+                     { m: on ? 'neon' : '' });
+          }
+        }
+      }
+    };
+  });
+
+  /* Steam: off the vent stacks, the hot tub, the manholes in the street. */
+  Rigs.register('steam_vents', function (spec) {
+    var pts = spec.points || [];
+    return {
+      radius: 400,
+      draw: function (pen, t) {
+        for (var i = 0; i < pts.length; i++) {
+          for (var k = 0; k < 4; k++) {
+            var u = (t * 0.22 + k / 4 + i * 0.17) % 1;
+            var sz = 1.6 + u * 5;
+            pen.part(frame([pts[i][0] + Math.sin(t * 0.5 + i) * u * 3, pts[i][1] + 0.6 + u * 10, pts[i][2] + u * 2], 0), 'sph',
+                     [0, 0, 0], [sz, sz, sz], '#eef2f6', { a: 0.3 * (1 - u) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The tower crane over the construction site: the jib turning slowly,
+     the trolley running out and back, the load swinging on its hook. */
+  Rigs.register('crane_jib', function (spec) {
+    var f0 = frame(spec.p, 0);
+    var r = spec.r || 50;
+    return {
+      radius: r + 60,
+      draw: function (pen, t) {
+        var jib = child(f0, [0, 0, 0], 0, t * 0.05, 0);
+        pen.part(jib, 'box', [0, 1.2, r / 2], [2.0, 2.4, r], '#e8c83a', { m: 'metal' });
+        pen.part(jib, 'box', [0, 1.2, -9], [2.0, 2.4, 18], '#e8c83a', { m: 'metal' });
+        pen.part(jib, 'box', [0, 0.4, -16], [4.0, 4.0, 4.0], '#8a8f94');
+        pen.part(jib, 'box', [0, 4.6, 0], [1.6, 4.4, 1.6], '#e8c83a', { m: 'metal' });
+        pen.rod(Rigs.point(jib, [0, 6.8, 0]), Rigs.point(jib, [0, 2.4, r * 0.9]), 0.15, '#3a3a3a');
+        pen.rod(Rigs.point(jib, [0, 6.8, 0]), Rigs.point(jib, [0, 2.4, -16]), 0.15, '#3a3a3a');
+        pen.part(jib, 'box', [1.4, 1.4, 6], [1.4, 1.8, 2.4], '#2a2a2a');
+        var out = r * (0.45 + 0.35 * Math.sin(t * 0.07));
+        var trolley = Rigs.point(jib, [0, 0, out]);
+        pen.part(frame(trolley, 0), 'box', [0, -0.3, 0], [2.6, 0.8, 2.6], '#5a5f66');
+        var swing = Math.sin(t * 0.9) * 0.12;
+        var hook = child(jib, [0, -0.6, out], swing, 0, Math.cos(t * 0.7) * 0.08);
+        pen.part(hook, 'box', [0, -10, 0], [0.12, 20, 0.12], '#2a2a2a');
+        pen.part(hook, 'box', [0, -20.8, 0], [5.0, 1.6, 3.6], '#9a4f3a');
+        pen.part(hook, 'box', [0, -21.9, 0], [5.4, 0.6, 4.0], '#a07a52');
+      }
+    };
+  });
+
+  /* Pigeons on the coop and the parapet: bobbing, cooing; somebody comes
+     near and they're off, round in a wheel over the roofs, and back. */
+  Rigs.register('pigeons', function (spec) {
+    var n = spec.n || 6;
+    var flown = -100, cooed = -10;
+    return {
+      radius: 90,
+      update: function (dt, t, ctx) {
+        var near = nearest(ctx.players ? ctx.players() : [], spec.p, 14);
+        if (near && t - flown > 14) flown = t;
+        if (!near && t - cooed > 7 && nearest(ctx.players ? ctx.players() : [], spec.p, 50)) {
+          cooed = t; if (ctx.sound) ctx.sound('ll_coo', spec.p, 0.8);
+        }
+      },
+      draw: function (pen, t) {
+        var u = t - flown;
+        var flying = u >= 0 && u < 12;
+        for (var i = 0; i < n; i++) {
+          var f;
+          if (flying) {
+            var a = u * 0.8 + i * TAU / n;
+            var lift = Math.min(1, u / 1.5) * Math.min(1, (12 - u) / 1.5);
+            f = frame([spec.p[0] + Math.cos(a) * 14 * lift, spec.p[1] + 2 + lift * (10 + Math.sin(a * 2) * 2),
+                       spec.p[2] + Math.sin(a) * 14 * lift], a + Math.PI);
+            var flap = Math.sin(t * 20 + i) * 0.8;
+            pen.part(child(f, [0.3, 0.4, 0], 0, 0, -flap), 'box', [0.6, 0, 0], [1.2, 0.08, 0.6], '#8a8a96');
+            pen.part(child(f, [-0.3, 0.4, 0], 0, 0, flap), 'box', [-0.6, 0, 0], [1.2, 0.08, 0.6], '#8a8a96');
+          } else {
+            f = frame([spec.p[0] - 4 + i * 1.2, spec.p[1] + 2.0, spec.p[2] + (i % 2 ? 2.4 : -2.4)], i % 2 ? 0 : Math.PI);
+          }
+          var bob = flying ? 0 : (Math.sin(t * 3 + i * 1.3) > 0.7 ? 0.15 : 0);
+          pen.part(f, 'box', [0, 0.35, 0], [0.5, 0.5, 0.8], '#8a8a96');
+          pen.part(f, 'box', [0, 0.75 - bob, 0.4 + bob], [0.36, 0.36, 0.36], '#6a6a78');
+          pen.part(f, 'box', [0, 0.55, 0.32], [0.38, 0.14, 0.2], '#5a8a7a');
+          pen.part(f, 'box', [0, 0.72 - bob, 0.65 + bob], [0.1, 0.1, 0.16], '#e8c8a0');
+        }
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);

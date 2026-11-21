@@ -181,6 +181,13 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the trackbed": "e", "the camp": "he", "the light shaft": "e", "the drain junction": "ec",
         "the north gallery": "e", "the south gallery": "e",
     },
+    "rooftops": {
+        "the penthouse": "shp", "the billboard": "epc", "the roof garden": "he", "the water tower": "e",
+        "the factory roof": "ec", "the high line": "he", "the construction site": "pc", "the crane": "e",
+        "the department store": "e", "the christmas tree": "h", "the skyline lounge": "he",
+        "the hot tub": "e", "the rooftop parking": "e", "the south street": "r", "the east street": "r",
+        "the alleys": "r", "the brownstones": "e",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.
