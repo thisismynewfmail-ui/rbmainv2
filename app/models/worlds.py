@@ -45,6 +45,24 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "at the valve tower, fight down the silted high street and the dry river, "
               "and take the flags from the chapels on their hills -- or come up the "
               "culvert into the crypt."},
+    {"id": "lantern", "name": "Lantern Terraces", "thumb": "br_lantern",
+     "captures": 3, "minutes": 15,
+     "blurb": "A tea estate on the night of the lantern festival. Muster in the pagoda "
+              "under a thousand lanterns, cross the koi streams and the bamboo, and climb "
+              "the terraces of tea to the tea houses on the hilltops -- or take the old tea "
+              "cellar through the hill."},
+    {"id": "meteora", "name": "Meteora", "thumb": "br_meteora",
+     "captures": 3, "minutes": 15,
+     "blurb": "Monasteries on top of rock pillars in the morning mist. Muster in the "
+              "chapel down in the valley, then climb to the flags -- up the switchback cut "
+              "in the cliff, or the hermits' way: over the rope bridge and up the chimney "
+              "inside the rock."},
+    {"id": "circuit", "name": "Circuit City", "thumb": "br_circuit",
+     "captures": 3, "minutes": 15,
+     "blurb": "A motherboard at night, and you are the size of a transistor. Muster in the "
+              "processor, fight through the heatsink's fins under its fan, run the copper "
+              "traces past capacitor towers to the flags in the I/O blocks -- or the cable "
+              "trenches under the board."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [

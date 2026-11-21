@@ -201,7 +201,8 @@
       petals: { n: 90, fall: 5, size: [0.5, 0.06, 0.4], colour: '#ffb8d0', a: 0.95, drift: 3.4, spin: 1 },
       leaves: { n: 70, fall: 6, size: [0.6, 0.06, 0.5], colour: '#d88a3a', a: 0.95, drift: 4.0, spin: 1 },
       dust:   { n: 60, fall: 0.3, size: [0.14, 0.14, 0.14], colour: '#e8d8b0', a: 0.55, drift: 3.0 },
-      sparks: { n: 50, fall: 1.0, size: [0.12, 0.12, 0.12], colour: '#9fe8ff', a: 0.9, glow: 1, drift: 1.4 }
+      sparks: { n: 50, fall: 1.0, size: [0.12, 0.12, 0.12], colour: '#9fe8ff', a: 0.9, glow: 1, drift: 1.4 },
+      mist:   { n: 40, fall: 0.2, size: [9.0, 2.6, 9.0], colour: '#eef2f4', a: 0.1, drift: 2.2, sph: 1 }
     };
 
     function drawWeather(renderer, dt, time) {
@@ -737,15 +738,16 @@
       ctx.fillRect(lx - 1, ly - 16, 2, 32);
     },
     title: function (ctx, t, d, run) {
-      var name = (run.info.name || 'Thimble Acre').toUpperCase().replace(/ /g, '');
+      var name = (run.info.name || 'Thimble Acre').toUpperCase();
       var colours = ['#c4281c', '#0d69ac', '#f2c21e', '#3a9a3a'];
-      var w = 96, gap = 10, total = name.length * (w + gap) - gap;
+      var w = Math.min(96, 1320 / name.length - 10), gap = 10, total = name.length * (w + gap) - gap;
       var x0 = 800 - total / 2;
       for (var i = 0; i < name.length; i++) {
         var at = 2.0 + i * 0.15 * (5 / Math.max(5, name.length));
         var k = seg(t, at, at + 0.35);
         if (k <= 0) continue;
         var bounce = k < 1 ? lerp(-500, 0, outBack(k, 1.8)) : 0;
+        if (name.charAt(i) === ' ') continue;
         brick(ctx, x0 + i * (w + gap), 230 + bounce, w, 100, colours[i % 4], name.charAt(i), 64);
       }
     }
@@ -1027,6 +1029,312 @@
       var water = lerp(-80, 82, inOut(seg(t, 2.0, 3.6)));
       ctx.fillStyle = 'rgba(60,90,100,0.75)';
       ctx.fillRect(-420, water, 840, 82 - water);
+      ctx.restore();
+    }
+  });
+
+
+  // ------------------------------------------------- Lantern Terraces
+  Intro.register('br_lantern', {
+    tagline: 'A thousand lanterns. Two tea houses. One night.',
+    accent: '#ff8a3a',
+    cues: [[0.3, 'br_gong', 0.6], [1.6, 'br_chime', 0.4], [2.2, 'explode', 0.2], [2.5, 'explode', 0.15],
+           [2.4, 'br_gong', 0.4], [3.4, 'explode', 0.2], [4.2, 'br_chime', 0.3]],
+    tagY: 660, tagAt: 3.4,
+    setup: function (r) {
+      var d = { lanterns: [], bursts: [], terraces: [] };
+      for (var i = 0; i < 90; i++) {
+        d.lanterns.push({ x: between(r, 0, VW), y0: between(r, 600, 1100), v: between(r, 40, 110),
+                          s: between(r, 6, 16), ph: r() * 6 });
+      }
+      for (i = 0; i < 5; i++) {
+        d.bursts.push({ x: between(r, 200, 1400), y: between(r, 120, 320), at: 2.0 + i * 0.6,
+                        c: ['#ff6a2a', '#ffd84a', '#ff4a8a', '#8affd8', '#ffffff'][i] });
+      }
+      for (i = 0; i < 8; i++) d.terraces.push(between(r, -14, 14));
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#08112a'], [0.7, '#2a1e44'], [1, '#4a2a3a']], 700);
+      // the moon with its rabbit
+      ctx.fillStyle = '#fff0c8';
+      ctx.beginPath(); ctx.arc(1250, 170, 70, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(200,180,140,0.5)';
+      ctx.beginPath(); ctx.ellipse(1236, 182, 20, 14, 0.3, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(1258, 162, 6, 14, -0.3, 0, TAU); ctx.fill();
+      // the hills of tea, terraced, both sides of the valley
+      [[0, 1], [VW, -1]].forEach(function (side) {
+        for (var k = 0; k < 8; k++) {
+          var y = 560 + k * 42;
+          var w = 520 - k * 40 + d.terraces[k];
+          ctx.fillStyle = k % 2 ? '#1e3a1e' : '#244424';
+          ctx.fillRect(side[1] > 0 ? 0 : VW - w, y, w, 44);
+          ctx.fillStyle = '#2e6a2a';
+          for (var j = 0; j < 8; j++) {
+            ctx.fillRect(side[1] > 0 ? j * 62 + 10 : VW - w + j * 62 + 10, y - 6, 44, 10);
+          }
+        }
+      });
+      // the pagoda in the middle
+      ctx.fillStyle = '#1a0a08';
+      for (var tier = 0; tier < 5; tier++) {
+        var w = 220 - tier * 34, y = 700 - tier * 70;
+        ctx.fillRect(800 - w / 2, y - 60, w, 60);
+        ctx.beginPath(); ctx.moveTo(800 - w / 2 - 40, y - 60); ctx.lineTo(800 + w / 2 + 40, y - 60);
+        ctx.lineTo(800 + w / 2, y - 76); ctx.lineTo(800 - w / 2, y - 76); ctx.fill();
+        additive(ctx, function () { dot(ctx, '#ff8a3a', 800, y - 30, w * 0.4, 0.25); });
+      }
+      ctx.fillRect(796, 330, 8, 50);
+      // sky lanterns rising
+      additive(ctx, function () {
+        d.lanterns.forEach(function (l) {
+          var y = l.y0 - t * l.v;
+          var x = l.x + Math.sin(t + l.ph) * 14;
+          dot(ctx, '#ffb04a', x, y, l.s * 2.4, 0.5);
+        });
+      });
+      d.lanterns.forEach(function (l) {
+        var y = l.y0 - t * l.v;
+        var x = l.x + Math.sin(t + l.ph) * 14;
+        ctx.fillStyle = '#ffcf7a';
+        ctx.fillRect(x - l.s * 0.4, y - l.s * 0.5, l.s * 0.8, l.s);
+      });
+      // fireworks
+      d.bursts.forEach(function (bu) {
+        var age = t - bu.at;
+        if (age < 0 || age > 1.4) return;
+        additive(ctx, function () {
+          for (var k = 0; k < 24; k++) {
+            var a = k * TAU / 24;
+            var rr = age * 160;
+            dot(ctx, bu.c, bu.x + Math.cos(a) * rr, bu.y + Math.sin(a) * rr + age * age * 40, 10,
+                1 - age / 1.4);
+          }
+        });
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Lantern Terraces').toUpperCase();
+      // a red scroll unrolls from the middle, gold letters on it
+      var k = outCubic(seg(t, 1.5, 2.3));
+      if (k <= 0) return;
+      var w = 1100 * k, h = 150;
+      ctx.save();
+      ctx.translate(800, 220);
+      ctx.fillStyle = '#a8281c';
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.strokeStyle = '#e8b84a'; ctx.lineWidth = 4;
+      ctx.strokeRect(-w / 2 + 10, -h / 2 + 10, w - 20, h - 20);
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(-w / 2 - 16, -h / 2 - 10, 16, h + 20);
+      ctx.fillRect(w / 2, -h / 2 - 10, 16, h + 20);
+      ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip();
+      var size = fitSize(ctx, name, 'bold #px ' + HEAVY, 84, 1000, 0.06);
+      ctx.font = 'bold ' + size + 'px ' + HEAVY;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#e8b84a';
+      spaced(ctx, name, 0, 4, size * 0.06);
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------- Meteora
+  Intro.register('br_meteora', {
+    tagline: 'They built on the rock so nobody could reach them.',
+    accent: '#f2d8a8',
+    cues: [[0.4, 'br_wind', 0.5], [1.4, 'bell', 0.5], [2.6, 'bell', 0.4], [1.9, 'crow', 0.3],
+           [3.6, 'crow', 0.25], [4.4, 'bell', 0.3]],
+    tagY: 660, tagAt: 3.3,
+    setup: function (r) {
+      var d = { pillars: [], birds: [], mist: [] };
+      for (var layer = 0; layer < 3; layer++) {
+        for (var i = 0; i < 7; i++) {
+          d.pillars.push({ layer: layer, x: i * 260 + between(r, -60, 60) - 40,
+                           w: between(r, 90, 160) * (1 - layer * 0.2), h: between(r, 280, 520) * (1 - layer * 0.25) });
+        }
+      }
+      for (i = 0; i < 9; i++) d.birds.push({ x: between(r, 300, 1300), y: between(r, 150, 300), ph: r() * 6, r: between(r, 60, 160) });
+      for (i = 0; i < 12; i++) d.mist.push({ y: between(r, 380, 760), x: r() * VW, w: between(r, 400, 900), v: between(r, 10, 40) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#7aa8d8'], [0.6, '#e8d8c8'], [1, '#f2e2c8']]);
+      additive(ctx, function () { dot(ctx, '#fff0c8', 1300, 300, 300, 0.5); });
+      // pillars in three layers, the back ones paler in the mist
+      for (var layer = 2; layer >= 0; layer--) {
+        var shade = ['#8a7a64', '#a89a84', '#c8beb0'][layer];
+        d.pillars.forEach(function (p) {
+          if (p.layer !== layer) return;
+          var base = 900 - layer * 60;
+          ctx.fillStyle = shade;
+          ctx.beginPath();
+          ctx.moveTo(p.x, base); ctx.lineTo(p.x + p.w * 0.08, base - p.h);
+          ctx.quadraticCurveTo(p.x + p.w * 0.5, base - p.h - 30, p.x + p.w * 0.92, base - p.h);
+          ctx.lineTo(p.x + p.w, base); ctx.fill();
+        });
+        // a band of mist between the layers
+        ctx.fillStyle = 'rgba(242,238,230,' + (0.35 + layer * 0.1) + ')';
+        d.mist.forEach(function (m, i) {
+          if (i % 3 !== layer) return;
+          ctx.beginPath();
+          ctx.ellipse((m.x + t * m.v) % (VW + 600) - 300, m.y, m.w / 2, 40, 0, 0, TAU);
+          ctx.fill();
+        });
+      }
+      // the monastery on the nearest tall pillar, its dome, the basket
+      var mx = 1080, my = 380;
+      ctx.fillStyle = '#7a6a54';
+      ctx.fillRect(mx - 120, my, 240, 520);
+      ctx.fillStyle = '#ece6da';
+      ctx.fillRect(mx - 110, my - 70, 220, 70);
+      ctx.fillStyle = '#b8582e';
+      ctx.fillRect(mx - 118, my - 80, 236, 12);
+      ctx.beginPath(); ctx.arc(mx, my - 80, 42, Math.PI, TAU); ctx.fill();
+      var drop = 120 + Math.sin(t * 0.8) * 20 + t * 26;
+      ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(mx - 130, my - 40); ctx.lineTo(mx - 130, my - 40 + drop); ctx.stroke();
+      ctx.fillStyle = '#a07a4a';
+      ctx.fillRect(mx - 142, my - 40 + drop, 24, 20);
+      // birds circling
+      d.birds.forEach(function (bd) {
+        var a = t * 0.6 + bd.ph;
+        K.crow(ctx, bd.x + Math.cos(a) * bd.r, bd.y + Math.sin(a) * bd.r * 0.3, 0.9, t * 9 + bd.ph, false);
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Meteora').toUpperCase();
+      // carved into a slab of the rock as the mist burns off
+      var k = seg(t, 1.4, 2.6);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(560, 230);
+      ctx.fillStyle = '#a89880';
+      roundRect(ctx, -420, -90, 840, 180, 16);
+      ctx.fill();
+      ctx.strokeStyle = '#7a6a54'; ctx.lineWidth = 6; ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 104, 740, 0.14);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      spaced(ctx, name, 3, 7, size * 0.14);
+      ctx.fillStyle = '#4a3a2a';
+      spaced(ctx, name, 0, 4, size * 0.14);
+      ctx.fillStyle = 'rgba(242,238,230,' + (1 - k) + ')';
+      ctx.fillRect(-430, -100, 860, 200);
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------- Circuit City
+  Intro.register('br_circuit', {
+    tagline: 'Power on. Run the traces. Take the port.',
+    accent: '#ffb05a',
+    cues: [[0.2, 'br_beep', 0.5], [0.9, 'br_tick', 0.6], [1.1, 'br_tick', 0.6], [1.3, 'br_tick', 0.6],
+           [1.9, 'br_hum', 0.6], [2.4, 'br_beep', 0.6], [3.2, 'br_arc', 0.3]],
+    tagY: 660, tagAt: 3.2,
+    setup: function (r) {
+      var d = { traces: [], chips: [], caps: [] };
+      for (var i = 0; i < 26; i++) {
+        var x = 800, y = 470, pts = [[x, y]];
+        var dir = i % 4;
+        for (var k = 0; k < 4; k++) {
+          var len = between(r, 80, 260);
+          if (dir === 0) x += len; else if (dir === 1) x -= len; else if (dir === 2) y += len * 0.5; else y -= len * 0.5;
+          pts.push([x, y]);
+          dir = (dir + (r() < 0.5 ? 1 : 3)) % 4;
+          if (dir > 1 && k === 0) dir = r() < 0.5 ? 0 : 1;
+        }
+        d.traces.push({ pts: pts, at: between(r, 0.6, 2.2) });
+      }
+      for (i = 0; i < 14; i++) d.chips.push({ x: between(r, 60, 1500), y: between(r, 120, 820), w: between(r, 40, 110), h: between(r, 30, 70) });
+      for (i = 0; i < 10; i++) d.caps.push({ x: between(r, 60, 1540), y: between(r, 140, 840), r: between(r, 14, 30), c: r() < 0.5 ? '#2a4aa8' : '#22242a' });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      ctx.fillStyle = '#0e2a1c';
+      ctx.fillRect(0, 0, VW, VH);
+      ctx.strokeStyle = 'rgba(80,160,110,0.18)'; ctx.lineWidth = 1;
+      for (var g = 0; g < VW; g += 40) { ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, VH); ctx.stroke(); }
+      d.chips.forEach(function (c) {
+        ctx.fillStyle = '#1b1d22';
+        ctx.fillRect(c.x, c.y, c.w, c.h);
+        ctx.fillStyle = '#c8ccd2';
+        for (var p = 4; p < c.w - 4; p += 9) { ctx.fillRect(c.x + p, c.y - 5, 4, 5); ctx.fillRect(c.x + p, c.y + c.h, 4, 5); }
+      });
+      d.caps.forEach(function (c) {
+        ctx.fillStyle = c.c; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#c8ccd2'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(c.x - c.r * 0.6, c.y); ctx.lineTo(c.x + c.r * 0.6, c.y);
+        ctx.moveTo(c.x, c.y - c.r * 0.6); ctx.lineTo(c.x, c.y + c.r * 0.6); ctx.stroke();
+      });
+      // current races out along the traces from the CPU
+      d.traces.forEach(function (tr) {
+        var k = seg(t, tr.at, tr.at + 1.2);
+        ctx.strokeStyle = '#5a4a22'; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(tr.pts[0][0], tr.pts[0][1]);
+        tr.pts.forEach(function (p) { ctx.lineTo(p[0], p[1]); }); ctx.stroke();
+        if (k <= 0) return;
+        var total = 0, segs = [];
+        for (var i = 1; i < tr.pts.length; i++) {
+          var l = Math.hypot(tr.pts[i][0] - tr.pts[i - 1][0], tr.pts[i][1] - tr.pts[i - 1][1]);
+          segs.push(l); total += l;
+        }
+        var reach = total * k, run = 0;
+        ctx.strokeStyle = '#ffb05a'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(tr.pts[0][0], tr.pts[0][1]);
+        var hx = tr.pts[0][0], hy = tr.pts[0][1];
+        for (i = 1; i < tr.pts.length; i++) {
+          var f = Math.min(1, Math.max(0, (reach - run) / segs[i - 1]));
+          hx = tr.pts[i - 1][0] + (tr.pts[i][0] - tr.pts[i - 1][0]) * f;
+          hy = tr.pts[i - 1][1] + (tr.pts[i][1] - tr.pts[i - 1][1]) * f;
+          ctx.lineTo(hx, hy);
+          run += segs[i - 1];
+          if (f < 1) break;
+        }
+        ctx.stroke();
+        additive(ctx, function () { dot(ctx, '#ffd08a', hx, hy, 24, k < 1 ? 1 : 0.4); });
+      });
+      // the CPU in the middle, its heatsink fins, the fan ring
+      ctx.fillStyle = '#3a3e46';
+      ctx.fillRect(700, 370, 200, 200);
+      ctx.fillStyle = '#b8c0c8';
+      for (var f = 0; f < 9; f++) ctx.fillRect(712 + f * 21, 380, 8, 180);
+      additive(ctx, function () {
+        ctx.strokeStyle = 'rgba(255,74,170,' + (0.5 + 0.4 * Math.sin(t * 4)) + ')'; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.arc(800, 470, 80, 0, TAU); ctx.stroke();
+      });
+      // the boot text
+      var lines = ['BIOS v2.6 ... OK', 'MEMORY 4 x 16GB ... OK', 'RELAY LINK ... ESTABLISHED',
+                   'FLAGS ... RED / BLUE', 'BOOT >'];
+      ctx.font = 'bold 18px Consolas, Menlo, monospace';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#4aff7a';
+      lines.forEach(function (ln, i) {
+        var at = 0.3 + i * 0.35;
+        var n = Math.floor(ln.length * seg(t, at, at + 0.3));
+        if (n > 0) ctx.fillText(ln.slice(0, n), 60, 120 + i * 26);
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Circuit City').toUpperCase();
+      // an LED dot-matrix display lights up letter by letter
+      var k = seg(t, 2.0, 2.2);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 260);
+      ctx.fillStyle = '#0a0c10';
+      roundRect(ctx, -520, -80, 1040, 160, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#3a3e46'; ctx.lineWidth = 4; ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Consolas, Menlo, monospace', 96, 940, 0.1);
+      ctx.font = 'bold ' + size + 'px Consolas, Menlo, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var shown = name.slice(0, Math.floor(name.length * seg(t, 2.1, 2.9)) + 1);
+      var pad = name.slice(shown.length).replace(/./g, ' ');
+      additive(ctx, function () {
+        ctx.fillStyle = 'rgba(255,176,90,0.9)';
+        spaced(ctx, shown + pad, 0, 4, size * 0.1);
+      });
       ctx.restore();
     }
   });

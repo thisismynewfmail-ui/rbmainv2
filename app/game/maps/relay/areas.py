@@ -14,4 +14,7 @@ ORDER = [
     ("orrery", "The Orrery"),
     ("saltglass", "Saltglass Flats"),
     ("drawdown", "Drawdown"),
+    ("lantern", "Lantern Terraces"),
+    ("meteora", "Meteora"),
+    ("circuit", "Circuit City"),
 ]
