@@ -306,6 +306,52 @@
     }
   });
 
+  Thumbs.registerWorld('br_snowglobe', {
+    camera: [[0, 22, 44], [0, 9, -2], 50],
+    sky: { top: '#3a3048', horizon: '#c89a7a', sun: [0.3, 0.6, 0.5], clouds: 0.2, tint: '#ffe8d0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [110, 1, 80], '#f2f5f8', { st: 1 });
+      // the globe's base curving round the back
+      for (var i = -5; i <= 5; i++) {
+        var a = i * 0.24;
+        k.box([Math.sin(a) * 46, 5, -Math.cos(a) * 30 - 4], [10, 10, 3], '#6a2e22');
+        k.box([Math.sin(a) * 46, 10.3, -Math.cos(a) * 30 - 4], [10, 0.6, 3], '#e8c050', { m: 'metal' });
+      }
+      // the town hall and its clock tower
+      k.box([0, 3, -10], [16, 6, 10], '#f2ead8');
+      k.box([0, 6.5, -10], [17, 1, 11], '#eef2f6', { st: 1 });
+      k.box([0, 11, -10], [5, 9, 5], '#e8d8c0');
+      k.shape('cyl', [0, 12, -7.4], [3.4, 0.2, 3.4], '#f4ecd8', { r: [Math.PI / 2, 0, 0] });
+      k.shape('cone', [0, 17.5, -10], [6, 4, 6], '#4a5060');
+      // a chalet on its hill, its flag before it
+      k.box([-30, 1, -6], [26, 2, 24], '#dde4ec', { st: 1 });
+      k.box([-30, 3, -6], [20, 2, 18], '#f2f5f8', { st: 1 });
+      k.box([-31, 8, -8], [12, 6, 10], '#7a4e2e');
+      k.box([-31, 11.6, -8], [14, 1.2, 12], '#eef2f6', { st: 1 });
+      pedestal(k, -22, 4, -2, RED, RED_NEON);
+      // the carousel
+      k.shape('cyl', [14, 0.6, 4], [10, 1.2, 10], '#c8a060');
+      k.shape('cone', [14, 8, 4], [11, 3, 11], '#f8f2e8');
+      k.shape('cyl', [14, 6.4, 4], [11, 0.8, 11], '#d8322a');
+      k.shape('cyl', [14, 3.6, 4], [0.5, 6, 0.5], '#e8c050', { m: 'metal' });
+      // the toy train going round
+      k.box([-6, 1.2, 10], [3, 2, 5], '#2a6a3a');
+      k.box([-6, 3, 8.6], [3, 2, 2], '#c42b20');
+      k.box([0, 1.2, 10], [3, 1.6, 4], '#2a6aa8');
+      k.box([0, 2.6, 10], [1.6, 1.6, 1.6], '#f2c21e');
+      // pines with snow, a snowman
+      [[-44, -16], [24, -16], [36, -6], [-14, -20]].forEach(function (p) {
+        k.shape('cone', [p[0], 5, p[1]], [6, 8, 6], '#2a5a3a');
+        k.shape('cone', [p[0], 8.4, p[1]], [2.4, 2, 2.4], '#ffffff');
+      });
+      k.shape('sph', [24, 1.4, 10], [3, 2.8, 3], '#ffffff');
+      k.shape('sph', [24, 3.6, 10], [2, 2, 2], '#ffffff');
+      k.shape('cone', [23.2, 3.7, 10.9], [0.4, 1.4, 0.4], '#e87a2a', { r: [Math.PI / 2, 0, 0] });
+      k.player(-8, 2.2, 2, { anim: 'run', time: 0.3, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(8, 0.0, 14, { anim: 'run', time: 0.7, wear: cap(RED) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

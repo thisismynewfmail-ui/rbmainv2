@@ -1401,6 +1401,182 @@
     }
   });
 
+  /* Snowglobe Hollow: a souvenir snow globe on the mantelpiece, the fire
+     glowing.  Somebody shakes it -- the snow goes everywhere -- and as it
+     settles the village's windows come on one by one, the toy train goes
+     round the square, and the name comes up on the brass plaque. */
+  Intro.register('br_snowglobe', {
+    tagline: 'Shake it up. Take the chalet. Bring it home.',
+    accent: '#bfe8ff',
+    cues: [[0.15, 'br_musicbox', 0.7], [0.7, 'br_rumble', 0.7], [1.95, 'br_musicbox', 0.5],
+           [2.5, 'br_whistle', 0.45], [3.3, 'br_toll', 0.5]],
+    tagY: 856, tagAt: 3.1,
+    setup: function (r) {
+      var d = { flakes: [], houses: [], pines: [], stripes: [] };
+      for (var i = 0; i < 190; i++) {
+        d.flakes.push({ a: r() * TAU, rr: Math.sqrt(r()), y: between(r, -1, 1), s: between(r, 1.6, 4.2),
+                        sp: between(r, 0.6, 1.4), ph: r() * TAU });
+      }
+      for (i = 0; i < 9; i++) {
+        d.houses.push({ x: -190 + i * 47 + between(r, -8, 8), w: between(r, 30, 44), h: between(r, 26, 44),
+                        c: ['#f2e0c8', '#f2ead8', '#e8d8e8', '#f2e8c0', '#e0e8f0'][i % 5], on: between(r, 1.7, 3.0) });
+      }
+      for (i = 0; i < 14; i++) d.pines.push({ x: between(r, -250, 250), y: between(r, 120, 200), s: between(r, 0.6, 1.2) });
+      for (i = 0; i < 26; i++) d.stripes.push(i);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      // the room: a dark papered wall, the fire's glow coming up from below
+      ctx.fillStyle = '#2a1a1e';
+      ctx.fillRect(0, 0, VW, VH);
+      ctx.fillStyle = 'rgba(255,255,255,0.025)';
+      d.stripes.forEach(function (i) { ctx.fillRect(i * 64, 0, 22, VH); });
+      var flick = 0.8 + 0.2 * Math.sin(t * 9) * Math.sin(t * 5.3);
+      additive(ctx, function () {
+        dot(ctx, '#ff8a3a', 160, 900, 520, 0.4 * flick);
+        dot(ctx, '#ff8a3a', 1440, 900, 520, 0.4 * flick);
+      });
+      // the mantelpiece
+      ctx.fillStyle = '#5a2a1a'; ctx.fillRect(0, 770, VW, 44);
+      ctx.fillStyle = '#7a3e26'; ctx.fillRect(0, 770, VW, 8);
+      ctx.fillStyle = '#3a1a10'; ctx.fillRect(0, 814, VW, 86);
+      // the shake: the globe rocks for a second, then settles
+      var shake = seg(t, 0.55, 1.75), hump = Math.sin(shake * Math.PI);
+      var rock = Math.sin(t * 26) * 0.07 * hump, lift = -38 * hump;
+      ctx.save();
+      ctx.translate(800, 770 + lift);
+      ctx.rotate(rock);
+      // the base: dark wood, a gold band, (the plaque is the title)
+      ctx.fillStyle = '#4a1e14';
+      ctx.beginPath(); ctx.moveTo(-330, 0); ctx.lineTo(330, 0); ctx.lineTo(270, -136); ctx.lineTo(-270, -136); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#6a2e22'; ctx.fillRect(-276, -150, 552, 18);
+      ctx.fillStyle = '#e8c050'; ctx.fillRect(-280, -156, 560, 8);
+      // the globe
+      var R = 268, cy = -156 - R * 0.86;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(0, cy, R, 0, TAU); ctx.clip();
+      var sky = ctx.createLinearGradient(0, cy - R, 0, cy + R);
+      sky.addColorStop(0, '#3a3058'); sky.addColorStop(0.55, '#c89a8a'); sky.addColorStop(1, '#f2e0d0');
+      ctx.fillStyle = sky; ctx.fillRect(-R, cy - R, R * 2, R * 2);
+      // far peaks
+      ctx.fillStyle = '#e8eef4';
+      [[-220, 90], [-120, 130], [10, 100], [140, 140], [240, 96]].forEach(function (p) {
+        ctx.beginPath(); ctx.moveTo(p[0] - 110, cy + 60); ctx.lineTo(p[0], cy + 60 - p[1]); ctx.lineTo(p[0] + 110, cy + 60); ctx.fill();
+      });
+      // the snowy ground, the two chalet hills
+      ctx.fillStyle = '#f6f8fa';
+      ctx.beginPath(); ctx.ellipse(0, cy + 190, R * 1.1, 150, 0, 0, TAU); ctx.fill();
+      [[-1, '#c42b20'], [1, '#0d69ac']].forEach(function (side) {
+        var hx = side[0] * 215;
+        ctx.fillStyle = '#eef2f6';
+        ctx.beginPath(); ctx.ellipse(hx, cy + 108, 110, 64, 0, Math.PI, TAU); ctx.fill();
+        ctx.fillStyle = '#6a4a2e'; ctx.fillRect(hx - 34, cy + 22, 68, 40);
+        ctx.fillStyle = '#4a5060';
+        ctx.beginPath(); ctx.moveTo(hx - 44, cy + 24); ctx.lineTo(hx, cy - 8); ctx.lineTo(hx + 44, cy + 24); ctx.fill();
+        ctx.fillStyle = '#f6f8fa';
+        ctx.beginPath(); ctx.moveTo(hx - 38, cy + 18); ctx.lineTo(hx, cy - 6); ctx.lineTo(hx + 38, cy + 18); ctx.lineTo(hx, cy + 6); ctx.fill();
+        if (t > 2.0) { ctx.fillStyle = '#ffd890'; ctx.fillRect(hx - 22, cy + 34, 10, 10); ctx.fillRect(hx + 12, cy + 34, 10, 10); }
+        pennant(ctx, hx + side[0] * 40, cy + 14, 44, side[1], t, side[0] < 0 ? 1 : -1);
+      });
+      // the town: houses, lit window by window, the church and the clock tower
+      d.houses.forEach(function (h) {
+        var y0 = cy + 150;
+        ctx.fillStyle = h.c; ctx.fillRect(h.x - h.w / 2, y0 - h.h, h.w, h.h);
+        ctx.fillStyle = '#f6f8fa';
+        ctx.beginPath(); ctx.moveTo(h.x - h.w / 2 - 4, y0 - h.h); ctx.lineTo(h.x, y0 - h.h - 18); ctx.lineTo(h.x + h.w / 2 + 4, y0 - h.h); ctx.fill();
+        ctx.fillStyle = t > h.on ? '#ffd27a' : '#6a6a78';
+        ctx.fillRect(h.x - 8, y0 - h.h + 10, 7, 8); ctx.fillRect(h.x + 2, y0 - h.h + 10, 7, 8);
+        if (t > h.on) additive(ctx, function () { dot(ctx, '#ffcf7a', h.x, y0 - h.h + 14, 18, 0.5); });
+      });
+      ctx.fillStyle = '#e8d8c0'; ctx.fillRect(-16, cy - 30, 32, 150);
+      ctx.fillStyle = '#4a5060';
+      ctx.beginPath(); ctx.moveTo(-22, cy - 30); ctx.lineTo(0, cy - 78); ctx.lineTo(22, cy - 30); ctx.fill();
+      ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.arc(0, cy + 2, 12, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a2218'; ctx.lineWidth = 2.5;
+      var ang = t * 1.4;
+      ctx.beginPath(); ctx.moveTo(0, cy + 2); ctx.lineTo(Math.sin(ang) * 9, cy + 2 - Math.cos(ang) * 9);
+      ctx.moveTo(0, cy + 2); ctx.lineTo(Math.sin(ang / 12) * 6, cy + 2 - Math.cos(ang / 12) * 6); ctx.stroke();
+      ctx.fillStyle = '#3a6a4a'; ctx.beginPath(); ctx.arc(-96, cy + 46, 16, Math.PI, TAU); ctx.fill();
+      ctx.fillStyle = '#f2ead8'; ctx.fillRect(-108, cy + 46, 24, 40);
+      // the carousel, the toy train going round
+      ctx.fillStyle = '#d8322a';
+      ctx.beginPath(); ctx.moveTo(80, cy + 120); ctx.lineTo(104, cy + 98); ctx.lineTo(128, cy + 120); ctx.fill();
+      ctx.fillStyle = '#c8a060'; ctx.fillRect(84, cy + 120, 40, 18);
+      for (var c = 0; c < 5; c++) {
+        var ta = t * 0.9 - c * 0.16;
+        var tx = Math.cos(ta) * 160, ty = cy + 196 + Math.sin(ta) * 22;
+        ctx.fillStyle = c === 0 ? '#2a6a3a' : (c === 4 ? '#c42b20' : ['#2a6aa8', '#f2c21e', '#c42b20'][c % 3]);
+        ctx.fillRect(tx - 10, ty - 8, 20, 12);
+      }
+      // pines
+      d.pines.forEach(function (p) {
+        var y = cy + p.y;
+        ctx.fillStyle = '#2a5a3a';
+        ctx.beginPath(); ctx.moveTo(p.x - 14 * p.s, y); ctx.lineTo(p.x, y - 40 * p.s); ctx.lineTo(p.x + 14 * p.s, y); ctx.fill();
+        ctx.fillStyle = '#f6f8fa';
+        ctx.beginPath(); ctx.moveTo(p.x - 6 * p.s, y - 26 * p.s); ctx.lineTo(p.x, y - 40 * p.s); ctx.lineTo(p.x + 6 * p.s, y - 26 * p.s); ctx.fill();
+      });
+      // the snow: whirled up by the shake, then settling
+      d.flakes.forEach(function (f) {
+        var whirl = hump * 3.2 + shake * 2;
+        var a = f.a + whirl * f.sp + t * 0.2;
+        var settle = seg(t, 1.6, 4.6);
+        var x = Math.cos(a) * f.rr * R * 0.95;
+        var yv = f.y * R * 0.85 * (1 - hump * 0.3) + settle * 140 * f.sp + Math.sin(t * 2 + f.ph) * 6;
+        var y = cy + ((yv + R) % (R * 2)) - R;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(x, y, f.s * (0.7 + hump * 0.4), 0, TAU); ctx.fill();
+      });
+      ctx.restore();
+      // the glass: a rim, the window's reflection, the fire's
+      ctx.strokeStyle = 'rgba(220,240,255,0.5)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, cy, R, 0, TAU); ctx.stroke();
+      additive(ctx, function () {
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 16;
+        ctx.beginPath(); ctx.arc(0, cy, R - 30, Math.PI * 1.12, Math.PI * 1.42); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,170,90,' + (0.18 * flick) + ')'; ctx.lineWidth = 22;
+        ctx.beginPath(); ctx.arc(0, cy, R - 24, Math.PI * 0.2, Math.PI * 0.55); ctx.stroke();
+      });
+      ctx.restore();
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Snowglobe Hollow').toUpperCase();
+      var k = seg(t, 2.05, 2.5);
+      if (k <= 0) return;
+      var shake = seg(t, 0.55, 1.75), hump = Math.sin(shake * Math.PI);
+      ctx.save();
+      ctx.translate(800, 770 - 38 * hump);
+      ctx.rotate(Math.sin(t * 26) * 0.07 * hump);
+      ctx.translate(0, -70);
+      ctx.globalAlpha = k;
+      var w = 420, h = 64;
+      var plate = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+      plate.addColorStop(0, '#f2d27a'); plate.addColorStop(0.5, '#c89a3a'); plate.addColorStop(1, '#e8c060');
+      ctx.fillStyle = plate;
+      roundRect(ctx, -w / 2, -h / 2, w, h, 10); ctx.fill();
+      ctx.strokeStyle = '#7a5a1a'; ctx.lineWidth = 3; ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 40, w - 50, 0.08);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,240,200,0.6)';
+      spaced(ctx, name, 0, 2, size * 0.08);
+      ctx.fillStyle = '#4a3010';
+      spaced(ctx, name, 0, 0, size * 0.08);
+      // a shine running along the brass
+      var sweep = seg(t, 2.5, 3.2);
+      if (sweep > 0 && sweep < 1) {
+        additive(ctx, function () {
+          var x = -w / 2 + sweep * w;
+          var g = ctx.createLinearGradient(x - 40, 0, x + 40, 0);
+          g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,250,220,0.55)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g; ctx.fillRect(x - 40, -h / 2, 80, h);
+        });
+      }
+      ctx.restore();
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };

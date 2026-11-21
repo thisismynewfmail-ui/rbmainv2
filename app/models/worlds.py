@@ -63,6 +63,12 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "processor, fight through the heatsink's fins under its fan, run the copper "
               "traces past capacitor towers to the flags in the I/O blocks -- or the cable "
               "trenches under the board."},
+    {"id": "snowglobe", "name": "Snowglobe Hollow", "thumb": "br_snowglobe",
+     "captures": 3, "minutes": 15,
+     "blurb": "An alpine village inside a snow globe on somebody's mantelpiece -- and they "
+              "keep shaking it. Muster in the town hall under its clock, past the carousel "
+              "and the toy train; the flags are in the chalets on the hills, each with an "
+              "ice tunnel from beside the flag to the edge of the village."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [
