@@ -409,6 +409,31 @@
         hat: hat([{ t: 'cyl', p: [0, 0.24, 0], s: [1.7, 0.5, 1.7], c: '#2a2a5a' },
                   { t: 'box', p: [0, 0.06, 0.92], s: [1.3, 0.1, 0.5], c: '#1a1a1a' },
                   { t: 'cyl', p: [0, 0.48, 0], s: [1.72, 0.08, 1.72], c: '#d8b84a' }]) }
+    ],
+    // Glasshouse Gardens: the gardeners, a botanist, visitors in their
+    // macs, a wedding party (the bride, the groom), the guide in her helmet
+    gardens: [
+      CLASSIC,
+      { shirt: shirt('#3a6a3a', '#e8e0cc', { weave: 'canvas' }), pants: pants('#5a4a3a'),
+        hat: hat([{ t: 'cyl', p: [0, 0.12, 0], s: [2.6, 0.12, 2.6], c: '#d8c088' },
+                  { t: 'cyl', p: [0, 0.4, 0], s: [1.4, 0.5, 1.4], c: '#d8c088' }]) },
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { weave: 'canvas', decal: 'logo_block' }), pants: pants('#3a3a42'),
+        hat: hat([{ t: 'box', p: [0.42, -0.1, 0.84], s: [0.6, 0.4, 0.08], c: '#2a2a2a', a: 0.7 },
+                  { t: 'box', p: [-0.42, -0.1, 0.84], s: [0.6, 0.4, 0.08], c: '#2a2a2a', a: 0.7 }]),
+        hair: hair([{ p: [0, 0.36, -0.04], s: [1.1, 0.44, 1.1], c: '#8a8a88' }]) },
+      { shirt: shirt('#e8c81a', '#e8c81a', { hood: true, weave: 'vinyl' }), pants: pants('#3a4a6a', { weave: 'denim' }) },
+      { shirt: shirt('#f6f2ea', '#f6f2ea', { weave: 'lace' }), pants: pants('#f6f2ea', { weave: 'lace' }),
+        hat: hat([{ t: 'box', p: [0, -0.4, -0.5], s: [1.9, 2.6, 0.2], c: '#f6f2ea', a: 0.45 },
+                  { t: 'cyl', p: [0, 0.3, 0], s: [1.2, 0.2, 1.2], c: '#e8d8b0' }]),
+        hair: hair([{ p: [0, 0.34, -0.06], s: [1.08, 0.46, 1.06], c: '#6a4a2a' }]) },
+      { shirt: shirt('#1a1a1e', '#1a1a1e', { decal: 'tux' }), pants: pants('#1a1a1e'),
+        hair: hair([{ p: [0, 0.38, 0.08], s: [1.08, 0.38, 1.1], c: '#2a1a0a' }]) },
+      { shirt: shirt('#2a3a4a', '#2a3a4a', { decal: 'logo_block' }), pants: pants('#2a3a4a'),
+        hat: hat([{ t: 'box', p: [0, 0.14, 0], s: [1.66, 0.28, 1.66], c: '#1a2a3a' },
+                  { t: 'box', p: [0, 0.06, 0.95], s: [1.3, 0.1, 0.5], c: '#1a1a1a' }]) },
+      { shirt: shirt('#c8b888', '#c8b888', { sleeves: 0.4 }), pants: pants('#8a7a5a', { length: 0.55 }),
+        hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.9, 1.2, 1.9], c: '#e8e0c8' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.2, 0.12, 2.2], c: '#e8e0c8' }]) }
     ]
   };
 

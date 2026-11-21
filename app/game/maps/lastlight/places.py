@@ -22,6 +22,7 @@ ORDER = [
     ("launchpad", "Launch Complex 9", "#5a6a3a", 760.0),
     ("cistern", "The Underneath", "#3a3a3a", 420.0),
     ("rooftops", "Rooftops of Harrow Heights", "#5a5e66", 640.0),
+    ("gardens", "Glasshouse Gardens", "#3a6a32", 600.0),
 ]
 
 # where each new place sits, in units of the spacing, in the order above

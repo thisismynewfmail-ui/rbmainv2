@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Tuple
 
 from .kit import (
     BRICK, CONCRETE, CONCRETE_DARK, FLOOR, GLASS, HAZARD, STEEL, STEEL_DARK, WARM, WOOD, WOOD_DARK,

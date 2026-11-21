@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List, Tuple
+from typing import Tuple
 
 from .kit import (
     CONCRETE, CONCRETE_DARK, FLOOR, HAZARD, STEEL, STEEL_DARK, WOOD, WOOD_DARK, WOOD_LIGHT, Area,

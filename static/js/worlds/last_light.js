@@ -2081,5 +2081,112 @@
     }
   });
 
+  /* Glasshouse Gardens: the Palm House glowing from inside, its dome a
+     lantern over the dark lawns; fireflies; the topiary animals standing in
+     the foreground -- and one of them, the giraffe, turns its head.  Between
+     the hedges, they come.  The name is on an old seed packet. */
+  Intro.register('gardens', {
+    tagline: 'Something in the glass is blooming. Something out here is hungry.',
+    accent: '#b6ff8a',
+    cues: [[0.1, 'll_wind', 0.3], [0.7, 'll_peacock', 0.5], [1.5, 'll_snap', 0.6], [2.2, 'll_stink', 0.35]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 120, 0, 380), flies: [], zeds: [], panes: [] };
+      for (var i = 0; i < 50; i++) d.flies.push({ x: r() * VW, y: between(r, 420, 780), p: r() * 6, s: between(r, 0.6, 1.2) });
+      var looks = [['#3a6a3a', '#5a4a3a', '#6fae55'], ['#f6f2ea', '#f6f2ea', '#7fb069'], ['#1a1a1e', '#1a1a1e', '#5f9a4c'],
+                   ['#e8c81a', '#3a4a6a', '#86b86a'], ['#c8b888', '#8a7a5a', '#6c9f68']];
+      for (i = 0; i < 6; i++) d.zeds.push({ x: 420 + i * 150 + between(r, -30, 30), at: 1.3 + i * 0.2, p: r() * 6, look: looks[i % looks.length] });
+      for (i = 0; i < 12; i++) d.panes.push(r());
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#040810'], [0.6, '#0e1a22'], [1, '#1e3030']], 560);
+      starsK(ctx, d.stars, t, 0.8);
+      // the Palm House: lit glass, the dome, the white ironwork
+      var cx = 800, base = 560;
+      additive(ctx, function () { dot(ctx, '#c8ffb0', cx, base - 120, 520, 0.22); });
+      var glow = 'rgba(200,255,180,0.28)';
+      ctx.fillStyle = glow; ctx.fillRect(cx - 420, base - 150, 840, 150);
+      ctx.beginPath(); ctx.ellipse(cx, base - 150, 230, 200, 0, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = 'rgba(240,250,240,0.8)'; ctx.lineWidth = 3;
+      ctx.strokeRect(cx - 420, base - 150, 840, 150);
+      for (var m = 0; m <= 20; m++) { ctx.beginPath(); ctx.moveTo(cx - 420 + m * 42, base - 150); ctx.lineTo(cx - 420 + m * 42, base); ctx.stroke(); }
+      for (var rib = 0; rib <= 10; rib++) {
+        var a = Math.PI + rib / 10 * Math.PI;
+        ctx.beginPath(); ctx.moveTo(cx, base - 150); ctx.lineTo(cx + Math.cos(a) * 230, base - 150 + Math.sin(a) * 200); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.ellipse(cx, base - 150, 230, 200, 0, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, base - 150, 140, 120, 0, Math.PI, 0); ctx.stroke();
+      // palm silhouettes inside
+      ctx.fillStyle = 'rgba(20,50,30,0.7)';
+      [-160, -40, 90, 200].forEach(function (px, i) {
+        ctx.fillRect(cx + px - 4, base - 220 + i * 10, 8, 220 - i * 10);
+        for (var f = 0; f < 6; f++) {
+          ctx.save(); ctx.translate(cx + px, base - 220 + i * 10); ctx.rotate(-1.4 + f * 0.56 + Math.sin(t + i) * 0.05);
+          ctx.beginPath(); ctx.ellipse(36, 0, 40, 7, 0, 0, TAU); ctx.fill(); ctx.restore();
+        }
+      });
+      // the lawn, the hedge line
+      ctx.fillStyle = '#0e1a12'; ctx.fillRect(0, base, VW, VH - base);
+      ctx.fillStyle = '#14281a'; ctx.fillRect(0, base + 120, VW, 40);
+      // the topiary in front: the elephant, the giraffe (whose head turns)
+      ctx.fillStyle = '#1a3a1e';
+      ctx.fillRect(180, 560, 150, 110); ctx.fillRect(310, 520, 70, 80); ctx.fillRect(350, 590, 20, 90);
+      for (var lg = 0; lg < 4; lg++) ctx.fillRect(190 + lg * 38, 660, 24, 60);
+      ctx.fillRect(1240, 560, 90, 80);
+      for (var lg2 = 0; lg2 < 4; lg2++) ctx.fillRect(1244 + lg2 * 24, 630, 14, 90);
+      ctx.fillRect(1300, 400, 28, 170);
+      var turn = seg(t, 1.6, 2.1);
+      ctx.save(); ctx.translate(1314, 404); ctx.rotate(-turn * 0.9);
+      ctx.fillRect(-14, -40, 60 - turn * 20, 40);
+      if (turn > 0.5) { additive(ctx, function () { dot(ctx, '#b6ff4a', 26 - turn * 10, -24, 10, 0.9); }); }
+      ctx.restore();
+      // between the hedges, them
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.7);
+        if (k2 <= 0) return;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x + (t - z.at) * 8 * (z.x < 800 ? 1 : -1), 760, 2.0, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+      });
+      // fireflies
+      d.flies.forEach(function (f) {
+        if (Math.sin(t * 2.4 * f.s + f.p * 3) < 0.4) return;
+        var x = f.x + Math.sin(t * 0.6 + f.p) * 30, y = f.y + Math.cos(t * 0.5 + f.p) * 16;
+        additive(ctx, function () { dot(ctx, '#d8ff6a', x, y, 10, 0.8); });
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Glasshouse Gardens').toUpperCase();
+      var k = outBack(seg(t, 0.4, 0.85), 1.3);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 230);
+      ctx.rotate(0.03 + (1 - k) * 0.4);
+      ctx.scale(0.8 * k, 0.8 * k);
+      // the seed packet: cream, a green border, a little engraving of the
+      // flower, the name across it
+      ctx.fillStyle = '#efe6c8'; roundRect(ctx, -440, -130, 880, 260, 8); ctx.fill();
+      ctx.strokeStyle = '#2a5a2a'; ctx.lineWidth = 8; roundRect(ctx, -424, -114, 848, 228, 6); ctx.stroke();
+      ctx.lineWidth = 2; roundRect(ctx, -410, -100, 820, 200, 4); ctx.stroke();
+      ctx.save(); ctx.translate(-320, 10);
+      ctx.fillStyle = '#5a1a3a';
+      ctx.beginPath(); ctx.moveTo(-50, 70); ctx.quadraticCurveTo(-60, -10, 0, -30); ctx.quadraticCurveTo(60, -10, 50, 70); ctx.fill();
+      ctx.fillStyle = '#e8d8a0'; ctx.fillRect(-7, -90, 14, 110);
+      ctx.fillStyle = '#3a6a2a'; ctx.fillRect(-36, 66, 72, 14);
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#2a5a2a';
+      spaced(ctx, 'HARROW  BOTANIC  GARDENS   ·   EST. 1852', 80, -70, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 64, 600, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.fillStyle = '#1a3a1a';
+      spaced(ctx, name, 80, 4, size * 0.04);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#8a2a4a';
+      spaced(ctx, 'TITAN ARUM  ·  BLOOMS ONCE IN SEVEN YEARS', 80, 70, 3);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

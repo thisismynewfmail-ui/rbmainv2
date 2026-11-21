@@ -3917,5 +3917,273 @@
     };
   });
 
+  // ================================================ Glasshouse Gardens
+  if (GA) {
+    GA.register('ll_stink', function (vol) {
+      // the vents winding open, and a low sick drone
+      for (var i = 0; i < 4; i++) {
+        this.later(i * 300, function () { this.noise({ filter: 'bandpass', freq: 900, freqEnd: 600, dur: 0.25, gain: 0.05 * vol }); });
+      }
+      this.later(1300, function () {
+        this.tone({ type: 'sawtooth', freq: 58, freqEnd: 52, dur: 3.5, gain: 0.08 * vol });
+        this.tone({ type: 'sine', freq: 87, freqEnd: 80, dur: 3.5, gain: 0.06 * vol });
+        this.noise({ filter: 'lowpass', freq: 240, dur: 3.5, gain: 0.06 * vol });
+      });
+    });
+    GA.register('ll_snap', function (vol) {
+      this.noise({ filter: 'bandpass', freq: 1400, freqEnd: 400, dur: 0.12, gain: 0.12 * vol });
+      this.tone({ type: 'square', freq: 160, freqEnd: 80, dur: 0.1, gain: 0.05 * vol });
+    });
+    GA.register('ll_peacock', function (vol) {
+      this.tone({ type: 'sawtooth', freq: 900, freqEnd: 1300, dur: 0.3, gain: 0.05 * vol });
+      this.later(320, function () { this.tone({ type: 'sawtooth', freq: 1300, freqEnd: 700, dur: 0.5, gain: 0.05 * vol }); });
+    });
+  }
+
+  /* The corpse flower in its tower: the frilled purple spathe round the
+     spadix, flies about it, a haze of stink; with the vents open (the
+     lure), the haze comes pouring out of the roof and spreads. */
+  Rigs.register('corpse_flower', function (spec) {
+    var x = spec.p[0], y = spec.p[1], z = spec.p[2];
+    var vents = spec.vents || [];
+    var open = -100;
+    return {
+      radius: 160,
+      event: function (kind) { if (kind === 'lure') open = Rigs.clock(); },
+      draw: function (pen, t) {
+        var bloom = 0.85 + 0.15 * Math.sin(t * 0.3);
+        for (var k = 0; k < 10; k++) {
+          var a = k / 10 * TAU;
+          var petal = child(frame([x, y, z], a), [0, 0, 1.6], -0.5 * bloom - Math.sin(t * 0.6 + k) * 0.04, 0, 0);
+          pen.part(petal, 'box', [0, 4.0, 0.6], [3.4, 8.0, 0.3], '#5a1a3a');
+          pen.part(petal, 'box', [0, 4.0, 0.42], [3.0, 7.4, 0.1], '#8a2a4a');
+        }
+        for (var f = 0; f < 8; f++) {
+          var u = t * 2 + f * 1.3;
+          pen.part(frame([x + Math.cos(u) * 4, y + 9 + Math.sin(u * 1.7) * 3, z + Math.sin(u) * 4], 0), 'box', [0, 0, 0],
+                   [0.25, 0.2, 0.25], '#1a1a1a');
+        }
+        var u2 = t - open;
+        var out = u2 >= 0 && u2 < 30;
+        for (var m = 0; m < 6; m++) {
+          var q = (t * 0.12 + m / 6) % 1, sz = 4 + q * 10;
+          pen.part(frame([x + Math.sin(m * 2.3) * q * 6, y + 6 + q * 14, z + Math.cos(m * 1.9) * q * 6], 0), 'sph', [0, 0, 0],
+                   [sz, sz * 0.6, sz], '#8a9a4a', { a: 0.12 * (1 - q) });
+        }
+        if (!out) return;
+        for (var v = 0; v < vents.length; v++) {
+          for (var p = 0; p < 10; p++) {
+            var w = (u2 * 0.15 + p / 10) % 1, sw = 6 + w * 40;
+            var dir = p * 0.63;
+            pen.part(frame([vents[v][0] + Math.cos(dir) * w * 90, vents[v][1] + 4 + w * 8 - w * w * 14, vents[v][2] + Math.sin(dir) * w * 90], 0),
+                     'sph', [0, 0, 0], [sw, sw * 0.4, sw], '#7a8a3a', { a: 0.18 * (1 - w) * Math.min(1, (30 - u2) / 3) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The giant flytraps in their beds: jaws open, trigger hairs; anything
+     comes within reach -- the infected or you -- and they snap shut, then
+     open slowly again. */
+  Rigs.register('flytraps', function (spec) {
+    var traps = spec.traps || [];
+    var shut = traps.map(function () { return -100; });
+    return {
+      radius: 80,
+      update: function (dt, t, ctx) {
+        var who = (ctx.zombies ? ctx.zombies() : []).concat(ctx.players ? ctx.players() : []);
+        for (var i = 0; i < traps.length; i++) {
+          if (t - shut[i] > 5 && nearest(who, traps[i], 6)) {
+            shut[i] = t; if (ctx.sound) ctx.sound('ll_snap', traps[i], 1);
+          }
+        }
+      },
+      draw: function (pen, t) {
+        for (var i = 0; i < traps.length; i++) {
+          var u = t - shut[i];
+          var close = u < 0.15 ? u / 0.15 : (u < 3 ? 1 : Math.max(0, 1 - (u - 3) / 2));
+          var open = 0.9 * (1 - close) + 0.05;
+          var f = frame(traps[i], i * 1.7);
+          pen.part(f, 'box', [0, 1.2, 0], [0.5, 2.4, 0.5], '#3a6a2a');
+          var head = child(f, [0, 2.4, 0], -0.5, 0, 0);
+          for (var sd = -1; sd <= 1; sd += 2) {
+            var jaw = child(head, [0, 0, 0], sd * open, 0, 0);
+            pen.part(jaw, 'box', [0, 1.4, sd * 0.2], [3.0, 2.8, 0.25], '#6a9a2a');
+            pen.part(jaw, 'box', [0, 1.4, sd * 0.32], [2.6, 2.4, 0.06], '#c83a3a');
+            for (var tk = 0; tk < 5; tk++) pen.part(jaw, 'box', [-1.2 + tk * 0.6, 3.0, sd * 0.2], [0.12, 0.6, 0.12], '#8aba3a');
+          }
+        }
+      }
+    };
+  });
+
+  /* Koi in the pond: orange and white, drifting; a shot nearby and they
+     dart. */
+  Rigs.register('koi', function (spec) {
+    var a = spec.area, y = spec.p[1], n = spec.n || 6;
+    var dart = -100;
+    var cols = ['#e8682a', '#f2f2ee', '#e8a82a', '#c8382a'];
+    return {
+      radius: 90,
+      event: function (kind, msg) {
+        var from = msg && (msg.from || msg.pos);
+        if ((kind === 'shot' || kind === 'blast') && (!from || (from[0] > a[0] - 40 && from[0] < a[1] + 40 && from[2] > a[2] - 40 && from[2] < a[3] + 40))) dart = Rigs.clock();
+      },
+      draw: function (pen, t) {
+        var fast = t - dart < 2 ? 4 : 1;
+        for (var i = 0; i < n; i++) {
+          var u = t * 0.08 * fast + i * 1.9;
+          var x = a[0] + (a[1] - a[0]) * (0.5 + 0.42 * Math.sin(u)), z = a[2] + (a[3] - a[2]) * (0.5 + 0.4 * Math.sin(u * 1.37 + i));
+          var dx = Math.cos(u) * (a[1] - a[0]), dz = Math.cos(u * 1.37 + i) * 1.37 * (a[3] - a[2]);
+          var f = frame([x, y - 0.35, z], Math.atan2(dx, dz));
+          pen.part(f, 'box', [0, 0, 0], [0.8, 0.5, 2.2], cols[i % 4]);
+          pen.part(f, 'box', [0, 0.05, -0.4], [0.82, 0.3, 0.6], cols[(i + 1) % 4]);
+          pen.part(child(f, [0, 0, -1.1], 0, Math.sin(t * 6 * fast + i) * 0.5, 0), 'box', [0, 0, -0.5], [0.1, 0.6, 1.0], cols[i % 4]);
+        }
+      }
+    };
+  });
+
+  /* The topiary garden's fountain: a jet, falling back in a ring. */
+  Rigs.register('fountain', function (spec) {
+    var x = spec.p[0], y = spec.p[1], z = spec.p[2], pool = spec.pool, r = spec.r || 4;
+    return {
+      radius: 80,
+      draw: function (pen, t) {
+        var h = 6 + Math.sin(t * 1.3) * 0.8;
+        pen.part(frame([x, y + h / 2, z], 0), 'cyl', [0, 0, 0], [0.6, h, 0.6], '#d8eef4', { a: 0.6 });
+        for (var k = 0; k < 10; k++) {
+          var a = k / 10 * TAU + t * 0.2;
+          for (var s2 = 0; s2 < 4; s2++) {
+            var u = ((t * 1.2 + s2 / 4 + k * 0.07) % 1);
+            pen.part(frame([x + Math.cos(a) * r * u, y + h - u * u * (y + h - pool), z + Math.sin(a) * r * u], 0), 'sph', [0, 0, 0],
+                     [0.4, 0.4, 0.4], '#e8f6fa', { a: 0.7 });
+          }
+          pen.part(frame([x + Math.cos(a) * r, pool + 0.05, z + Math.sin(a) * r], 0), 'cyl', [0, 0, 0], [1.2, 0.06, 1.2], '#f2f8fa',
+                   { a: 0.5 });
+        }
+      }
+    };
+  });
+
+  /* The rockery's stream coming down the tiers in steps, white at each
+     fall, into the pool at the foot. */
+  Rigs.register('stream', function (spec) {
+    var x = spec.p[0], top = spec.p[1], z0 = spec.p[2], steps = spec.steps || 4, pool = spec.pool_p || spec.p;
+    return {
+      radius: 90,
+      draw: function (pen, t) {
+        var run = (pool[2] - z0) / steps, drop = (top - pool[1]) / steps;
+        for (var k = 0; k < steps; k++) {
+          var za = z0 + k * run, ya = top - k * drop;
+          pen.part(frame([x, ya + 0.08, za + run / 2], 0), 'box', [0, 0, 0], [3.0, 0.12, Math.abs(run)], '#a8d0e0', { a: 0.6 });
+          pen.part(frame([x, ya - drop / 2, za + run], 0), 'box', [0, 0, 0], [3.0, drop, 0.3], '#e8f4f8', { a: 0.6 });
+          for (var f = 0; f < 3; f++) {
+            var u = (t * 1.4 + f / 3 + k * 0.2) % 1;
+            pen.part(frame([x + (f - 1) * 0.9, ya - drop + 0.2 + Math.sin(u * Math.PI) * 0.6, za + run + u * 1.4], 0), 'sph',
+                     [0, 0, 0], [0.6, 0.6, 0.6], '#f2f8fa', { a: 0.7 * (1 - u) });
+          }
+        }
+        for (var r2 = 0; r2 < 2; r2++) {
+          var q = (t * 0.7 + r2 / 2) % 1;
+          pen.part(frame(pool, 0), 'cyl', [0, 0.05, 0], [1 + q * 8, 0.05, 1 + q * 8], '#e8f2f4', { a: 0.4 * (1 - q) });
+        }
+      }
+    };
+  });
+
+  /* Fireflies blinking under the arboretum's trees. */
+  Rigs.register('fireflies', function (spec) {
+    var a = spec.area, n = spec.n || 30;
+    return {
+      radius: 160,
+      draw: function (pen, t) {
+        for (var i = 0; i < n; i++) {
+          var on = Math.sin(t * (1.3 + hash(i) * 1.2) + i * 2.7) > 0.6;
+          if (!on) continue;
+          var x = a[0] + (a[1] - a[0]) * (0.5 + 0.48 * Math.sin(t * 0.05 + i * 1.3));
+          var z = a[2] + (a[3] - a[2]) * (0.5 + 0.48 * Math.sin(t * 0.04 + i * 2.1));
+          var y = spec.p[1] + 4 * Math.sin(t * 0.3 + i) + (i % 5) * 3;
+          pen.part(frame([x, y, z], 0), 'sph', [0, 0, 0], [0.35, 0.35, 0.35], '#d8ff6a', { m: 'neon' });
+        }
+      }
+    };
+  });
+
+  /* The Palm House misters: every so often they hiss and fog the air under
+     the glass. */
+  Rigs.register('misters', function (spec) {
+    var heads = spec.heads || [];
+    return {
+      radius: 160,
+      draw: function (pen, t) {
+        var cycle = t % 40;
+        if (cycle > 12) return;
+        var k = Math.min(1, cycle / 2) * Math.min(1, (12 - cycle) / 3);
+        for (var i = 0; i < heads.length; i++) {
+          for (var m = 0; m < 5; m++) {
+            var u = (t * 0.3 + m / 5 + i * 0.2) % 1, sz = 2 + u * 9;
+            pen.part(frame([heads[i][0] + Math.sin(m * 2 + i) * u * 6, heads[i][1] - u * 10, heads[i][2] + Math.cos(m * 1.7) * u * 6], 0),
+                     'sph', [0, 0, 0], [sz, sz * 0.7, sz], '#eef6f4', { a: 0.16 * (1 - u) * k });
+          }
+        }
+      }
+    };
+  });
+
+  /* A peacock loose in the topiary garden: strutting, pecking; come near
+     and it turns, fans its tail out, and screams. */
+  Rigs.register('peacock', function (spec) {
+    var a = spec.area;
+    var st = { x: spec.p[0], z: spec.p[2], yaw: 0, fan: 0, tx: spec.p[0], tz: spec.p[2], next: 0, scream: -100 };
+    return {
+      radius: 80,
+      update: function (dt, t, ctx) {
+        var near = nearest(ctx.players ? ctx.players() : [], [st.x, 0, st.z], 12);
+        st.fan = approach(st.fan, near ? 1 : 0, 1.5, dt);
+        if (near) {
+          st.yaw = approachAngle(st.yaw, Math.atan2(near.who.pos[0] - st.x, near.who.pos[2] - st.z), 2, dt);
+          if (t - st.scream > 9) { st.scream = t; if (ctx.sound) ctx.sound('ll_peacock', [st.x, 0, st.z], 1); }
+          return;
+        }
+        if (t > st.next) { st.tx = a[0] + (a[1] - a[0]) * hash(Math.floor(t)); st.tz = a[2] + (a[3] - a[2]) * hash(Math.floor(t) + 9); st.next = t + 8; }
+        var dx = st.tx - st.x, dz = st.tz - st.z, d = Math.hypot(dx, dz);
+        if (d > 0.5) { st.x += dx / d * 2 * dt; st.z += dz / d * 2 * dt; st.yaw = approachAngle(st.yaw, Math.atan2(dx, dz), 2, dt); }
+      },
+      draw: function (pen, t) {
+        var f = frame([st.x, spec.p[1], st.z], st.yaw);
+        var blue = '#1a4ab8', green = '#2a8a6a';
+        legsAt(pen, f, [[-0.3, 0], [0.3, 0]], 1.6, 0.18, '#8a8a7a', t * 6, st.fan > 0.5 ? 0 : 0.3);
+        pen.part(f, 'box', [0, 2.0, 0], [0.9, 1.0, 1.6], blue);
+        pen.part(f, 'box', [0, 3.0, 0.6], [0.4, 1.6, 0.4], blue);
+        pen.part(f, 'box', [0, 3.8, 0.8], [0.5, 0.5, 0.6], blue);
+        pen.part(f, 'box', [0, 4.4, 0.8], [0.08, 0.6, 0.08], blue);
+        var n = 9;
+        for (var k = 0; k < n; k++) {
+          var spread = (k / (n - 1) - 0.5) * Math.PI * (0.2 + st.fan * 0.8);
+          var feather = child(f, [0, 2.0, -0.8], -0.2 - st.fan * 1.2, spread, 0);
+          pen.part(feather, 'box', [0, 0, -2.4], [0.5, 0.1, 4.8], green);
+          pen.part(feather, 'sph', [0, 0.06, -4.4], [0.6, 0.12, 0.6], '#d8a82a');
+          pen.part(feather, 'sph', [0, 0.08, -4.4], [0.3, 0.14, 0.3], blue);
+        }
+      }
+    };
+  });
+
+  /* The stone lanterns, a candle flame flickering in each. */
+  Rigs.register('lantern_glow', function (spec) {
+    var pts = spec.points || [];
+    return {
+      radius: 120,
+      draw: function (pen, t) {
+        for (var i = 0; i < pts.length; i++) {
+          var f = 0.8 + 0.2 * Math.sin(t * 11 + i * 3) * Math.sin(t * 7 + i);
+          pen.part(frame(pts[i], 0), 'box', [0, 0, 0], [2.5, 1.0 * f, 2.5], '#ffc86a', { m: 'neon', a: 0.85 });
+        }
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);

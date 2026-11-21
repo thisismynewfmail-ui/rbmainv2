@@ -352,6 +352,14 @@ WORLDS: List[Dict[str, Any]] = [
                       "take the construction site's top deck and the "
                       "billboard's catwalk -- and light the billboard to bring "
                       "the horde up for it. It's a long way down to the street."},
+            {"id": "gardens", "name": "Glasshouse Gardens",
+             "blurb": "The botanic gardens, the night the corpse flower "
+                      "bloomed. Hold the Orangery among the lemon trees, take "
+                      "the Palm House gallery under the dome and the treetop "
+                      "walkway through the arboretum, cross the Lily House on "
+                      "the giant lily pads -- and open the Titan House's vents "
+                      "to let the stink of the corpse flower draw the dead. "
+                      "Mind the flytraps."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

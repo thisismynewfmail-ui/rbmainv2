@@ -602,5 +602,50 @@
     }
   });
 
+  /* Glasshouse Gardens: across the topiary garden to the Palm House lit
+     up under its dome; hedge animals, the fountain, the infected coming
+     between them, the team by the fountain. */
+  Thumbs.registerWorld('ll_gardens', {
+    camera: [[-30, 22, -70], [10, 14, 70], 58],
+    sky: { top: '#081018', horizon: '#2a3a3a', sun: [-0.3, 0.55, 0.6], clouds: 0.3, tint: '#a8c8c0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [260, 1, 260], '#3a6a32', { st: 1 });
+      k.box([0, 0.15, 0], [12, 0.3, 200], '#b8ac94', { st: 1 });
+      // the Palm House
+      k.box([0, 12, 110], [180, 24, 100], '#c8ffd0', { a: 0.3 });
+      for (var m = 0; m < 10; m++) k.box([-90 + m * 20, 12, 60], [1, 24, 1], '#e8ece8');
+      k.box([0, 24.3, 110], [182, 0.6, 102], '#c8ffd0', { a: 0.35 });
+      for (var d = 0; d < 4; d++) k.box([0, 26 + d * 4, 110], [80 - d * 16, 4, 60 - d * 16], '#c8ffd0', { a: 0.35 });
+      k.shape('sph', [0, 20, 110], [60, 30, 40], '#d8ffc8', { m: 'neon', a: 0.12 });
+      for (var p = 0; p < 4; p++) {
+        var px = -30 + p * 20;
+        k.shape('cyl', [px, 8, 110], [1.6, 16, 1.6], '#7a6a4a');
+        k.shape('sph', [px, 17, 110], [8, 3, 8], '#2a6a2a');
+      }
+      // the topiary and the fountain
+      k.box([-30, 4, -10], [5, 5, 9], '#2a5a26');
+      k.box([-30, 5.6, -4.4], [3.6, 3.6, 2.2], '#2a5a26');
+      k.box([30, 3.5, -10], [5, 7, 4], '#2a5a26');
+      k.box([30, 8.6, -10], [3.6, 3.2, 3.2], '#2a5a26');
+      k.box([-30, 9.6, 14], [1.4, 6, 1.4], '#2a5a26');
+      k.box([-30, 5, 12], [3.4, 3.4, 6], '#2a5a26');
+      k.box([-30, 13.2, 14.8], [1.8, 1.4, 2.8], '#2a5a26');
+      k.shape('cyl', [0, 0.6, 0], [16, 1.2, 16], '#9a9488');
+      k.box([0, 1.9, 0], [12, 0.6, 12], '#3a7a8a', { a: 0.8 });
+      k.shape('cyl', [0, 4, 0], [2, 6, 2], '#9a9488');
+      for (var h = 0; h < 4; h++) k.box([-56 + h * 37.4, 1.4, 22], [26, 2.8, 2], '#2a5a26', { st: 1 });
+      // the infected between the hedges, the team at the fountain
+      k.zombie('common', -12, 30, Math.PI, 4, 'gardens', 0, 0);
+      k.zombie('common', 14, 36, Math.PI + 0.3, 5, 'gardens', 2, 0);
+      k.zombie('common', 40, 20, -2.4, 1, 'gardens', 0, 0);
+      k.zombie('common', -44, 26, 2.6, 3, 'gardens', 0, 0);
+      k.zombie('common', 4, 46, Math.PI, 7, 'gardens', 0, 0);
+      k.survivor(-6, -14, 0.1, 0, 0);
+      k.survivor(6, -18, -0.2, 1, 0);
+      k.survivor(-14, -20, 0.4, 2, 0);
+      for (var f = 0; f < 18; f++) k.shape('sph', [-60 + (f * 37) % 120, 4 + (f * 7) % 10, -20 + (f * 29) % 60], [0.5, 0.5, 0.5], '#d8ff6a', { m: 'neon' });
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

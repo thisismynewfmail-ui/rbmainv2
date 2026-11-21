@@ -34,15 +34,14 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Dict, List, Set, Tuple
+from typing import Set, Tuple
 
 from .kit import (
-    ASPHALT, CONCRETE, CONCRETE_DARK, FLOOR, GLASS, LAMP, STEEL, STEEL_DARK, WARM, WOOD,
-    WOOD_DARK, WOOD_LIGHT, Area, Surfaces, barrel_spot, bench, boundary, building, car, carve,
-    crate, deploy_pad, flight, holed_wall, lamp_post, plate, post_sign, rect, room_walls,
-    sign_decal, slab, solid_fence, strip_light, supply_ammo, supply_med, threshold, van,
+    ASPHALT, CONCRETE, CONCRETE_DARK, FLOOR, STEEL, WARM, WOOD, WOOD_DARK, WOOD_LIGHT, Area,
+    Surfaces, barrel_spot, bench, boundary, building, car, carve, deploy_pad, flight, holed_wall,
+    lamp_post, plate, post_sign, rect, sign_decal, slab, supply_ammo, supply_med, threshold,
     wall_sign)
-from ..relay.kit import board_letters, boulder, mound, pine, tier_stack, tree
+from ..relay.kit import board_letters, mound, pine, tier_stack, tree
 
 Rect = Tuple[float, float, float, float]
 

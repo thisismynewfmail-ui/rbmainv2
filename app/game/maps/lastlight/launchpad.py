@@ -33,13 +33,13 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List, Tuple
+from typing import Tuple
 
 from .kit import (
-    ASPHALT, CONCRETE, CONCRETE_DARK, CONCRETE_LIGHT, FLOOR, HAZARD, STEEL, STEEL_DARK, WARM,
-    WOOD, WOOD_DARK, Area, Surfaces, barrel_spot, bench, boundary, building, carve, crate,
-    deploy_pad, flight, gable, lamp_post, plate, post_sign, rect, room_walls, sign_decal, slab,
-    supply_ammo, supply_med, threshold, wall_sign)
+    ASPHALT, CONCRETE, CONCRETE_DARK, CONCRETE_LIGHT, FLOOR, HAZARD, STEEL, STEEL_DARK, WARM, WOOD,
+    Area, Surfaces, barrel_spot, boundary, building, carve, crate, deploy_pad, flight, gable,
+    lamp_post, plate, post_sign, rect, sign_decal, slab, supply_ammo, supply_med, threshold,
+    wall_sign)
 from ..relay.kit import mound, tier_stack
 
 Rect = Tuple[float, float, float, float]

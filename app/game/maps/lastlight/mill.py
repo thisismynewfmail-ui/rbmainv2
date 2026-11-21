@@ -39,10 +39,10 @@ import random
 from typing import Dict, List, Sequence, Tuple
 
 from .kit import (
-    ASPHALT, BRICK, BRICK_DARK, CONCRETE, CONCRETE_DARK, FLOOR, STEEL, STEEL_DARK, WARM, WOOD,
-    WOOD_DARK, WOOD_LIGHT, Area, Surfaces, barrel_spot, bench, boundary, building, carve, crate,
-    deploy_pad, flight, gable, holed_wall, lamp_post, plate, post_sign, rect, room_walls,
-    sign_decal, slab, strip_light, supply_ammo, supply_med, threshold, wall_sign)
+    BRICK, BRICK_DARK, CONCRETE, FLOOR, STEEL_DARK, WARM, WOOD, WOOD_DARK, WOOD_LIGHT, Area,
+    Surfaces, barrel_spot, boundary, building, carve, crate, deploy_pad, flight, gable, holed_wall,
+    lamp_post, plate, rect, room_walls, sign_decal, slab, strip_light, supply_ammo, supply_med,
+    threshold, wall_sign)
 from ..relay.kit import mound, pine, tier_stack, tree
 
 Rect = Tuple[float, float, float, float]
