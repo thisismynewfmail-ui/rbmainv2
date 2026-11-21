@@ -97,6 +97,12 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "its island in the steaming lake; the flags are up on the rim in the wellhead "
               "stations. Run the pipe bridge high over everything, wade the hot lake past the "
               "geysers, or come up the steam tunnel beside the flag."},
+    {"id": "saddleback", "name": "Saddleback Observatory", "thumb": "br_saddleback",
+     "captures": 3, "minutes": 15,
+     "blurb": "Twin summits under the aurora, a telescope dome on each. Muster in the cable "
+              "car's mid-station in the saddle and climb for the flags -- the cliff bands only "
+              "give at the trails -- while the cabins ride the cables overhead. Something on "
+              "the saddle is watching you back."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [

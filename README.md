@@ -103,7 +103,7 @@ Basic Shotgun and a Basic Stick.
 
 | World | URL | Mode | Round size |
 | --- | --- | --- | --- |
-| **Blackout Relay** | `/blackout_relay` | Capture the flag at dusk: a long valley, deploy waves, outpost lockdown, tunnels, overtime | 24 |
+| **Blackout Relay** | `/blackout_relay` | Capture the flag across a rotation of sixteen maps, a new one rolled every round: deploy waves, outpost lockdown, tunnels, overtime | 24 |
 | **Last Light** | `/last_light` | Co-op zombie survival: endless waves, a Tank every fifth, three tries at an area before the server shuffles to another | 24 |
 | **Rail Rivals** | `/rail_rivals` | Payload race: two companies push their own ore carts down two crossing railroads; brakes, coal, depots and a twist on every line | 16 |
 | **Prop Panic** | `/prop_panic` | Prop hunt: hiders turn into the furniture, seekers pop the props that are not what they seem; sides swap every round, a twist in every place | 16 |
@@ -189,6 +189,60 @@ more.
 
 Points go to the escort as well as the runner -- staying within thirty units
 of your own carrier pays, as does killing an attacker near your own flag.
+
+**The rotation.** Ironvale is one of sixteen maps. When a round ends the
+server rolls another at random and everybody goes there for the next, with
+that map's own arrival sequence (`static/js/worlds/blackout_relay.js`) and
+its own card on the world page (`app/models/worlds.py`, `RELAY_AREAS`). The
+fifteen others are shorter and steeper -- first to three captures, or fifteen
+minutes -- and every one keeps the rules above: a relay in the middle that
+both teams deploy from, a flag at each end, outposts to fall back to, a way
+round underneath, and red's half the mirror image of blue's. They are built
+1,600 units apart along one axis of one map (`app/game/maps/relay/`) and a
+client is only sent the one being played.
+
+* **Substation Nine** -- a city in a blackout, in the rain: terraces up to the
+  office towers, and the dead subway line under it all.
+* **Thimble Acre** -- a back garden, toy-sized: a flowerpot to muster in,
+  brick castles, the garden hose to run inside or on top of, and a cat who
+  chases the butterflies, watches whoever has a flag, and naps in the sun.
+* **The Orrery** -- a clockwork garden: the planets turn on nested arms over
+  the plaza, the gear train runs, the cuckoo comes out on the hour and the
+  glasshouses hold the flags.
+* **Saltglass Flats** -- a salt lake under a lightning storm, Tesla coils on
+  Capacitor Hall and dry washes under arches of crust.
+* **Drawdown** -- a drowned village back out of a drained reservoir: silted
+  streets, chapels on the hills and a culvert into the crypt.
+* **Lantern Terraces** -- a tea estate on the night of the lantern festival:
+  koi streams, bamboo, terraces of tea and a cellar through the hill.
+* **Meteora** -- monasteries on rock pillars in the mist, a switchback, a
+  rope bridge and a chimney inside the rock.
+* **Circuit City** -- a motherboard at transistor scale: the heatsink's fins
+  under its fan, copper traces, capacitor towers and cable trenches.
+* **Snowglobe Hollow** -- an alpine village inside a snow globe that somebody
+  keeps shaking: a carousel, a toy train, skaters and ice tunnels.
+* **Big Ear Array** -- a radio telescope field where every dish turns to
+  follow the flag carriers.
+* **Polderhaven** -- dikes, canals and tulips: a steam pumping station, a
+  drawbridge and great windmills with a drain from the sluice.
+* **Leviathan Quarry** -- a sea monster's bones in a sandstone quarry: muster
+  in its skull, climb its ribs, run its spine.
+* **The Grand Stacks** -- a library the size of a cathedral: library steps up
+  onto the shelves, books that fly and a dead librarian who hates gunfire.
+* **Steamworks Caldera** -- a geothermal station in a volcano: geysers in the
+  hot lake, a pipe bridge over everything and a steam tunnel to each flag.
+* **Saddleback Observatory** -- twin summits under the aurora: domes that open
+  and turn, cable cars overhead, cliff bands that only give at the trails,
+  and something on the saddle watching you back.
+
+**Living props.** Anything that moves on these maps -- the cat, the planets,
+the dishes, the windmill sails, the bascule bridge, the cable cars, the
+geysers -- is a rig: the map lists it (`markers.extra.rigs`) and
+`static/js/game/rigs.js` draws it every frame from the wall clock, so every
+client sees the same thing at the same moment. Rigs hear the game: a flag
+taken, a capture, a return, a shot, and look at, follow or flee from players.
+They are scenery only -- nothing they do collides -- and the parts the map
+collides with never move.
 
 ### Last Light
 Co-operative zombie survival for up to twenty-four. Everybody is on one team

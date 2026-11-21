@@ -512,6 +512,42 @@
     }
   });
 
+  Thumbs.registerWorld('br_saddleback', {
+    camera: [[0, 22, 60], [0, 16, -10], 55],
+    sky: { top: '#04060f', horizon: '#1a2a48', sun: [0.2, 0.6, -0.5], clouds: 0.1, tint: '#a8c8ff' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [140, 1, 100], '#eef2f8', { st: 1 });
+      // the twin peaks, stepped, a cliff band in each
+      [-1, 1].forEach(function (sx) {
+        for (var i = 0; i < 7; i++) {
+          var w = 44 - i * 5.5, c = i === 3 ? '#5a6070' : (i % 2 ? '#eef2f8' : '#d4dcea');
+          k.box([sx * 38, 1.5 + i * 3, -14], [w, 3, w * 0.9], c, { st: 1 });
+        }
+        // the dome on top
+        k.box([sx * 38, 22.5, -14], [10, 3, 10], '#f2f2ee');
+        k.shape('sph', [sx * 38, 24, -14], [10, 8, 10], '#f6f8fa');
+        k.box([sx * 38, 26, -9.2], [1.4, 4, 0.6], '#1a1e28');
+      });
+      // the station in the saddle, the cables up to both domes, a cabin
+      k.box([0, 2.5, 0], [16, 5, 10], '#c8ccd0');
+      k.box([0, 5.4, 0], [17, 0.8, 11], '#4a5060');
+      [-1, 1].forEach(function (sx) {
+        k.box([sx * 19, 14, -7], [38, 0.25, 0.25], '#2a2a30', { r: [0, 0, sx * 0.48] });
+      });
+      k.box([16, 15.6, -7], [3.4, 2.6, 2.6], '#c42b20');
+      // the aurora: curtains of thin ribbons, rippling in height and depth
+      for (var i = 0; i < 26; i++) {
+        var u = i / 25, ax = -70 + u * 140;
+        var ay = 44 + Math.sin(u * 7.0) * 5, ah = 9 + 7 * (0.5 + 0.5 * Math.sin(u * 11 + 1.3));
+        var ac = ['#5aff9a', '#4ae8c8', '#b06aff'][i % 3 === 2 ? 2 : (u < 0.5 ? 0 : 1)];
+        k.box([ax, ay, -70 - Math.cos(u * 5) * 8], [5.6, ah, 0.3], ac, { m: 'neon', a: 0.18 + 0.1 * Math.sin(u * 9) });
+      }
+      pedestal(k, -16, 0, 14, RED, RED_NEON);
+      k.player(6, 0, 16, { anim: 'run', time: 0.5, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-4, 0, 24, { anim: 'run', time: 0.1, wear: cap(RED) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

@@ -23,4 +23,5 @@ ORDER = [
     ("leviathan", "Leviathan Quarry"),
     ("stacks", "The Grand Stacks"),
     ("steamworks", "Steamworks Caldera"),
+    ("saddleback", "Saddleback Observatory"),
 ]
