@@ -303,20 +303,29 @@ def ridge(b, x0: float, x1: float, z0: float, z1: float, levels: int, rise: floa
 
 
 def channel(b, area: Rect, depth: float, floor: str, wall_c: str = "",
-            studs: bool = True, material: str = "") -> None:
+            studs: bool = True, material: str = "",
+            openings: Optional[Dict[str, Sequence[Tuple[float, float]]]] = None) -> None:
     """A dug channel (a ditch, a cutting, a dry wash): its floor ``depth``
     below the ground.  The ground plate must have been laid with ``area``
     among its holes; the turf and the soil under it are the channel's sides
-    down to y = -6, and ``wall_c`` lines them below that."""
+    down to y = -6, and ``wall_c`` lines them below that -- except where
+    ``openings`` ({"z+": [(x0, x1)], "x-": [(z0, z1)]...}) leave a side open
+    for a stair that comes down into the channel there."""
     x0, x1, z0, z1 = area
     slab(b, area, -depth, 3.0, floor, studs=studs,
          **({"material": material} if material else {}))
     if depth > 6.0 and wall_c:
         t = 0.8
-        holed_wall(b, "x", z0 - t / 2.0, t, x0 - t, x1 + t, -depth, -6.0, wall_c)
-        holed_wall(b, "x", z1 + t / 2.0, t, x0 - t, x1 + t, -depth, -6.0, wall_c)
-        holed_wall(b, "z", x0 - t / 2.0, t, z0, z1, -depth, -6.0, wall_c)
-        holed_wall(b, "z", x1 + t / 2.0, t, z0, z1, -depth, -6.0, wall_c)
+        gaps = openings or {}
+
+        def holes(side):
+            return [(a, c, -depth - 1.0, -5.0) for a, c in gaps.get(side, ())]
+        holed_wall(b, "x", z0 - t / 2.0, t, x0 - t, x1 + t, -depth, -6.0, wall_c,
+                   holes=holes("z-"))
+        holed_wall(b, "x", z1 + t / 2.0, t, x0 - t, x1 + t, -depth, -6.0, wall_c,
+                   holes=holes("z+"))
+        holed_wall(b, "z", x0 - t / 2.0, t, z0, z1, -depth, -6.0, wall_c, holes=holes("x-"))
+        holed_wall(b, "z", x1 + t / 2.0, t, z0, z1, -depth, -6.0, wall_c, holes=holes("x+"))
 
 
 def steps_down(b, axis: str, near: float, far: float, lo: float, hi: float,
@@ -415,7 +424,7 @@ def muster_room(h: Half, x0: float, x1: float, z0: float, z1: float, y: float,
 def lamp_post(b, x: float, z: float, y: float = 0.0, h: float = 12.0,
               colour: str = LAMP, pole: str = STEEL_DARK) -> None:
     b.cyl([x, y + h / 2.0, z], [1.0, h, 1.0], pole, material="metal")
-    b.box([x, y + h + 0.5, z], [2.6, 1.0, 2.6], pole, collide=False, material="metal")
+    b.box([x, y + h + 0.6, z], [2.6, 1.2, 2.6], pole, collide=False, material="metal")
     b.box([x, y + h - 0.2, z], [2.0, 0.4, 2.0], colour, material="neon", collide=False)
 
 

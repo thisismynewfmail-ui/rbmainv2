@@ -24,6 +24,27 @@ RELAY_AREAS: List[Dict[str, Any]] = [
      "blurb": "A city in a blackout, in the rain. Deploy from the substation's control "
               "house, climb the terraces to the office towers at each end, and take "
               "the dead subway line under it all."},
+    {"id": "thimble", "name": "Thimble Acre", "thumb": "br_thimble",
+     "captures": 3, "minutes": 15,
+     "blurb": "A back garden at golden hour, and you are the size of a toy. Muster in an "
+              "upturned flowerpot, raid the brick castles at either end of the lawn, and "
+              "run the garden hose -- inside it or along the top."},
+    {"id": "orrery", "name": "The Orrery", "thumb": "br_orrery",
+     "captures": 3, "minutes": 15,
+     "blurb": "A clockwork garden at twilight. Muster in the clockhouse under a brass sun, "
+              "fight for the planet decks over the sunken plaza, and steal the flag from a "
+              "glasshouse full of palms -- or come up the gear tunnel from its boiler room."},
+    {"id": "saltglass", "name": "Saltglass Flats", "thumb": "br_saltglass",
+     "captures": 3, "minutes": 15,
+     "blurb": "A dry salt lake at night under a lightning storm. Deploy from Capacitor Hall "
+              "under its Tesla coils, climb the mesas to the salt works, and run the dry "
+              "washes under arches of salt crust."},
+    {"id": "drawdown", "name": "Drawdown", "thumb": "br_drawdown",
+     "captures": 3, "minutes": 15,
+     "blurb": "A reservoir drained by drought, and the village it drowned is back. Muster "
+              "at the valve tower, fight down the silted high street and the dry river, "
+              "and take the flags from the chapels on their hills -- or come up the "
+              "culvert into the crypt."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [
