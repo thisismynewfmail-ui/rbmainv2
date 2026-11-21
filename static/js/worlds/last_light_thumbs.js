@@ -162,5 +162,52 @@
     }
   });
 
+  /* Silver Screen Studios: the western street, one front cut away to
+     show the team in the gallery behind its windows, the cast coming
+     down the dirt in costume, the water tower over the lot. */
+  Thumbs.registerWorld('ll_backlot', {
+    camera: [[4, 24, -42], [-2, 5, 30], 56],
+    sky: { top: '#050814', horizon: '#2a2a4a', sun: [0.4, 0.5, 0.6], clouds: 0.15, tint: '#a8a8e0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 20], [180, 1, 180], '#4a6438', { st: 1 });
+      k.box([0, 0.2, 20], [24, 0.4, 140], '#a8865a', { st: 1 });
+      var cols = ['#a8784a', '#c89a6a', '#8a5a3a', '#b88a5a'];
+      for (var i = 0; i < 4; i++) {
+        var z = -8 + i * 26;
+        // the left side: fronts, a board walk; the nearest cut away
+        k.box([-15, 0.6, z], [6, 1.2, 22], '#7a5335', { st: 1 });
+        if (i > 0) k.box([-18.5, 10, z], [1, 20, 22], cols[i]);
+        k.box([-18.5, 21.2, z], [1, 2.4, 13], cols[i]);
+        k.box([-24, 8.6, z], [10, 0.8, 22], '#a07a52', { st: 1 });
+        k.box([-28.6, 4, z - 9], [0.8, 8.2, 0.8], '#543923');
+        k.box([-28.6, 4, z + 9], [0.8, 8.2, 0.8], '#543923');
+        // the right side
+        k.box([15, 0.6, z], [6, 1.2, 22], '#7a5335', { st: 1 });
+        k.box([18.5, 10, z], [1, 20, 22], cols[(i + 2) % 4]);
+        k.box([18.5, 21.2, z], [1, 2.4, 13], cols[(i + 2) % 4]);
+        k.box([18.0, 11.6, z - 5], [0.2, 3.8, 4.4], '#1a1208');
+        k.box([18.0, 11.6, z + 5], [0.2, 3.8, 4.4], '#1a1208');
+      }
+      // the team in the gallery behind the cut-away front
+      k.survivor(-22, -10, 1.3, 0, 9.0);
+      k.survivor(-23, -3, 1.1, 1, 9.0);
+      k.survivor(-14, -12, 0.8, 2, 1.2);
+      // the cast coming down the street
+      k.zombie('common', -3, 14, Math.PI, 1, 'backlot', 2, 0.4);
+      k.zombie('common', 4, 20, Math.PI, 2, 'backlot', 0, 0.4);
+      k.zombie('common', -1, 28, Math.PI, 4, 'backlot', 2, 0.4);
+      k.zombie('common', 6, 34, Math.PI, 3, 'backlot', 0, 0.4);
+      k.zombie('common', -5, 40, Math.PI, 5, 'backlot', 2, 0.4);
+      k.zombie('common', 2, 46, Math.PI, 6, 'backlot', 0, 0.4);
+      // the stagecoach, the water tower beyond
+      k.box([8, 4.4, 4], [5.6, 5.6, 11], '#3a1a1a', { st: 1 });
+      k.box([8, 7.6, 4], [6, 0.8, 11.4], '#2a1a12');
+      for (var lg = -1; lg <= 1; lg += 2) k.box([-30 + lg * 5, 18, 84], [1.2, 36, 1.2], '#5a5f66');
+      k.shape('cyl', [-30, 40, 84], [16, 10, 16], '#c8c8c0');
+      k.shape('cone', [-30, 47, 84], [17, 4, 17], '#5a5f66');
+      k.box([-30, 40, 75.9], [10, 2.4, 0.2], '#1a3a6a');
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

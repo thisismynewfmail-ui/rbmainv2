@@ -969,5 +969,129 @@
     }
   });
 
+  /* Silver Screen Studios: searchlights over the lot, the studio's name on
+     the hill, the western street's fronts -- the clapperboard comes down
+     and snaps, and the cast comes down the street in costume. */
+  Intro.register('backlot', {
+    tagline: 'Nobody ever yelled cut.',
+    accent: '#ffd84a',
+    cues: [[0.2, 'll_wind', 0.4], [1.25, 'll_clunk', 0.9], [1.4, 'll_pyro', 0.4], [2.7, 'll_boom', 0.5]],
+    shakes: [[1.28, 5, 0.25], [2.72, 6, 0.3]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 140, 0, 360), zeds: [], windows: [] };
+      var looks = [['#a8784a', '#3a5a8a', '#6fae55', 'cowboy'], ['#9aa0a6', '#7a8086', '#7fb069', 'knight'],
+                   ['#f2f2f2', '#f2f2f2', '#5f9a4c', 'astro'], ['#f2f2ee', '#2a2a3a', '#86b86a', 'pirate'],
+                   ['#1a1a1e', '#1a1a1e', '#1a1a1e', 'ape']];
+      for (var i = 0; i < 8; i++) {
+        d.zeds.push({ x: 560 + (i % 4) * 150 + between(r, -40, 40), row: Math.floor(i / 4), p: r() * 6,
+                      look: looks[i % looks.length], at: 1.5 + i * 0.12 });
+      }
+      for (i = 0; i < 40; i++) d.windows.push([between(r, 1060, 1580), between(r, 300, 560), r() < 0.5]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050814'], [0.6, '#1a1a3a'], [1, '#3a2a4a']], 600);
+      starsK(ctx, d.stars, t, 0.9);
+      // the searchlights crossing over the lot
+      additive(ctx, function () {
+        [[420, 0.45], [1180, -0.4]].forEach(function (sl, i) {
+          var ang = sl[1] + Math.sin(t * 0.8 + i * 2) * 0.35;
+          ctx.save(); ctx.translate(sl[0], 600); ctx.rotate(ang);
+          var g = ctx.createLinearGradient(0, 0, 0, -700);
+          g.addColorStop(0, 'rgba(230,235,255,0.35)'); g.addColorStop(1, 'rgba(230,235,255,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.lineTo(70, -700); ctx.lineTo(-70, -700); ctx.fill();
+          ctx.restore();
+        });
+      });
+      // the hill and the letters on it
+      ctx.fillStyle = '#141a14';
+      ctx.beginPath(); ctx.moveTo(0, 490); ctx.quadraticCurveTo(400, 400, 800, 440); ctx.quadraticCurveTo(1200, 470, VW, 410);
+      ctx.lineTo(VW, 600); ctx.lineTo(0, 600); ctx.fill();
+      ctx.font = 'bold 34px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#e8e8e0';
+      spaced(ctx, 'HARROW STUDIOS', 800, 432, 14);
+      // the western fronts down the left, New York down the right
+      for (var k = 0; k < 5; k++) {
+        var x = 40 + k * 104, h = 190 + (k % 3) * 30;
+        ctx.fillStyle = ['#3a2418', '#4a2e1e', '#2e1c12'][k % 3];
+        ctx.fillRect(x, 600 - h, 96, h);
+        ctx.fillRect(x + 18, 600 - h - 24, 60, 26);
+        ctx.fillStyle = 'rgba(255,200,120,0.55)';
+        ctx.fillRect(x + 12, 600 - h + 50, 22, 26); ctx.fillRect(x + 62, 600 - h + 50, 22, 26);
+      }
+      // the end front is open at the back: the scaffold shows
+      ctx.strokeStyle = '#2a1a12'; ctx.lineWidth = 4;
+      for (var sc = 0; sc < 4; sc++) {
+        ctx.beginPath(); ctx.moveTo(560 + sc * 20, 600); ctx.lineTo(560 + sc * 20, 390); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(560, 600); ctx.lineTo(620, 420); ctx.moveTo(620, 600); ctx.lineTo(560, 440); ctx.stroke();
+      ctx.fillStyle = '#1a1a22';
+      ctx.fillRect(1040, 280, 560, 320);
+      d.windows.forEach(function (w) {
+        ctx.fillStyle = w[2] ? 'rgba(255,220,150,0.7)' : 'rgba(40,40,60,0.9)';
+        ctx.fillRect(w[0], w[1], 16, 20);
+      });
+      // the street, dust over it
+      var g2 = ctx.createLinearGradient(0, 600, 0, VH);
+      g2.addColorStop(0, '#6a5038'); g2.addColorStop(1, '#2a1e14');
+      ctx.fillStyle = g2; ctx.fillRect(0, 600, VW, 300);
+      additive(ctx, function () { dot(ctx, '#ffd8a0', 800, 640, 500, 0.12, 60); });
+      // the cast coming down the street, in costume
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var x = z.x + Math.sin(t + z.p) * 6, y = 680 + z.row * 110 + (t - z.at) * 30;
+        var s = 2.2 + z.row * 0.9;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, x, y, s, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        var hx = x + (z.x < 800 ? 1 : -1) * 0 * s, hy = y - 68 * s;
+        if (z.look[3] === 'cowboy') { ctx.fillStyle = '#5a3a22'; ctx.fillRect(hx - 14 * s, hy - 2 * s, 28 * s, 3 * s); ctx.fillRect(hx - 8 * s, hy - 10 * s, 16 * s, 9 * s); }
+        if (z.look[3] === 'knight') { ctx.fillStyle = '#9aa0a6'; ctx.fillRect(hx - 9 * s, hy - 2 * s, 18 * s, 18 * s); ctx.fillStyle = '#141414'; ctx.fillRect(hx - 6 * s, hy + 6 * s, 12 * s, 2 * s); ctx.fillStyle = '#c43a32'; ctx.fillRect(hx - 1.5 * s, hy - 8 * s, 3 * s, 7 * s); }
+        if (z.look[3] === 'astro') { ctx.strokeStyle = 'rgba(200,230,255,0.8)'; ctx.lineWidth = 2 * s; ctx.beginPath(); ctx.arc(hx, hy + 8 * s, 13 * s, 0, TAU); ctx.stroke(); }
+        if (z.look[3] === 'pirate') { ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.moveTo(hx - 13 * s, hy + 1 * s); ctx.lineTo(hx, hy - 9 * s); ctx.lineTo(hx + 13 * s, hy + 1 * s); ctx.fill(); }
+        ctx.restore();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Silver Screen Studios').toUpperCase();
+      var k = outBack(seg(t, 0.55, 1.0), 1.3);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, lerp(-200, 236, k));
+      ctx.scale(0.86, 0.86);
+      ctx.rotate(-0.03 + wobble(t, 1.0, 0.02, 9, 2));
+      // the slate: the board, the chalk, the clapper stick over it
+      ctx.fillStyle = '#1a1a1a';
+      roundRect(ctx, -380, -40, 760, 170, 10); ctx.fill();
+      ctx.strokeStyle = '#e8e8e0'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-370, 70); ctx.lineTo(370, 70); ctx.moveTo(-120, 70); ctx.lineTo(-120, 125);
+      ctx.moveTo(140, 70); ctx.lineTo(140, 125); ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px ' + HEAVY, 64, 700, 0.06);
+      ctx.font = 'bold ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f2f2ea';
+      spaced(ctx, name, 0, 16, size * 0.06);
+      ctx.font = 'bold 20px ' + HEAVY;
+      spaced(ctx, 'SCENE  99', -245, 98, 3);
+      spaced(ctx, 'TAKE  ' + (run.info.attempt || 1), 10, 98, 3);
+      spaced(ctx, 'NIGHT EXT.', 255, 98, 3);
+      var open = t < 1.25 ? 0.5 * (1 - seg(t, 1.05, 1.25)) : 0;
+      ctx.save(); ctx.translate(-380, -44); ctx.rotate(-open);
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, -42, 760, 40);
+      for (var st = 0; st < 9; st++) {
+        ctx.fillStyle = '#f2f2ea';
+        ctx.beginPath(); ctx.moveTo(st * 86 + 10, -42); ctx.lineTo(st * 86 + 50, -42); ctx.lineTo(st * 86 + 30, -2);
+        ctx.lineTo(st * 86 - 10, -2); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+      if (t > 1.25 && t < 1.6) {
+        ctx.font = '900 54px ' + HEAVY; ctx.fillStyle = '#ffd84a';
+        spaced(ctx, 'ACTION!', 0, -110, 6);
+      }
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

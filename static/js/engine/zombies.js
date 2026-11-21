@@ -213,6 +213,34 @@
                   { t: 'box', p: [0, 1.0, -0.1], s: [0.2, 0.9, 0.8], c: '#7a8a9a' },
                   { t: 'box', p: [0, 0.0, 0.9], s: [1.3, 0.3, 0.2], c: '#f2f2f2' }]) },
       { shirt: shirt('#f2f2f2', '#f2f2f2', { decal: 'tux' }), pants: pants('#4a4f58') }
+    ],
+    // Silver Screen Studios: the cast, in costume, and the crew
+    backlot: [
+      CLASSIC,
+      { shirt: shirt('#a8784a', '#c8a878', { weave: 'leather' }), pants: pants('#3a5a8a', { weave: 'denim' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [2.6, 0.14, 2.6], c: '#5a3a22' },
+                  { t: 'cyl', p: [0, 0.5, 0], s: [1.4, 0.8, 1.4], c: '#5a3a22' }]) },
+      { shirt: shirt('#9aa0a6', '#9aa0a6', { weave: 'rivets' }), pants: pants('#7a8086'),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0], s: [1.8, 1.6, 1.8], c: '#9aa0a6', m: 'metal' },
+                  { t: 'box', p: [0, -0.2, 0.86], s: [1.2, 0.3, 0.1], c: '#141414' },
+                  { t: 'box', p: [0, 0.95, 0], s: [0.3, 0.8, 1.4], c: '#c43a32' }]) },
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { stripes: 4, stripe: '#c43a32' }), pants: pants('#2a2a3a'),
+        hat: hat([{ t: 'cyl', p: [0, 0.2, 0], s: [2.2, 0.3, 2.2], c: '#1a1a1a' },
+                  { t: 'cyl', p: [0, 0.5, 0], s: [1.5, 0.5, 1.5], c: '#1a1a1a' },
+                  { t: 'box', p: [0, 0.5, 0.8], s: [0.5, 0.4, 0.06], c: '#f2f2ee' }]) },
+      { shirt: shirt('#f2f2f2', '#f2f2f2', { decal: 'chevron' }), pants: pants('#f2f2f2'),
+        hat: hat([{ t: 'sph', p: [0, -0.3, 0], s: [2.2, 2.2, 2.2], c: '#cfe8ff', a: 0.35 },
+                  { t: 'cyl', p: [0, -1.25, 0], s: [1.9, 0.3, 1.9], c: '#c8c8c8' }]) },
+      { shirt: shirt('#1a1a1e', '#1a1a1e', { weave: 'fur' }), pants: pants('#1a1a1e', { weave: 'fur' }),
+        hat: hat([{ t: 'sph', p: [0, 0.5, -0.2], s: [1.7, 1.1, 1.6], c: '#1a1a1e' },
+                  { t: 'box', p: [0, 0.6, 0.5], s: [1.4, 0.3, 0.3], c: '#0a0a0e' }]) },
+      { shirt: shirt('#2a2a3a', '#2a2a3a', { weave: 'pinstripe', decal: 'tux' }), pants: pants('#2a2a3a', { weave: 'pinstripe' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.12, 0], s: [2.2, 0.12, 2.2], c: '#3a3a3a' },
+                  { t: 'cyl', p: [0, 0.42, 0], s: [1.4, 0.6, 1.4], c: '#3a3a3a' },
+                  { t: 'cyl', p: [0, 0.24, 0], s: [1.44, 0.16, 1.44], c: '#1a1a1a' }]) },
+      { shirt: shirt('#1a1a1a', '#1a1a1a', { sleeves: 0.35, decal: 'logo_block' }), pants: pants('#3a3a3a', { length: 0.6 }),
+        hat: hat([{ t: 'sph', p: [0, 0.28, 0], s: [1.6, 1.0, 1.6], c: '#1a1a1a' },
+                  { t: 'box', p: [0, 0.07, 0.9], s: [1.4, 0.14, 0.86], c: '#1a1a1a' }]) }
     ]
   };
 

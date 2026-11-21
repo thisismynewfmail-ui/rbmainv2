@@ -304,6 +304,13 @@ WORLDS: List[Dict[str, Any]] = [
                       "Great Hall's balcony under the whale -- and start the "
                       "dolphin show to send the horde into the pool on the "
                       "cliff edge. They are coming up out of the sea."},
+            {"id": "backlot", "name": "Silver Screen Studios",
+             "blurb": "A film studio's backlot on the night of a night shoot. "
+                      "Hold the commissary, fight down a western street of false "
+                      "fronts from the galleries behind their windows, take the "
+                      "subway set, the moon and the castle hall in the sound "
+                      "stages, the pirate ship in its tank -- and fire the war "
+                      "set's special effects. The infected were the cast."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

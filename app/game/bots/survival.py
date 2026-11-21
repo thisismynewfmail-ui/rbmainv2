@@ -136,6 +136,13 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the rock pools": "er", "the pier": "er", "the shark's jaws": "ec",
         "the car park": "e", "the staff yard": "ec", "the west point": "pe", "the beach": "her",
     },
+    "backlot": {
+        "the commissary": "shp", "the western street": "e", "boot hill": "er",
+        "the saloon": "sp", "new york street": "e", "the subway set": "er",
+        "the moon set": "ec", "the castle hall": "esp", "the prop warehouse": "ec",
+        "the water tower": "e", "the pirate ship": "spc", "the war set": "hr",
+        "the church": "sp", "the main gate": "e", "the car park": "e", "the studio street": "he",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.

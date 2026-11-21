@@ -1555,5 +1555,242 @@
     };
   });
 
+  // ============================================ Silver Screen Studios
+  if (GA) {
+    GA.register('ll_boom', function (vol) {
+      this.noise({ freq: 600, freqEnd: 60, dur: 1.2, gain: 0.3 * vol });
+      this.tone({ type: 'sawtooth', freq: 70, freqEnd: 30, dur: 0.9, gain: 0.12 * vol });
+    });
+    GA.register('ll_pyro', function (vol) {
+      // the first assistant through a loudhailer, then the charges
+      this.tone({ type: 'square', freq: 300, freqEnd: 260, dur: 0.25, gain: 0.06 * vol });
+      this.later(300, function () { this.tone({ type: 'square', freq: 420, freqEnd: 380, dur: 0.4, gain: 0.07 * vol }); });
+      for (var i = 0; i < 5; i++) {
+        this.later(900 + i * 320, function () {
+          this.noise({ freq: 700, freqEnd: 70, dur: 0.9, gain: 0.26 * vol });
+          this.tone({ type: 'sawtooth', freq: 80, freqEnd: 34, dur: 0.6, gain: 0.1 * vol });
+        });
+      }
+    });
+  }
+
+  /* A premiere searchlight on its trailer: the beam swinging across the
+     sky, the lamp housing turning with it. */
+  Rigs.register('searchlight', function (spec) {
+    var f0 = frame(spec.p, 0);
+    var seed = spec.seed || 1;
+    return {
+      radius: 400,
+      draw: function (pen, t) {
+        var yaw = Math.sin(t * 0.21 + seed * 2) * 1.2 + seed;
+        var pitch = 0.35 + Math.sin(t * 0.33 + seed) * 0.25;
+        var head = child(f0, [0, 1.4, 0], -pitch, yaw, 0);
+        pen.part(head, 'cyl', [0, 0, 0], [2.8, 3.6, 2.8], '#3a3f46', { m: 'metal', rx: Math.PI / 2 });
+        pen.part(head, 'cyl', [0, 0, 1.85], [2.4, 0.1, 2.4], '#fff6d8', { m: 'neon', rx: Math.PI / 2 });
+        var len = 340;
+        pen.part(head, 'cone', [0, 0, len / 2 + 1.8], [26, len, 26], '#e8ecff', { m: 'neon', a: 0.06, rx: -Math.PI / 2 });
+        pen.part(head, 'cone', [0, 0, len / 4 + 1.8], [8, len / 2, 8], '#ffffff', { m: 'neon', a: 0.07, rx: -Math.PI / 2 });
+      }
+    };
+  });
+
+  /* The camera crane on the war set: the arm swinging out over the
+     trenches and back, the camera on the end of it panning to follow
+     whatever is moving down there. */
+  Rigs.register('camera_crane', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var aim = 0;
+    return {
+      radius: 40,
+      update: function (dt, t, ctx) {
+        var near = nearest((ctx.zombies ? ctx.zombies() : []).concat(ctx.players ? ctx.players() : []), spec.p, 70);
+        var target = near ? Math.atan2(near.who.pos[0] - spec.p[0], near.who.pos[2] - spec.p[2]) : Math.sin(t * 0.2) * 1.5;
+        aim = approachAngle(aim, target, 0.8, dt);
+      },
+      draw: function (pen, t) {
+        pen.part(f0, 'box', [0, 1.0, 0], [6, 2, 8], '#2a2a2e');
+        pen.part(f0, 'cyl', [0, 4, 0], [1.4, 6, 1.4], '#3a3a3e', { m: 'metal' });
+        var arm = child(f0, [0, 7, 0], -0.25 + Math.sin(t * 0.4) * 0.15, aim, 0);
+        pen.part(arm, 'box', [0, 0, 7], [0.8, 0.8, 20], '#c8c8c8', { m: 'metal' });
+        pen.part(arm, 'box', [0, 0, -5], [1.6, 1.6, 4], '#2a2a2e');
+        var cam = child(arm, [0, -1.2, 17], 0.25 - Math.sin(t * 0.4) * 0.15, 0, 0);
+        pen.part(cam, 'box', [0, 0, 0], [1.6, 1.6, 2.6], '#1a1a1a');
+        pen.part(cam, 'cyl', [0, 0, 1.6], [1.0, 0.8, 1.0], '#3a3a3a', { rx: Math.PI / 2 });
+        pen.part(cam, 'cyl', [0, 1.4, -0.4], [1.6, 0.4, 1.6], '#2a2a2a', { rz: Math.PI / 2 });
+        pen.part(cam, 'box', [0.9, 0.5, 0.9], [0.1, 0.3, 0.3], '#ff3a2a', { m: 'neon' });
+      }
+    };
+  });
+
+  /* Lamps hung along a catwalk, tilting and panning in slow sweeps, their
+     beams down onto the set. */
+  Rigs.register('stage_lights', function (spec) {
+    var n = spec.n || 5, span = spec.span || 100;
+    var warm = spec.warm ? '#ffd8a0' : '#d8e8ff';
+    return {
+      radius: span / 2 + 30,
+      draw: function (pen, t) {
+        for (var i = 0; i < n; i++) {
+          var x = spec.p[0] - span / 2 + span * (i + 0.5) / n;
+          var f = frame([x, spec.p[1] - 0.4, spec.p[2]], 0);
+          pen.part(f, 'box', [0, -0.6, 0], [0.4, 1.2, 0.4], '#2a2a2a');
+          var lamp = child(f, [0, -1.6, 0], Math.PI - 0.5 + Math.sin(t * 0.5 + i * 1.3) * 0.35,
+                           Math.sin(t * 0.37 + i) * 0.5, 0);
+          pen.part(lamp, 'box', [0, 0, 0], [1.4, 1.4, 2.2], '#2a2a2e');
+          pen.part(lamp, 'cyl', [0, 0, 1.12], [1.1, 0.06, 1.1], warm, { m: 'neon', rx: Math.PI / 2 });
+          pen.part(lamp, 'cone', [0, 0, 13], [9, 24, 9], warm, { m: 'neon', a: 0.06, rx: -Math.PI / 2 });
+        }
+      }
+    };
+  });
+
+  /* The dragon's head over the throne: eyes that light and follow you,
+     smoke from the nostrils, and on a roar or a bang the jaw drops and
+     the fire comes out. */
+  Rigs.register('dragon_head', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var fire = -10;
+    return {
+      radius: 30,
+      event: function (kind) { if (kind === 'roar' || kind === 'lure' || kind === 'blast') fire = Rigs.clock(); },
+      draw: function (pen, t, ctx) {
+        var v = ctx.viewer ? ctx.viewer() : null;
+        var look = 0;
+        if (v && v.eye) look = clamp(Math.atan2(v.eye[0] - spec.p[0], v.eye[2] - spec.p[2]) - (spec.yaw || 0), -0.6, 0.6);
+        var blazing = t - fire < 2.5;
+        var head = child(f0, [0, 0, 1.2], 0.25, look * 0.5, 0);
+        var green = '#2a5a2a';
+        pen.part(head, 'box', [0, 0, 2], [6, 4, 7], green, { st: 1 });
+        pen.part(head, 'box', [0, 0.6, 6.2], [4, 2.6, 3], green);
+        var jaw = child(head, [0, -2, 1], blazing ? 0.5 : 0.08, 0, 0);
+        pen.part(jaw, 'box', [0, -0.6, 3.6], [4.4, 1.2, 6.6], '#1f4a1f');
+        for (var k = 0; k < 5; k++) {
+          pen.part(head, 'box', [-1.6 + k * 0.8, -2.2, 7.2], [0.3, 0.8, 0.3], '#e8e0cc');
+        }
+        for (var s2 = -1; s2 <= 1; s2 += 2) {
+          pen.part(head, 'box', [s2 * 2.0, 3.2, -0.6], [0.8, 3.0, 0.8], '#e8e0cc', { rx: -0.6 });
+          pen.part(head, 'box', [s2 * 2.1, 1.0, 4.0], [1.0, 0.8, 0.4], blazing ? '#ff3a1a' : '#ffd83a', { m: 'neon' });
+          var puff = (t * 0.6 + (s2 > 0 ? 0.5 : 0)) % 1;
+          pen.part(head, 'sph', [s2 * 1.0, 1.4 + puff * 3, 7.8 + puff * 2], [0.8 + puff * 2, 0.8 + puff * 2, 0.8 + puff * 2],
+                   '#8a8a8a', { a: 0.4 * (1 - puff) });
+        }
+        if (blazing) {
+          for (var j = 0; j < 6; j++) {
+            var u = ((t - fire) * 2 + j / 6) % 1;
+            pen.part(head, 'sph', [Math.sin(j * 2.3 + t * 9) * u * 2, -2 - u * 6, 8 + u * 14], [1.5 + u * 4, 1.5 + u * 4, 1.5 + u * 4],
+                     u < 0.5 ? '#ffd83a' : '#ff5a1a', { m: 'neon', a: 0.8 * (1 - u) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The Earth hung in the moon set's black sky, turning. */
+  Rigs.register('earth_globe', function (spec) {
+    var f0 = frame(spec.p, 0);
+    return {
+      radius: 20,
+      draw: function (pen, t) {
+        var f = child(f0, [0, 0, 0], 0.4, t * 0.15, 0);
+        pen.part(f, 'sph', [0, 0, 0], [14, 14, 14], '#2a5aa8');
+        [[0.3, 0.2, 5], [-0.6, -0.3, 4], [1.2, 0.5, 3.5], [2.2, -0.2, 4.6], [3.4, 0.6, 3]].forEach(function (c) {
+          var a = c[0];
+          pen.part(f, 'sph', [Math.sin(a) * 5.4, c[1] * 6, Math.cos(a) * 5.4], [c[2], c[2] * 0.7, c[2]], '#3a8a3a');
+        });
+        pen.part(f, 'sph', [0, 6.4, 0], [6, 1.6, 6], '#f2f2f2');
+        pen.part(f0, 'box', [0, 12, 0], [0.12, 10, 0.12], '#3a3a3a');
+      }
+    };
+  });
+
+  /* Tumbleweeds bowling down the western street on the wind, bouncing. */
+  Rigs.register('tumbleweeds', function (spec) {
+    var n = spec.n || 3;
+    return {
+      radius: (spec.x1 - spec.x0) / 2 + 20,
+      draw: function (pen, t) {
+        for (var i = 0; i < n; i++) {
+          var u = (t * (0.045 + hash(i) * 0.03) + hash(i + 7)) % 1;
+          var x = spec.x1 - u * (spec.x1 - spec.x0);
+          var z = spec.z0 + (spec.z1 - spec.z0) * (0.5 + 0.45 * Math.sin(t * 0.3 + i * 2));
+          var bounce = Math.abs(Math.sin(t * 3.2 + i)) * 1.4;
+          var f = child(frame([x, spec.p[1] + 1.4 + bounce, z], 0), [0, 0, 0], 0, 0, t * 4 + i);
+          for (var k = 0; k < 4; k++) {
+            pen.part(f, 'box', [0, 0, 0], [2.8, 0.3, 0.3], '#a8865a', { rx: k * 0.8, ry: k * 0.6 });
+            pen.part(f, 'box', [0, 0, 0], [0.3, 2.6, 0.3], '#8a6a4a', { rz: k * 0.7, rx: k * 0.4 });
+          }
+        }
+      }
+    };
+  });
+
+  /* The pirate flag at the masthead, flapping. */
+  Rigs.register('ship_flag', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    return {
+      radius: 12,
+      draw: function (pen, t) {
+        for (var k = 0; k < 6; k++) {
+          var wave = Math.sin(t * 5 - k * 0.8) * 0.4 * (k / 6 + 0.2);
+          pen.part(f0, 'box', [0.8 + k * 1.0, -1.6 + Math.sin(t * 5 - k) * 0.2, wave], [1.0, 3.2, 0.1], '#141414',
+                   { ry: wave * 0.5 });
+        }
+        pen.part(f0, 'box', [3.2, -1.2, Math.sin(t * 5 - 2.4) * 0.2 + 0.07], [1.2, 1.2, 0.06], '#f2f2e6');
+        pen.part(f0, 'box', [3.2, -2.4, Math.sin(t * 5 - 2.4) * 0.2 + 0.07], [2.0, 0.3, 0.06], '#f2f2e6', { rz: 0.6 });
+        pen.part(f0, 'box', [3.2, -2.4, Math.sin(t * 5 - 2.4) * 0.2 + 0.07], [2.0, 0.3, 0.06], '#f2f2e6', { rz: -0.6 });
+      }
+    };
+  });
+
+  /* A wind machine: a big fan in a cage, blades a blur. */
+  Rigs.register('wind_machine', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    return {
+      radius: 12,
+      draw: function (pen, t) {
+        var hub = child(f0, [0, 0, -0.4], 0, 0, t * 18);
+        for (var i = 0; i < 4; i++) {
+          pen.part(child(hub, [0, 0, 0], 0, 0, i * Math.PI / 2), 'box', [0, 1.6, 0], [1.0, 3.2, 0.2], '#8a8f94', { m: 'metal' });
+        }
+        pen.part(f0, 'cyl', [0, 0, -0.6], [7.4, 0.3, 7.4], '#2a2a2e', { rx: Math.PI / 2, a: 0.6 });
+      }
+    };
+  });
+
+  /* The special effects: when they are fired, charges go off down the
+     trenches one after another -- fireballs, dirt, smoke -- for as long as
+     the lure lasts; between takes, a squib now and then. */
+  Rigs.register('pyro', function (spec) {
+    var shots = spec.shots || [[spec.p[0], spec.p[2]]];
+    var floor = spec.floor !== undefined ? spec.floor : spec.p[1];
+    var on = -10, lastBoom = 0;
+    return {
+      radius: 160,
+      event: function (kind) { if (kind === 'lure') on = Rigs.clock(); },
+      update: function (dt, t, ctx) {
+        if (t - on < 16 && t - lastBoom > 1.1) {
+          lastBoom = t;
+          var k = Math.floor((t - on) / 1.1) % shots.length;
+          if (ctx.sound) ctx.sound('ll_boom', [shots[k][0], floor, shots[k][1]], 1);
+        }
+      },
+      draw: function (pen, t) {
+        var live = t - on < 16;
+        for (var k = 0; k < shots.length; k++) {
+          var cycle = live ? ((t - on) - k * 1.1) : ((t + k * 7.3) % 31) - 29;
+          var u = live ? (((cycle % (shots.length * 1.1)) + shots.length * 1.1) % (shots.length * 1.1)) / 1.6 : cycle / 1.6;
+          if (u < 0 || u > 1) continue;
+          var big = live ? 1 : 0.35;
+          var p = [shots[k][0], floor + 1 + u * 10 * big, shots[k][1]];
+          var f = frame(p, 0);
+          pen.part(f, 'sph', [0, 0, 0], [(4 + u * 10) * big, (4 + u * 8) * big, (4 + u * 10) * big],
+                   u < 0.35 ? '#ffe07a' : '#ff6a1a', { m: 'neon', a: 0.9 * (1 - u) });
+          pen.part(f, 'sph', [0, 4 * u * big, 0], [(6 + u * 14) * big, (6 + u * 10) * big, (6 + u * 14) * big], '#4a4440',
+                   { a: 0.5 * u * (1 - u) * 2 });
+        }
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);
