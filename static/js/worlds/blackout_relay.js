@@ -1706,6 +1706,147 @@
     }
   });
 
+  /* Polderhaven: a Delft tile, painted stroke by stroke in blue -- the
+     mill, the canal, a barge, the clouds -- and then the colour floods
+     in: the sky, and the tulip fields in their bands. */
+  Intro.register('br_polder', {
+    tagline: 'Below the sea, above the tulips. Mind the sails.',
+    accent: '#ffb84a',
+    cues: [[0.1, 'br_chime', 0.5], [0.8, 'br_wind', 0.4], [1.7, 'br_chime', 0.6], [2.2, 'br_bell', 0.6],
+           [2.9, 'br_quack', 0.6]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { stripes: [], birds: [], clouds: [] };
+      for (var i = 0; i < 12; i++) d.stripes.push({ c: ['#e8302a', '#f2c21e', '#f07aa8', '#ffffff', '#8a4ac8', '#f28a2a'][i % 6] });
+      for (i = 0; i < 5; i++) d.birds.push({ x: between(r, 500, 1300), y: between(r, 150, 320), p: r() * TAU });
+      for (i = 0; i < 4; i++) d.clouds.push({ x: between(r, 120, 1480), y: between(r, 120, 260), s: between(r, 0.8, 1.4) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var BLUE = '#1f4aa8', paint = seg(t, 0.05, 1.6), colour = seg(t, 1.5, 2.6);
+      ctx.fillStyle = '#f4f0e4'; ctx.fillRect(0, 0, VW, VH);
+      // the sky comes in with the colour
+      if (colour > 0) {
+        ctx.globalAlpha = colour;
+        var g = ctx.createLinearGradient(0, 80, 0, 600);
+        g.addColorStop(0, '#5a9ae8'); g.addColorStop(1, '#e8f2fa');
+        ctx.fillStyle = g; ctx.fillRect(60, 60, VW - 120, 560);
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = BLUE; ctx.fillStyle = BLUE; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      // the tile's border and corner flourishes
+      ctx.lineWidth = 10; ctx.strokeRect(40, 40, VW - 80, VH - 80);
+      ctx.lineWidth = 3; ctx.strokeRect(60, 60, VW - 120, VH - 120);
+      [[100, 100], [VW - 100, 100], [100, VH - 100], [VW - 100, VH - 100]].forEach(function (c) {
+        for (var k = 0; k < 4; k++) {
+          ctx.beginPath(); ctx.arc(c[0] + Math.cos(k * Math.PI / 2) * 14, c[1] + Math.sin(k * Math.PI / 2) * 14, 10, 0, TAU);
+          ctx.stroke();
+        }
+      });
+      function stroke(at, fn) {
+        var k = seg(paint, at, at + 0.25);
+        if (k <= 0) return;
+        ctx.globalAlpha = Math.min(1, k * 1.5);
+        fn(k);
+        ctx.globalAlpha = 1;
+      }
+      // the land and the dike
+      stroke(0.0, function (k) {
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(60, 560); ctx.lineTo(60 + (VW - 120) * k, 560); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(60, 600); ctx.quadraticCurveTo(400, 590, 760, 612); ctx.stroke();
+      });
+      // the canal: wavy lines
+      stroke(0.15, function () {
+        ctx.lineWidth = 3;
+        for (var w = 0; w < 4; w++) {
+          ctx.beginPath();
+          for (var x = 820; x < 1500; x += 10) {
+            var y = 650 + w * 22 + Math.sin(x * 0.05 + t * 2 + w) * 4;
+            if (x === 820) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      });
+      // the mill: its body, its cap, its sails going round
+      stroke(0.3, function () {
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(300, 560); ctx.lineTo(330, 340); ctx.lineTo(410, 340); ctx.lineTo(440, 560); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(318, 340); ctx.quadraticCurveTo(370, 290, 422, 340); ctx.stroke();
+        ctx.strokeRect(350, 480, 40, 80);
+        ctx.strokeRect(358, 400, 24, 24);
+      });
+      stroke(0.45, function () {
+        var spin = t * 1.1;
+        ctx.save(); ctx.translate(370, 330);
+        for (var k = 0; k < 4; k++) {
+          ctx.save(); ctx.rotate(spin + k * Math.PI / 2);
+          ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -230); ctx.stroke();
+          ctx.lineWidth = 2;
+          ctx.strokeRect(4, -220, 34, 170);
+          for (var b2 = 0; b2 < 6; b2++) { ctx.beginPath(); ctx.moveTo(4, -210 + b2 * 28); ctx.lineTo(38, -210 + b2 * 28); ctx.stroke(); }
+          if (colour > 0) { ctx.globalAlpha = colour * 0.85; ctx.fillStyle = '#c42b20'; ctx.fillRect(6, -218, 30, 166); ctx.globalAlpha = 1; ctx.fillStyle = BLUE; }
+          ctx.restore();
+        }
+        ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.fill();
+        ctx.restore();
+      });
+      // a barge on the canal, a cyclist on the dike
+      stroke(0.6, function () {
+        var bx = 860 + ((t * 40) % 500);
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(bx, 690); ctx.lineTo(bx + 120, 690); ctx.lineTo(bx + 104, 708); ctx.lineTo(bx + 12, 708); ctx.closePath(); ctx.stroke();
+        ctx.strokeRect(bx + 30, 672, 40, 18);
+        var cx = 120 + ((t * 70) % 620);
+        ctx.beginPath(); ctx.arc(cx, 586, 10, 0, TAU); ctx.arc(cx + 30, 586, 10, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, 586); ctx.lineTo(cx + 14, 566); ctx.lineTo(cx + 30, 586); ctx.moveTo(cx + 14, 566); ctx.lineTo(cx + 16, 548); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx + 16, 540, 7, 0, TAU); ctx.stroke();
+      });
+      // clouds and birds
+      stroke(0.75, function () {
+        ctx.lineWidth = 3;
+        d.clouds.forEach(function (c) {
+          var x = c.x + Math.sin(t * 0.3 + c.s) * 20;
+          for (var k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(x + k * 30 * c.s, c.y - (k % 2) * 12 * c.s, 22 * c.s, Math.PI, TAU); ctx.stroke(); }
+        });
+        d.birds.forEach(function (b2) {
+          var y = b2.y + Math.sin(t * 2 + b2.p) * 6, x = b2.x + t * 30;
+          ctx.beginPath(); ctx.moveTo(x - 14, y); ctx.quadraticCurveTo(x - 7, y - 8, x, y); ctx.quadraticCurveTo(x + 7, y - 8, x + 14, y); ctx.stroke();
+        });
+      });
+      // the tulip fields in their bands, sliding in with the colour
+      if (colour > 0) {
+        for (var i = 0; i < d.stripes.length; i++) {
+          var y0 = 740 + i * 8 - 100, k = seg(colour, i * 0.04, i * 0.04 + 0.4);
+          if (k <= 0) continue;
+          ctx.fillStyle = d.stripes[i].c;
+          ctx.globalAlpha = 0.95;
+          ctx.beginPath(); ctx.moveTo(60, y0 + 10); ctx.lineTo(60 + 700 * k, y0); ctx.lineTo(60 + 700 * k, y0 + 7); ctx.lineTo(60, y0 + 18); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Polderhaven').toUpperCase();
+      var k = seg(t, 2.0, 2.6);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(1060, 250);
+      ctx.scale(0.7 + 0.3 * outBack(k), 0.7 + 0.3 * outBack(k));
+      ctx.globalAlpha = Math.min(1, k * 2);
+      ctx.fillStyle = '#f4f0e4';
+      ctx.strokeStyle = '#1f4aa8'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(-330, -60); ctx.lineTo(330, -60); ctx.lineTo(370, 0); ctx.lineTo(330, 60);
+      ctx.lineTo(-330, 60); ctx.lineTo(-370, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      var size = fitSize(ctx, name, 'bold #px Georgia, serif', 64, 600, 0.12);
+      ctx.font = 'bold ' + size + 'px Georgia, serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1f4aa8';
+      spaced(ctx, name, 0, 4, size * 0.12);
+      ctx.restore();
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };

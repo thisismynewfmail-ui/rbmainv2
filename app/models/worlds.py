@@ -75,6 +75,11 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "follow whoever carries a flag. Muster in the control building, run the rails "
               "to the receiver houses -- or take the arroyo, and the cable duct up into the "
               "flag room."},
+    {"id": "polder", "name": "Polderhaven", "thumb": "br_polder",
+     "captures": 3, "minutes": 15,
+     "blurb": "Spring in the polder: dikes, canals, tulips, and nothing flat. Muster in the "
+              "steam pumping station, cross the drawbridge and climb the dike to the great "
+              "windmills where the flags are -- or come up the mill's drain from the sluice."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [

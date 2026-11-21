@@ -387,6 +387,38 @@
     }
   });
 
+  Thumbs.registerWorld('br_polder', {
+    camera: [[26, 20, 46], [0, 12, -6], 50],
+    sky: { top: '#4a8ae8', horizon: '#e8f2fa', sun: [0.45, 0.75, 0.35], clouds: 0.75, tint: '#fff8e8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [120, 1, 90], '#5aa040', { st: 1 });
+      // the canal and its white drawbridge
+      k.box([14, 0.06, 0], [10, 0.12, 90], '#3a7a9a');
+      k.box([14, 0.4, 6], [12, 0.8, 8], '#8a7a6a', { st: 1 });
+      [[9, 2.6], [19, 2.6], [9, 9.4], [19, 9.4]].forEach(function (p) { k.box([p[0], 5.5, p[1]], [0.8, 10, 0.8], '#f4f2ea'); });
+      k.box([14, 10.6, 2.6], [11, 0.8, 0.8], '#f4f2ea'); k.box([14, 10.6, 9.4], [11, 0.8, 0.8], '#f4f2ea');
+      // the dike, the tulips beyond it in their bands
+      k.box([26, 1, 0], [8, 2, 90], '#4a8a34', { st: 1 });
+      k.box([26, 3, 0], [5, 2, 90], '#5aa040', { st: 1 });
+      ['#e8302a', '#f2c21e', '#f07aa8', '#ffffff', '#8a4ac8'].forEach(function (c, i) {
+        k.box([40, 0.6, -20 + i * 6], [16, 1.2, 4], c, { st: 1 });
+      });
+      // the great mill with its sails in the team's colour
+      k.box([-26, 3, -12], [14, 6, 14], '#a84a32', { st: 1 });
+      k.box([-26, 9, -12], [11, 6, 11], '#3a4a3a');
+      k.box([-26, 14, -12], [8, 4, 8], '#4a5a4a');
+      k.box([-26, 16.6, -12], [9, 1.4, 9], '#2a3a2a');
+      [[0.4], [2.0], [3.55], [5.1]].forEach(function (a) {
+        var ang = a[0];
+        k.box([-26 + Math.sin(ang) * 7, 17 + Math.cos(ang) * 7, -6.6], [2.4, 14, 0.3], '#e8705e',
+              { r: [0, 0, -ang] });
+      });
+      pedestal(k, -26, 0, 2, RED, RED_NEON);
+      k.player(2, 0, 10, { anim: 'run', time: 0.6, holding: flagItem(RED), wear: cap(BLUE) });
+      k.player(-10, 0, 14, { anim: 'run', time: 0.2, wear: cap(RED) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);
