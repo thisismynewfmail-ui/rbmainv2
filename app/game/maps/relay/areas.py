@@ -22,4 +22,5 @@ ORDER = [
     ("polder", "Polderhaven"),
     ("leviathan", "Leviathan Quarry"),
     ("stacks", "The Grand Stacks"),
+    ("steamworks", "Steamworks Caldera"),
 ]

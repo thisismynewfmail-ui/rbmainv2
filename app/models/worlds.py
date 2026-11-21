@@ -91,6 +91,12 @@ RELAY_AREAS: List[Dict[str, Any]] = [
               "round the great globe, run the nave between the shelves or take the library "
               "steps up onto their tops, and lift the flags from the map tables. Books fly. "
               "The librarian is dead, and does not care for gunfire."},
+    {"id": "steamworks", "name": "Steamworks Caldera", "thumb": "br_steamworks",
+     "captures": 3, "minutes": 15,
+     "blurb": "A geothermal power station in a volcano at dusk. Muster in the turbine hall on "
+              "its island in the steaming lake; the flags are up on the rim in the wellhead "
+              "stations. Run the pipe bridge high over everything, wade the hot lake past the "
+              "geysers, or come up the steam tunnel beside the flag."},
 ]
 
 WORLDS: List[Dict[str, Any]] = [

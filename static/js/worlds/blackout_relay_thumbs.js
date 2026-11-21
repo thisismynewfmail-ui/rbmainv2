@@ -483,6 +483,35 @@
     }
   });
 
+  Thumbs.registerWorld('br_steamworks', {
+    camera: [[28, 26, 44], [0, 6, -4], 52],
+    sky: { top: '#2a2a4a', horizon: '#e87a5a', sun: [-0.5, 0.12, 0.4], clouds: 0.45, tint: '#ffb890' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 0], [130, 1, 100], '#5a5560', { st: 1 });
+      // the benches stepping up behind, a crack glowing in one
+      ['#5a5560', '#4a4550', '#6a6470', '#524c58'].forEach(function (c, i) {
+        k.box([0, 1 + i * 2, -26 - i * 5], [130, 2, 20], c, { st: 1 });
+      });
+      k.box([-10, 4.2, -30.9], [14, 0.4, 0.2], '#ff6a2a', { m: 'neon' });
+      // the lake, the island hall, the pipe bridge going up to the rim
+      k.box([0, 0.05, 2], [60, 0.1, 30], '#3ac8c8', { m: 'glass', a: 0.85 });
+      k.box([0, 4, 2], [18, 8, 12], '#b8bcc0');
+      k.box([0, 8.4, 2], [19, 0.8, 13], '#f2c21e');
+      k.box([24, 8, 2], [30, 0.8, 4], '#5a6068');
+      k.box([24, 9.2, 0.2], [30, 1.6, 0.4], '#f2c21e');
+      k.shape('cyl', [24, 7, 3], [1.6, 30, 1.6], '#c8ccd0', { r: [0, 0, Math.PI / 2], m: 'metal' });
+      [14, 26, 36].forEach(function (x) { k.box([x, 3.5, 2], [1, 7, 1], '#5a6068'); });
+      // a cooling tower with its plume, a geyser going up
+      for (var i = 0; i < 6; i++) k.shape('cyl', [-34, 10 + i * 3, -40], [16 - Math.sin(i / 5 * 2.6) * 6, 3, 16 - Math.sin(i / 5 * 2.6) * 6], '#c8c4bc');
+      k.shape('sph', [-30, 32, -40], [18, 10, 14], '#f2f2f4', { a: 0.8 });
+      k.shape('cyl', [-16, 6, 10], [2.4, 12, 2.4], '#e8fafa', { a: 0.8 });
+      k.shape('sph', [-16, 13, 10], [7, 4, 7], '#ffffff', { a: 0.6 });
+      pedestal(k, 34, 0, 18, BLUE, BLUE_NEON);
+      k.player(-4, 0, 20, { anim: 'run', time: 0.2, holding: flagItem(BLUE), wear: cap(RED) });
+      k.player(12, 0, 22, { anim: 'run', time: 0.7, wear: cap(BLUE) });
+    }
+  });
+
   global.RelayThumbs = { flagItem: flagItem, pedestal: pedestal, rain: rain,
                          RED: RED, BLUE: BLUE, RED_NEON: RED_NEON, BLUE_NEON: BLUE_NEON };
 })(window);

@@ -2722,7 +2722,7 @@
       var slot = Math.floor(t / 9);
       if (slot !== me.slot) {
         me.slot = slot;
-        if (hash(slot + 3) < 0.5 && ctx.sound) ctx.sound('br_gull', spec.p, 0.8);
+        if (!spec.c && hash(slot + 3) < 0.5 && ctx.sound) ctx.sound('br_gull', spec.p, 0.8);
       }
     };
     me.draw = function (pen, t) {
@@ -2732,11 +2732,12 @@
         var pos = [spec.p[0] + Math.sin(a) * r, spec.p[1] + hash(i) * 30 + Math.sin(t * 0.5 + i) * 4,
                    spec.p[2] + Math.cos(a) * r * 0.8];
         var f = child(Rigs.frame(pos, a + Math.PI / 2, 1.2), [0, 0, 0], 0, 0, -0.3);
-        pen.part(f, 'sph', [0, 0, 0], [1.2, 1.0, 2.6], '#f4f4f0');
+        var body = spec.c || '#f4f4f0';
+        pen.part(f, 'sph', [0, 0, 0], [1.2, 1.0, 2.6], body);
         var flap = Math.sin(t * 5 + i) * 0.3;
         for (var side = -1; side <= 1; side += 2) {
           var w = child(f, [side * 0.5, 0.2, 0], 0, 0, -side * (0.2 + flap));
-          pen.part(w, 'box', [side * 2.2, 0, 0], [4.4, 0.12, 1.2], '#e8e8e4');
+          pen.part(w, 'box', [side * 2.2, 0, 0], [4.4, 0.12, 1.2], spec.c || '#e8e8e4');
           pen.part(w, 'box', [side * 4.0, 0.02, -0.2], [1.0, 0.1, 1.0], '#2a2a2a');
         }
         pen.part(f, 'cone', [0, 0, 1.6], [0.3, 0.8, 0.3], '#f2b81e', { rx: Math.PI / 2 });
@@ -3000,6 +3001,168 @@
         var z = top[2] + (hash(i * 5.9) - 0.5) * D;
         pen.part(Rigs.frame([x, y, z], 0, 1), 'sph', [0, 0, 0], [0.25, 0.25, 0.25], '#fff8e0',
                  { m: 'neon', a: 0.6 * Math.sin(ph * Math.PI) });
+      }
+    };
+    return me;
+  });
+
+  // =================================================== Steamworks Caldera
+  if (GA) {
+    GA.register('br_gurgle', function (vol) {
+      for (var i = 0; i < 6; i++) {
+        this.later(i * 120, function () { this.noise({ filter: 'lowpass', freq: 500, freqEnd: 200, dur: 0.1, gain: 0.05 * vol }); });
+      }
+    });
+    GA.register('br_geyser', function (vol) {
+      this.noise({ filter: 'highpass', freq: 900, freqEnd: 2400, dur: 3.2, gain: 0.12 * vol });
+      this.noise({ filter: 'lowpass', freq: 300, freqEnd: 120, dur: 2.4, gain: 0.1 * vol });
+    });
+    GA.register('br_shift', function (vol) {
+      // the steam whistle: a chord, held
+      [440, 554, 659].forEach(function (f) {
+        this.tone({ type: 'sawtooth', freq: f, freqEnd: f * 0.98, dur: 1.8, gain: 0.025 * vol });
+      }, this);
+      this.noise({ filter: 'bandpass', freq: 3000, dur: 1.6, gain: 0.04 * vol });
+    });
+  }
+
+  /* A geyser in the hot lake: it gurgles, bubbles, and then goes up --
+     a column of water and steam, the spray coming down. */
+  Rigs.register('geyser', function (spec, ctx) {
+    var H = spec.h || 30, EVERY = spec.every || 30, seed = spec.seed || 0;
+    var me = { radius: H + 10, at: spec.p, kind: 'geyser' };
+    me.update = function (dt, t) {
+      var tt = t + seed, slot = Math.floor(tt / EVERY), into = tt - slot * EVERY;
+      me.into = into;
+      if (slot !== me.slot && into > EVERY - 3) {
+        me.slot = slot;
+        if (ctx.sound) ctx.sound('br_gurgle', spec.p, 1.6);
+      }
+      if (into < 0.1 && slot !== me.blown) {
+        me.blown = slot;
+        if (ctx.sound) ctx.sound('br_geyser', spec.p, 2.6);
+      }
+    };
+    me.draw = function (pen, t) {
+      var into = me.into || 0;
+      var f = Rigs.frame(spec.p, 0, 1);
+      if (into > EVERY - 3) {
+        for (var b2 = 0; b2 < 6; b2++) {
+          var ph = (t * 2 + b2 / 6) % 1;
+          pen.part(f, 'sph', [Math.sin(b2 * 2.1) * 2, 2.0 + ph * 1.2, Math.cos(b2 * 2.1) * 2], [1, 1, 1], '#e8fafa',
+                   { a: 0.7 * (1 - ph) });
+        }
+      }
+      var dur = 6.0;
+      if (into < dur) {
+        var k = into / dur, rise = Math.min(1, into / 0.6) * (1 - Math.max(0, (into - 4) / 2));
+        var top = H * rise;
+        for (var c = 0; c < 8; c++) {
+          var y = top * (c + 0.5) / 8;
+          var wob = Math.sin(t * 9 + c) * 0.6;
+          pen.part(f, 'sph', [wob, 2 + y, -wob], [3.2 - c * 0.1, top / 6, 3.2 - c * 0.1], '#e8fafa', { a: 0.75 });
+        }
+        for (var s2 = 0; s2 < 10; s2++) {
+          var ph2 = (t * 0.8 + s2 / 10) % 1;
+          var a = s2 * 2.4;
+          pen.part(f, 'sph', [Math.sin(a) * ph2 * 10, 2 + top * (1 - ph2 * ph2), Math.cos(a) * ph2 * 10],
+                   [1.4, 1.4, 1.4], '#ffffff', { a: 0.6 * rise });
+        }
+        pen.part(f, 'sph', [0, 2 + top, 0], [10 + k * 12, 8 + k * 8, 10 + k * 12], '#f4f6f8', { a: 0.35 * rise });
+      }
+    };
+    return me;
+  });
+
+  /* The glow in the cracks of the benches: strips of molten orange along
+     the riser, breathing. */
+  Rigs.register('lava_crack', function (spec) {
+    var W = spec.w || 100, seed = spec.seed || 0;
+    var me = { radius: W / 2 + 10, at: spec.p, kind: 'lava_crack' };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(spec.p, spec.yaw || 0, 1);
+      var n = Math.max(3, Math.round(W / 26));
+      for (var i = 0; i < n; i++) {
+        var x = -W / 2 + (i + 0.5) * W / n + (hash(i + seed) - 0.5) * 8;
+        var glow = 0.55 + 0.45 * Math.sin(t * 0.8 + i * 1.7 + seed);
+        var len = 6 + hash(i * 3.1 + seed) * 10;
+        pen.part(f, 'box', [x, (hash(i * 7.7) - 0.5) * 0.8, 0], [len, 0.35, 0.1], '#ff6a2a', { m: 'neon', a: glow });
+        pen.part(f, 'box', [x + len * 0.3, 0.3, 0], [len * 0.4, 0.25, 0.1], '#ffb04a', { m: 'neon', a: glow * 0.8, rz: 0.3 });
+      }
+    };
+    return me;
+  });
+
+  /* A pressure gauge: its needle trembling in the green -- and over into
+     the red while a flag is out.  The turbine hall's sounds the shift
+     whistle on a capture. */
+  Rigs.register('pressure_gauge', function (spec, ctx) {
+    var R = spec.r || 1, seed = spec.seed || 0;
+    var me = { radius: 4, at: spec.p, kind: 'pressure_gauge', needle: 0.3 };
+    me.event = function (kind) {
+      if (kind === 'flag_capture' && spec.whistle && ctx.sound) ctx.sound('br_shift', spec.p, 3);
+    };
+    me.update = function (dt, t) {
+      var out = ctx.flagSpots && ctx.flagSpots().some(function (f) { return f.state !== 'home'; });
+      var target = (out ? 0.85 : 0.35) + Math.sin(t * (out ? 13 : 3) + seed) * (out ? 0.08 : 0.03);
+      me.needle = approach(me.needle, target, 4, dt);
+    };
+    me.draw = function (pen) {
+      if (!pen.near) return;
+      var f = Rigs.frame(spec.p, 0, 1);
+      pen.part(f, 'cyl', [0, 0, 0], [R * 2.2, 0.3, R * 2.2], '#c8a040', { rx: Math.PI / 2, m: 'metal' });
+      pen.part(f, 'cyl', [0, 0, 0.16], [R * 1.9, 0.1, R * 1.9], '#f4f2ea', { rx: Math.PI / 2 });
+      pen.part(f, 'box', [R * 0.45, R * 0.45, 0.22], [R * 0.7, R * 0.2, 0.05], '#d8321a', { rz: -0.8 });
+      var a = -2.2 + me.needle * 4.4;
+      pen.part(child(f, [0, 0, 0.26], 0, 0, -a), 'box', [0, R * 0.4, 0], [0.12, R * 0.8, 0.05], '#1b1b1b');
+    };
+    return me;
+  });
+
+  /* A turbine: the rotor spinning on its shaft, the blades a blur through
+     the casing's open top, the generator humming. */
+  Rigs.register('turbine', function (spec, ctx) {
+    var L = spec.len || 20, R = spec.r || 2.5, seed = spec.seed || 0;
+    var me = { radius: L + 6, at: spec.p, kind: 'turbine', spin: 0 };
+    me.update = function (dt, t) {
+      var out = ctx.flagSpots && ctx.flagSpots().some(function (f) { return f.state !== 'home'; });
+      me.rate = approach(me.rate || 8, out ? 16 : 8, 0.6, dt);
+      me.spin += dt * me.rate;
+      var slot = Math.floor(t / 4);
+      if (slot !== me.slot) {
+        me.slot = slot;
+        var v = ctx.viewer ? ctx.viewer() : null;
+        if (v && dist(v.eye, spec.p) < 40 && ctx.sound) ctx.sound('br_hum', spec.p, 0.8);
+      }
+    };
+    me.draw = function (pen) {
+      var shaft = child(Rigs.frame(spec.p, 0, 1), [0, 0, 0], me.spin, 0, 0);
+      pen.part(shaft, 'cyl', [0, 0, 0], [1.0, L, 1.0], '#c8ccd0', { rz: Math.PI / 2, m: 'metal' });
+      for (var stage = 0; stage < 5; stage++) {
+        var x = -L / 2 + 2 + stage * (L - 4) / 4;
+        var r = R * (0.6 + stage * 0.12);
+        for (var bl = 0; bl < 8; bl++) {
+          pen.part(child(shaft, [x, 0, 0], bl * TAU / 8, 0, 0), 'box', [0, r / 2, 0], [0.5, r, 0.3], '#d8dce0',
+                   { ry: 0.5, m: 'metal' });
+        }
+      }
+    };
+    return me;
+  });
+
+  /* A cooling tower's plume: great rolls of vapour boiling up out of the
+     top and drifting off downwind. */
+  Rigs.register('cooling_plume', function (spec) {
+    var R = spec.r || 16, seed = spec.seed || 0;
+    var me = { radius: R * 6, at: spec.p, kind: 'cooling_plume' };
+    me.draw = function (pen, t) {
+      for (var i = 0; i < 10; i++) {
+        var ph = (t * 0.05 + i / 10 + seed) % 1;
+        var size = R * (1.2 + ph * 2.6);
+        var at = [spec.p[0] + ph * R * 3 + Math.sin(t * 0.2 + i) * 3, spec.p[1] + ph * R * 4,
+                  spec.p[2] + Math.cos(i * 1.7) * ph * R * 0.6];
+        pen.part(Rigs.frame(at, i, 1), 'sph', [0, 0, 0], [size, size * 0.7, size], '#f2f2f4',
+                 { a: 0.55 * Math.sin(Math.min(1, ph * 1.4) * Math.PI) + 0.05 });
       }
     };
     return me;

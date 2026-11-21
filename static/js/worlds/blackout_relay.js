@@ -2056,6 +2056,99 @@
     }
   });
 
+  /* Steamworks Caldera: the crater at dusk, the cooling towers smoking,
+     the lake glowing; a pressure gauge in the foreground climbs into the
+     red -- the whistle goes -- and a geyser goes up.  The name drops in on a
+     riveted plate. */
+  Intro.register('br_steamworks', {
+    tagline: 'Pressure is rising. Hold the island. Run the pipes.',
+    accent: '#ff9a5a',
+    cues: [[0.2, 'br_hum', 0.6], [0.9, 'br_gurgle', 0.6], [1.6, 'br_shift', 0.6], [1.9, 'br_geyser', 0.6],
+           [2.6, 'br_clank', 0.6]],
+    shakes: [[1.95, 5, 0.4]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { peaks: [], puffs: [] };
+      for (var i = 0; i < 9; i++) d.peaks.push({ x: i * 200 - 40 + between(r, -30, 30), h: between(r, 220, 360) });
+      for (i = 0; i < 26; i++) d.puffs.push({ a: r() * TAU, s: between(r, 0.6, 1.4) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, 620);
+      g.addColorStop(0, '#2a2a4a'); g.addColorStop(0.65, '#c86a5a'); g.addColorStop(1, '#ffa070');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+      ctx.fillStyle = '#2a2632';
+      d.peaks.forEach(function (p) {
+        ctx.beginPath(); ctx.moveTo(p.x - 160, 620); ctx.lineTo(p.x, 620 - p.h); ctx.lineTo(p.x + 160, 620); ctx.fill();
+      });
+      // the crater's rim, the lake glowing in it
+      ctx.fillStyle = '#3a3440'; ctx.fillRect(0, 600, VW, 300);
+      var lake = ctx.createRadialGradient(800, 700, 40, 800, 700, 520);
+      lake.addColorStop(0, 'rgba(90,240,230,0.9)'); lake.addColorStop(1, 'rgba(40,140,150,0.2)');
+      ctx.fillStyle = lake;
+      ctx.beginPath(); ctx.ellipse(800, 700, 520, 90, 0, 0, TAU); ctx.fill();
+      // the cooling towers and their plumes
+      [[300, 1], [1300, -1]].forEach(function (tw) {
+        var x = tw[0];
+        ctx.fillStyle = '#b8b4ac';
+        ctx.beginPath(); ctx.moveTo(x - 70, 600); ctx.quadraticCurveTo(x - 30, 470, x - 50, 360); ctx.lineTo(x + 50, 360);
+        ctx.quadraticCurveTo(x + 30, 470, x + 70, 600); ctx.fill();
+        d.puffs.forEach(function (pf, i) {
+          var ph = (t * 0.25 + i / d.puffs.length) % 1;
+          ctx.fillStyle = 'rgba(240,240,244,' + (0.5 * (1 - ph)) + ')';
+          ctx.beginPath(); ctx.arc(x + ph * 160 * tw[1] + Math.sin(pf.a + t) * 10, 350 - ph * 260, 30 + ph * 60 * pf.s, 0, TAU); ctx.fill();
+        });
+      });
+      // the turbine hall on its island, the pipe bridge to the rim
+      ctx.fillStyle = '#d8dce0'; ctx.fillRect(720, 610, 160, 60);
+      ctx.fillStyle = '#f2c21e'; ctx.fillRect(712, 604, 176, 8);
+      ctx.fillRect(880, 618, 600, 6); ctx.fillRect(120, 618, 600, 6);
+      // the geyser
+      var gk = seg(t, 1.9, 3.6);
+      if (gk > 0) {
+        var rise = Math.min(1, gk * 4) * (1 - Math.max(0, gk - 0.7) / 0.3);
+        var top = 700 - 420 * rise;
+        ctx.fillStyle = 'rgba(232,250,250,0.85)';
+        ctx.beginPath(); ctx.moveTo(1040, 700); ctx.quadraticCurveTo(1030, (700 + top) / 2, 1046, top);
+        ctx.lineTo(1066, top); ctx.quadraticCurveTo(1080, (700 + top) / 2, 1072, 700); ctx.fill();
+        for (var sp = 0; sp < 14; sp++) {
+          var a = sp / 14 * Math.PI - Math.PI;
+          ctx.beginPath(); ctx.arc(1056 + Math.cos(a) * 60 * rise, top + 20 - Math.sin(a) * 40 * rise, 10 + sp % 3 * 4, 0, TAU); ctx.fill();
+        }
+      }
+      // the gauge, close up: the needle climbing into the red
+      var nk = inOut(seg(t, 0.3, 1.6));
+      ctx.save();
+      ctx.translate(330, 640);
+      ctx.fillStyle = '#c8a040'; ctx.beginPath(); ctx.arc(0, 0, 190, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f4f2ea'; ctx.beginPath(); ctx.arc(0, 0, 166, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#d8321a'; ctx.lineWidth = 26;
+      ctx.beginPath(); ctx.arc(0, 0, 130, -0.35, 0.55); ctx.stroke();
+      ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 4;
+      for (var tick = 0; tick <= 10; tick++) {
+        var ta = -Math.PI * 1.2 + tick * Math.PI * 1.75 / 10;
+        ctx.beginPath(); ctx.moveTo(Math.cos(ta) * 150, Math.sin(ta) * 150); ctx.lineTo(Math.cos(ta) * 126, Math.sin(ta) * 126); ctx.stroke();
+      }
+      var na = -Math.PI * 1.2 + (0.1 + nk * 0.63 + Math.sin(t * 30) * 0.01 * nk) * Math.PI * 1.75;
+      ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-Math.cos(na) * 20, -Math.sin(na) * 20); ctx.lineTo(Math.cos(na) * 140, Math.sin(na) * 140); ctx.stroke();
+      ctx.fillStyle = '#c8a040'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, TAU); ctx.fill();
+      ctx.restore();
+      // the whistle's steam, when it blows
+      var wk = seg(t, 1.6, 2.6);
+      if (wk > 0 && wk < 1) {
+        for (var w = 0; w < 10; w++) {
+          ctx.fillStyle = 'rgba(244,246,248,' + (0.6 * (1 - wk)) + ')';
+          ctx.beginPath(); ctx.arc(560 + w * 14 + wk * 80, 380 - w * 18 - wk * 60, 20 + w * 4, 0, TAU); ctx.fill();
+        }
+      }
+    },
+    title: function (ctx, t, d, run) {
+      stencilPlate(ctx, t, (run.info.name || 'Steamworks Caldera').toUpperCase(), 1020, 220, 860, 150,
+                   '#5a6068', '#f2c21e', 2.3);
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };
