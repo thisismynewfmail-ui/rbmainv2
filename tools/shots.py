@@ -33,6 +33,14 @@ def main(argv):
     parser.add_argument("--intros", action="store_true")
     parser.add_argument("--times", default="1.2,3.0,4.6")
     parser.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "shots"))
+    parser.add_argument("--rigtime", type=float, default=1000.0,
+                        help="the clock the map's rigs are drawn at (wall seconds)")
+    parser.add_argument("--rigsettle", type=float, default=4.0,
+                        help="seconds of the rigs' lives run before the picture")
+    parser.add_argument("--rigstate", default="",
+                        help="JSON (or a file of it) for the rigs' world: {players: [{pos}], "
+                             "flags: [{state, pos}], viewer: {eye, dir}, events: "
+                             "[[seconds before, kind, msg]]}; positions in area coordinates")
     args = parser.parse_args(argv[1:])
     from app.models import worlds
     world = worlds.get_any(args.world)
@@ -82,6 +90,33 @@ def main(argv):
                 views.append([[ox + ex, ey, oz + ez], [ox + tx, 0, oz + tz], 60])
                 names.append("%s_over%d" % (args.area, i))
         job.update(kind="map", map=payload, views=views, names=names)
+        # the map's moving scenery, drawn the way the client draws it
+        scripts = [u for u in (world or {}).get("game_scripts") or [] if "_rigs" in u]
+        if scripts:
+            job["rigs"] = ["static/js/game/rigs.js"] + [u.lstrip("/") for u in scripts]
+            job["rig_time"] = args.rigtime
+            job["rig_settle"] = args.rigsettle
+            state = {}
+            if args.rigstate:
+                text = args.rigstate
+                if os.path.exists(text):
+                    with open(text) as fh:
+                        text = fh.read()
+                state = json.loads(text)
+
+            def place(p):
+                return [p[0] + ox, p[1], p[2] + oz]
+            for who in state.get("players") or []:
+                who["pos"] = place(who["pos"])
+            for flag in state.get("flags") or []:
+                if flag.get("pos"):
+                    flag["pos"] = place(flag["pos"])
+            if state.get("viewer"):
+                state["viewer"]["eye"] = place(state["viewer"]["eye"])
+            for event in state.get("events") or []:
+                if len(event) > 2 and isinstance(event[2], dict) and event[2].get("from"):
+                    event[2]["from"] = place(event[2]["from"])
+            job["rig_state"] = state
     handle, path = tempfile.mkstemp(suffix=".json")
     with os.fdopen(handle, "w") as f:
         json.dump(job, f)

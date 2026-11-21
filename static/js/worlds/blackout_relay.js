@@ -86,6 +86,58 @@
     var bannerNode = null;
     var clock = 0;
 
+    // ------------------------------------------------- living scenery
+    // the map's rigs (static/js/game/rigs.js; the kinds are registered in
+    // blackout_relay_rigs.js), and what they are told about the game
+    var rigs = [];
+    var rigCtx = {
+      critters: [],
+      players: function () {
+        var out = [];
+        if (client.myId && client.local && client.local.alive !== false) {
+          out.push({ id: client.myId, pos: client.local.pos, team: client.myTeam, me: true });
+        }
+        Object.keys(client.players || {}).forEach(function (id) {
+          var p = client.players[id];
+          if (p && p.alive && p.pos) out.push({ id: p.id, pos: p.pos, team: p.team });
+        });
+        return out;
+      },
+      flagSpots: function () {
+        var flags = (client.extras && client.extras.flags) || {};
+        return Object.keys(flags).map(function (team) {
+          var f = flags[team] || {};
+          var pos = f.p;
+          if (f.state === 'carried') {
+            var who = f.carrier === client.myId ? client.local : (client.players || {})[f.carrier];
+            pos = who && who.pos ? who.pos : pos;
+          }
+          return { team: team, state: f.state || 'home', pos: pos };
+        });
+      },
+      viewer: function () {
+        var cam = client.cameraPosition ? client.cameraPosition() : null;
+        var at = cam && cam.eye ? cam.eye : client.local.pos;
+        var yaw = client.local.yaw || 0, pitch = client.local.pitch || 0, cp = Math.cos(pitch);
+        return { eye: at, dir: [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp] };
+      },
+      round: function () {
+        var st = client.state || {};
+        var mk = (client.map && client.map.markers) || {};
+        return { time_left: st.time_left, length: mk.round_seconds || 900,
+                 sudden: !!st.sudden_death, overtime: !!st.overtime };
+      },
+      sound: function (name, at, volume) {
+        if (!client.audio || !at) return;
+        client.audio.play(name, { volume: (volume || 1) * client.volumeAt(at) });
+      }
+    };
+
+    function buildRigs(map) {
+      rigCtx.critters = [];
+      rigs = global.Rigs ? global.Rigs.build(map, rigCtx) : [];
+    }
+
     function el(id) { return document.getElementById(id); }
     function esc(text) {
       return String(text == null ? '' : text).replace(/[&<>"]/g, function (c) {
@@ -115,6 +167,7 @@
       current.accent = extra.accent || '#ffd27a';
       drops.length = 0;
       document.documentElement.style.setProperty('--ar-accent', current.accent);
+      buildRigs(map);
     }
 
     function swap(map) {
@@ -265,6 +318,12 @@
         net.on('brarea', onArea);
         net.on('brnext', onNext);
         net.on('round_start', function () { if (reel) { reel.stop(); reel = null; } });
+        net.on('evt', function (msg) {
+          if (global.Rigs && msg && msg.k) global.Rigs.notify(rigs, msg.k, msg, rigCtx);
+        });
+      },
+      notify: function (kind, msg) {
+        if (global.Rigs) global.Rigs.notify(rigs, kind, msg, rigCtx);
       },
       onMap: function (map, first) {
         setMap(map);
@@ -277,6 +336,9 @@
       },
       draw: function (renderer, dt, time) {
         clock += dt;
+        if (rigs.length && global.Rigs) {
+          global.Rigs.draw(rigs, renderer, dt, eye(), rigCtx, (client.map && client.map.fog) || 900);
+        }
         drawWeather(renderer, dt, time);
         drawFlash(renderer, dt);
       }

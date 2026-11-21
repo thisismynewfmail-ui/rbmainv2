@@ -95,6 +95,21 @@ def test_catalogue() -> None:
         check("catalogue: an arrival scene for %s" % area["name"], "br_" + area["id"] in scenes)
         if area["id"] != "ironvale":
             check("catalogue: a thumbnail for %s" % area["name"], area["thumb"] in cards)
+    # every moving thing a map names is one the client knows how to draw
+    from app.game.maps import relay
+    scripts = "".join(open(os.path.join(ROOT, u.lstrip("/"))).read()
+                      for u in world.get("game_scripts") or [])
+    kinds = set(re.findall(r"""Rigs\.register\(\s*['"]([a-z0-9_]+)['"]""", scripts))
+    data = relay.build()
+    used = {}
+    for record in data["markers"]["areas"]:
+        for rig in (record.get("extra") or {}).get("rigs") or []:
+            used.setdefault(rig["kind"], record["id"])
+    missing = sorted(k for k in used if k not in kinds)
+    check("catalogue: every rig a map uses is registered in the world's scripts", not missing,
+          missing)
+    check("catalogue: the rig library is loaded with the game",
+          "/static/js/game/rigs.js" in open(os.path.join(ROOT, "templates/game.html")).read())
 
 
 # ===================================================================== map

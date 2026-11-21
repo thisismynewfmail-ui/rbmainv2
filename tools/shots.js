@@ -61,8 +61,14 @@ var ENGINE = ['static/js/engine/gl.js', 'static/js/engine/geometry.js',
     await page.addScriptTag({ path: path.join(ROOT, scripts[i]) });
   }
   var shots = [];
+  if (job.kind === 'map' && job.rigs) {
+    for (var q = 0; q < job.rigs.length; q++) {
+      await page.addScriptTag({ path: path.join(ROOT, job.rigs[q]) });
+    }
+  }
   if (job.kind === 'map') {
-    await page.evaluate(function (map) {
+    await page.evaluate(function (args) {
+      var map = args[0], state = args[1], time = args[2], settle = args[3];
       var canvas = document.getElementById('c');
       var r = new Renderer(canvas, { antialias: true });
       r.far = 1400;
@@ -73,12 +79,46 @@ var ENGINE = ['static/js/engine/gl.js', 'static/js/engine/geometry.js',
       Object.keys(dyn).forEach(function (k) { if (dyn[k].on) parts = parts.concat(dyn[k].parts); });
       r.buildStatic(parts);
       window.__r = r;
-    }, job.map);
+      if (window.Rigs) {
+        // the rigs' view of the game, as the job describes it
+        var st = state || {};
+        window.__rigCtx = {
+          critters: [],
+          players: function () { return st.players || []; },
+          flagSpots: function () { return st.flags || []; },
+          viewer: function () { return st.viewer || null; },
+          round: function () { return st.round || {}; },
+          sound: function () {}
+        };
+        window.__rigs = Rigs.build(map, window.__rigCtx);
+        window.__rigEvents = st.events || [];
+        window.__rigTime = time || 1000;
+        window.__rigSettle = settle || 4;
+      }
+    }, [job.map, job.rig_state || {}, job.rig_time || 1000, job.rig_settle || 4]);
     for (var v = 0; v < job.views.length; v++) {
       var data = await page.evaluate(function (view) {
         var r = window.__r;
         r.resize();
         r.beginFrame(0.016);
+        if (window.__rigs && window.__rigs.length) {
+          // four seconds of the rigs' lives up to the moment, so whatever
+          // they are doing has had time to happen; then the frame
+          var T = window.__rigTime, events = window.__rigEvents.slice();
+          var steps = Math.round(window.__rigSettle * 60);
+          for (var i = steps; i >= 0; i--) {
+            var now = T - i / 60;
+            Rigs.clock = function () { return now; };
+            for (var e = events.length - 1; e >= 0; e--) {
+              if (T - events[e][0] <= now) {
+                Rigs.notify(window.__rigs, events[e][1], events[e][2] || {}, window.__rigCtx);
+                events.splice(e, 1);
+              }
+            }
+            r.beginFrame(1 / 60);
+            Rigs.draw(window.__rigs, r, 1 / 60, view[0], window.__rigCtx, 3000);
+          }
+        }
         r.setCameraMatrix(view[0], view[1], view[2] || 60);
         r.render();
         return document.getElementById('c').toDataURL('image/png');

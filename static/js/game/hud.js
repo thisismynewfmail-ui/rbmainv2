@@ -316,6 +316,10 @@
       var captures = state.captures || { red: 0, blue: 0 };
       if (red) red.textContent = captures.red;
       if (blue) blue.textContent = captures.blue;
+      // the target is the round's, not the world's: Blackout Relay's maps
+      // each set their own
+      var label = el('score-mode');
+      if (label && state.target) label.textContent = 'First to ' + state.target + ' captures';
       var panel = el('objective');
       if (timer) {
         timer.textContent = state.sudden_death

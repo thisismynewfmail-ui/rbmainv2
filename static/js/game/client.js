@@ -1095,6 +1095,7 @@
       if (!origin) return;
       this.spawnTracer(origin, msg.d, 400, msg.c);
       if (this.pets) this.pets.notify('shot', { id: msg.id });
+      if (this.plugin && this.plugin.notify) this.plugin.notify('shot', { id: msg.id, from: origin });
       this.particles.burst('muzzle', [origin[0] + msg.d[0] * 1.6,
                                       origin[1] + msg.d[1] * 1.6,
                                       origin[2] + msg.d[2] * 1.6]);
@@ -1212,6 +1213,7 @@
                   this.local.pos[2]];
     this.net.send({ t: 'fire', d: dir, o: origin });
     if (this.pets) this.pets.notify('shot', { id: this.myId });
+    if (this.plugin && this.plugin.notify) this.plugin.notify('shot', { id: this.myId, from: origin });
     if (custom) {
       this.arena.localFire(stats, origin, dir);
       return;

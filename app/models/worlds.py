@@ -160,7 +160,7 @@ WORLDS: List[Dict[str, Any]] = [
         "team_count": 2,
         "mode": "captures",
         "shuffle": True,
-        "round_label": "First to 5 captures",
+        "round_label": "Capture the flag",
         "colors": ["#3f7a4a", "#c4281c", "#0d69ac"],
         "thumb": "relay",
         # This world hides enemy health on the nametags: you can read your
@@ -178,7 +178,8 @@ WORLDS: List[Dict[str, Any]] = [
                       "in half an hour; every other map is first to three in fifteen "
                       "minutes -- and overtime and sudden death everywhere.",
         "thumb_script": "/static/js/worlds/blackout_relay_thumbs.js",
-        "game_scripts": ["/static/js/worlds/blackout_relay.js"],
+        "game_scripts": ["/static/js/worlds/blackout_relay_rigs.js",
+                         "/static/js/worlds/blackout_relay.js"],
         "prefix": "br",
     },
     # Appended last on purpose: the bot director snapshots each bot's world
