@@ -3168,5 +3168,250 @@
     return me;
   });
 
+  // ================================================= Saddleback Observatory
+  if (GA) {
+    GA.register('br_yeti', function (vol) {
+      this.tone({ type: 'sawtooth', freq: 90, freqEnd: 70, dur: 0.9, gain: 0.05 * vol });
+      this.tone({ type: 'sine', freq: 180, freqEnd: 150, dur: 0.8, gain: 0.03 * vol });
+    });
+  }
+
+  /* An observatory's dome: rings of white stepping up to the crown, the
+     slit up the side turning to whatever the telescope follows (a carried
+     flag first), the tube out of it, its shutters open. */
+  Rigs.register('observatory_dome', function (spec, ctx) {
+    var R = spec.r || 20;
+    var me = { radius: R + 10, at: spec.p, kind: 'observatory_dome', az: spec.yaw || 0, el: 0.7 };
+    me.update = function (dt, t) {
+      var spots = ctx.flagSpots ? ctx.flagSpots() : [];
+      var target = null;
+      spots.forEach(function (f) { if (f.state === 'carried' && f.pos) target = f.pos; });
+      var az = (spec.yaw || 0) + Math.sin(t * 0.03) * 0.9, el = 0.8 + 0.2 * Math.sin(t * 0.02);
+      if (target) {
+        az = Math.atan2(target[0] - spec.p[0], target[2] - spec.p[2]);
+        el = clamp(Math.atan2(target[1] - spec.p[1], Math.hypot(target[0] - spec.p[0], target[2] - spec.p[2])) + 0.15, 0.1, 1.2);
+      }
+      me.az = Rigs.approachAngle(me.az, az, target ? 0.8 : 0.25, dt);
+      me.el = approach(me.el, el, 0.6, dt);
+    };
+    me.draw = function (pen) {
+      var f = Rigs.frame(spec.p, me.az, 1);
+      var steps = 6, prev = 0;
+      for (var k = 0; k < steps; k++) {
+        var th0 = k / steps * 1.35, th1 = (k + 1) / steps * 1.35;
+        var y0 = R * Math.sin(th0), y1 = R * Math.sin(th1), rr = R * Math.cos(th0);
+        pen.part(f, 'cyl', [0, (y0 + y1) / 2, 0], [rr * 2, y1 - y0, rr * 2], k % 2 ? '#e8ecf0' : '#f6f8fa');
+        // the slit up the side: dark where it is open
+        pen.part(f, 'box', [0, (y0 + y1) / 2, rr - R * 0.06], [R * 0.32, y1 - y0, R * 0.14], '#1a1e28');
+        prev = y1;
+      }
+      pen.part(f, 'sph', [0, prev, 0], [R * 0.45, R * 0.18, R * 0.45], '#f6f8fa');
+      // the shutters, slid back either side of the slit
+      for (var side = -1; side <= 1; side += 2) {
+        pen.part(f, 'box', [side * R * 0.26, R * 0.5, R * 0.86], [R * 0.16, R * 0.95, R * 0.12], '#c8ccd0', { rx: -0.25 });
+      }
+      // the telescope out of the slit
+      var tube = child(f, [0, R * 0.35, 0], -me.el, 0, 0);
+      pen.part(tube, 'cyl', [0, 0, R * 0.55], [R * 0.18, R * 0.9, R * 0.18], '#f2f2ee', { rx: Math.PI / 2 });
+      pen.part(tube, 'cyl', [0, 0, R * 1.0], [R * 0.21, R * 0.08, R * 0.21], '#3a3a44', { rx: Math.PI / 2 });
+      pen.part(tube, 'cyl', [0, 0, R * 1.03], [R * 0.15, 0.1, R * 0.15], '#7ac8ff', { rx: Math.PI / 2, m: 'neon', a: 0.8 });
+    };
+    return me;
+  });
+
+  /* The mid-station's bullwheel, turning, the cable round it. */
+  Rigs.register('bullwheel', function (spec) {
+    var R = spec.r || 8;
+    var me = { radius: R + 4, at: spec.p, kind: 'bullwheel' };
+    me.draw = function (pen, t) {
+      var f = Rigs.frame(spec.p, t * 0.5, 1);
+      pen.part(f, 'cyl', [0, 0, 0], [R * 2, 0.8, R * 2], '#9aa0a8', { m: 'metal' });
+      pen.part(f, 'cyl', [0, 0.1, 0], [R * 1.7, 0.85, R * 1.7], '#3a4050', { m: 'metal' });
+      for (var k = 0; k < 6; k++) {
+        pen.part(f, 'box', [0, 0.5, 0], [R * 1.9, 0.4, 0.5], '#c8ccd0', { ry: k * Math.PI / 6, m: 'metal' });
+      }
+      pen.part(f, 'cyl', [0, 0.6, 0], [2, 1.2, 2], '#c42b20');
+    };
+    return me;
+  });
+
+  /* A cable car line up a mountain: the haul and return cables sagging
+     between the station and the summit, a cabin going up one and another
+     coming down the other, pausing at each end. */
+  Rigs.register('cable_car', function (spec) {
+    var a = spec.p, b = spec.q, seed = spec.seed || 0, colour = spec.c || '#c42b20';
+    var len = dist(a, b);
+    var me = { radius: len / 2 + 20, at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], kind: 'cable_car' };
+    function along(u, side) {
+      var sag = Math.sin(u * Math.PI) * len * 0.035;
+      return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u - sag, a[2] + (b[2] - a[2]) * u + side * 1.8];
+    }
+    function cabin(pen, u, side, t) {
+      var p = along(u, side);
+      var heading = Math.atan2(b[0] - a[0], b[2] - a[2]);
+      var swing = Math.sin(t * 1.3 + side) * 0.06;
+      var f = child(Rigs.frame(p, heading, 1), [0, 0, 0], 0, 0, swing);
+      pen.part(f, 'box', [0, -1.6, 0], [0.3, 3.2, 0.3], '#3a3a44');
+      pen.part(f, 'cyl', [0, 0, 0], [1.2, 0.8, 1.2], '#5a6068', { rz: Math.PI / 2, m: 'metal' });
+      pen.part(f, 'rbox', [0, -5.2, 0], [5.0, 4.2, 4.0], colour);
+      pen.part(f, 'box', [0, -4.6, 0], [5.1, 1.6, 4.1], '#bfe0f0', { a: 0.6, m: 'glass' });
+      pen.part(f, 'box', [0, -2.9, 0], [5.4, 0.4, 4.4], '#e8e8e0');
+      pen.part(f, 'box', [0, -4.4, 0], [1.0, 1.0, 4.2], '#fff2b0', { m: 'neon', a: 0.5 });
+    }
+    me.draw = function (pen, t) {
+      for (var side = -1; side <= 1; side += 2) {
+        var prev = along(0, side);
+        for (var k = 1; k <= 10; k++) {
+          var next = along(k / 10, side);
+          pen.rod(prev, next, 0.3, '#2a2a30');
+          prev = next;
+        }
+      }
+      var period = 48, ph = ((t + seed * 11) % period) / period;
+      var u = ph < 0.1 ? 0 : (ph < 0.5 ? (ph - 0.1) / 0.4 : (ph < 0.6 ? 1 : 1 - (ph - 0.6) / 0.4));
+      u = u * u * (3 - 2 * u);
+      cabin(pen, 0.04 + u * 0.92, -1, t);
+      cabin(pen, 0.96 - u * 0.92, 1, t);
+    };
+    return me;
+  });
+
+  /* An anemometer: three cups whirling, a vane swinging into the wind. */
+  Rigs.register('anemometer', function (spec) {
+    var me = { radius: 6, at: spec.p, kind: 'anemometer' };
+    me.draw = function (pen, t) {
+      var spin = t * (5 + 2 * Math.sin(t * 0.3 + (spec.seed || 0)));
+      var f = Rigs.frame(spec.p, spin, 1);
+      pen.part(f, 'cyl', [0, 0, 0], [0.5, 0.8, 0.5], '#5a6068', { m: 'metal' });
+      for (var k = 0; k < 3; k++) {
+        var arm = child(f, [0, 0.2, 0], 0, k * TAU / 3, 0);
+        pen.part(arm, 'box', [0, 0, 1.2], [0.15, 0.15, 2.4], '#9aa0a8', { m: 'metal' });
+        pen.part(arm, 'sph', [0.3, 0, 2.4], [0.9, 0.9, 0.9], '#c42b20');
+      }
+      var vane = Rigs.frame([spec.p[0], spec.p[1] - 1.2, spec.p[2]], Math.sin(t * 0.2) * 0.6, 1);
+      pen.part(vane, 'box', [0, 0, -1.2], [0.1, 0.8, 1.4], '#9aa0a8', { m: 'metal' });
+      pen.part(vane, 'cone', [0, 0, 0.6], [0.3, 0.8, 0.3], '#9aa0a8', { rx: Math.PI / 2, m: 'metal' });
+    };
+    return me;
+  });
+
+  /* A skier coming down the mountain in long turns, over the steps (and
+     off the cliff bands, in the air), then back to the top for another. */
+  Rigs.register('skier', function (spec) {
+    var path = spec.path || [spec.p, spec.q || spec.p];
+    var seed = spec.seed || 0, colour = spec.c || '#c42b20';
+    var segs = [], total = 0;
+    for (var i = 1; i < path.length; i++) { var l = dist(path[i - 1], path[i]); segs.push(l); total += l; }
+    var me = { radius: total + 20, at: path[0], kind: 'skier' };
+    me.draw = function (pen, t) {
+      var period = total / 14 + 6;
+      var ph = (t + seed * 9) % period;
+      var d = ph * 14;
+      if (d > total) return;
+      var run = 0, i = 0;
+      while (i < segs.length - 1 && run + segs[i] < d) { run += segs[i]; i++; }
+      var u = segs[i] ? (d - run) / segs[i] : 0;
+      var a2 = path[i], b2 = path[i + 1];
+      var heading = Math.atan2(b2[0] - a2[0], b2[2] - a2[2]);
+      var weave = Math.sin(d * 0.08 + seed) * 10;
+      var pos = [a2[0] + (b2[0] - a2[0]) * u + Math.cos(heading) * weave, a2[1] + (b2[1] - a2[1]) * u + 0.2,
+                 a2[2] + (b2[2] - a2[2]) * u - Math.sin(heading) * weave];
+      var lean = Math.cos(d * 0.08 + seed) * 0.5;
+      var f = child(Rigs.frame(pos, heading + Math.cos(d * 0.08 + seed) * 0.6, 1), [0, 0, 0], 0.2, 0, -lean * 0.6);
+      for (var side = -1; side <= 1; side += 2) {
+        pen.part(f, 'box', [side * 0.6, 0.1, 0.4], [0.35, 0.15, 5.0], '#2a2a30');
+        pen.part(f, 'rlimb', [side * 0.55, 1.3, 0], [0.8, 2.2, 0.8], '#2a2a3a', { rx: -0.4 });
+        pen.part(f, 'box', [side * 1.3, 2.0, -0.4], [0.12, 0.12, 3.2], '#c8ccd0', { rx: 0.9 });
+      }
+      pen.part(f, 'rbox', [0, 3.2, 0.3], [1.9, 2.2, 1.1], colour, { rx: 0.3 });
+      pen.part(f, 'rhead', [0, 4.7, 0.7], [1.4, 1.4, 1.4], '#f5cd30');
+      pen.part(f, 'box', [0, 4.8, 1.42], [1.2, 0.4, 0.1], '#3a3a44');
+      pen.part(f, 'cone', [0, 5.6, 0.7], [1.4, 1.0, 1.4], colour);
+      for (var p2 = 0; p2 < 4; p2++) {
+        var age = (t * 3 + p2 / 4) % 1;
+        pen.part(Rigs.frame([pos[0] - Math.sin(heading) * age * 3, pos[1] + age * 1.4, pos[2] - Math.cos(heading) * age * 3], 0, 1),
+                 'sph', [0, 0, 0], [1 + age * 2, 0.8 + age, 1 + age * 2], '#ffffff', { a: 0.5 * (1 - age) });
+      }
+    };
+    return me;
+  });
+
+  /* The aurora: curtains of green and violet light rippling across the
+     northern sky. */
+  Rigs.register('aurora', function (spec) {
+    var W = spec.w || 600, n = spec.n || 4;
+    var me = { radius: 1e6, at: spec.p, kind: 'aurora' };
+    var COLS = ['#5aff9a', '#4ae8c8', '#7aff7a', '#b06aff', '#5ac8ff'];
+    me.draw = function (pen, t) {
+      for (var r = 0; r < n; r++) {
+        var z0 = spec.p[2] + r * 40;
+        var col = COLS[r % COLS.length];
+        for (var k = 0; k < 22; k++) {
+          var u = k / 21;
+          var x = spec.p[0] - W / 2 + u * W;
+          var z = z0 + Math.sin(u * 6 + t * 0.15 + r) * 30;
+          var hgt = 50 + 40 * (0.5 + 0.5 * Math.sin(u * 9 - t * 0.4 + r * 2));
+          var a = (0.1 + 0.12 * (0.5 + 0.5 * Math.sin(u * 13 + t * 0.7 + r))) * (1 - Math.abs(u - 0.5) * 1.2);
+          if (a <= 0.01) continue;
+          pen.part(Rigs.frame([x, spec.p[1] + r * 12, z], Math.sin(u * 6 + t * 0.15 + r) * 0.6, 1), 'box', [0, hgt / 2, 0],
+                   [W / 21 + 2, hgt, 2], col, { m: 'neon', a: a });
+        }
+      }
+    };
+    return me;
+  });
+
+  /* The yeti: behind its rock on the saddle.  Every so often it leans out,
+     looks about, waves -- and ducks back the moment anybody comes close. */
+  Rigs.register('yeti', function (spec, ctx) {
+    var me = { radius: 30, at: spec.p, kind: 'yeti', out: 0 };
+    me.update = function (dt, t) {
+      var slot = Math.floor(t / 37), into = t - slot * 37;
+      var peeking = hash(slot + 13) < 0.6 && into < 9;
+      var shy = false;
+      (ctx.players ? ctx.players() : []).forEach(function (p) { if (dist(p.pos, spec.p) < 34) shy = true; });
+      var target = peeking && !shy ? 1 : 0;
+      if (target && me.out < 0.05 && slot !== me.slot) {
+        me.slot = slot;
+        var v = ctx.viewer ? ctx.viewer() : null;
+        if (v && dist(v.eye, spec.p) < 200 && ctx.sound) ctx.sound('br_yeti', spec.p, 2);
+      }
+      me.out = approach(me.out, target, shy ? 12 : 2.5, dt);
+    };
+    me.draw = function (pen, t) {
+      if (me.out < 0.02) return;
+      var f = child(Rigs.frame(spec.p, spec.yaw || 0, 1), [4.5 * me.out - 2.5, 0, -1.0], 0, -0.4 * (1 - me.out), 0);
+      var fur = '#f2f4f8', face = '#8a9ab8';
+      pen.part(f, 'sph', [0, 4.4, 0], [4.6, 6.4, 3.8], fur);
+      pen.part(f, 'sph', [0, 8.2, 0.2], [3.4, 3.2, 3.2], fur);
+      pen.part(f, 'sph', [0, 8.0, 1.3], [2.2, 1.8, 1.2], face);
+      pen.part(f, 'sph', [-0.5, 8.4, 1.85], [0.4, 0.4, 0.2], '#1a1a22');
+      pen.part(f, 'sph', [0.5, 8.4, 1.85], [0.4, 0.4, 0.2], '#1a1a22');
+      for (var side = -1; side <= 1; side += 2) {
+        pen.part(f, 'sph', [side * 1.2, 0.8, 0.6], [1.8, 1.6, 2.6], fur);
+        var wave = side > 0 ? -1.8 + Math.sin(t * 7) * 0.4 : -0.3;
+        var arm = child(f, [side * 2.4, 6.4, 0], 0, 0, side > 0 ? wave * -1 : 0.4 * side);
+        pen.part(arm, 'sph', [0, -1.8 * (side > 0 ? -1 : 1), 0], [1.4, 3.6, 1.4], fur);
+      }
+    };
+    return me;
+  });
+
+  /* Snow streaming off a summit in the wind. */
+  Rigs.register('snow_plume', function (spec) {
+    var seed = spec.seed || 0;
+    var me = { radius: 120, at: spec.p, kind: 'snow_plume' };
+    me.draw = function (pen, t) {
+      for (var i = 0; i < 16; i++) {
+        var ph = (t * 0.12 + i / 16 + seed) % 1;
+        var at = [spec.p[0] + ph * 70 * (spec.p[0] < 0 ? 1 : -1) * 0.3 + Math.sin(i) * 4,
+                  spec.p[1] + ph * 18 + Math.sin(t + i) * 2, spec.p[2] + ph * 90];
+        var s2 = 4 + ph * 16;
+        pen.part(Rigs.frame(at, 0, 1), 'sph', [0, 0, 0], [s2, s2 * 0.5, s2], '#ffffff', { a: 0.3 * (1 - ph) });
+      }
+    };
+    return me;
+  });
+
   global.BlackoutRelayRigs = true;
 })(window);

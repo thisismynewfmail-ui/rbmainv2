@@ -2149,6 +2149,85 @@
     }
   });
 
+  /* Saddleback Observatory: two peaks against the night, the aurora
+     rippling over them; the domes on the summits open their slits, a
+     cabin climbs the cable from the saddle -- and somewhere down there,
+     something calls. */
+  Intro.register('br_saddleback', {
+    tagline: 'Two summits. Two telescopes. One cable between them.',
+    accent: '#7affc8',
+    cues: [[0.1, 'br_wind', 0.6], [0.9, 'br_chime', 0.5], [1.6, 'br_hum', 0.5], [2.4, 'br_chime', 0.6],
+           [3.3, 'br_yeti', 0.5]],
+    tagY: 846, tagAt: 3.1,
+    setup: function (r) {
+      var d = { stars: [] };
+      for (var i = 0; i < 240; i++) d.stars.push({ x: r() * VW, y: r() * 560, s: between(r, 0.6, 2.2), p: r() * TAU });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var g = ctx.createLinearGradient(0, 0, 0, VH);
+      g.addColorStop(0, '#02040c'); g.addColorStop(0.6, '#0e1a34'); g.addColorStop(1, '#1a2a48');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+      additive(ctx, function () {
+        d.stars.forEach(function (st) {
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.5 * (0.5 + 0.5 * Math.sin(t * 3 + st.p))) + ')';
+          ctx.fillRect(st.x, st.y, st.s, st.s);
+        });
+        // the aurora: curtains rippling across the top of the sky
+        var k = seg(t, 0.2, 1.6);
+        [['90,255,154', 0], ['176,106,255', 1], ['74,232,200', 2]].forEach(function (c, r2) {
+          for (var x = 0; x < VW; x += 12) {
+            var u = x / VW;
+            var y0 = 120 + r2 * 40 + Math.sin(u * 7 + t * 0.8 + r2) * 40;
+            var h = (90 + 70 * (0.5 + 0.5 * Math.sin(u * 11 - t * 1.4 + r2 * 2))) * k;
+            var gg = ctx.createLinearGradient(0, y0, 0, y0 + h);
+            gg.addColorStop(0, 'rgba(' + c[0] + ',0)');
+            gg.addColorStop(0.6, 'rgba(' + c[0] + ',' + (0.22 * k) + ')');
+            gg.addColorStop(1, 'rgba(' + c[0] + ',0)');
+            ctx.fillStyle = gg; ctx.fillRect(x, y0, 12, h);
+          }
+        });
+      });
+      // the twin peaks and the saddle between
+      ctx.fillStyle = '#c8d4e8';
+      ctx.beginPath(); ctx.moveTo(0, 900); ctx.lineTo(0, 640); ctx.lineTo(260, 380); ctx.lineTo(330, 340); ctx.lineTo(420, 360);
+      ctx.lineTo(620, 560); ctx.lineTo(800, 620); ctx.lineTo(980, 560); ctx.lineTo(1180, 360); ctx.lineTo(1270, 340);
+      ctx.lineTo(1340, 380); ctx.lineTo(1600, 640); ctx.lineTo(1600, 900); ctx.fill();
+      ctx.fillStyle = '#5a6478';
+      ctx.beginPath(); ctx.moveTo(330, 340); ctx.lineTo(420, 360); ctx.lineTo(560, 500); ctx.lineTo(430, 440); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(1270, 340); ctx.lineTo(1180, 360); ctx.lineTo(1040, 500); ctx.lineTo(1170, 440); ctx.fill();
+      // the domes, their slits opening, a beam up out of each
+      var open = seg(t, 1.0, 2.0);
+      [[330, 1], [1270, -1]].forEach(function (dm) {
+        var x = dm[0], y = 330;
+        ctx.fillStyle = '#f2f2ee'; ctx.fillRect(x - 46, y - 20, 92, 30);
+        ctx.beginPath(); ctx.arc(x, y - 20, 46, Math.PI, TAU); ctx.fill();
+        ctx.fillStyle = '#1a1e28'; ctx.fillRect(x - 8 * open, y - 66, 16 * open, 46);
+        if (open > 0.3) additive(ctx, function () {
+          ctx.fillStyle = 'rgba(122,200,255,' + (0.18 * open) + ')';
+          ctx.beginPath(); ctx.moveTo(x - 6, y - 60); ctx.lineTo(x + 6, y - 60);
+          ctx.lineTo(x + dm[1] * 260 + 40, -40); ctx.lineTo(x + dm[1] * 260 - 40, -40); ctx.fill();
+        });
+      });
+      // the cable from the saddle to the right summit, a cabin climbing it
+      ctx.strokeStyle = '#1a1e28'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(800, 600); ctx.quadraticCurveTo(1040, 520, 1240, 330); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(800, 600); ctx.quadraticCurveTo(560, 520, 360, 330); ctx.stroke();
+      var u = inOut(seg(t, 0.8, 3.4));
+      var cx = (1 - u) * (1 - u) * 800 + 2 * (1 - u) * u * 1040 + u * u * 1240;
+      var cy = (1 - u) * (1 - u) * 600 + 2 * (1 - u) * u * 520 + u * u * 330;
+      ctx.fillStyle = '#1a1e28'; ctx.fillRect(cx - 2, cy, 4, 24);
+      ctx.fillStyle = '#c42b20'; roundRect(ctx, cx - 22, cy + 22, 44, 32, 6); ctx.fill();
+      ctx.fillStyle = '#ffe6a0'; ctx.fillRect(cx - 16, cy + 28, 32, 10);
+      // the station down in the saddle
+      ctx.fillStyle = '#9aa0a8'; ctx.fillRect(760, 600, 80, 36);
+      ctx.fillStyle = '#ffd890'; ctx.fillRect(772, 612, 14, 10); ctx.fillRect(812, 612, 14, 10);
+    },
+    title: function (ctx, t, d, run) {
+      neonTitle(ctx, t, (run.info.name || 'Saddleback Observatory').toUpperCase(), 800, 760, 1300, '#7affc8', 2.1, 0.05);
+    }
+  });
+
   global.BlackoutRelayScenes = { runner: runner, pennant: pennant, sky: sky, bolt: bolt,
                                  rainOver: rainOver, makeRain: makeRain, neonTitle: neonTitle,
                                  stencilPlate: stencilPlate };
