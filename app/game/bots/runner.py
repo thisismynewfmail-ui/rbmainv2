@@ -752,6 +752,12 @@ class BotRunner:
             import traceback
             traceback.print_exc()
 
+    def _field(self, team: str) -> str:
+        """The flow field to ``team``'s flag.  A world with several maps
+        (Blackout Relay's rotation) names one per map."""
+        name = getattr(self.instance, "flag_field", None)
+        return name(team) if name is not None else "flag_" + team
+
     def _ctf(self, brain: Brain) -> None:
         inst = self.instance
         p = brain.p
@@ -764,7 +770,7 @@ class BotRunner:
         if enemy.carrier == p.pid:
             # run it home; a bot with sense runs the tunnels and flanks less
             brain.speed = 22.0
-            brain.go(own.home, "home_" + mine, field="flag_" + mine)
+            brain.go(own.home, "home_" + mine, field=self._field(mine))
             return
         if own.state == "dropped" and (brain.role == "defend" or
                                        math.dist(p.pos, own.pos) < 120):
@@ -788,7 +794,7 @@ class BotRunner:
             if enemy.state == "home":
                 if self._clear_first(brain, enemy.home):
                     return
-                brain.go(enemy.home, "flag_" + theirs, field="flag_" + theirs, precise=True)
+                brain.go(enemy.home, "flag_" + theirs, field=self._field(theirs), precise=True)
             else:
                 brain.go(enemy.pos, "dropped_" + theirs, precise=True)
             return
@@ -799,7 +805,7 @@ class BotRunner:
                     if node >= 0:
                         brain.go(self.nav.point(node), "patrol%d" % node)
             else:
-                brain.go(own.home, "home_" + mine, field="flag_" + mine)
+                brain.go(own.home, "home_" + mine, field=self._field(mine))
             return
         # roamers hold the middle of the map
         mid = [(own.home[0] + enemy.home[0]) / 2.0, own.home[1],
@@ -837,7 +843,7 @@ class BotRunner:
         if d < 55:
             brain.waypoints = []          # hold the edge and trade from cover
         else:
-            brain.go(flag_home, "flag_edge", field="flag_" + ("blue" if p.team == "red" else "red"))
+            brain.go(flag_home, "flag_edge", field=self._field("blue" if p.team == "red" else "red"))
         return True
 
     def _payload(self, brain: Brain) -> None:
@@ -939,6 +945,9 @@ class BotRunner:
         inst.round_number = int(state.get("round", 1) or 1)
         moment = now()
         if mode == "captures" and hasattr(inst, "flags"):
+            if hasattr(inst, "resume_area"):
+                # a rotation's sleeping round wakes on the map it had got to
+                inst.resume_area(state.get("area"))
             caps = state.get("captures") or {}
             inst.captures = {t: int(caps.get(t, 0) or 0) for t in TEAMS}
             left = float(state.get("time_left", inst.round_seconds) or inst.round_seconds)
@@ -1148,6 +1157,10 @@ class BotRunner:
         if self.mode == "captures" and hasattr(inst, "captures"):
             live["captures"] = dict(inst.captures)
             live["time_left"] = max(0.0, inst.round_ends - moment)
+            if getattr(inst, "area_id", ""):
+                live["area"] = inst.area_id
+                if getattr(inst, "next_area_id", ""):
+                    live["next_area"] = inst.next_area_id
         elif self.mode == "payload" and hasattr(inst, "cart_distance"):
             live.update({"attackers": inst.attackers,
                          "progress": inst.cart_distance / max(1.0, inst.track_length),

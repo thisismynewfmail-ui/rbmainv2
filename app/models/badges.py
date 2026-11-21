@@ -128,7 +128,7 @@ BADGES_LIST: List[Dict[str, Any]] = [
     _badge("br_frontline", "Relay Frontline", "blackout_relay", "br_kills",
            [25, 150, 500, 1500, 4000, 10000],
            ["Recruit", "Trooper", "Veteran", "Shock Trooper", "Warlord", "Live Wire"],
-           "Tracks every opponent you knock out on Ironvale Relay.",
+           "Tracks every opponent you knock out in Blackout Relay.",
            "em_bolt", "cog", "knockouts"),
     _badge("br_champion", "Relay Champion", "blackout_relay", "br_wins",
            [1, 5, 15, 40, 100, 250],
@@ -151,6 +151,11 @@ BADGES_LIST: List[Dict[str, Any]] = [
            ["Decider", "Executioner", "Final Word"],
            "Scored the capture that settled a round in sudden death.",
            "em_hourglass", "cog", "deciding captures"),
+    _badge("br_cartographer", "Cartographer", "blackout_relay", "br_maps",
+           [1, 4, 8, 12, 16],
+           ["Map Reader", "Surveyor", "Pathfinder", "Wayfarer", "Master of the Rotation"],
+           "Won a round of Blackout Relay on each of the maps in its rotation.",
+           "em_compass", "cog", "maps won on"),
 
     # ----------------------------------------------------------- Last Light
     _badge("ll_holdout", "Last Light Holdout", "last_light", "ll_best_wave",
@@ -271,8 +276,9 @@ for _b in BADGES_LIST:
     BY_STAT.setdefault(_b["stat"], []).append(_b)
 
 # Stats that are not counted directly but worked out from others: the Grand
-# Tour is the number of areas with an ``ll_area_<id>`` mark.
-DERIVED = {"ll_areas": "ll_area_"}
+# Tour is the number of areas with an ``ll_area_<id>`` mark, the
+# Cartographer the number of Blackout Relay maps with a ``br_map_<id>`` one.
+DERIVED = {"ll_areas": "ll_area_", "br_maps": "br_map_"}
 for _module in _event_worlds.modules():
     DERIVED.update(getattr(_module, "DERIVED", None) or {})
 

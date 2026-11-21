@@ -47,16 +47,23 @@ def main(argv):
         times = [float(t) for t in args.times.split(",")]
         areas = [a for a in world.get("areas") or [] if not args.area or a["id"] == args.area]
         job.update(kind="intro", scripts=[], post=list(world.get("game_scripts") or []),
-                   scenes=[[a["thumb"], t, {"name": a["name"], "round": 3, "logo": world["name"],
+                   scenes=[[("%s_%s" % (world["prefix"], a["id"])) if world.get("prefix")
+                            else a["thumb"], t, {"name": a["name"], "round": 3, "logo": world["name"],
                                             "line": "One round, then the server moves on",
                                             "kicker": "NOW ENTERING"}]
                            for a in areas for t in times])
     else:
         import importlib
         from app.game.maps.events import kit
-        package = importlib.import_module("app.game.maps.events.%s" % args.world)
-        data = package.build()
-        payload = kit.area_payload(data, args.area)
+        if args.world == "blackout_relay":
+            # the map rotation is its own package, with its own payloads
+            from app.game.maps import relay as package
+            data = package.build()
+            payload = package.area_payload(data, args.area)
+        else:
+            package = importlib.import_module("app.game.maps.events.%s" % args.world)
+            data = package.build()
+            payload = kit.area_payload(data, args.area)
         ox, _, oz = payload["markers"]["centre"]
         views, names = [], []
         for i, text in enumerate(args.cam):

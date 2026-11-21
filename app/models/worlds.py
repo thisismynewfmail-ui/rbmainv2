@@ -10,6 +10,43 @@ from typing import Any, Dict, List, Optional
 
 from .. import db
 
+# Blackout Relay's rotation, as the world page shows it.  The game side's
+# list of the same maps is app/game/maps/relay/areas.py (and Ironvale).
+RELAY_AREAS: List[Dict[str, Any]] = [
+    {"id": "ironvale", "name": "Ironvale Relay", "thumb": "relay",
+     "captures": 5, "minutes": 30,
+     "blurb": "Dusk over a long green valley: both teams deploy out of the concrete "
+              "relay station in the middle, the keeps are a long run apart, and a "
+              "hatch behind each keep drops into tunnels that surface in all four "
+              "bunkers."},
+    {"id": "substation", "name": "Substation Nine", "thumb": "br_substation",
+     "captures": 3, "minutes": 15,
+     "blurb": "A city in a blackout, in the rain. Deploy from the substation's control "
+              "house, climb the terraces to the office towers at each end, and take "
+              "the dead subway line under it all."},
+    {"id": "thimble", "name": "Thimble Acre", "thumb": "br_thimble",
+     "captures": 3, "minutes": 15,
+     "blurb": "A back garden at golden hour, and you are the size of a toy. Muster in an "
+              "upturned flowerpot, raid the brick castles at either end of the lawn, and "
+              "run the garden hose -- inside it or along the top."},
+    {"id": "orrery", "name": "The Orrery", "thumb": "br_orrery",
+     "captures": 3, "minutes": 15,
+     "blurb": "A clockwork garden at twilight. Muster in the clockhouse under a brass sun, "
+              "fight for the planet decks over the sunken plaza, and steal the flag from a "
+              "glasshouse full of palms -- or come up the gear tunnel from its boiler room."},
+    {"id": "saltglass", "name": "Saltglass Flats", "thumb": "br_saltglass",
+     "captures": 3, "minutes": 15,
+     "blurb": "A dry salt lake at night under a lightning storm. Deploy from Capacitor Hall "
+              "under its Tesla coils, climb the mesas to the salt works, and run the dry "
+              "washes under arches of salt crust."},
+    {"id": "drawdown", "name": "Drawdown", "thumb": "br_drawdown",
+     "captures": 3, "minutes": 15,
+     "blurb": "A reservoir drained by drought, and the village it drowned is back. Muster "
+              "at the valve tower, fight down the silted high street and the dry river, "
+              "and take the flags from the chapels on their hills -- or come up the "
+              "culvert into the crypt."},
+]
+
 WORLDS: List[Dict[str, Any]] = [
     {
         "id": "burger_tycoon",
@@ -111,9 +148,20 @@ WORLDS: List[Dict[str, Any]] = [
         # This world hides enemy health on the nametags: you can read your
         # own team's condition at a glance, but an enemy is just a name.
         "ally_health_only": True,
-        "features": ["24 players", "30 minute rounds", "Respawn waves",
-                     "Outpost lockdown", "Secret tunnels",
+        "features": ["24 players", "A rotation of maps", "Respawn waves",
+                     "Outpost lockdown", "Secret routes",
                      "Overtime + sudden death"],
+        # The rotation (app/game/maps/relay/): when a round ends the server
+        # rolls the next map at random.  ``captures`` and ``minutes`` are
+        # each map's round; the sleeping rounds read them too.
+        "areas": RELAY_AREAS,
+        "areas_note": "When a round ends the server rolls the next map at random and "
+                      "everybody goes there. Ironvale's long valley is first to five "
+                      "in half an hour; every other map is first to three in fifteen "
+                      "minutes -- and overtime and sudden death everywhere.",
+        "thumb_script": "/static/js/worlds/blackout_relay_thumbs.js",
+        "game_scripts": ["/static/js/worlds/blackout_relay.js"],
+        "prefix": "br",
     },
     # Appended last on purpose: the bot director snapshots each bot's world
     # as an index into this list, so a new world goes on the end.

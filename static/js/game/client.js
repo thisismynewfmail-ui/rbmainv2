@@ -77,6 +77,12 @@
     // an event world's areas, rounds, spectating and HUD (game/arena.js)
     this.arena = (this.world.engine === 'arena' && global.Arena)
       ? new global.Arena(this) : null;
+    // a world's own client half when it is not an event world (Blackout
+    // Relay's map rotation: static/js/worlds/blackout_relay.js), registered
+    // as WorldPlugins[worldId] = function (client) { return { ...hooks } }
+    // with any of: bind(net), onMap(map, first), draw(renderer, dt, time)
+    var plugin = global.WorldPlugins && global.WorldPlugins[this.world.id];
+    this.plugin = plugin ? (plugin(this) || null) : null;
     this.fps = 60;
     this.lastFrame = performance.now();
     this.applySettings();
@@ -674,6 +680,7 @@
     net.on('kill', function (msg) { self.onKill(msg); });
     if (this.survival) this.survival.bind(net);
     if (this.arena) this.arena.bind(net);
+    if (this.plugin && this.plugin.bind) this.plugin.bind(net);
     net.on('dmg', function (msg) { self.onDamage(msg); });
     net.on('dealt', function (msg) {
       self.hud.hitmarker();
@@ -945,6 +952,7 @@
     this.renderer.buildStatic(msg.map.parts);
     if (this.survival) this.survival.onMap(msg.map);
     if (this.arena) this.arena.onMap(msg.map);
+    if (this.plugin && this.plugin.onMap) this.plugin.onMap(msg.map, true);
     this.local.pos = msg.you.pos ? msg.you.pos.slice() : [0, 20, 0];
     if (typeof msg.you.yaw === 'number') this.local.yaw = msg.you.yaw;
     this.state = msg.state || {};
@@ -1713,6 +1721,7 @@
     if (this.extras) this.extras.draw(renderer, this.state, time, dt);
     if (this.survival) this.survival.draw(renderer, dt);
     if (this.arena) this.arena.draw(renderer, dt, time);
+    if (this.plugin && this.plugin.draw) this.plugin.draw(renderer, dt, time);
     if (this.gear) this.gear.draw(renderer, dt, time);
     this.particles.update(dt);
     renderer.render();
