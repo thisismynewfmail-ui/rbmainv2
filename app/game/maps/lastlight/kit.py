@@ -80,6 +80,23 @@ def sign_decal(text: str, background: str = "#f2f3f3",
     return "t~%s~%s~%s~%.2f" % (text, background, colour, max(0.25, aspect))
 
 
+# What each place-like parameter of the client's rig kinds is, by name (see
+# Area.rig): "point" [x, y, z]; "points" a list of them; "xz" a list of
+# [x, z]; "rect" [x0, x1, z0, z1]; "runs" a list of [xa, za, xb, zb]; "x"
+# and "z" a lone coordinate; "xs" and "zs" a list of them.
+RIG_PLACES: Dict[str, str] = {
+    "q": "point", "aim": "point",
+    "vents": "points", "traps": "points", "heads": "points", "points": "points",
+    "lamps": "points", "steps": "points", "rocks": "points",
+    "tanks": "xz", "shots": "xz", "lights": "xz", "poles": "xz",
+    "area": "rect", "pool": "rect",
+    "runs": "runs",
+    "x0": "x", "x1": "x", "tx0": "x", "tx1": "x",
+    "z0": "z", "z1": "z",
+    "xs": "xs", "rows": "zs",
+}
+
+
 # ==================================================================== areas
 class Area(MapBuilder):
     """One playable place, drawn at the origin and placed at (ox, oz).
@@ -206,19 +223,57 @@ class Area(MapBuilder):
             **params: Any) -> None:
         """Something in the area that moves: drawn by the client every frame
         from the kind registered for it (static/js/game/rigs.js), never solid
-        and never seen by the server.  Points among ``params`` (a list of
-        three numbers under a key ending in ``_p``, or ``q``) are placed like
-        ``(x, y, z)``; a list of such points under a key ending in ``_path``
-        is placed point by point."""
+        and never seen by the server.
+
+        Everything is given in the area's own coordinates, like the rest of
+        it, and the client draws in the world's, so whatever among ``params``
+        is a place is moved with the area (:data:`RIG_PLACES` says which
+        names are what): a point under a key ending in ``_p``, a list of
+        points under one ending in ``_path``, and the names the rig kinds
+        use for rectangles, point lists, [x, z] lists and lone x or z
+        values.  Anything else -- sizes, counts, heights -- is left as it is."""
         entry: Dict[str, Any] = {"kind": kind, "p": self.at(x, y, z), "yaw": round(yaw, 4)}
         for key, value in params.items():
-            if (key == "q" or key.endswith("_p")) and isinstance(value, (list, tuple)) \
-                    and len(value) == 3:
-                value = self.at(*value)
-            elif key.endswith("_path") and isinstance(value, (list, tuple)):
-                value = [self.at(*pt) for pt in value]
-            entry[key] = value
+            entry[key] = self._rig_place(key, value)
         self.extra.setdefault("rigs", []).append(entry)
+
+    def _rig_place(self, key: str, value: Any) -> Any:
+        shape = RIG_PLACES.get(key)
+        if shape is None and key.endswith("_p"):
+            shape = "point"
+        elif shape is None and key.endswith("_path"):
+            shape = "points"
+        ox, oz = self.ox, self.oz
+        if isinstance(value, (int, float)):
+            # a lone number is a place only under a coordinate's name (the
+            # stream's ``steps`` and the fountain's ``pool`` are a count and
+            # a radius)
+            if shape == "x":
+                return round(value + ox, 2)
+            if shape == "z":
+                return round(value + oz, 2)
+            return value
+        if shape is None or not isinstance(value, (list, tuple)):
+            return value
+        if shape == "point" and value and isinstance(value[0], (list, tuple)):
+            shape = "points"              # (a list of points under a ``_p`` name)
+        if shape == "point" and len(value) == 3:
+            return self.at(*value)
+        if shape == "points":
+            return [self.at(*pt) for pt in value]
+        if shape == "xz":
+            return [[round(pt[0] + ox, 2), round(pt[1] + oz, 2)] for pt in value]
+        if shape == "rect" and len(value) == 4:
+            return [round(value[0] + ox, 2), round(value[1] + ox, 2),
+                    round(value[2] + oz, 2), round(value[3] + oz, 2)]
+        if shape == "runs":
+            return [[round(r[0] + ox, 2), round(r[1] + oz, 2), round(r[2] + ox, 2),
+                     round(r[3] + oz, 2)] for r in value]
+        if shape == "xs":
+            return [round(v + ox, 2) for v in value]
+        if shape == "zs":
+            return [round(v + oz, 2) for v in value]
+        return value
 
     def camera(self, x: float, y: float, z: float, tx: float, ty: float,
                tz: float) -> None:
