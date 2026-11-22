@@ -1349,5 +1349,844 @@
     }
   });
 
+  /* Redwater Cranberry Bogs: a full moon over the flooded bog, the water
+     red from bank to bank, mist lying on it; the windmill turning on its
+     knoll, the screenhouse lit; a heron crosses the moon -- and out of the
+     berries, one after another, they stand up and come wading.  The name
+     goes on like a fruit-crate label. */
+  Intro.register('bogs', {
+    tagline: 'The water was red before any of this.',
+    accent: '#e83a4a',
+    cues: [[0.1, 'll_wind', 0.4], [0.5, 'll_clunk', 0.7], [1.0, 'll_heron', 0.6], [1.6, 'll_splash', 0.6],
+           [2.3, 'll_splash', 0.5], [2.9, 'll_frog', 0.6]],
+    shakes: [[0.62, 3, 0.15]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 160, 0, 420), berries: [], zeds: [], mist: [], lamps: [] };
+      for (var i = 0; i < 260; i++) {
+        var y = 600 + Math.pow(r(), 0.7) * 300;
+        d.berries.push({ x: r() * VW, y: y, s: 1 + (y - 600) / 300 * 4, c: r() < 0.6 ? '#c8243a' : '#8a1022' });
+      }
+      var looks = [['#b8382e', '#2a4a2a', '#6fae55'], ['#f2c81a', '#2a4a2a', '#7fb069'], ['#e8e8e0', '#e8e8e0', '#5f9a4c'],
+                   ['#a8182a', '#a8182a', '#86b86a'], ['#2a3a5a', '#3a3a3a', '#6c9f68'], ['#7a5230', '#3f63a8', '#79a84e']];
+      for (i = 0; i < 7; i++) {
+        d.zeds.push({ x: 160 + i * 205 + between(r, -50, 50), row: i % 2, at: 1.3 + i * 0.17 + r() * 0.2, p: r() * 6,
+                      look: looks[i % looks.length] });
+      }
+      for (i = 0; i < 8; i++) d.mist.push({ x: r() * VW, y: between(r, 560, 760), w: between(r, 300, 600), v: between(r, 8, 22) });
+      for (i = 0; i < 6; i++) d.lamps.push([120 + i * 270 + between(r, -30, 30), i % 2 ? 604 : 640]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050818'], [0.55, '#1a1838'], [0.9, '#4a2a48'], [1, '#6a3a4a']], 580);
+      starsK(ctx, d.stars, t, 1);
+      // the moon, and a heron going across it
+      additive(ctx, function () { dot(ctx, '#e8e0ff', 1180, 190, 260, 0.22); });
+      ctx.fillStyle = '#f2ecd8';
+      ctx.beginPath(); ctx.arc(1180, 190, 92, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(180,170,150,0.45)';
+      ctx.beginPath(); ctx.arc(1150, 170, 18, 0, TAU); ctx.arc(1210, 220, 12, 0, TAU); ctx.arc(1196, 160, 8, 0, TAU); ctx.fill();
+      var hk = seg(t, 0.7, 2.4);
+      if (hk > 0 && hk < 1) {
+        var hx = lerp(1480, 820, hk), hy = 200 - Math.sin(hk * Math.PI) * 30, flap = Math.sin(t * 9) * 26;
+        ctx.fillStyle = '#0c0a14';
+        ctx.beginPath(); ctx.ellipse(hx, hy, 34, 9, -0.1, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx - 10, hy); ctx.lineTo(hx + 14, hy - 4 - flap); ctx.lineTo(hx + 36, hy - 2 - flap * 0.6);
+        ctx.lineTo(hx + 8, hy + 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hx - 10, hy); ctx.lineTo(hx - 4, hy - 6 - flap); ctx.lineTo(hx + 20, hy - 4 - flap * 0.6);
+        ctx.lineTo(hx + 6, hy + 2); ctx.fill();
+        ctx.fillRect(hx - 56, hy - 3, 24, 4); ctx.fillRect(hx + 30, hy, 34, 3);
+      }
+      // the tree line, the windmill on its knoll, the screenhouse
+      ctx.fillStyle = '#0c0e14';
+      for (var x = -20; x < VW + 40; x += 30) pineK(ctx, x, 560, 40 + Math.sin(x * 0.37) * 14, '#0c0e14', 0);
+      ctx.fillRect(0, 552, VW, 60);
+      ctx.beginPath(); ctx.moveTo(180, 560); ctx.quadraticCurveTo(300, 520, 420, 560); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(270, 540); ctx.lineTo(282, 420); ctx.lineTo(318, 420); ctx.lineTo(330, 540); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(276, 424); ctx.lineTo(300, 398); ctx.lineTo(324, 424); ctx.fill();
+      ctx.save(); ctx.translate(300, 430); ctx.rotate(t * 0.5);
+      for (var sl = 0; sl < 4; sl++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.fillRect(-3, 0, 6, 110);
+        ctx.fillStyle = 'rgba(20,18,26,0.9)'; ctx.fillRect(4, 22, 22, 84); ctx.fillStyle = '#0c0e14';
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,200,120,0.75)'; ctx.fillRect(296, 470, 8, 12);
+      ctx.fillStyle = '#121218';
+      ctx.fillRect(1240, 500, 300, 64);
+      ctx.beginPath(); ctx.moveTo(1230, 502); ctx.lineTo(1390, 450); ctx.lineTo(1550, 502); ctx.fill();
+      ctx.fillRect(1380, 432, 22, 22);
+      for (var w = 0; w < 6; w++) {
+        ctx.fillStyle = 'rgba(255,196,110,' + (0.55 + 0.2 * Math.sin(t * 3 + w)) + ')';
+        ctx.fillRect(1262 + w * 46, 520, 20, 16);
+      }
+      // the bog: red to the horizon, the moon's road on it, the dikes
+      var g = ctx.createLinearGradient(0, 560, 0, VH);
+      g.addColorStop(0, '#3a0610'); g.addColorStop(0.4, '#6a0c1a'); g.addColorStop(1, '#a01a2a');
+      ctx.fillStyle = g; ctx.fillRect(0, 562, VW, VH - 562);
+      additive(ctx, function () {
+        for (var m = 0; m < 22; m++) {
+          var my = 570 + m * 14 + Math.sin(t * 2 + m) * 2, mw = 30 + m * 6 + Math.sin(t * 3 + m * 1.7) * 10;
+          ctx.fillStyle = 'rgba(255,220,220,' + (0.18 - m * 0.006) + ')';
+          ctx.fillRect(1180 - mw / 2 + Math.sin(t + m) * 8, my, mw, 3);
+        }
+      });
+      ctx.fillStyle = '#1a120e';
+      ctx.fillRect(0, 600, VW, 7); ctx.fillRect(0, 640, VW, 9);
+      d.lamps.forEach(function (lp) {
+        ctx.fillStyle = '#1a120e'; ctx.fillRect(lp[0] - 2, lp[1] - 46, 4, 46);
+        additive(ctx, function () { dot(ctx, '#ffcf7a', lp[0], lp[1] - 48, 26, 0.5); });
+      });
+      // the boom, swinging round in an arc
+      ctx.strokeStyle = '#e8a01a'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(-20, 720); ctx.quadraticCurveTo(500, 680, 900, 712); ctx.stroke();
+      // the berries on the water
+      d.berries.forEach(function (b, i) {
+        ctx.fillStyle = b.c;
+        ctx.beginPath(); ctx.arc(b.x + Math.sin(t * 0.8 + i) * 1.5, b.y + Math.sin(t * 1.3 + i) * 0.8, b.s, 0, TAU); ctx.fill();
+      });
+      // the mist lying on it
+      d.mist.forEach(function (m) {
+        var mx = (m.x + t * m.v) % (VW + m.w) - m.w / 2;
+        var mg = ctx.createRadialGradient(mx, m.y, 0, mx, m.y, m.w / 2);
+        mg.addColorStop(0, 'rgba(220,220,235,0.16)'); mg.addColorStop(1, 'rgba(220,220,235,0)');
+        ctx.fillStyle = mg; ctx.fillRect(mx - m.w / 2, m.y - m.w / 4, m.w, m.w / 2);
+      });
+      // and the infected standing up out of it, wading in
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.8);
+        if (k2 <= 0) return;
+        var water = z.row ? 780 : 730, s = z.row ? 2.6 : 2.0;
+        var rise = outCubic(k2);
+        var y = water + 68 * s - rise * 46 * s + (t - z.at) * 6;
+        var x = z.x + Math.sin(t + z.p) * 4;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, VW, water); ctx.clip();
+        LL.shambler(ctx, x, y, s, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,190,190,0.5)'; ctx.lineWidth = 2;
+        var rr = 14 * s + Math.sin(t * 4 + z.p) * 3;
+        ctx.beginPath(); ctx.ellipse(x, water, rr, rr * 0.22, 0, 0, TAU); ctx.stroke();
+      });
+      // a hand, in the near water
+      var hk2 = seg(t, 1.55, 2.0) * (1 - seg(t, 3.2, 3.8));
+      if (hk2 > 0) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, VW, 858); ctx.clip();
+        var bx = 1430, by = 858 + 90 - hk2 * 120;
+        ctx.fillStyle = '#6fae55';
+        ctx.fillRect(bx - 12, by, 24, 120);
+        ctx.fillRect(bx - 18, by - 22, 36, 26);
+        for (var fg = 0; fg < 4; fg++) ctx.fillRect(bx - 17 + fg * 9.5, by - 44 + Math.sin(t * 8 + fg) * 4, 7, 24);
+        ctx.fillRect(bx + 18, by - 14, 12, 7);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,190,190,0.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(bx, 858, 40 + Math.sin(t * 5) * 4, 8, 0, 0, TAU); ctx.stroke();
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Redwater Cranberry Bogs').toUpperCase();
+      var k = outBack(seg(t, 0.4, 0.62), 1.6);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 236);
+      ctx.rotate(-0.02 + (1 - k) * -0.25);
+      var sc = 0.78 * (1.6 - 0.6 * k);
+      ctx.scale(sc, sc);
+      ctx.globalAlpha = Math.min(1, k * 1.4);
+      // the crate's end boards behind the label
+      for (var pl = 0; pl < 3; pl++) {
+        ctx.fillStyle = ['#8a6a42', '#7a5c38', '#94744a'][pl];
+        ctx.fillRect(-560, -150 + pl * 100, 1120, 96);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-560, -150 + pl * 100 + 92, 1120, 4);
+        ctx.fillStyle = '#3a2a1a';
+        for (var nl = 0; nl < 2; nl++) { ctx.beginPath(); ctx.arc(nl ? 530 : -530, -102 + pl * 100, 5, 0, TAU); ctx.fill(); }
+      }
+      // the label
+      ctx.fillStyle = '#a8182a'; roundRect(ctx, -500, -120, 1000, 240, 16); ctx.fill();
+      ctx.fillStyle = '#f2e6c8'; roundRect(ctx, -488, -108, 976, 216, 10); ctx.fill();
+      ctx.strokeStyle = '#1a2a5a'; ctx.lineWidth = 3; roundRect(ctx, -476, -96, 952, 192, 8); ctx.stroke();
+      // the medallion: berries on a navy ground, two leaves
+      ctx.fillStyle = '#1a2a5a'; ctx.beginPath(); ctx.arc(-370, 0, 86, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#d8b84a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(-370, 0, 78, 0, TAU); ctx.stroke();
+      ctx.fillStyle = '#3a7a3a';
+      ctx.beginPath(); ctx.ellipse(-400, -40, 34, 12, -0.6, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-338, -44, 30, 11, 0.7, 0, TAU); ctx.fill();
+      [[-392, 6, 24], [-350, 0, 26], [-372, 34, 22], [-330, 38, 18], [-410, 40, 16]].forEach(function (b) {
+        ctx.fillStyle = '#c81a2e'; ctx.beginPath(); ctx.arc(b[0], b[1], b[2], 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.arc(b[0] - b[2] * 0.35, b[1] - b[2] * 0.35, b[2] * 0.25, 0, TAU); ctx.fill();
+      });
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#a8182a';
+      spaced(ctx, 'REDWATER  BRAND', 110, -66, 8);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 64, 660, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = 'rgba(26,42,90,0.25)'; spaced(ctx, name, 113, 5, size * 0.04);
+      ctx.fillStyle = '#1a2a5a'; spaced(ctx, name, 110, 2, size * 0.04);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#a8182a';
+      spaced(ctx, 'CHOICE  CRANBERRIES   ·   HARROW  CO.', 110, 66, 4);
+      ctx.restore();
+    }
+  });
+
+  /* Kettle Falls Mill: across the gorge at dusk, the falls coming over
+     the dam, the mill on the far cliff with every window lit, the wheel
+     turning under it, leaves coming down.  The whistle blows -- a jet of
+     steam off the boiler house -- the doors open and the shift files out
+     along the cliff, and below, in the river, more of them wade.  The
+     name is a time card, punched out. */
+  Intro.register('mill', {
+    tagline: 'The whistle still blows at six. They still come.',
+    accent: '#e8883a',
+    cues: [[0.1, 'll_wind', 0.4], [0.3, 'll_rush', 0.5], [0.85, 'll_clunk', 0.9], [1.3, 'll_whistle', 0.7],
+           [2.7, 'll_bell', 0.5]],
+    shakes: [[0.86, 4, 0.15]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { leaves: [], trees: [], walkers: [], waders: [], windows: [] };
+      for (var i = 0; i < 46; i++) {
+        d.leaves.push({ x: r() * VW, y: r() * 900, v: between(r, 30, 70), s: between(r, 5, 10), p: r() * 6,
+                        c: ['#c8582a', '#d8a02a', '#a83a24', '#e8c84a'][i % 4] });
+      }
+      for (i = 0; i < 26; i++) d.trees.push({ x: i * 64 + between(r, -20, 20), y: between(r, 300, 360), s: between(r, 26, 44),
+                                              c: ['#a8482a', '#c87a2a', '#8a3a24', '#b8902a'][i % 4] });
+      var looks = [['#e8e0cc', '#4a3a5a', '#6fae55'], ['#3a4a6a', '#3a4a6a', '#7fb069'], ['#5a4a3a', '#3a3a3a', '#5f9a4c'],
+                   ['#8a6a4a', '#4a4a3a', '#86b86a'], ['#1a1a1e', '#2a2a2e', '#6c9f68']];
+      for (i = 0; i < 9; i++) d.walkers.push({ at: 1.7 + i * 0.22, p: r() * 6, look: looks[i % looks.length] });
+      for (i = 0; i < 5; i++) d.waders.push({ x: 300 + i * 260 + between(r, -40, 40), at: 1.2 + i * 0.25, p: r() * 6,
+                                              look: looks[(i + 2) % looks.length] });
+      for (var row = 0; row < 3; row++) {
+        for (var c = 0; c < 16; c++) d.windows.push({ x: 560 + c * 46, y: 330 + row * 44, f: r() });
+      }
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#24243e'], [0.45, '#6a3a52'], [0.8, '#d87a4a'], [1, '#f2a85a']], 470);
+      additive(ctx, function () { dot(ctx, '#ffb060', 1180, 330, 380, 0.3); });
+      // the far hills in their colours
+      ctx.fillStyle = '#3a2430';
+      ctx.beginPath(); ctx.moveTo(0, 380);
+      for (var hx = 0; hx <= VW; hx += 80) ctx.lineTo(hx, 340 + Math.sin(hx * 0.006) * 30 + Math.sin(hx * 0.02) * 10);
+      ctx.lineTo(VW, 480); ctx.lineTo(0, 480); ctx.fill();
+      d.trees.forEach(function (tr) {
+        ctx.fillStyle = tr.c;
+        ctx.beginPath(); ctx.arc(tr.x, tr.y + 30, tr.s * 0.7, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(40,20,30,0.35)';
+        ctx.beginPath(); ctx.arc(tr.x + tr.s * 0.25, tr.y + 36, tr.s * 0.5, 0, TAU); ctx.fill();
+      });
+      // the far cliff top, the mill on it, the stack
+      ctx.fillStyle = '#2a2a22'; ctx.fillRect(0, 466, VW, 14);
+      ctx.fillStyle = '#5a2a20'; ctx.fillRect(540, 300, 780, 168);
+      ctx.fillStyle = '#3a2a2a';
+      ctx.beginPath(); ctx.moveTo(530, 302); ctx.lineTo(930, 262); ctx.lineTo(1330, 302); ctx.fill();
+      ctx.fillStyle = '#e8e0cc'; ctx.fillRect(914, 222, 32, 40);
+      ctx.fillStyle = '#3a2a2a'; ctx.beginPath(); ctx.moveTo(908, 224); ctx.lineTo(930, 198); ctx.lineTo(952, 224); ctx.fill();
+      d.windows.forEach(function (w) {
+        ctx.fillStyle = 'rgba(255,' + (190 + Math.floor(w.f * 40)) + ',110,' + (0.6 + 0.3 * Math.sin(t * 2 + w.f * 9)) + ')';
+        ctx.fillRect(w.x, w.y, 20, 26);
+      });
+      var door = seg(t, 1.6, 1.9);
+      ctx.fillStyle = door > 0 ? 'rgba(255,210,140,' + (0.5 + door * 0.4) + ')' : '#2a1a14';
+      ctx.fillRect(904, 424, 52, 44);
+      ctx.fillStyle = '#4a2a20'; ctx.fillRect(1366, 120, 34, 350);
+      ctx.fillRect(1330, 400, 110, 68);
+      for (var sm = 0; sm < 7; sm++) {
+        var u = (t * 0.25 + sm / 7) % 1, sr = 16 + u * 50;
+        ctx.fillStyle = 'rgba(90,86,84,' + (0.5 * (1 - u)) + ')';
+        ctx.beginPath(); ctx.arc(1383 + u * 120, 110 - u * 90, sr, 0, TAU); ctx.fill();
+      }
+      var jet = seg(t, 1.3, 1.45) * (1 - seg(t, 3.4, 4.0));
+      if (jet > 0) {
+        for (var js = 0; js < 10; js++) {
+          var q = (t * 1.6 + js / 10) % 1, jr = 8 + q * 40;
+          ctx.fillStyle = 'rgba(245,245,245,' + (0.6 * (1 - q) * jet) + ')';
+          ctx.beginPath(); ctx.arc(1356 + q * 20, 392 - q * 170, jr, 0, TAU); ctx.fill();
+        }
+      }
+      // the shift coming out along the cliff top
+      d.walkers.forEach(function (w) {
+        var k = seg(t, w.at, w.at + 2.0);
+        if (k <= 0) return;
+        LL.shambler(ctx, 930 + k * 330 - Math.min(1, (t - w.at) * 2) * 10, 466, 1.0, t, w.look, 1, w.p);
+      });
+      // the gorge: the far cliff face, the falls on the left, the wheel
+      var cg = ctx.createLinearGradient(0, 480, 0, 650);
+      cg.addColorStop(0, '#4a4440'); cg.addColorStop(1, '#2a2622');
+      ctx.fillStyle = cg; ctx.fillRect(0, 480, VW, 170);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 2;
+      for (var st = 0; st < 5; st++) { ctx.beginPath(); ctx.moveTo(0, 500 + st * 30); ctx.lineTo(VW, 496 + st * 30 + Math.sin(st) * 8); ctx.stroke(); }
+      ctx.fillStyle = '#6a6460'; ctx.fillRect(0, 452, 230, 30);
+      for (var fc = 0; fc < 9; fc++) {
+        var fx = 30 + fc * 20;
+        ctx.fillStyle = 'rgba(200,225,240,0.7)'; ctx.fillRect(fx, 470, 18, 180);
+        for (var fs = 0; fs < 3; fs++) {
+          var fu = (t * 1.3 + fs / 3 + fc * 0.17) % 1;
+          ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(fx + 6, 470 + fu * 170, 5, 22);
+        }
+      }
+      ctx.fillStyle = '#5a4a3a'; ctx.fillRect(230, 512, 470, 10);
+      ctx.save(); ctx.translate(780, 560); ctx.rotate(-t * 0.8);
+      ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(0, 0, 84, 0, TAU); ctx.stroke();
+      for (var bk = 0; bk < 16; bk++) {
+        ctx.rotate(TAU / 16);
+        ctx.fillStyle = '#6a5a42'; ctx.fillRect(70, -5, 22, 10);
+        if (bk % 4 === 0) { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(0, -3, 84, 6); }
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(170,210,230,0.6)'; ctx.fillRect(700, 514, 14, 40);
+      // the river, foam on it
+      var rg = ctx.createLinearGradient(0, 640, 0, VH);
+      rg.addColorStop(0, '#1a3a44'); rg.addColorStop(1, '#0a1a22');
+      ctx.fillStyle = rg; ctx.fillRect(0, 640, VW, VH - 640);
+      for (var fm = 0; fm < 30; fm++) {
+        var fy = 650 + (fm * 37) % 150, fxx = ((fm * 173) % VW + t * (60 + fm % 5 * 20)) % (VW + 100) - 50;
+        ctx.fillStyle = 'rgba(230,242,248,0.35)'; ctx.fillRect(fxx, fy, 30 + (fm % 4) * 14, 3);
+      }
+      additive(ctx, function () { dot(ctx, '#e8f4f8', 130, 650, 160, 0.25); });
+      // and in the river, wading toward us
+      d.waders.forEach(function (w) {
+        var k2 = seg(t, w.at, w.at + 0.8);
+        if (k2 <= 0) return;
+        var water = 760, sc = 2.3;
+        var y = water + 68 * sc - outCubic(k2) * 46 * sc + (t - w.at) * 5;
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, water); ctx.clip();
+        LL.shambler(ctx, w.x + Math.sin(t + w.p) * 4, y, sc, t, w.look, w.x < 800 ? 1 : -1, w.p);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(220,240,248,0.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(w.x, water, 30, 6, 0, 0, TAU); ctx.stroke();
+      });
+      // the leaves coming down
+      d.leaves.forEach(function (l) {
+        var ly = (l.y + t * l.v) % 900, lx = l.x + Math.sin(t * 1.3 + l.p) * 30;
+        ctx.save(); ctx.translate(lx, ly); ctx.rotate(t * 2 + l.p);
+        ctx.fillStyle = l.c; ctx.fillRect(-l.s / 2, -l.s / 4, l.s, l.s / 2);
+        ctx.restore();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Kettle Falls Mill').toUpperCase();
+      var k = outCubic(seg(t, 0.4, 0.82));
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(lerp(-700, 760, k), 226);
+      ctx.rotate(-0.015);
+      // the time clock's slot the card goes into
+      ctx.fillStyle = '#2a2a2e'; roundRect(ctx, 330, -120, 150, 240, 12); ctx.fill();
+      ctx.fillStyle = '#e8e0cc'; ctx.beginPath(); ctx.arc(405, -60, 44, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(405, -60); ctx.lineTo(405, -92); ctx.moveTo(405, -60); ctx.lineTo(430, -60); ctx.stroke();
+      ctx.fillStyle = '#111'; ctx.fillRect(330, -6, 24, 12);
+      // the card
+      ctx.fillStyle = '#efe6cc'; ctx.fillRect(-460, -96, 800, 192);
+      ctx.fillStyle = '#2a3a5a'; ctx.fillRect(-460, -96, 800, 40);
+      ctx.font = 'bold 20px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.fillStyle = '#efe6cc';
+      spaced(ctx, 'KETTLE FALLS MANUFACTURING CO.   ·   TIME CARD', -60, -76, 4);
+      ctx.strokeStyle = 'rgba(42,58,90,0.5)'; ctx.lineWidth = 1.5;
+      for (var ln = 0; ln < 3; ln++) { ctx.beginPath(); ctx.moveTo(-440, 20 + ln * 24); ctx.lineTo(320, 20 + ln * 24); ctx.stroke(); }
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 58, 700, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.fillStyle = '#1a1a1a';
+      spaced(ctx, name, -60, -18, size * 0.04);
+      ctx.font = 'bold 16px ' + HEAVY; ctx.fillStyle = '#2a3a5a';
+      spaced(ctx, 'NO. 1846        IN  6:00 A.M.        OUT  6:00 P.M.', -60, 56, 3);
+      // punched: the stamp
+      var stamp = seg(t, 0.85, 0.95);
+      if (stamp > 0) {
+        ctx.save(); ctx.translate(200, 40); ctx.rotate(-0.14); ctx.scale(1.4 - 0.4 * stamp, 1.4 - 0.4 * stamp);
+        ctx.globalAlpha = stamp * 0.85;
+        ctx.strokeStyle = '#b81a1a'; ctx.lineWidth = 5; roundRect(ctx, -110, -28, 220, 56, 6); ctx.stroke();
+        ctx.font = '900 34px ' + HEAVY; ctx.fillStyle = '#b81a1a';
+        spaced(ctx, 'SHIFT OVER', 0, 2, 3);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  });
+
+  /* Launch Complex 9: the moon rocket on the pad at night, searchlights
+     crossing it, oxygen venting white; the count runs down in the corner,
+     the engines light -- fire under it, smoke rolling out across the pad
+     -- and up the crawlerway toward us, lit orange from behind, the crew
+     come shambling.  The name is on a mission patch. */
+  Intro.register('launchpad', {
+    tagline: 'T-minus nothing. Light it anyway.',
+    accent: '#e8682a',
+    cues: [[0.1, 'll_wind', 0.3], [0.8, 'll_beep', 0.6], [1.2, 'll_beep', 0.6], [1.6, 'll_beep', 0.6],
+           [2.0, 'll_beep', 0.7], [2.3, 'll_boom', 0.8], [2.4, 'll_rush', 0.8]],
+    shakes: [[2.32, 8, 0.6]],
+    tagY: 850, tagAt: 2.8,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 220, 0, 480), zeds: [], smoke: [] };
+      var looks = [['#f2f2f2', '#2a2a30', '#6fae55'], ['#c8ccd2', '#c8ccd2', '#7fb069'], ['#e8e8e4', '#e8e8e4', '#5f9a4c'],
+                   ['#2a3a6a', '#1a2a4a', '#86b86a'], ['#e86a2a', '#3a3a3a', '#6c9f68']];
+      for (var i = 0; i < 8; i++) {
+        d.zeds.push({ x: 560 + (i % 4) * 140 + between(r, -30, 30), row: Math.floor(i / 4), at: 0.9 + i * 0.15, p: r() * 6,
+                      look: looks[i % looks.length] });
+      }
+      for (i = 0; i < 26; i++) d.smoke.push({ dir: i % 2 ? 1 : -1, p: r(), y: between(r, -20, 30), s: between(r, 60, 140) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#02040e'], [0.6, '#0a1430'], [1, '#1a2a4a']], 620);
+      starsK(ctx, d.stars, t, 1);
+      // the moon, up where it's going
+      ctx.fillStyle = '#f2f2e6'; ctx.beginPath(); ctx.arc(1320, 140, 46, 0, TAU); ctx.fill();
+      additive(ctx, function () { dot(ctx, '#e8e8ff', 1320, 140, 150, 0.2); });
+      var ign = seg(t, 2.25, 2.45);
+      // the horizon, scrub, the sea far off right
+      ctx.fillStyle = '#0a1018'; ctx.fillRect(0, 600, VW, 300);
+      ctx.fillStyle = '#0e1a2a'; ctx.fillRect(1240, 596, 360, 12);
+      // the searchlight beams
+      additive(ctx, function () {
+        [[300, 0.5], [1300, -0.5], [560, 0.25], [1040, -0.2]].forEach(function (sl, i) {
+          var ang = sl[1] + Math.sin(t * 0.7 + i * 1.9) * 0.12;
+          ctx.save(); ctx.translate(sl[0], 600); ctx.rotate(ang);
+          var g = ctx.createLinearGradient(0, 0, 0, -620);
+          g.addColorStop(0, 'rgba(220,230,255,0.28)'); g.addColorStop(1, 'rgba(220,230,255,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.lineTo(60, -620); ctx.lineTo(-60, -620); ctx.fill();
+          ctx.restore();
+        });
+      });
+      // the umbilical tower
+      ctx.strokeStyle = '#c8562a'; ctx.lineWidth = 4;
+      for (var tl = 0; tl < 2; tl++) { ctx.beginPath(); ctx.moveTo(880 + tl * 40, 600); ctx.lineTo(880 + tl * 40, 140); ctx.stroke(); }
+      ctx.lineWidth = 2;
+      for (var br = 0; br < 12; br++) {
+        ctx.beginPath(); ctx.moveTo(880, 600 - br * 38); ctx.lineTo(920, 562 - br * 38); ctx.moveTo(920, 600 - br * 38); ctx.lineTo(880, 562 - br * 38); ctx.stroke();
+      }
+      ctx.fillStyle = '#c8562a'; ctx.fillRect(840, 132, 120, 8);
+      var blink = Math.floor(t * 1.5) % 2;
+      ctx.fillStyle = blink ? '#ff2a2a' : '#4a1010'; ctx.beginPath(); ctx.arc(900, 126, 5, 0, TAU); ctx.fill();
+      if (blink) additive(ctx, function () { dot(ctx, '#ff3a3a', 900, 126, 26, 0.6); });
+      // the rocket
+      var rx = 800, base = 560;
+      [[0, 120, '#eef0f2'], [120, 30, '#1a1c20'], [150, 70, '#eef0f2'], [220, 24, '#1a1c20']].forEach(function (s) {
+        ctx.fillStyle = s[2]; ctx.fillRect(rx - 34, base - s[0] - s[1], 68, s[1]);
+      });
+      ctx.fillStyle = '#eef0f2'; ctx.fillRect(rx - 24, base - 300, 48, 56);
+      ctx.fillStyle = '#1a1c20'; ctx.fillRect(rx - 24, base - 260, 48, 12);
+      ctx.fillStyle = '#eef0f2'; ctx.beginPath(); ctx.moveTo(rx - 22, base - 300); ctx.lineTo(rx, base - 340); ctx.lineTo(rx + 22, base - 300); ctx.fill();
+      ctx.fillStyle = '#e8682a'; ctx.fillRect(rx - 2, base - 384, 4, 46);
+      ctx.fillStyle = '#1a1c20';
+      [[-48, -34], [34, 48]].forEach(function (f) { ctx.beginPath(); ctx.moveTo(rx + f[0], base); ctx.lineTo(rx + (f[0] < 0 ? -34 : 34), base - 50); ctx.lineTo(rx + f[1], base); ctx.fill(); });
+      // the mount and the pad
+      ctx.fillStyle = '#4a5058'; ctx.fillRect(rx - 90, base, 180, 16);
+      ctx.fillStyle = '#5a6068'; ctx.fillRect(0, base + 16, VW, 24);
+      // vapour off it
+      for (var v = 0; v < 8; v++) {
+        var vu = (t * 0.4 + v / 8) % 1, vs = v % 2 ? 1 : -1;
+        ctx.fillStyle = 'rgba(240,244,250,' + (0.4 * (1 - vu)) + ')';
+        ctx.beginPath(); ctx.arc(rx + vs * (40 + vu * 60), base - 60 - (v % 4) * 50 + vu * 20, 10 + vu * 26, 0, TAU); ctx.fill();
+      }
+      // ignition: fire under it, smoke rolling out both ways
+      if (ign > 0) {
+        additive(ctx, function () { dot(ctx, '#ffb04a', rx, base + 30, 420 * ign, 0.6); });
+        for (var fl = 0; fl < 5; fl++) {
+          var fh = (80 + fl * 20) * ign * (0.85 + 0.15 * Math.sin(t * 30 + fl));
+          var g2 = ctx.createLinearGradient(0, base, 0, base + fh);
+          g2.addColorStop(0, 'rgba(255,250,210,0.95)'); g2.addColorStop(1, 'rgba(255,120,40,0)');
+          ctx.fillStyle = g2;
+          ctx.beginPath(); ctx.moveTo(rx - 30 + fl * 15, base); ctx.lineTo(rx - 40 + fl * 15 - 10, base + fh); ctx.lineTo(rx - 20 + fl * 15 + 10, base + fh); ctx.fill();
+        }
+        d.smoke.forEach(function (sm) {
+          var q = Math.min(1, (t - 2.25) * 0.7 + sm.p * 0.3);
+          var sx = rx + sm.dir * q * (300 + sm.p * 500);
+          ctx.fillStyle = 'rgba(' + (q < 0.3 ? '255,180,110' : '200,196,192') + ',' + (0.7 * (1 - q * 0.6)) + ')';
+          ctx.beginPath(); ctx.arc(sx, base + 30 + sm.y - q * 40, sm.s * (0.4 + q), 0, TAU); ctx.fill();
+        });
+      }
+      // the crawlerway toward us, and them on it
+      ctx.fillStyle = '#2a2e34';
+      ctx.beginPath(); ctx.moveTo(700, 640); ctx.lineTo(900, 640); ctx.lineTo(1100, VH); ctx.lineTo(500, VH); ctx.fill();
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var y = 700 + z.row * 90 + (t - z.at) * 26, s = 1.8 + z.row * 0.8;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x, y, s, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+      });
+      // the count in the corner
+      var count = Math.max(0, 10 - Math.floor(seg(t, 0.4, 2.25) * 10));
+      ctx.font = '900 46px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.fillStyle = count === 0 ? '#ffd84a' : '#ff5a2a';
+      ctx.fillText(count === 0 ? 'IGNITION' : 'T-00:00:' + (count < 10 ? '0' : '') + count, 60, 140);
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Launch Complex 9').toUpperCase();
+      var k = outBack(seg(t, 0.4, 0.85), 1.4);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 250);
+      ctx.scale(0.75 * k, 0.75 * k);
+      ctx.rotate((1 - k) * 0.6);
+      // the patch: a stitched border, the night, the moon, the rocket going
+      ctx.fillStyle = '#c8a83a'; ctx.beginPath(); ctx.arc(0, 0, 176, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#0e1a3a'; ctx.beginPath(); ctx.arc(0, 0, 164, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#e8e0c8'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.arc(0, 0, 170, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      for (var st = 0; st < 14; st++) {
+        var a = st / 14 * TAU, rr = 90 + (st % 3) * 22;
+        ctx.fillStyle = '#e8e0c8'; ctx.fillRect(Math.cos(a) * rr - 2, Math.sin(a) * rr - 2, 4, 4);
+      }
+      ctx.fillStyle = '#e8e8dc'; ctx.beginPath(); ctx.arc(70, -70, 42, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#0e1a3a'; ctx.beginPath(); ctx.arc(52, -82, 38, 0, TAU); ctx.fill();
+      ctx.save(); ctx.rotate(0.5);
+      ctx.fillStyle = '#eef0f2'; ctx.fillRect(-10, -60, 20, 100);
+      ctx.beginPath(); ctx.moveTo(-10, -60); ctx.lineTo(0, -88); ctx.lineTo(10, -60); ctx.fill();
+      ctx.fillStyle = '#ff8a2a'; ctx.beginPath(); ctx.moveTo(-10, 40); ctx.lineTo(0, 90); ctx.lineTo(10, 40); ctx.fill();
+      ctx.restore();
+      // the ribbon across it with the name
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 60, 700, 0.05);
+      ctx.fillStyle = '#a8282e';
+      ctx.beginPath(); ctx.moveTo(-430, 60); ctx.lineTo(-360, 60); ctx.lineTo(-360, 150); ctx.lineTo(-430, 150); ctx.lineTo(-400, 105); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(430, 60); ctx.lineTo(360, 60); ctx.lineTo(360, 150); ctx.lineTo(430, 150); ctx.lineTo(400, 105); ctx.fill();
+      ctx.fillStyle = '#c8382e'; roundRect(ctx, -380, 50, 760, 96, 8); ctx.fill();
+      ctx.strokeStyle = '#e8e0c8'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
+      roundRect(ctx, -370, 58, 740, 80, 6); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2ece0';
+      spaced(ctx, name, 0, 98, size * 0.05);
+      ctx.restore();
+    }
+  });
+
+  /* The Underneath: down the great cistern -- rows of brick pillars going
+     away into the dark, a lamp hung over the catwalk every so often, black
+     water throwing the lamps back; rain coming down a shaft of light from a
+     grate.  Between the pillars, eyes; then they stand up out of the water.
+     The name is cast in a manhole cover, dropped into place. */
+  Intro.register('cistern', {
+    tagline: "Under the town, the water's rising. So are they.",
+    accent: '#5ab8c8',
+    cues: [[0.0, 'll_rain', 0.35], [0.55, 'll_clunk', 0.9], [1.5, 'll_splash', 0.5], [2.1, 'll_splash', 0.4],
+           [2.6, 'll_squeak', 0.5]],
+    shakes: [[0.58, 5, 0.2]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { rain: [], eyes: [], zeds: [] };
+      for (var i = 0; i < 70; i++) d.rain.push({ x: between(r, 160, 420), y: r() * 900, v: between(r, 700, 1100) });
+      for (i = 0; i < 9; i++) d.eyes.push({ x: between(r, 300, 1300), y: between(r, 430, 520), at: between(r, 0.6, 1.6), s: between(r, 0.5, 1.2) });
+      var looks = [['#e8c81a', '#2a4a2a', '#6fae55'], ['#2a3040', '#2a3040', '#7fb069'], ['#8a7a5a', '#3a3a40', '#5f9a4c'],
+                   ['#5a4a3a', '#3a3a2a', '#86b86a'], ['#2a2a2e', '#3a3a3a', '#6c9f68']];
+      for (i = 0; i < 7; i++) d.zeds.push({ x: 260 + i * 180 + between(r, -40, 40), row: i % 2, at: 1.3 + i * 0.18, p: r() * 6,
+                                            look: looks[i % looks.length] });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      ctx.fillStyle = '#06070a'; ctx.fillRect(0, 0, VW, VH);
+      var vx = 800, vy = 430;
+      // the vault and the rows of pillars going away
+      for (var row = 6; row >= 0; row--) {
+        var k = 1 / (1 + row * 0.55);
+        var span = 900 * k, h = 640 * k;
+        var shade = Math.floor(40 + 50 * k);
+        ctx.strokeStyle = 'rgb(' + (shade + 30) + ',' + Math.floor(shade * 0.6) + ',' + Math.floor(shade * 0.5) + ')';
+        ctx.lineWidth = 10 * k;
+        ctx.beginPath(); ctx.arc(vx, vy - h * 0.28, span * 0.52, Math.PI, 0); ctx.stroke();
+        for (var sd = -1; sd <= 1; sd += 2) {
+          var px = vx + sd * span * 0.52;
+          ctx.fillStyle = 'rgb(' + (shade + 22) + ',' + Math.floor(shade * 0.55) + ',' + Math.floor(shade * 0.45) + ')';
+          ctx.fillRect(px - 26 * k, vy - h * 0.3, 52 * k, h * 0.62);
+          ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(px + sd * 6 * k - 26 * k * (sd < 0 ? 0 : 0), vy - h * 0.3, 10 * k, h * 0.62);
+        }
+        // a lamp over the catwalk
+        var ly = vy - h * 0.18;
+        var flick = row === 3 && Math.sin(t * 17) > 0.7 ? 0.3 : 1;
+        ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(vx, vy - h * 0.55); ctx.lineTo(vx, ly); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,232,168,' + flick + ')'; ctx.beginPath(); ctx.arc(vx, ly, 6 * k + 2, 0, TAU); ctx.fill();
+        additive(ctx, function () { dot(ctx, '#ffe0a0', vx, ly, 120 * k, 0.35 * flick); });
+      }
+      // the water, the lamps in it, the catwalk down the middle
+      var wg = ctx.createLinearGradient(0, vy + 10, 0, VH);
+      wg.addColorStop(0, '#0a1416'); wg.addColorStop(1, '#122426');
+      ctx.fillStyle = wg; ctx.fillRect(0, vy + 10, VW, VH - vy - 10);
+      for (var rf = 0; rf < 6; rf++) {
+        var rk = 1 / (1 + rf * 0.55);
+        additive(ctx, function () {
+          ctx.fillStyle = 'rgba(255,220,150,' + (0.12 * rk) + ')';
+          ctx.fillRect(vx - 30 * rk + Math.sin(t * 2 + rf) * 4, vy + 20 + (1 - rk) * 0 + 240 * rk, 60 * rk, 6);
+        });
+      }
+      ctx.fillStyle = '#4a3a2a';
+      ctx.beginPath(); ctx.moveTo(vx - 6, vy + 12); ctx.lineTo(vx + 6, vy + 12); ctx.lineTo(vx + 110, VH); ctx.lineTo(vx - 110, VH); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
+      for (var pl = 0; pl < 12; pl++) {
+        var py = vy + 12 + Math.pow(pl / 12, 1.8) * (VH - vy);
+        var pw = 6 + (py - vy) * 0.22;
+        ctx.beginPath(); ctx.moveTo(vx - pw, py); ctx.lineTo(vx + pw, py); ctx.stroke();
+      }
+      // the light shaft and the rain in it
+      additive(ctx, function () {
+        var sg = ctx.createLinearGradient(0, 0, 0, 700);
+        sg.addColorStop(0, 'rgba(220,230,210,0.3)'); sg.addColorStop(1, 'rgba(220,230,210,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath(); ctx.moveTo(220, 0); ctx.lineTo(380, 0); ctx.lineTo(440, 700); ctx.lineTo(160, 700); ctx.fill();
+      });
+      ctx.strokeStyle = 'rgba(200,215,230,0.5)'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      d.rain.forEach(function (rd) {
+        var y = (rd.y + t * rd.v) % 760;
+        ctx.moveTo(rd.x + y * 0.05, y); ctx.lineTo(rd.x + y * 0.05 + 1, y + 16);
+      });
+      ctx.stroke();
+      // eyes in the dark, then them, getting up out of the water
+      d.eyes.forEach(function (e) {
+        var k2 = seg(t, e.at, e.at + 0.3) * (1 - seg(t, 1.8, 2.2));
+        if (k2 <= 0) return;
+        additive(ctx, function () {
+          dot(ctx, '#b6ff4a', e.x - 6 * e.s, e.y, 8 * e.s, 0.8 * k2);
+          dot(ctx, '#b6ff4a', e.x + 6 * e.s, e.y, 8 * e.s, 0.8 * k2);
+        });
+      });
+      d.zeds.forEach(function (z) {
+        var k3 = seg(t, z.at, z.at + 0.8);
+        if (k3 <= 0) return;
+        var water = z.row ? 760 : 640, sc = z.row ? 2.4 : 1.5;
+        var y = water + 68 * sc - outCubic(k3) * 44 * sc + (t - z.at) * 4;
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, water); ctx.clip();
+        LL.shambler(ctx, z.x, y, sc, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(180,220,220,0.4)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(z.x, water, 18 * sc, 4 * sc, 0, 0, TAU); ctx.stroke();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'The Underneath').toUpperCase();
+      var k = seg(t, 0.25, 0.58);
+      if (k <= 0) return;
+      var drop = 1 - Math.pow(1 - k, 3);
+      ctx.save();
+      ctx.translate(800, lerp(-260, 236, drop));
+      var spin = (1 - drop) * 1.4 + (t > 0.58 ? Math.sin((t - 0.58) * 30) * 0.02 * Math.max(0, 1 - (t - 0.58) * 3) : 0);
+      ctx.rotate(spin);
+      ctx.scale(0.8, 0.8);
+      // the cover: an iron disc, its rim, the grid
+      ctx.fillStyle = '#2a2a2c'; ctx.beginPath(); ctx.arc(0, 0, 210, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#4a4a4e'; ctx.lineWidth = 14; ctx.beginPath(); ctx.arc(0, 0, 196, 0, TAU); ctx.stroke();
+      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, 186, 0, TAU); ctx.clip();
+      ctx.strokeStyle = '#3e3e42'; ctx.lineWidth = 6;
+      for (var g = -200; g <= 200; g += 34) {
+        ctx.beginPath(); ctx.moveTo(g, -200); ctx.lineTo(g + 200, 200); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(g, 200); ctx.lineTo(g + 200, -200); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = '#2a2a2c'; roundRect(ctx, -330, -52, 660, 104, 10); ctx.fill();
+      ctx.strokeStyle = '#5a5a5e'; ctx.lineWidth = 5; roundRect(ctx, -322, -44, 644, 88, 8); ctx.stroke();
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 70, 600, 0.06);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#121214'; spaced(ctx, name, 2, 4, size * 0.06);
+      ctx.fillStyle = '#8a8a90'; spaced(ctx, name, 0, 0, size * 0.06);
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#7a7a80';
+      spaced(ctx, 'HARROW  FLOODWORKS', 0, -120, 6);
+      spaced(ctx, 'STORM  DRAIN  1902', 0, 124, 6);
+      ctx.restore();
+    }
+  });
+
+  /* Rooftops of Harrow Heights: over the roofs of the city in the snow --
+     water towers, chimneys, the towers behind with a few windows lit; the
+     billboard across the way flickers on, the cola pouring in neon -- and
+     at the near parapet, hands come over the edge, and then the rest of
+     them, climbing up out of the street.  The name, in neon. */
+  Intro.register('rooftops', {
+    tagline: "Don't look down. They're coming up.",
+    accent: '#ff5a7a',
+    cues: [[0.1, 'll_wind', 0.5], [0.45, 'll_neon', 0.6], [1.5, 'll_clunk', 0.4], [2.0, 'll_jingle', 0.4]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 60, 0, 300), snow: [], towers: [], wins: [], climbers: [] };
+      for (var i = 0; i < 160; i++) d.snow.push({ x: r() * VW, y: r() * 900, v: between(r, 30, 80), s: between(r, 1.5, 3.5), p: r() * 6 });
+      for (i = 0; i < 14; i++) {
+        var w = between(r, 80, 160), h = between(r, 200, 420);
+        d.towers.push({ x: i * 120 - 40 + between(r, -20, 20), w: w, h: h });
+        for (var k = 0; k < 10; k++) if (r() < 0.5) d.wins.push({ x: i * 120 - 40 + between(r, 0, w - 12), y: 560 - between(r, 20, h - 20) });
+      }
+      var looks = [['#3a3a42', '#2a2a30', '#6fae55'], ['#c81a2a', '#c81a2a', '#7fb069'], ['#2a8a3a', '#c81a2a', '#5f9a4c'],
+                   ['#e8c81a', '#2a3a5a', '#86b86a'], ['#c8a83a', '#c8a83a', '#6c9f68']];
+      for (i = 0; i < 6; i++) d.climbers.push({ x: 180 + i * 240 + between(r, -40, 40), at: 1.2 + i * 0.22, p: r() * 6, look: looks[i % looks.length] });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#06081a'], [0.6, '#1a1c34'], [1, '#3a3450']], 600);
+      starsK(ctx, d.stars, t, 0.6);
+      // the towers behind
+      d.towers.forEach(function (tw) { ctx.fillStyle = '#14161e'; ctx.fillRect(tw.x, 560 - tw.h, tw.w, tw.h); });
+      d.wins.forEach(function (w, i) { ctx.fillStyle = i % 3 ? 'rgba(255,210,130,0.7)' : 'rgba(200,225,255,0.55)'; ctx.fillRect(w.x, w.y, 10, 12); });
+      // the roofs across the way: a water tower, the billboard
+      ctx.fillStyle = '#1e2028'; ctx.fillRect(0, 520, VW, 120);
+      ctx.fillStyle = '#e8ecf2'; ctx.fillRect(0, 516, VW, 6);
+      ctx.fillStyle = '#2a2422';
+      ctx.fillRect(1260, 420, 6, 100); ctx.fillRect(1310, 420, 6, 100); ctx.fillRect(1250, 340, 76, 84);
+      ctx.beginPath(); ctx.moveTo(1244, 342); ctx.lineTo(1288, 300); ctx.lineTo(1332, 342); ctx.fill();
+      ctx.fillStyle = '#e8ecf2'; ctx.beginPath(); ctx.moveTo(1252, 340); ctx.lineTo(1288, 306); ctx.lineTo(1324, 340); ctx.lineTo(1316, 340); ctx.lineTo(1288, 314); ctx.lineTo(1260, 340); ctx.fill();
+      var bx = 260, by = 300, bw = 560, bh = 190;
+      ctx.fillStyle = '#1a1a22'; ctx.fillRect(bx + 60, by + bh, 8, 40); ctx.fillRect(bx + bw - 68, by + bh, 8, 40);
+      ctx.fillStyle = '#1a2a4a'; ctx.fillRect(bx, by, bw, bh);
+      var on = seg(t, 0.5, 0.6);
+      if (on > 0) {
+        var word = 'FROSTY COLA';
+        ctx.font = '900 58px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        var lay = K.layout(ctx, word, 4);
+        var left = bx + bw * 0.42 - lay.width / 2;
+        for (var c = 0; c < lay.chars.length; c++) {
+          var lit = sputter(t, 0.55 + c * 0.06, c + 2) > 0.5;
+          if (!lit) continue;
+          additive(ctx, function () { dot(ctx, '#ff3a5a', left + lay.chars[c].x + 18, by + 60, 40, 0.3); });
+          ctx.fillStyle = '#ff8aa0'; ctx.fillText(lay.chars[c].ch, left + lay.chars[c].x, by + 60);
+        }
+        var tip = Math.min(1, seg(t, 1.0, 1.6)) * 1.1;
+        ctx.save(); ctx.translate(bx + 90, by + 120); ctx.rotate(-tip);
+        ctx.strokeStyle = '#e8f4ff'; ctx.lineWidth = 4; ctx.strokeRect(-14, -50, 28, 60); ctx.strokeRect(-6, -74, 12, 24);
+        ctx.restore();
+        ctx.strokeStyle = '#e8f4ff'; ctx.strokeRect(bx + 150, by + 120, 40, 50);
+        var fill = seg(t, 1.3, 3.0);
+        ctx.fillStyle = '#c8682a'; ctx.fillRect(bx + 154, by + 166 - 42 * fill, 32, 42 * fill);
+        additive(ctx, function () { dot(ctx, '#ff3a5a', bx + bw / 2, by + bh / 2, 360, 0.15); });
+      } else {
+        ctx.fillStyle = 'rgba(200,215,230,0.25)'; ctx.font = '900 54px ' + HEAVY; ctx.textBaseline = 'middle';
+        ctx.fillText('FROSTY COLA', bx + 120, by + 60);
+      }
+      // the near roof: snow, the parapet, and them coming over it
+      ctx.fillStyle = '#d8dee6'; ctx.fillRect(0, 700, VW, 210);
+      ctx.fillStyle = '#5a3a2e'; ctx.fillRect(0, 680, VW, 30);
+      ctx.fillStyle = '#eef2f6'; ctx.fillRect(0, 674, VW, 8);
+      d.climbers.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 1.0);
+        if (k2 <= 0) return;
+        var hands = Math.min(1, k2 * 3);
+        ctx.fillStyle = z.look[2];
+        ctx.fillRect(z.x - 26, 672 - 6 * hands, 14, 10); ctx.fillRect(z.x + 12, 672 - 6 * hands, 14, 10);
+        var rise = outCubic(Math.max(0, (k2 - 0.25) / 0.75));
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, 676); ctx.clip();
+        LL.shambler(ctx, z.x, 676 + 140 - rise * 140, 2.2, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+      });
+      // and the snow
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      d.snow.forEach(function (f) {
+        var y = (f.y + t * f.v) % 900, x = f.x + Math.sin(t + f.p) * 20;
+        ctx.beginPath(); ctx.arc(x, y, f.s, 0, TAU); ctx.fill();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Rooftops of Harrow Heights').toUpperCase();
+      if (t < 0.3) return;
+      ctx.save();
+      ctx.fillStyle = 'rgba(10,10,20,0.6)'; roundRect(ctx, 260, 150, 1080, 150, 18); ctx.fill();
+      ctx.strokeStyle = '#ff5a7a'; ctx.lineWidth = 3; roundRect(ctx, 270, 160, 1060, 130, 14); ctx.stroke();
+      ctx.restore();
+      LL.neonTitle(ctx, t, name, 800, 226, 980, '#ff7a9a', 0.35, 0.05);
+    }
+  });
+
+  /* Glasshouse Gardens: the Palm House glowing from inside, its dome a
+     lantern over the dark lawns; fireflies; the topiary animals standing in
+     the foreground -- and one of them, the giraffe, turns its head.  Between
+     the hedges, they come.  The name is on an old seed packet. */
+  Intro.register('gardens', {
+    tagline: 'Something in the glass is blooming. Something out here is hungry.',
+    accent: '#b6ff8a',
+    cues: [[0.1, 'll_wind', 0.3], [0.7, 'll_peacock', 0.5], [1.5, 'll_snap', 0.6], [2.2, 'll_stink', 0.35]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 120, 0, 380), flies: [], zeds: [], panes: [] };
+      for (var i = 0; i < 50; i++) d.flies.push({ x: r() * VW, y: between(r, 420, 780), p: r() * 6, s: between(r, 0.6, 1.2) });
+      var looks = [['#3a6a3a', '#5a4a3a', '#6fae55'], ['#f6f2ea', '#f6f2ea', '#7fb069'], ['#1a1a1e', '#1a1a1e', '#5f9a4c'],
+                   ['#e8c81a', '#3a4a6a', '#86b86a'], ['#c8b888', '#8a7a5a', '#6c9f68']];
+      for (i = 0; i < 6; i++) d.zeds.push({ x: 420 + i * 150 + between(r, -30, 30), at: 1.3 + i * 0.2, p: r() * 6, look: looks[i % looks.length] });
+      for (i = 0; i < 12; i++) d.panes.push(r());
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#040810'], [0.6, '#0e1a22'], [1, '#1e3030']], 560);
+      starsK(ctx, d.stars, t, 0.8);
+      // the Palm House: lit glass, the dome, the white ironwork
+      var cx = 800, base = 560;
+      additive(ctx, function () { dot(ctx, '#c8ffb0', cx, base - 120, 520, 0.22); });
+      var glow = 'rgba(200,255,180,0.28)';
+      ctx.fillStyle = glow; ctx.fillRect(cx - 420, base - 150, 840, 150);
+      ctx.beginPath(); ctx.ellipse(cx, base - 150, 230, 200, 0, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = 'rgba(240,250,240,0.8)'; ctx.lineWidth = 3;
+      ctx.strokeRect(cx - 420, base - 150, 840, 150);
+      for (var m = 0; m <= 20; m++) { ctx.beginPath(); ctx.moveTo(cx - 420 + m * 42, base - 150); ctx.lineTo(cx - 420 + m * 42, base); ctx.stroke(); }
+      for (var rib = 0; rib <= 10; rib++) {
+        var a = Math.PI + rib / 10 * Math.PI;
+        ctx.beginPath(); ctx.moveTo(cx, base - 150); ctx.lineTo(cx + Math.cos(a) * 230, base - 150 + Math.sin(a) * 200); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.ellipse(cx, base - 150, 230, 200, 0, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, base - 150, 140, 120, 0, Math.PI, 0); ctx.stroke();
+      // palm silhouettes inside
+      ctx.fillStyle = 'rgba(20,50,30,0.7)';
+      [-160, -40, 90, 200].forEach(function (px, i) {
+        ctx.fillRect(cx + px - 4, base - 220 + i * 10, 8, 220 - i * 10);
+        for (var f = 0; f < 6; f++) {
+          ctx.save(); ctx.translate(cx + px, base - 220 + i * 10); ctx.rotate(-1.4 + f * 0.56 + Math.sin(t + i) * 0.05);
+          ctx.beginPath(); ctx.ellipse(36, 0, 40, 7, 0, 0, TAU); ctx.fill(); ctx.restore();
+        }
+      });
+      // the lawn, the hedge line
+      ctx.fillStyle = '#0e1a12'; ctx.fillRect(0, base, VW, VH - base);
+      ctx.fillStyle = '#14281a'; ctx.fillRect(0, base + 120, VW, 40);
+      // the topiary in front: the elephant, the giraffe (whose head turns)
+      ctx.fillStyle = '#1a3a1e';
+      ctx.fillRect(180, 560, 150, 110); ctx.fillRect(310, 520, 70, 80); ctx.fillRect(350, 590, 20, 90);
+      for (var lg = 0; lg < 4; lg++) ctx.fillRect(190 + lg * 38, 660, 24, 60);
+      ctx.fillRect(1240, 560, 90, 80);
+      for (var lg2 = 0; lg2 < 4; lg2++) ctx.fillRect(1244 + lg2 * 24, 630, 14, 90);
+      ctx.fillRect(1300, 400, 28, 170);
+      var turn = seg(t, 1.6, 2.1);
+      ctx.save(); ctx.translate(1314, 404); ctx.rotate(-turn * 0.9);
+      ctx.fillRect(-14, -40, 60 - turn * 20, 40);
+      if (turn > 0.5) { additive(ctx, function () { dot(ctx, '#b6ff4a', 26 - turn * 10, -24, 10, 0.9); }); }
+      ctx.restore();
+      // between the hedges, them
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.7);
+        if (k2 <= 0) return;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x + (t - z.at) * 8 * (z.x < 800 ? 1 : -1), 760, 2.0, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+      });
+      // fireflies
+      d.flies.forEach(function (f) {
+        if (Math.sin(t * 2.4 * f.s + f.p * 3) < 0.4) return;
+        var x = f.x + Math.sin(t * 0.6 + f.p) * 30, y = f.y + Math.cos(t * 0.5 + f.p) * 16;
+        additive(ctx, function () { dot(ctx, '#d8ff6a', x, y, 10, 0.8); });
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Glasshouse Gardens').toUpperCase();
+      var k = outBack(seg(t, 0.4, 0.85), 1.3);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 230);
+      ctx.rotate(0.03 + (1 - k) * 0.4);
+      ctx.scale(0.8 * k, 0.8 * k);
+      // the seed packet: cream, a green border, a little engraving of the
+      // flower, the name across it
+      ctx.fillStyle = '#efe6c8'; roundRect(ctx, -440, -130, 880, 260, 8); ctx.fill();
+      ctx.strokeStyle = '#2a5a2a'; ctx.lineWidth = 8; roundRect(ctx, -424, -114, 848, 228, 6); ctx.stroke();
+      ctx.lineWidth = 2; roundRect(ctx, -410, -100, 820, 200, 4); ctx.stroke();
+      ctx.save(); ctx.translate(-320, 10);
+      ctx.fillStyle = '#5a1a3a';
+      ctx.beginPath(); ctx.moveTo(-50, 70); ctx.quadraticCurveTo(-60, -10, 0, -30); ctx.quadraticCurveTo(60, -10, 50, 70); ctx.fill();
+      ctx.fillStyle = '#e8d8a0'; ctx.fillRect(-7, -90, 14, 110);
+      ctx.fillStyle = '#3a6a2a'; ctx.fillRect(-36, 66, 72, 14);
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#2a5a2a';
+      spaced(ctx, 'HARROW  BOTANIC  GARDENS   ·   EST. 1852', 80, -70, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 64, 600, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.fillStyle = '#1a3a1a';
+      spaced(ctx, name, 80, 4, size * 0.04);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#8a2a4a';
+      spaced(ctx, 'TITAN ARUM  ·  BLOOMS ONCE IN SEVEN YEARS', 80, 70, 3);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

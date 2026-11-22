@@ -318,6 +318,48 @@ WORLDS: List[Dict[str, Any]] = [
                       "the hay pyramid and the grain elevator -- and start the "
                       "demolition derby from the grandstand to send the horde "
                       "into the mud pit. The rides are still turning."},
+            {"id": "bogs", "name": "Redwater Cranberry Bogs",
+             "blurb": "Harvest night, the bogs flooded and the water solid with "
+                      "floating berries, red from bank to bank. Hold the "
+                      "screenhouse, wade the bogs between the narrow dikes, take "
+                      "the windmill's stage and the duck blind -- and open the "
+                      "reservoir's floodgate to pull the horde out into the "
+                      "harvest bog. The water was red before any of this."},
+            {"id": "mill", "name": "Kettle Falls Mill",
+             "blurb": "A mill town in a river gorge, the autumn it ended. Hold "
+                      "the counting house, cross the gorge by the dam, the "
+                      "covered bridge or the swaying footbridge, take the mill "
+                      "roof and its belfry -- and blow the mill whistle to call "
+                      "the dead back to the yard for their shift. The wheel "
+                      "never stopped turning."},
+            {"id": "launchpad", "name": "Launch Complex 9",
+             "blurb": "The night of the launch that never went. Hold the domed "
+                      "blockhouse behind its blast door, climb the service "
+                      "structure for the view, cross the pad under the moon "
+                      "rocket -- and resume the countdown to light the engines "
+                      "in the flame trench and bring the horde onto the pad. "
+                      "Mind the canal."},
+            {"id": "cistern", "name": "The Underneath",
+             "blurb": "Harrow's floodworks, under the town, the night of the "
+                      "storm. Hold the gatekeeper's office, cross the great "
+                      "cistern on its catwalks among the pillars, walk the old "
+                      "subway platform the floodworks swallowed -- and start the "
+                      "pumps to pull the horde into the pit. The only sky is a "
+                      "grate."},
+            {"id": "rooftops", "name": "Rooftops of Harrow Heights",
+             "blurb": "A snowy night in December, across the roofs of a city "
+                      "block. Hold the penthouse, cross the alleys on planks, "
+                      "take the construction site's top deck and the "
+                      "billboard's catwalk -- and light the billboard to bring "
+                      "the horde up for it. It's a long way down to the street."},
+            {"id": "gardens", "name": "Glasshouse Gardens",
+             "blurb": "The botanic gardens, the night the corpse flower "
+                      "bloomed. Hold the Orangery among the lemon trees, take "
+                      "the Palm House gallery under the dome and the treetop "
+                      "walkway through the arboretum, cross the Lily House on "
+                      "the giant lily pads -- and open the Titan House's vents "
+                      "to let the stink of the corpse flower draw the dead. "
+                      "Mind the flytraps."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

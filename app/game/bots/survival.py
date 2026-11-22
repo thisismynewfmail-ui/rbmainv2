@@ -151,6 +151,50 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the grain elevator": "spc", "the giant pumpkin": "ec", "the fair gate": "e",
         "the tractor pull": "he", "the pig races": "he",
     },
+    "bogs": {
+        "the screenhouse": "shp", "the boardwalk": "e", "the gazebo": "he",
+        "the harvest bog": "er", "the drowned bog": "er", "the dry bog": "e",
+        "the floodgate": "ep", "the reservoir": "er", "the pump house": "se",
+        "the sand pit": "spc", "the farmhouse": "sp", "the windmill": "spc",
+        "the harvester barn": "se", "the receiving shed": "he", "the bucket elevator": "spc",
+        "the festival stage": "he", "the duck blind": "spc", "the farm stand": "e",
+    },
+    "mill": {
+        "the counting house": "shp", "the weave room": "se", "the mill roof": "spc",
+        "the mill yard": "her", "the boiler house": "se", "the dam": "ep", "the falls": "er",
+        "the gorge": "er", "the covered bridge": "se", "the footbridge": "er",
+        "the boarding house": "s", "the company store": "se", "the dye works": "e",
+        "the row houses": "ep", "the church": "sp", "the depot": "se", "the coal yard": "ec",
+        "Kettle House": "sp", "the millpond": "r",
+    },
+    "launchpad": {
+        "the blockhouse": "shp", "the launch pad": "pe", "the flame trench": "r",
+        "the umbilical tower": "e", "the service structure": "spc", "the fuel farm": "e",
+        "the hangar": "se", "the press site": "hp", "the countdown clock": "e", "the radar": "e",
+        "the beach": "er", "the dunes": "h", "the canal": "r", "the crawlerway": "e",
+        "the camera bunker": "s", "the north bunker": "s",
+    },
+    "cistern": {
+        "the gatekeeper's office": "shp", "the great cistern": "er", "the catwalks": "he",
+        "the west channel": "r", "the east channel": "r", "the weir": "er", "the low channel": "r",
+        "the pump hall": "se", "the pump pit": "r", "the mezzanine": "sp", "the subway platform": "he",
+        "the trackbed": "e", "the camp": "he", "the light shaft": "e", "the drain junction": "ec",
+        "the north gallery": "e", "the south gallery": "e",
+    },
+    "rooftops": {
+        "the penthouse": "shp", "the billboard": "epc", "the roof garden": "he", "the water tower": "e",
+        "the factory roof": "ec", "the high line": "he", "the construction site": "pc", "the crane": "e",
+        "the department store": "e", "the christmas tree": "h", "the skyline lounge": "he",
+        "the hot tub": "e", "the rooftop parking": "e", "the south street": "r", "the east street": "r",
+        "the alleys": "r", "the brownstones": "e",
+    },
+    "gardens": {
+        "the orangery": "shp", "the palm house": "se", "the gallery": "sp", "the lily house": "er",
+        "the desert house": "e", "the flytrap house": "er", "the titan house": "e", "the boiler house": "s",
+        "the topiary garden": "he", "the rockery": "pc", "the koi pond": "r", "the pagoda": "sp",
+        "the treetop walkway": "pc", "the lookout": "pc", "the main gate": "e", "the broad walk": "h",
+        "the arboretum": "e",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.
