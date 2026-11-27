@@ -206,6 +206,44 @@ def _run_delete(job: Dict[str, Any], uids: List[int]) -> None:
         _finish(job)
 
 
+# A shuffle is an admin's own choice: for a day afterwards the bots it dealt
+# keep those hotbars -- loadout planning between games and hotbar changes in
+# a round leave them be, and a restart's backfill never lays them out again.
+HOLD_KEY = "bots.shuffle_hold"
+HOLD_SECONDS = 24 * 3600
+_held: Dict[str, Any] = {"at": 0, "uids": frozenset(), "loaded": False}
+
+
+def _hold_state() -> Dict[str, Any]:
+    if not _held["loaded"]:
+        try:
+            data = json.loads(db.get_meta(HOLD_KEY, "{}") or "{}")
+        except (TypeError, ValueError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        _held.update(at=int(data.get("at", 0) or 0),
+                     uids=frozenset(int(u) for u in data.get("uids") or []), loaded=True)
+    return _held
+
+
+def shuffle_held(uid: int, now: Optional[int] = None) -> bool:
+    """Did an admin's shuffle deal this bot its hotbar within the day?"""
+    held = _hold_state()
+    if not held["uids"]:
+        return False
+    return (now if now is not None else _now()) - held["at"] < HOLD_SECONDS and int(uid) in held["uids"]
+
+
+def _hold(uids: Sequence[int], now: int) -> None:
+    """Start (or extend) the hold for the bots a shuffle just dealt."""
+    held = _hold_state()
+    keep = held["uids"] if now - held["at"] < HOLD_SECONDS else frozenset()
+    union = frozenset(int(u) for u in uids) | keep
+    _held.update(at=now, uids=union, loaded=True)
+    db.set_meta(HOLD_KEY, json.dumps({"at": now, "uids": sorted(union)}, separators=(",", ":")))
+
+
 def _hotbar_ids(raw: Any) -> List[int]:
     """A saved hotbar as the five inventory ids (0 for an empty slot)."""
     try:
@@ -261,6 +299,9 @@ def _run_shuffle(job: Dict[str, Any], uids: List[int]) -> None:
                     job["skipped"] += 1
                     continue
                 writes.append((json.dumps(new, separators=(",", ":")), _now(), uid))
+            if writes:
+                # these keep what they were dealt (see HOLD_SECONDS)
+                _hold([w[2] for w in writes], _now())
             if writes:
                 with db.transaction() as conn:
                     conn.executemany("UPDATE avatars SET hotbar=?, updated_at=? WHERE user_id=?",
@@ -1059,6 +1100,8 @@ def _rehotbar(uid: int, choose) -> Optional[List[Optional[Dict[str, Any]]]]:
     would hold anything that isn't in the bot's own inventory.  Returns the
     new hotbar in the join ticket's compact form."""
     from ..models import avatars
+    if shuffle_held(uid):
+        return None              # an admin dealt this hotbar today: it stays
     owned = usable_owned(uid)
     raw = avatars.raw_avatar(uid)["hotbar"]
     current = [int(x or 0) for x in list(raw)[:catalog.HOTBAR_SIZE]]
@@ -1074,14 +1117,18 @@ def _rehotbar(uid: int, choose) -> Optional[List[Optional[Dict[str, Any]]]]:
 
 def backfill_arms(limit: int = 50000) -> Dict[str, int]:
     """Arm the bots made before they bought weapons of their own, and lay
-    every bot's hotbar out from what it owns.
+    out the hotbars that need it.
 
     A bot that owns nothing beyond the free three buys what its persona
     wants (``arms.wanted``), paid from its balance like any purchase, with
     the ledger line to show for it -- what it can't afford it goes without.
-    Then its hotbar is laid out from its inventory (``arms.lay_out``).  Each
-    bot's choices come from its own id, so a second run changes nothing.
-    Runs when the director starts, in the background."""
+    Its hotbar is then laid out from its inventory (``arms.lay_out``) when
+    it needs to be: it just bought something, or the hotbar is empty, holds
+    something the bot no longer owns, or carries only the free three while
+    the bot owns better.  Any other hotbar is the bot's own -- dealt by an
+    admin's shuffle, planned between games, changed up in a round -- and
+    stays exactly as it is: this runs every time the director starts, and
+    it must never undo those.  A second run changes nothing."""
     from ..models import crates, economy, inventory
     armory = [it for it in catalog.by_slot("usable") if crates.in_armory(it)]
     rows = db.query(
@@ -1096,8 +1143,8 @@ def backfill_arms(limit: int = 50000) -> Dict[str, int]:
             tags = [t for t in (row["tags"] or "").split(",") if t]
 
             owned = usable_owned(uid)
+            bought = False
             if not any(not arms.free(item_id) for _inv, item_id in owned):
-                bought = False
                 for item_id in arms.wanted(traits, tags, random.Random(uid * 104729 + 17), armory):
                     item = catalog.get(item_id)
                     if item is None or inventory.owns_item(uid, item_id):
@@ -1111,11 +1158,15 @@ def backfill_arms(limit: int = 50000) -> Dict[str, int]:
                 if bought:
                     armed += 1
                     owned = usable_owned(uid)
+            current = _hotbar_ids(row["hotbar"])
+            item_of = dict(owned)
+            carried = [inv for inv in current if inv]
+            valid = bool(carried) and all(inv in item_of for inv in carried)
+            owns_better = any(not arms.free(item_id) for _inv, item_id in owned)
+            carries_better = any(not arms.free(item_of[inv]) for inv in carried if inv in item_of)
+            if valid and not bought and (carries_better or not owns_better):
+                continue                 # its own hotbar: leave it be
             hotbar = arms.lay_out(owned, traits, random.Random(uid * 7919 + 3))
-            try:
-                current = json.loads(row["hotbar"] or "[]")
-            except ValueError:
-                current = []
             if current != hotbar:
                 db.execute("UPDATE avatars SET hotbar=?, updated_at=? WHERE user_id=?",
                            (json.dumps(hotbar, separators=(",", ":")), _now(), uid))

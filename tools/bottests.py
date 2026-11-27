@@ -1601,6 +1601,23 @@ def test_profiles() -> None:
               and any(arms.role(own[uid][i]) != "gear" for i in after[uid] if i) for uid in moved))
     check("shuffle: all five slots move -- slot 1 is not always the pistol",
           sum(1 for uid in moved if own[uid].get(after[uid][0]) != "use_pistol") > len(moved) // 3)
+    # what it dealt is kept: a restart's backfill never lays it out again,
+    # and for a day neither loadout planning nor hotbar changes touch it
+    factory.backfill_arms()
+    kept = {uid: list(avatars.raw_avatar(uid)["hotbar"]) for uid in moved}
+    check("shuffle: a restart keeps every hotbar the shuffle dealt",
+          all(kept[uid] == after[uid] for uid in moved),
+          sum(1 for uid in moved if kept[uid] != after[uid]))
+    planned = sum(1 for uid in moved
+                  if factory.plan_loadout(uid, {"explore": 1.0, "collector": 1.0},
+                                          random.Random(uid), unsettled=True))
+    changed_up = sum(1 for uid in moved
+                     if factory.change_hotbar(uid, {"chaos": 1.0}, random.Random(uid)) is not None)
+    check("shuffle: for a day planning and change-ups leave the dealt hotbars alone",
+          all(factory.shuffle_held(uid) for uid in moved) and not factory.shuffle_held(live_uid)
+          and planned == 0 and changed_up == 0, (planned, changed_up))
+    check("shuffle: the hold ends after a day",
+          not factory.shuffle_held(moved[0], factory._now() + factory.HOLD_SECONDS + 60))
     db.execute("DELETE FROM users WHERE is_bot=1")
 
 
