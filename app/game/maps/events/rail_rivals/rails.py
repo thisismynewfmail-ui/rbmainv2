@@ -194,15 +194,16 @@ def lay_track(b: ArenaArea, path: Sequence[Point], *, base: float = 0.0,
         piece += 1
 
 
-def buffer_stop(b: ArenaArea, x: float, z: float, yaw: float, colour: str) -> None:
+def buffer_stop(b: ArenaArea, x: float, z: float, yaw: float, colour: str,
+                base: float = 0.0) -> None:
     """The end of the line: a timber stop with a red lamp on it."""
     turn = round(yaw / (math.pi / 2.0)) * (math.pi / 2.0)
     along_x = abs(math.sin(turn)) > 0.5
     size = [2.0, 3.0, 6.4] if along_x else [6.4, 3.0, 2.0]
-    b.box([x, 1.5, z], size, WOOD_DARK)
+    b.box([x, base + 1.5, z], size, WOOD_DARK)
     beam = [2.4, 1.0, 7.2] if along_x else [7.2, 1.0, 2.4]
-    b.box([x, 3.5, z], beam, colour)
-    b.box([x, 4.4, z], [0.8, 0.8, 0.8], "#ff3a2a", material="neon")
+    b.box([x, base + 3.5, z], beam, colour)
+    b.box([x, base + 4.4, z], [0.8, 0.8, 0.8], "#ff3a2a", material="neon")
 
 
 def distance_to(path: Sequence[Point], x: float, z: float) -> float:
@@ -246,12 +247,12 @@ def stair(b: ArenaArea, axis: str, near: float, far: float, lo: float, hi: float
 
 
 def platform(b: ArenaArea, area: Tuple[float, float, float, float], top: float = 1.2,
-             colour: str = WOOD_LIGHT, edge: str = "#d8c070") -> None:
+             colour: str = WOOD_LIGHT, edge: str = "#d8c070", base: float = 0.0) -> None:
     """A raised timber platform, with a painted safety line along its edges."""
-    slab(b, area, top, top + 0.3, colour, studs=True)
+    slab(b, area, base + top, top + 0.3, colour, studs=True)
     x0, x1, z0, z1 = area
     for zz in (z0 + 0.6, z1 - 0.6):
-        b.box([(x0 + x1) / 2.0, top + 0.02, zz], [x1 - x0 - 1.2, 0.04, 0.5], edge,
+        b.box([(x0 + x1) / 2.0, base + top + 0.02, zz], [x1 - x0 - 1.2, 0.04, 0.5], edge,
               collide=False)
 
 
@@ -266,7 +267,8 @@ def shelter(b: ArenaArea, area: Tuple[float, float, float, float], floor: float,
 
 
 def depot(b: ArenaArea, lane: str, path: Sequence[Point], fraction: float, side: float,
-          name: str, stage: int, roof: str = "#5a3a2a", offset: float = 15.0) -> None:
+          name: str, stage: int, roof: str = "#5a3a2a", offset: float = 15.0,
+          base: float = 0.0) -> None:
     """A depot a team comes back to once its cart has passed it: a timber
     platform square to the world beside the track, a roofed shelter with
     the depot's name over it, steps at both ends, and eight spawns."""
@@ -279,16 +281,16 @@ def depot(b: ArenaArea, lane: str, path: Sequence[Point], fraction: float, side:
     # cart's width of a track that runs past it at a slant
     offset = max(offset, abs(rx) * hx + abs(rz) * hz + 7.0)
     ox, oz = x + rx * side * offset, z + rz * side * offset
-    platform(b, rect(ox - hx, ox + hx, oz - hz, oz + hz))
+    platform(b, rect(ox - hx, ox + hx, oz - hz, oz + hz), base=base)
     if along_x:
-        stair(b, "x", ox - hx - 3.0, ox - hx, oz - 3.0, oz + 3.0, 0.0, 1.2)
-        stair(b, "x", ox + hx + 3.0, ox + hx, oz - 3.0, oz + 3.0, 0.0, 1.2)
+        stair(b, "x", ox - hx - 3.0, ox - hx, oz - 3.0, oz + 3.0, base, base + 1.2)
+        stair(b, "x", ox + hx + 3.0, ox + hx, oz - 3.0, oz + 3.0, base, base + 1.2)
     else:
-        stair(b, "z", oz - hz - 3.0, oz - hz, ox - 3.0, ox + 3.0, 0.0, 1.2)
-        stair(b, "z", oz + hz + 3.0, oz + hz, ox - 3.0, ox + 3.0, 0.0, 1.2)
+        stair(b, "z", oz - hz - 3.0, oz - hz, ox - 3.0, ox + 3.0, base, base + 1.2)
+        stair(b, "z", oz + hz + 3.0, oz + hz, ox - 3.0, ox + 3.0, base, base + 1.2)
     cover = rect(ox - hx * 0.55, ox + hx * 0.55, oz - hz * 0.55, oz + hz * 0.55)
-    shelter(b, cover, 1.2, 8.0, roof)
-    roof_top = 1.2 + 8.0 + 0.6
+    shelter(b, cover, base + 1.2, 8.0, roof)
+    roof_top = base + 1.2 + 8.0 + 0.6
     face = math.atan2(x - ox, z - oz)
     board_w = (cover[1] - cover[0]) if along_x else (cover[3] - cover[2])
     deco = sign_decal(name, CREAM, "#3a2414", board_w / 2.2)
@@ -302,34 +304,36 @@ def depot(b: ArenaArea, lane: str, path: Sequence[Point], fraction: float, side:
     for u in (-13.0, -4.0, 4.0, 13.0):
         for w in (-1.2, 1.2):
             sx, sz = (ox + u, oz + w) if along_x else (ox + w, oz + u)
-            b.team_spawn(lane, sx, 1.2 + 0.31, sz, face, stage)
-    b.mark("depot", ox, 1.5, oz, lane=lane, fraction=round(fraction, 4), name=name)
+            b.team_spawn(lane, sx, base + 1.2 + 0.31, sz, face, stage)
+    b.mark("depot", ox, base + 1.5, oz, lane=lane, fraction=round(fraction, 4), name=name)
 
 
 def lever(b: ArenaArea, lane: str, path: Sequence[Point], fraction: float,
-          side: float, index: int) -> None:
+          side: float, index: int, base: float = 0.0, plate: bool = True) -> None:
     """A brake lever beside the track: the iron stand is the map's, the
     handle is drawn by the client from the lever's state."""
     total = length(path)
     x, z, yaw = beside(path, total * fraction, side * 6.5)
-    b.box([x, 0.6, z], [2.4, 1.2, 2.4], IRON, material="metal")
-    b.box([x, 1.6, z], [1.2, 0.8, 1.2], STEEL_DARK, material="metal")
-    # a striped warning plate on the ground round it
-    b.box([x, 0.02, z], [5.0, 0.04, 5.0], "#d8b23a", collide=False, decal="hazard")
-    b.mark("lever", x, 2.0, z, lane=lane, fraction=round(fraction, 4), index=index,
+    b.box([x, base + 0.6, z], [2.4, 1.2, 2.4], IRON, material="metal")
+    b.box([x, base + 1.6, z], [1.2, 0.8, 1.2], STEEL_DARK, material="metal")
+    # a striped warning plate on the ground round it (where the ground under
+    # it is level: on a hillside the client's ring marks it instead)
+    if plate:
+        b.box([x, base + 0.02, z], [5.0, 0.04, 5.0], "#d8b23a", collide=False, decal="hazard")
+    b.mark("lever", x, base + 2.0, z, lane=lane, fraction=round(fraction, 4), index=index,
            yaw=round(yaw, 3))
 
 
-def coal_heap(b: ArenaArea, x: float, z: float, rng: random.Random) -> None:
+def coal_heap(b: ArenaArea, x: float, z: float, rng: random.Random, base: float = 0.0) -> None:
     """A heap of coal with a shovel in it: walk up and take a sack."""
-    b.box([x, 0.7, z], [7.0, 1.4, 7.0], "#2a2725", studs=True)
+    b.box([x, base + 0.7, z], [7.0, 1.4, 7.0], "#2a2725", studs=True)
     for k in range(9):
         a = k * 2.4
         r = 1.0 + (k % 3) * 0.9
-        b.sphere([x + math.cos(a) * r, 1.6 + (2 - k % 3) * 0.3, z + math.sin(a) * r],
+        b.sphere([x + math.cos(a) * r, base + 1.6 + (2 - k % 3) * 0.3, z + math.sin(a) * r],
                  [2.4, 1.6, 2.2], COAL, collide=False)
-    b.box([x + 1.6, 2.4, z - 1.2], [0.25, 3.4, 0.25], WOOD, collide=False, r=[0.3, 0.6, 0.2])
-    b.mark("coal", x, 1.4, z)
+    b.box([x + 1.6, base + 2.4, z - 1.2], [0.25, 3.4, 0.25], WOOD, collide=False, r=[0.3, 0.6, 0.2])
+    b.mark("coal", x, base + 1.4, z)
 
 
 def water_tower(b: ArenaArea, x: float, z: float, colour: str = "#7a5335",
@@ -357,24 +361,29 @@ def water_tower(b: ArenaArea, x: float, z: float, colour: str = "#7a5335",
 
 
 def telegraph(b: ArenaArea, path: Sequence[Point], side: float, every: float = 60.0,
-              colour: str = WOOD_DARK) -> None:
-    """Telegraph poles along a lane, a crossbar each."""
+              colour: str = WOOD_DARK, ground=None, skip=None) -> None:
+    """Telegraph poles along a lane, a crossbar each.  ``ground(x, z)`` is
+    the ground's height where a pole stands (rolling land); ``skip(x, z)``
+    True leaves a pole out (it would stand in a building or the water)."""
     total = length(path)
     d = every * 0.5
     while d < total:
         x, z, yaw = beside(path, d, side * 10.0)
-        b.cyl([x, 7.0, z], [0.8, 14.0, 0.8], colour)
-        b.box([x, 13.0, z], [4.0, 0.4, 0.4], colour, r=[0, yaw + math.pi / 2.0, 0],
-              collide=False)
         d += every
+        if skip is not None and skip(x, z):
+            continue
+        y = ground(x, z) if ground is not None else 0.0
+        b.cyl([x, y + 7.0, z], [0.8, 14.0, 0.8], colour)
+        b.box([x, y + 13.0, z], [4.0, 0.4, 0.4], colour, r=[0, yaw + math.pi / 2.0, 0],
+              collide=False)
 
 
 def mile_post(b: ArenaArea, path: Sequence[Point], fraction: float, side: float,
-              label: str) -> None:
+              label: str, base: float = 0.0) -> None:
     total = length(path)
     x, z, yaw = beside(path, total * fraction, side * 4.6)
-    b.box([x, 1.2, z], [0.7, 2.4, 0.7], CREAM)
-    b.box([x, 2.6, z], [1.6, 0.9, 0.3], CREAM, collide=False, r=[0, yaw, 0],
+    b.box([x, base + 1.2, z], [0.7, 2.4, 0.7], CREAM)
+    b.box([x, base + 2.6, z], [1.6, 0.9, 0.3], CREAM, collide=False, r=[0, yaw, 0],
           decal=sign_decal(label, CREAM, "#2a1a0e", 1.6 / 0.9))
 
 
@@ -384,14 +393,15 @@ def storeyed(b: ArenaArea, area: Tuple[float, float, float, float], heights: Seq
              doors: Optional[Dict[str, Sequence[Tuple[float, float, float]]]] = None,
              windows: Sequence[Dict[str, Sequence[Tuple[float, float, float, float]]]] = (),
              wells: Sequence[Tuple[float, float, float, float]] = (), glass: bool = True,
-             lights: str = WARM, parapet: float = 0.0) -> List[float]:
-    """A building of several storeys: each storey's walls are a band of
-    their own, with that storey's windows in it, so windows can stack one
+             lights: str = WARM, parapet: float = 0.0, base: float = 0.0) -> List[float]:
+    """A building of several storeys, standing on ground at ``base``: each
+    storey's walls are a band of their own, with that storey's windows in
+    it (sill and lintel heights are absolute), so windows can stack one
     over another; every floor above the ground has ``wells`` cut out of it
     for the stairs.  Returns the height of each floor."""
     from ..kit import carve, plate, strip_light
     x0, x1, z0, z1 = area
-    y = 0.0
+    y = base
     levels = []
     for k, h in enumerate(heights):
         last = k == len(heights) - 1
@@ -648,7 +658,7 @@ CAR_FLOOR = 1.24        # top of the trucks: a car's body sits on this
 
 
 def _trucks(b: ArenaArea, x: float, z: float, along: str, length: float,
-            width: float = 5.2) -> None:
+            width: float = 5.2, base: float = 0.0) -> None:
     """Two four-wheeled trucks under a car, solid from the rail tops up, the
     wheels only just proud of their sides."""
     for end in (-1, 1):
@@ -656,65 +666,67 @@ def _trucks(b: ArenaArea, x: float, z: float, along: str, length: float,
         cx, cz = (x + off, z) if along == "x" else (x, z + off)
         size = [4.6, CAR_FLOOR - RAIL_TOP, width] if along == "x" else \
             [width, CAR_FLOOR - RAIL_TOP, 4.6]
-        b.box([cx, (RAIL_TOP + CAR_FLOOR) / 2.0, cz], size, IRON, material="metal")
+        b.box([cx, base + (RAIL_TOP + CAR_FLOOR) / 2.0, cz], size, IRON, material="metal")
         for wheel in (-1.3, 1.3):
             wx, wz = (cx + wheel, cz) if along == "x" else (cx, cz + wheel)
-            b.cyl([wx, (RAIL_TOP + CAR_FLOOR) / 2.0 + 0.01, wz],
+            b.cyl([wx, base + (RAIL_TOP + CAR_FLOOR) / 2.0 + 0.01, wz],
                   [0.76, width + 0.08, 0.76], "#2a2826", collide=False, material="metal",
                   r=[math.pi / 2.0, 0, 0] if along == "x" else [0, 0, math.pi / 2.0])
 
 
-def _buffers(b: ArenaArea, x: float, z: float, along: str, length: float) -> None:
+def _buffers(b: ArenaArea, x: float, z: float, along: str, length: float,
+             base: float = 0.0) -> None:
     """The buffer beams at both ends of a car: a step up off the ground,
     and from there a jump to the roof."""
     for end in (-1, 1):
         off = end * (length / 2.0 + 0.6)
         if along == "x":
-            b.box([x + off, 1.6, z], [1.2, 1.0, 3.2], IRON, material="metal")
+            b.box([x + off, base + 1.6, z], [1.2, 1.0, 3.2], IRON, material="metal")
         else:
-            b.box([x, 1.6, z + off], [3.2, 1.0, 1.2], IRON, material="metal")
+            b.box([x, base + 1.6, z + off], [3.2, 1.0, 1.2], IRON, material="metal")
 
 
 def boxcar(b: ArenaArea, x: float, z: float, along: str = "x", colour: str = "#8a3a2a",
-           label: str = "", door: str = "open", length: float = 22.0) -> None:
+           label: str = "", door: str = "open", length: float = 22.0, base: float = 0.0) -> None:
     """A parked boxcar: solid body and roof, a door open on the side that
     faces ``door`` ("open" -- both sides -- or "shut"), buffers at the ends.
     The roof is a jump and a climb up from the ground: a fine place to
-    stand, and nothing to hide under."""
+    stand, and nothing to hide under.  ``base``: the rails' bed."""
     width, top = 6.0, 8.2
-    _trucks(b, x, z, along, length)
+    y = base
+    _trucks(b, x, z, along, length, base=base)
     size = [length, top - CAR_FLOOR, width] if along == "x" else [width, top - CAR_FLOOR, length]
-    b.box([x, (CAR_FLOOR + top) / 2.0, z], size, colour)
+    b.box([x, y + (CAR_FLOOR + top) / 2.0, z], size, colour)
     roof = [length + 0.4, 0.4, width + 0.6] if along == "x" else [width + 0.6, 0.4, length + 0.4]
-    b.box([x, top + 0.2, z], roof, "#4a4642", material="metal")
+    b.box([x, y + top + 0.2, z], roof, "#4a4642", material="metal")
     walk = [length - 1.0, 0.1, 1.2] if along == "x" else [1.2, 0.1, length - 1.0]
-    b.box([x, top + 0.45, z], walk, WOOD_DARK, collide=False)
+    b.box([x, y + top + 0.45, z], walk, WOOD_DARK, collide=False)
     for side in (-1, 1):
         # the doorway, a dark panel just proud of the side, and the slid-back
         # door beside it
         if along == "x":
             face = z + side * width / 2.0
             if door == "open":
-                b.box([x, 4.2, face + side * 0.02], [5.6, 5.4, 0.04], "#1c1714", collide=False)
-                b.box([x + 5.8, 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
+                b.box([x, y + 4.2, face + side * 0.02], [5.6, 5.4, 0.04], "#1c1714", collide=False)
+                b.box([x + 5.8, y + 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
             else:
-                b.box([x, 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
+                b.box([x, y + 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
             if label:
-                wall_sign(b, x - length * 0.3, 6.9, face - side * 0.3, length * 0.32, 1.1,
+                wall_sign(b, x - length * 0.3, y + 6.9, face - side * 0.3, length * 0.32, 1.1,
                           sign_decal(label, colour, CREAM, length * 0.32 / 1.1),
                           "z+" if side > 0 else "z-", colour)
         else:
             face = x + side * width / 2.0
             if door == "open":
-                b.box([face + side * 0.02, 4.2, z], [0.04, 5.4, 5.6], "#1c1714", collide=False)
-                b.box([face + side * 0.16, 4.3, z + 5.8], [0.3, 5.8, 5.8], colour)
+                b.box([face + side * 0.02, y + 4.2, z], [0.04, 5.4, 5.6], "#1c1714", collide=False)
+                b.box([face + side * 0.16, y + 4.3, z + 5.8], [0.3, 5.8, 5.8], colour)
             else:
-                b.box([face + side * 0.16, 4.3, z], [0.3, 5.8, 5.8], colour)
+                b.box([face + side * 0.16, y + 4.3, z], [0.3, 5.8, 5.8], colour)
             if label:
-                wall_sign(b, face - side * 0.3, 6.9, z - length * 0.3, length * 0.32, 1.1,
+                wall_sign(b, face - side * 0.3, y + 6.9, z - length * 0.3, length * 0.32, 1.1,
                           sign_decal(label, colour, CREAM, length * 0.32 / 1.1),
                           "x+" if side > 0 else "x-", colour)
-    _buffers(b, x, z, along, length)
+    _buffers(b, x, z, along, length, base=base)
 
 
 def caboose(b: ArenaArea, x: float, z: float, along: str = "x",

@@ -42,6 +42,7 @@ rest, each with a sensible default here.
 from __future__ import annotations
 
 import math
+import os
 import random
 import time
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -97,6 +98,10 @@ class ArenaWorld(GameInstance):
         self.rng = random.Random()
         self._payloads: Dict[str, Dict[str, Any]] = {}
         self.area_id = self.rng.choice(self.area_order)
+        # the headless tests can start in one area (tools/eventtests.py --area)
+        forced = os.environ.get("BLOCKHAVEN_FIRST_AREA", "")
+        if forced in self.area_order:
+            self.area_id = forced
         self.area_round = 0
         self.wins: Dict[str, int] = {}
         self._next_area_id: Optional[str] = None
@@ -874,7 +879,8 @@ class ArenaWorld(GameInstance):
         far on as it had got (or the next one, between rounds)."""
         area = state.get("area")
         if area not in self.areas:
-            area = self.rng.choice(self.area_order)
+            forced = os.environ.get("BLOCKHAVEN_FIRST_AREA", "")
+            area = forced if forced in self.areas else self.rng.choice(self.area_order)
         self.wins = {str(k): int(v) for k, v in (state.get("wins") or {}).items()}
         self.round_number = max(0, int(state.get("round", 1) or 1) - 1)
         self._first_round = True

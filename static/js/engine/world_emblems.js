@@ -154,6 +154,53 @@
     inked(ctx, circlePath(63, 64, 7), RR_GOLD, 4);
   });
 
+  // the newer lines' twists
+  emblem('em_rr_spike', function (ctx) {
+    // the golden spike driven into a tie, a maul resting on it
+    inked(ctx, function (g) { g.rect(14, 82, 100, 20); }, '#8a6040');
+    stroked(ctx, function (g) { g.moveTo(14, 78); g.lineTo(114, 78); }, RR_IRON, 6);
+    inked(ctx, poly([[56, 22], [72, 22], [70, 76], [64, 88], [58, 76]]), RR_GOLD);
+    inked(ctx, function (g) { g.rect(50, 16, 28, 10); }, RR_GOLD, 5);
+    stroked(ctx, function (g) { g.moveTo(84, 30); g.lineTo(112, 62); }, '#c89a6a', 6);
+    inked(ctx, poly([[74, 20], [94, 14], [100, 32], [80, 38]]), RR_IRON, 5);
+  });
+
+  emblem('em_rr_claim', function (ctx) {
+    // a rail carried off over a shoulder, a crowbar crossed behind it
+    stroked(ctx, function (g) { g.moveTo(22, 102); g.lineTo(104, 24); }, '#5a5048', 7);
+    inked(ctx, poly([[14, 78], [100, 30], [108, 42], [22, 90]]), RR_IRON);
+    stroked(ctx, function (g) { g.moveTo(26, 82); g.lineTo(100, 40); }, '#d8dce2', 3);
+    inked(ctx, poly([[96, 92], [112, 84], [118, 96], [102, 106]]), RR_RED, 5);
+    stroked(ctx, function (g) { g.moveTo(40, 26); g.lineTo(52, 40); g.moveTo(52, 26); g.lineTo(40, 40); }, RR_RED, 5);
+  });
+
+  emblem('em_rr_freight', function (ctx) {
+    // a through freight head on: the smokebox, the headlamp blazing, the
+    // pilot, and a telegraph key's spark beside it
+    stroked(ctx, function (g) {
+      g.moveTo(64, 24); g.lineTo(64, 8); g.moveTo(44, 30); g.lineTo(32, 18); g.moveTo(84, 30); g.lineTo(96, 18);
+    }, RR_GOLD, 5);
+    inked(ctx, circlePath(64, 66, 32), '#2a2a2e');
+    inked(ctx, circlePath(64, 66, 16), '#4a4a50', 4);
+    inked(ctx, circlePath(64, 34, 11), RR_GOLD, 5);
+    inked(ctx, poly([[30, 96], [98, 96], [84, 116], [44, 116]]), RR_RED, 5);
+    stroked(ctx, function (g) {
+      g.moveTo(52, 98); g.lineTo(56, 114); g.moveTo(64, 98); g.lineTo(64, 114); g.moveTo(76, 98); g.lineTo(72, 114);
+    }, INK, 3);
+    inked(ctx, poly([[104, 44], [116, 44], [108, 60], [118, 60], [100, 84], [106, 64], [98, 64]]), RR_GOLD, 4);
+  });
+
+  emblem('em_rr_bells', function (ctx) {
+    // a crossing signal: the crossbuck, the two lamps, the bell on top
+    inked(ctx, function (g) { g.rect(60, 30, 8, 86); }, CREAM, 5);
+    inked(ctx, poly([[22, 34], [30, 26], [106, 82], [98, 90]]), CREAM, 5);
+    inked(ctx, poly([[98, 26], [106, 34], [30, 90], [22, 82]]), CREAM, 5);
+    inked(ctx, circlePath(64, 18, 9), RR_GOLD, 4);
+    inked(ctx, circlePath(40, 100, 11), RR_RED, 4);
+    inked(ctx, circlePath(88, 100, 11), '#5a1a14', 4);
+    stroked(ctx, function (g) { g.moveTo(14, 100); g.lineTo(24, 100); g.moveTo(16, 88); g.lineTo(24, 92); g.moveTo(16, 112); g.lineTo(24, 108); }, RR_RED, 4);
+  });
+
   // ------------------------------------------------------------- Prop Panic
   var PP_PINK = '#f06a8a', PP_GOLD = '#ffc83a', PP_BLUE = '#5aa0f0', PP_GREEN = '#6ac860';
 

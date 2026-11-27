@@ -48,6 +48,10 @@ KILL_Y = -80.0
 OFFSETS = [(-SPACING, 0.0), (SPACING, 0.0), (0.0, -SPACING), (0.0, SPACING),
            (-SPACING, -SPACING), (SPACING, SPACING), (-SPACING, SPACING),
            (SPACING, -SPACING)]
+# a world with more than eight areas carries on round the next ring out
+# (the first eight never move, so nothing already built shifts)
+OFFSETS += [(i * SPACING, j * SPACING) for j in range(-2, 3) for i in range(-2, 3)
+            if max(abs(i), abs(j)) == 2]
 
 
 # ==================================================================== areas

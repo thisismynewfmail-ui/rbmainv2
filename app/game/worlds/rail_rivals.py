@@ -39,6 +39,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .. import instance as engine
 from ..instance import Player
 from ..maps.events import rail_rivals as rr_map
+from . import rail_twists
 from .arena import ArenaWorld
 
 LANES = ("a", "b")
@@ -102,6 +103,9 @@ class Lane:
 
     def __init__(self, points: Sequence[Sequence[float]]):
         self.pts = [(float(p[0]), float(p[2])) for p in points]
+        # the track's height at each point: a line can climb (an incline, an
+        # embankment, a trestle) and the cart climbs with it
+        self.ys = [float(p[1]) if len(p) > 2 else 0.0 for p in points]
         self.cum = [0.0]
         for i in range(len(self.pts) - 1):
             (ax, az), (bx, bz) = self.pts[i], self.pts[i + 1]
@@ -122,6 +126,25 @@ class Lane:
         seg = self.cum[hi] - self.cum[lo]
         f = 0.0 if seg <= 0 else (d - self.cum[lo]) / seg
         return (ax + (bx - ax) * f, az + (bz - az) * f, math.atan2(bx - ax, bz - az))
+
+    def height(self, d: float) -> float:
+        """The track's height ``d`` along it."""
+        d = max(0.0, min(self.length, d))
+        lo, hi = 0, len(self.cum) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if self.cum[mid] <= d:
+                lo = mid
+            else:
+                hi = mid
+        seg = self.cum[hi] - self.cum[lo]
+        f = 0.0 if seg <= 0 else (d - self.cum[lo]) / seg
+        return self.ys[lo] + (self.ys[hi] - self.ys[lo]) * f
+
+    def point(self, d: float) -> List[float]:
+        """[x, y, z] ``d`` along the track."""
+        x, z, _ = self.at(d)
+        return [x, self.height(d), z]
 
     def project(self, x: float, z: float) -> Tuple[float, float]:
         """(distance along the track, distance from it) of the nearest point."""
@@ -181,8 +204,7 @@ class Cart:
         return self.d / self.path.length if self.path.length else 0.0
 
     def pos(self) -> List[float]:
-        x, z, _ = self.path.at(self.d)
-        return [x, 0.0, z]
+        return self.path.point(self.d)
 
 
 # ==================================================================== world
@@ -226,6 +248,8 @@ class RailRivalsWorld(ArenaWorld):
         self.drifts: Dict[str, Dict[str, Any]] = {}
         self.bridges: Dict[str, Dict[str, Any]] = {}
         self.gas: Dict[str, Any] = {}
+        self.tw: Optional[rail_twists.Twist] = None
+        self.twist = ""
         self.events_said: Dict[str, float] = {}
         self.close_said = False
 
@@ -268,7 +292,7 @@ class RailRivalsWorld(ArenaWorld):
         self.close_said = False
         self.events_said = {}
         for player in self.players.values():
-            for key in ("coal", "act", "rr_job"):
+            for key in ("coal", "act", "rr_job", "carry"):
                 player.extra.pop(key, None)
         # the twist's own state
         moment = engine.now()
@@ -292,6 +316,13 @@ class RailRivalsWorld(ArenaWorld):
                     self.set_dynamic("bridge_%s_down" % lane, True)
         self.gas_spots = [list(m["p"]) for m in points.get("gas", [])]
         self.gas = {"spot": None, "warn_until": 0.0, "next": moment + 1e9, "inside": []}
+        # a newer line's twist is an object of its own (rail_twists.py)
+        if self.tw is not None:
+            for player in self.players.values():
+                self.tw.drop(player)
+        self.tw = rail_twists.make(self, self.twist)
+        if self.tw is not None:
+            self.tw.setup(area, extra, points, moment)
 
     # ------------------------------------------------------------- lanes
     def lane_for(self, team: str) -> str:
@@ -322,6 +353,8 @@ class RailRivalsWorld(ArenaWorld):
     def on_spawned(self, player: Player) -> None:
         for key in ("coal", "act", "rr_job"):
             player.extra.pop(key, None)
+        if self.tw is not None:
+            self.tw.drop(player)
 
     def welcome_lines(self, player: Player) -> List[str]:
         lines = super().welcome_lines(player)
@@ -334,10 +367,16 @@ class RailRivalsWorld(ArenaWorld):
                              "Mind the lava."}.get(self.twist)
         if twist:
             lines.append(twist)
+        elif self.tw is not None and self.tw.welcome:
+            lines.append(self.tw.welcome)
         return lines
 
     # ============================================================ movement
     def move_scale(self, player: Player) -> float:
+        if self.tw is not None:
+            scale = self.tw.move_scale(player)
+            if scale is not None:
+                return scale
         return 0.88 if player.extra.get("coal") else 1.0
 
     # ============================================================== rounds
@@ -349,6 +388,8 @@ class RailRivalsWorld(ArenaWorld):
             self.next_drift = {k: moment + self.rng.uniform(*DRIFT_EVERY) * 0.7 for k in LANES}
         if self.twist == "firedamp" and self.gas_spots:
             self.gas["next"] = moment + self.rng.uniform(*GAS_EVERY) * 0.6
+        if self.tw is not None:
+            self.tw.on_live(moment)
         self.system_message("The race is on! %s on %s, %s on %s." % (
             self.team_name("red"), self._lane_name(self.lane_for("red")),
             self.team_name("blue"), self._lane_name(self.lane_for("blue"))))
@@ -417,6 +458,9 @@ class RailRivalsWorld(ArenaWorld):
         for player in playing:
             if player.pos[1] < float(self.drown_y):
                 what = "the lava" if self.twist == "firedamp" else "the river"
+                if self.tw is not None:
+                    what = self.tw.drown_what(player) or what
+                what = str((self.area.get("extra") or {}).get("drown_what") or what)
                 self.kill(player, None, what)
 
     # ========================================================= interacting
@@ -438,8 +482,8 @@ class RailRivalsWorld(ArenaWorld):
                 current = {"k": kind, "key": key, "t": 0.0, "need": need}
             current["t"] = float(current.get("t", 0.0)) + dt
             player.extra["act"] = current
-            if kind == "dig":
-                continue                        # the drift counts diggers itself
+            if kind == "dig" or (self.tw is not None and kind in self.tw.continuous):
+                continue                        # the drift (or twist) counts its own
             if current["t"] >= need:
                 player.extra.pop("act", None)
                 self._do(player, kind, key, moment)
@@ -464,6 +508,11 @@ class RailRivalsWorld(ArenaWorld):
                     return ("release", (lane, lever["index"]), RELEASE_HOLD)
                 if not lever["pulled"] and owner != team and moment_ok(lever, engine.now()):
                     return ("brake", (lane, lever["index"]), LEVER_HOLD)
+        # the line's own twist
+        if self.tw is not None:
+            act = self.tw.what_here(player, engine.now())
+            if act is not None:
+                return act
         # a drift on our own track
         if own is not None and own.lane in self.drifts:
             drift = self.drifts[own.lane]
@@ -483,7 +532,7 @@ class RailRivalsWorld(ArenaWorld):
                     engine.now() >= bridge["rest"]:
                 return ("raise", lane, WINCH_RAISE)
         # a coal heap
-        if not player.extra.get("coal"):
+        if not player.extra.get("coal") and not player.extra.get("carry"):
             for heap in self.heaps:
                 if math.hypot(heap[0] - x, heap[2] - z) <= COAL_R and abs(heap[1] - y) < 4.0:
                     return ("coal", tuple(heap), COAL_HOLD)
@@ -501,6 +550,8 @@ class RailRivalsWorld(ArenaWorld):
 
     def _do(self, player: Player, kind: str, key: Any, moment: float) -> None:
         team = player.team
+        if self.tw is not None and self.tw.do(player, kind, key, moment):
+            return
         if kind == "coal":
             player.extra["coal"] = True
             player.send({"t": "rrx", "k": "coal", "on": 1})
@@ -589,10 +640,10 @@ class RailRivalsWorld(ArenaWorld):
 
     # =============================================================== carts
     def _move(self, cart: Cart, playing: List[Player], dt: float, moment: float) -> None:
-        cx, _, cz = cart.pos()
+        cx, cy, cz = cart.pos()
         pushers, contest = [], 0
         for player in playing:
-            if abs(player.pos[1]) > PUSH_DY:
+            if abs(player.pos[1] - cy) > PUSH_DY:
                 continue
             if math.hypot(player.pos[0] - cx, player.pos[2] - cz) > PUSH_R:
                 continue
@@ -616,21 +667,35 @@ class RailRivalsWorld(ArenaWorld):
         if limit is not None and cart.d >= limit[0] - 0.05:
             cart.held = limit[1]
         speed = 0.0
-        if contest:
+        floor = self.depots[cart.lane][cart.passed - 1][0] if cart.passed else 0.0
+        extra = self.tw.crew(cart, moment) if self.tw is not None else 0
+        driven = None
+        if self.tw is not None:
+            driven = self.tw.drive(cart, pushers, bool(contest), braked, dt, moment)
+            floor = max(floor, self.tw.floor(cart)) if driven is not None and driven < 0 else floor
+        if driven is not None:
+            speed = driven
+            if pushers or speed > 0:
+                cart.idle_since = moment
+        elif contest:
             cart.idle_since = moment
             if moment - cart.contest_said > 25.0 and pushers:
                 cart.contest_said = moment
                 self._event("rr_contest", None, cart.team)
         elif braked or cart.held:
             cart.idle_since = moment if pushers else cart.idle_since
-        elif pushers:
-            crew = CREW[min(len(pushers), len(CREW) - 1)]
+        elif pushers or extra:
+            crew = CREW[min(len(pushers) + extra, len(CREW) - 1)]
             speed = BASE_SPEED * crew * (STOKE_BOOST if moment < cart.stoke_until else 1.0)
             cart.idle_since = moment
         elif moment - cart.idle_since > ROLLBACK_AFTER:
-            floor = self.depots[cart.lane][cart.passed - 1][0] if cart.passed else 0.0
             if cart.d > floor:
                 cart.d = max(floor, cart.d - ROLLBACK_SPEED * dt)
+        if speed < 0:
+            # the twist rolls it back itself (an incline with nobody winding)
+            if cart.d > floor:
+                cart.d = max(floor, cart.d + speed * dt)
+            speed = 0.0
         cart.speed = speed
         if speed > 0:
             step = speed * dt
@@ -670,6 +735,10 @@ class RailRivalsWorld(ArenaWorld):
         if bridge is not None and (bridge["up"] or bridge["warn"]) and \
                 cart.d <= bridge["span"][0]:
             stops.append((bridge["span"][0] - 3.0, "bridge"))
+        if self.tw is not None:
+            stop = self.tw.limit(cart, moment)
+            if stop is not None:
+                stops.append(stop)
         if not stops:
             return None
         return min(stops)
@@ -684,6 +753,8 @@ class RailRivalsWorld(ArenaWorld):
             self._bridges(moment)
         elif self.twist == "firedamp":
             self._firedamp(playing, moment)
+        elif self.tw is not None:
+            self.tw.tick(playing, dt, moment)
 
     # ---- Dustbowl Gulch: the signal cabin
     def in_cabin(self, player: Player) -> bool:
@@ -742,15 +813,16 @@ class RailRivalsWorld(ArenaWorld):
                 if moment >= self.next_drift[lane] and cart.d < cart.path.length - 70.0:
                     d = min(cart.path.length - 30.0, cart.d + self.rng.uniform(36.0, 80.0))
                     x, z, yaw = cart.path.at(d)
-                    self.drifts[lane] = {"d": d, "p": [x, 0.0, z], "yaw": yaw, "left": DRIFT_DIG,
-                                         "said": False}
+                    self.drifts[lane] = {"d": d, "p": [x, cart.path.height(d), z], "yaw": yaw,
+                                         "left": DRIFT_DIG, "said": False}
                     self.broadcast({"t": "rrx", "k": "drift", "lane": lane, "d": round(d, 1),
                                     "left": DRIFT_DIG})
                     self._broadcast_state()
                 continue
             if cart.held == "drift" and not drift["said"]:
                 drift["said"] = True
-                self._event("rr_drift", None, cart.team, what=self._place(drift["p"]))
+                self._event("rr_drift", None, cart.team, what=self._place(drift["p"]),
+                            style=str((self.area.get("extra") or {}).get("drift_style") or "snow"))
             diggers = [p for p in playing if p.team == cart.team and p.extra.get("using")
                        and (p.extra.get("act") or {}).get("k") == "dig"]
             if not diggers:
@@ -870,6 +942,8 @@ class RailRivalsWorld(ArenaWorld):
     def after_kill(self, killer: Optional[Player], victim: Player, weapon: str) -> None:
         for key in ("coal", "act", "rr_job"):
             victim.extra.pop(key, None)
+        if self.tw is not None:
+            self.tw.drop(victim)
         if killer is None or killer.team == victim.team:
             return
         own = self.carts.get(killer.team)
@@ -898,6 +972,8 @@ class RailRivalsWorld(ArenaWorld):
         for player in self.players.values():
             player.extra.pop("coal", None)
             player.extra.pop("act", None)
+            if self.tw is not None:
+                self.tw.drop(player)
 
     def results_rows(self) -> List[Dict[str, Any]]:
         rows = []
@@ -908,7 +984,9 @@ class RailRivalsWorld(ArenaWorld):
                          "pushed": int(st.get("pushed", 0.0)),
                          "jobs": int(st.get("levers", 0) + st.get("releases", 0) +
                                      st.get("coal", 0) + st.get("dig", 0) +
-                                     st.get("winch", 0) + st.get("signal", 0))})
+                                     st.get("winch", 0) + st.get("signal", 0) +
+                                     sum(st.get(k, 0) for k in
+                                         (self.tw.jobs if self.tw is not None else ())))})
         rows.sort(key=lambda r: (-r["score"], r["name"].lower()))
         return rows
 
@@ -919,8 +997,12 @@ class RailRivalsWorld(ArenaWorld):
     def awards(self, winner: str) -> List[str]:
         out = []
         best = {}
+        award = self.tw.award if self.tw is not None else None
+        keys = ["pushed", "levers", "coal", "guard", "releases", "dig", "winch"]
+        if award is not None:
+            keys.append(award[0])
         for pid, st in self.round_stats.items():
-            for key in ("pushed", "levers", "coal", "guard", "releases", "dig", "winch"):
+            for key in keys:
                 if st.get(key, 0) > best.get(key, (0, 0))[1]:
                     best[key] = (pid, st[key])
         labels = {"pushed": ("Engineer", "pushed the cart %d units"),
@@ -930,6 +1012,8 @@ class RailRivalsWorld(ArenaWorld):
                   "releases": ("Brakeman", "released %d brakes"),
                   "dig": ("Snowplow", "dug out %d drifts"),
                   "winch": ("Bridgekeeper", "worked %d bridges")}
+        if award is not None:
+            labels[award[0]] = (award[1], award[2])
         for key, (pid, value) in best.items():
             player = self.players.get(pid)
             if player is None or value < 1:
@@ -979,6 +1063,8 @@ class RailRivalsWorld(ArenaWorld):
             twist["gas"] = {"p": self.gas.get("spot"),
                             "left": round(max(0.0, self.gas.get("warn_until", 0) - moment), 1)
                             if self.gas.get("spot") else 0}
+        elif self.tw is not None:
+            twist.update(self.tw.state(moment))
         return {"rr": {"carts": carts, "levers": levers, "twist": twist,
                        "lanes": dict(self.lane_of)}}
 
@@ -990,7 +1076,13 @@ class RailRivalsWorld(ArenaWorld):
                          1 if engine.now() < cart.brake_until else 0,
                          1 if engine.now() < cart.stoke_until else 0, len(cart.pushers)]
         coal = [p.pid for p in self.players.values() if p.extra.get("coal")]
-        return {"c": out, "coal": coal}
+        snap: Dict[str, Any] = {"c": out, "coal": coal}
+        if self.tw is not None:
+            carry = {str(p.pid): self.tw.carrying(p) for p in self.players.values()
+                     if self.tw.carrying(p)}
+            if carry:
+                snap["carry"] = carry
+        return snap
 
     def me_state(self, player: Player) -> Dict[str, Any]:
         act = player.extra.get("act") or {}
@@ -1003,7 +1095,12 @@ class RailRivalsWorld(ArenaWorld):
                 prog = 1.0 - (drift["left"] / DRIFT_DIG) if drift else 1.0
             else:
                 prog = float(act.get("t", 0.0)) / need
+                if self.tw is not None and act.get("k") in self.tw.continuous:
+                    own = self.tw.act_progress(player, act)
+                    prog = prog if own is None else own
             out["act"] = {"k": act.get("k"), "p": round(max(0.0, min(1.0, prog)), 2)}
+        if self.tw is not None:
+            out.update(self.tw.me(player))
         return out
 
     def score_row(self, player: Player, row: Dict[str, Any]) -> None:
@@ -1075,8 +1172,11 @@ class RailRivalsWorld(ArenaWorld):
         if self.phase != "active" or not self.setting("enabled"):
             return False
         p = brain.p
-        if p.extra.get("coal") or p.extra.get("act") or p.extra.get("rr_job"):
+        if p.extra.get("coal") or p.extra.get("act") or p.extra.get("rr_job") or \
+                p.extra.get("carry"):
             # an errand under way is seen through, whatever mood comes over it
+            return True
+        if self.tw is not None and self.tw.urgent(brain):
             return True
         spot = self.gas.get("spot") if self.twist == "firedamp" else None
         if spot is not None and math.hypot(p.pos[0] - spot[0], p.pos[2] - spot[2]) < GAS_EDGE + 4:
@@ -1116,7 +1216,7 @@ class RailRivalsWorld(ArenaWorld):
         side = -1.0 if seed < 0.5 else 1.0
         off = 3.2 + seed * 2.0
         rx, rz = math.cos(yaw), -math.sin(yaw)
-        return [x + rx * side * off, 0.0, z + rz * side * off]
+        return [x + rx * side * off, cart.path.height(d), z + rz * side * off]
 
     def _go(self, brain, point: Sequence[float], key: str) -> None:
         brain.go(list(point), key)
@@ -1147,6 +1247,20 @@ class RailRivalsWorld(ArenaWorld):
                 p.extra.pop("rr_job", None)
                 self._go(brain, away, "flee%d" % int(spot[0]))
                 return False
+        # the twist's own dangers and loads
+        if self.tw is not None:
+            away = self.tw.flee(brain)
+            if away is not None:
+                p.extra.pop("rr_job", None)
+                self._go(brain, away, "flee%d%d" % (int(away[0]), int(away[2])))
+                return False
+            if self.tw.carrying(p):
+                job = self.tw.carry_job(brain)
+                if job is not None:
+                    p.extra.pop("rr_job", None)
+                    self.doing(brain, job["say"])
+                    return self._work_at(brain, job["at"], job["r"], job["key"],
+                                         hold=job.get("hold", True))
         # carrying coal: straight to the cart
         if p.extra.get("coal"):
             p.extra.pop("rr_job", None)
@@ -1166,8 +1280,9 @@ class RailRivalsWorld(ArenaWorld):
             if job is not None:
                 job["until"] = moment + job.get("for", 30.0)
                 p.extra["rr_job"] = job
-                self.callout(brain, JOB_LINES.get(job["k"], []), "job" + job["k"], chance=0.5,
-                             team=True)
+                lines = JOB_LINES.get(job["k"]) or \
+                    (self.tw.job_lines.get(job["k"], []) if self.tw is not None else [])
+                self.callout(brain, lines, "job" + job["k"], chance=0.5, team=True)
         if job is not None:
             self.doing(brain, job["say"])
             return self._work_at(brain, job["at"], job["r"], job["key"], hold=job.get("hold", True))
@@ -1221,6 +1336,11 @@ class RailRivalsWorld(ArenaWorld):
                         "at": _floor(lever["p"]), "r": LEVER_R - 1.2,
                         "key": "lever%s%d" % (own.lane, lever["index"]),
                         "say": "running to release the brakes", "for": 30.0}
+        # the line's own twist
+        if self.tw is not None:
+            job = self.tw.bot_job(brain, own, rival, moment)
+            if job is not None:
+                return job
         # snowed in: the pushers dig
         drift = self.drifts.get(own.lane)
         if drift is not None and own.d >= drift["d"] - 30.0 and role in ("pusher", "flex") and \
@@ -1288,6 +1408,10 @@ class RailRivalsWorld(ArenaWorld):
     def _job_valid(self, job: Dict[str, Any], team: str) -> bool:
         kind = job["k"]
         moment = engine.now()
+        if self.tw is not None:
+            valid = self.tw.job_valid(job, team)
+            if valid is not None:
+                return valid
         if kind in ("brake", "release"):
             lever = self._lever(job["lane"], job["i"])
             if lever is None:
@@ -1364,6 +1488,8 @@ class RailRivalsWorld(ArenaWorld):
             lines.append("%s's cart is %d%% of the way down %s%s." % (
                 self.team_name(team), cart.fraction * 100, self._lane_name(cart.lane),
                 (" (" + ", ".join(state) + ")") if state else ""))
+        if self.tw is not None:
+            lines += self.tw.context()
         return lines
 
     def bot_me(self, brain) -> Dict[str, Any]:
@@ -1400,7 +1526,8 @@ class RailRivalsWorld(ArenaWorld):
                 "carts": {t: round(c.d, 1) for t, c in self.carts.items()},
                 "levers": sum(1 for ls in self.levers.values() for lv in ls if lv["pulled"]),
                 "coal": sum(1 for p in self.players.values() if p.extra.get("coal")),
-                "held": [c.held for c in self.carts.values() if c.held]}
+                "held": [c.held for c in self.carts.values() if c.held],
+                "twist": self.tw.observe() if self.tw is not None else {}}
 
     def selftest(self, result: Dict[str, Any]) -> List[Tuple[str, bool, Any]]:
         obs = result.get("observations") or []
@@ -1408,9 +1535,18 @@ class RailRivalsWorld(ArenaWorld):
                     or [0.0])
         levers = max([o["levers"] for o in obs] or [0])
         coal = max([o["coal"] for o in obs] or [0])
-        return [("the bots push their carts down the line", moved > 60.0, "%.0f units" % moved),
-                ("somebody pulls a brake lever", levers > 0, levers),
-                ("somebody fetches coal", coal > 0, coal)]
+        out = [("the bots push their carts down the line", moved > 60.0, "%.0f units" % moved),
+               ("somebody pulls a brake lever", levers > 0, levers),
+               ("somebody fetches coal", coal > 0, coal)]
+        # each newer line's twist, if the run raced on it
+        for area_id in sorted({o.get("area") for o in obs if o.get("phase") == "active"}):
+            seen = [o for o in obs if o.get("area") == area_id and o.get("phase") == "active"]
+            kind = str(((self.areas.get(area_id) or {}).get("extra") or {}).get("twist") or "")
+            twist = rail_twists.make(self, kind)
+            if twist is not None:
+                out += [("%s: %s" % (area_id, name), ok, detail)
+                        for name, ok, detail in twist.selftest([o.get("twist") or {} for o in seen])]
+        return out
 
 
 def moment_ok(lever: Dict[str, Any], moment: float) -> bool:
@@ -1418,8 +1554,9 @@ def moment_ok(lever: Dict[str, Any], moment: float) -> bool:
 
 
 def _floor(point: Sequence[float]) -> List[float]:
-    """A ground-level spot by something standing on the ground."""
-    return [point[0], 0.0, point[2]]
+    """A ground-level spot by something standing on the ground (a lever's
+    or a heap's mark sits a couple of units up)."""
+    return [point[0], max(0.0, point[1] - 2.0), point[2]]
 
 
 WORLD_CLASS = RailRivalsWorld

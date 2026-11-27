@@ -448,12 +448,84 @@ ten seconds, stacking up to twenty-four.
   seconds or so a gas pocket at one of the warning boards hisses for six
   seconds, then goes up -- deadly at its heart, a bad burn at its edge.
 
+The railroads built since run over rolling land -- the lines climb and drop
+with it, the cart pitched on the grade -- and each brings a twist of its own
+(`app/game/worlds/rail_twists.py`, drawn by `static/js/worlds/rail_rivals_lines.js`):
+
+* **Golden Spike Summit** -- high noon on a sage-and-juniper pass, the last
+  day of the race to finish the line: the end-of-track camps and the
+  commissary, Rattlesnake Gulch and its two trestles, the climb to the
+  saddle where the lines cross on the ceremony ground (the grandstand, the
+  two engines nose to nose, the photographer's stand, the golden spike on
+  its table), the Summit Ridge with its two cuts and the surveyors' tower,
+  the termini and the Summit Hotel. *The railhead*: neither line is
+  finished. Each has a gap on its trestle and another in its cut, graded
+  and bare; a cart stops where its rails stop. Hold **E** at a stack for a
+  rail (carried on the shoulder, a little slower) and at your railhead to
+  lay it, six units at a time -- before your cart gets there, if you are
+  smart. The other company can pull the last rail back up while your cart
+  is not on it, and walk off with it.
+* **Union Terminal** -- the city's great station at dusk. Both companies
+  start in the freight yards (the freight house's loft is a perch), cross
+  a streetcar street with its stalled tram and crossing gates, meet at the
+  Grand Diamond under Union Tower, run the throat under two signal
+  gantries and race into the train shed -- glass and iron over seven
+  platforms and the waiting coaches -- to the buffer stops at the
+  concourse and its clock. The city stands on two levels: Upper Town six
+  up on its retaining wall (the plaza with its fountain and the Baron's
+  statue, the Grand Hotel, the Exchange's colonnade, a grand stair down),
+  Gasworks Hill four up across the line (the gasholder, the retort house
+  and its chimney), the covered market and the cab rank in the low town
+  between, the Union Canal and its towpath under the quays, a footbridge
+  over the shed approach. *The signal*, as at Dustbowl Gulch: hold the cabin on top of
+  Union Tower and the junction signal is set against the other company.
+* **Thunder Junction** -- a prairie division point with a thunderstorm
+  rolling in (rain round you, lightning, a twister walking the horizon,
+  and now and then a strike on the tall grain elevator's rod). Both lines
+  start by the engine house and its turntable or the grain elevators, climb
+  over the west swell past a homesteader's sod house, windpump and storm
+  cellar, and come down into the Bottoms, where they cross each other *and*
+  the transcontinental main line at once: the Star Diamond, with the depot
+  and its operator's bay on one side and TJ Tower on the other. Then over
+  the east swell past the ice house and its icing dock to the town's two
+  stations. The main line runs north through Deadman's Cut (the county road
+  crosses it on a bridge) and south over Buffalo Creek on the Big Fill,
+  with a culvert under it and a hobo jungle in the coulee. *The through
+  freight*: every minute or so a long freight comes down the main line out
+  of one portal and into the other. From the moment it sets off until its
+  caboose has cleared, the crossing gates are down and the bells ringing:
+  a cart short of the crossing waits at its stop board, and a cart already
+  on it goes over if its company pushes it and is rolled back off it if
+  not -- or if the other lot are on it. Anybody on the main line when it
+  comes is under it. Hold **E** at a call box -- the telegraph in the depot's
+  bay or the telephone by the tower -- to call the next freight down now.
+* **Sidewinder Dunes** -- a borax line across a sea of sand at noon, a
+  haboob walking the horizon and dust on the wind. The land is barchan dunes
+  marching east: long walkable backs, steep slip faces, horns trailing
+  downwind, and the lines cut through them and run on banks across the
+  troughs. The Borax line starts at the borax works (the refinery and its
+  stack, the evaporating vats, the cottonball heaps, the twenty-mule team at
+  the dock), the Oasis line at the oasis halt (the spring under the palms,
+  the caravanserai and its roof walk, the U.S. Camel Corps). Between them:
+  the Sidewinder, the engine lost in the storm of '82, found in a hollow
+  with the vultures over it; Dry Wells, a ghost town the dunes are burying
+  from the west -- walk up the sand into the saloon's and the hotel's upper
+  floors (the last customer is still at his table); the salt pan and its
+  mirage; the Boneyard, a sea serpent's skeleton breaking out of the rock;
+  the Desert Queen, a schooner stranded on the back of the Great Dune; and
+  Furnace Springs, the old mission between the two stations. Sidewinder
+  rattlesnakes loop across the sand. *Sand drifts*, as in Silverpine Pass:
+  the wind lays a drift across the track ahead of a cart and its company
+  digs it out.
+
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
 delivered), Lawman (raiders stopped by your cart), Photo Finish (won with
-theirs nine tenths of the way), Signalman, Snowplow, Bridgekeeper, Canary
-(out of a venting pocket in time) and Four Lines (a race won on every
-railroad).
+theirs nine tenths of the way), Signalman, Snowplow (snow or sand), Bridgekeeper, Canary
+(out of a venting pocket in time), Spike Driver (rails laid), Claim Jumper
+(their rails pulled up), Train Orders (a freight you called held their
+cart), Beat the Freight (your cart over the crossing with the freight
+coming) and Four Lines (a race won on every railroad).
 
 **Bots** take a job for the race by persona and settings -- pusher, raider,
 sniper on the water towers and decks, or a flexible hand who fetches coal

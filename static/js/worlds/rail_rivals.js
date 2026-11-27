@@ -16,6 +16,10 @@
   // the arrival scenes and sounds stand on their own (the world page's
   // previews load this file without the game around it)
   var Arena = global.Arena || { register: function () {} };
+  // the newer lines' twists (static/js/worlds/rail_rivals_lines.js): each
+  // a factory(ctx) giving {load, apply, message, draw, here, hud, held,
+  // labels, avatar, carryName}
+  var Twists = global.RailTwists || (global.RailTwists = {});
 
   var TEAM = { red: '#c4281c', blue: '#2f6aa8' };
   var TEAM_LIGHT = { red: '#ff8a7a', blue: '#8ac4ff' };
@@ -36,6 +40,8 @@
   // ----------------------------------------------------------- a track
   function Lane(points) {
     this.pts = (points || []).map(function (p) { return [p[0], p[2]]; });
+    // the track's height at each point (an incline, an embankment, a trestle)
+    this.ys = (points || []).map(function (p) { return p.length > 2 ? p[1] : 0; });
     this.cum = [0];
     for (var i = 0; i < this.pts.length - 1; i++) {
       this.cum.push(this.cum[i] + Math.hypot(this.pts[i + 1][0] - this.pts[i][0],
@@ -53,7 +59,10 @@
     var a = this.pts[lo], b = this.pts[hi] || a;
     var seg = this.cum[hi] - this.cum[lo];
     var f = seg > 0 ? (d - this.cum[lo]) / seg : 0;
-    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, Math.atan2(b[0] - a[0], b[1] - a[1])];
+    var ya = this.ys[lo] || 0, yb = this.ys[hi] === undefined ? ya : this.ys[hi];
+    // [x, z, yaw, y, pitch (nose up)]
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, Math.atan2(b[0] - a[0], b[1] - a[1]),
+            ya + (yb - ya) * f, seg > 0 ? Math.atan2(yb - ya, seg) : 0];
   };
   Lane.prototype.project = function (x, z) {
     var best = 0, off = 1e9;
@@ -73,8 +82,16 @@
     o = o || {};
     var c = Math.cos(yaw), s = Math.sin(yaw);
     var r = o.r || [0, 0, 0];
-    renderer.pushRaw(kind, base[0] + lp[0] * c + lp[2] * s, base[1] + lp[1],
-                     base[2] - lp[0] * s + lp[2] * c, r[0], r[1] + yaw, r[2],
+    // a cart on a grade is pitched along it (base[3], nose up): the point
+    // first, about the cart's own cross axis, then the yaw
+    var pitch = base[3] || 0, ly = lp[1], lz = lp[2];
+    if (pitch) {
+      var cp = Math.cos(pitch), sp = Math.sin(pitch);
+      ly = lp[1] * cp + lp[2] * sp;
+      lz = lp[2] * cp - lp[1] * sp;
+    }
+    renderer.pushRaw(kind, base[0] + lp[0] * c + lz * s, base[1] + ly,
+                     base[2] - lp[0] * s + lz * c, r[0] - pitch, r[1] + yaw, r[2],
                      size[0], size[1], size[2], typeof colour === 'string' ? rgb(colour) : colour,
                      o.a === undefined ? 1 : o.a, o.st || 0, o.m || 0, o.e || 0, null);
   }
@@ -87,8 +104,59 @@
     var carts = {}, shown = {}, coal = {}, twist = { kind: '' };
     var signal = null, cross = {}, bridgeSpans = {}, winches = {};
     var gasWarn = null, blasts = [], smoke = [], dust = [];
-    var names = {}, accent = '#ffd27a';
+    var names = {}, accent = '#ffd27a', areaName = '';
+    var style = { drift: 'snow', gas: 'firedamp', lampY: 39.4 };
     var lastSaid = {}, myLane = 'a';
+    var tw = null, carry = {};
+    // the railroad's moving scenery and weather (rail_rivals_rigs.js)
+    var rigs = [];
+    var rigCtx = {
+      players: function () {
+        var out = [];
+        if (client.myId && client.local && client.local.alive !== false) {
+          out.push({ id: client.myId, pos: client.local.pos, team: client.myTeam, me: true });
+        }
+        Object.keys(client.players || {}).forEach(function (id) {
+          var p = client.players[id];
+          if (p && p.pos && p.alive !== false && String(id) !== String(client.myId)) {
+            out.push({ id: id, pos: p.pos, team: p.team });
+          }
+        });
+        return out;
+      },
+      viewer: function () {
+        var cam = client.cameraPosition ? client.cameraPosition() : null;
+        var at = cam && cam.eye ? cam.eye : client.local.pos;
+        var yaw = client.local.yaw || 0, pitch = client.local.pitch || 0, cp = Math.cos(pitch);
+        return { eye: at, dir: [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp] };
+      },
+      sound: function (name, at, volume) {
+        if (!client.audio || !at) return;
+        var v = client.volumeAt ? client.volumeAt(at) : 1;
+        client.audio.play(name, { volume: (volume || 1) * v });
+      },
+      sound2d: function (name, volume) {
+        if (client.audio) client.audio.play(name, { volume: volume === undefined ? 1 : volume });
+      },
+      physics: function () { return client.physics; },
+      twist: function () { return twist; }
+    };
+    function eye() {
+      var cam = client.cameraPosition ? client.cameraPosition() : null;
+      return cam && cam.eye ? cam.eye : client.local.pos;
+    }
+    var ctx = {
+      client: client, arena: arena, rgb: rgb, esc: esc, local: local, TEAM: TEAM,
+      TEAM_LIGHT: TEAM_LIGHT, GOLD: GOLD,
+      lanes: function () { return lanes; }, carts: function () { return carts; },
+      shown: function (team) { return shown[team]; }, cartPos: function (team) { return cartPos(team); },
+      teamOfLane: function (lane) { return teamOfLane(lane); }, myLane: function () { return myLane; },
+      laneOf: function () { return laneOf; }, names: function () { return names; },
+      areaName: function () { return areaName; }, me: function () { return arena.me || {}; },
+      say: function (key, title, kind, sound, sub) { say(key, title, kind, sound, sub); },
+      puff: function (pos, n) { puff(pos, n); },
+      Lane: Lane, eye: eye
+    };
 
     function loadMap(map) {
       var mk = (map && map.markers) || {};
@@ -98,6 +166,9 @@
       Object.keys(extra.lanes || {}).forEach(function (k) { lanes[k] = new Lane(extra.lanes[k]); });
       names = extra.names || {};
       accent = extra.accent || accent;
+      areaName = map.name || '';
+      style = { drift: extra.drift_style || 'snow', gas: extra.gas_style || 'firedamp',
+                lampY: extra.bridge_lamp_y || 39.4 };
       levers = { a: [], b: [] };
       (pts.lever || []).forEach(function (m) {
         if (!levers[m.lane]) levers[m.lane] = [];
@@ -128,6 +199,10 @@
         }
       }
       carts = {}; shown = {}; coal = {}; drifts = {}; gasWarn = null; blasts = []; smoke = [];
+      carry = {};
+      tw = Twists[extra.twist] ? Twists[extra.twist](ctx) : null;
+      if (tw && tw.load) tw.load(map);
+      rigs = global.Rigs ? global.Rigs.build(map, rigCtx) : [];
     }
 
     var drifts = {};
@@ -151,6 +226,7 @@
         });
       });
       twist = rr.twist || twist;
+      if (tw && tw.apply) tw.apply(twist);
       if (twist.kind === 'drifts') {
         var next = {};
         Object.keys(twist.drifts || {}).forEach(function (lane) {
@@ -200,6 +276,8 @@
       rrx: function (msg) {
         var me = client.myTeam;
         var k = msg.k;
+        if (rigs.length && global.Rigs) global.Rigs.notify(rigs, k, msg, rigCtx);
+        if (tw && tw.message && tw.message(msg)) return;
         if (k === 'coal') {
           client.audio.play('rr_coal', { volume: 0.6 });
         } else if (k === 'stoke') {
@@ -230,7 +308,7 @@
         } else if (k === 'drift') {
           if (msg.d >= 0) {
             drifts[msg.lane] = { d: msg.d, left: 1 };
-            if (msg.lane === laneOf[me]) say('drift', 'SNOWDRIFT AHEAD', 'bad', 'rr_wind');
+            if (msg.lane === laneOf[me]) say('drift', style.drift === 'sand' ? 'SAND DRIFT AHEAD' : 'SNOWDRIFT AHEAD', 'bad', 'rr_wind');
           } else {
             delete drifts[msg.lane];
             if (msg.lane === laneOf[me]) say('drift', 'DUG OUT!', 'go');
@@ -255,7 +333,7 @@
             var mp = client.local.pos;
             var near = Math.hypot(mp[0] - msg.p[0], mp[2] - msg.p[2]) < 40;
             client.audio.play('rr_hiss', { volume: near ? 0.8 : 0.25 });
-            if (near) say('gas', 'FIREDAMP!', 'bad');
+            if (near) say('gas', style.gas === 'oil' ? 'GUSHER!' : 'FIREDAMP!', 'bad');
           } else {
             gasWarn = null;
             blasts.push({ p: msg.p, t: 0 });
@@ -273,7 +351,7 @@
     // ------------------------------------------------------- effects
     function puff(pos, n) {
       for (var i = 0; i < n; i++) {
-        smoke.push({ x: pos[0] + (Math.random() - 0.5) * 2, y: 7 + Math.random(), z: pos[1] +
+        smoke.push({ x: pos[0] + (Math.random() - 0.5) * 2, y: (pos[3] || 0) + 7 + Math.random(), z: pos[1] +
                      (Math.random() - 0.5) * 2, t: 0, life: 1.6 + Math.random(), s: 1 + Math.random() });
       }
     }
@@ -282,7 +360,7 @@
       if (!drift) return;
       var p = lane.at(drift.d);
       for (var i = 0; i < 10; i++) {
-        dust.push({ x: p[0] + (Math.random() - 0.5) * 5, y: 1 + Math.random() * 2,
+        dust.push({ x: p[0] + (Math.random() - 0.5) * 5, y: (p[3] || 0) + 1 + Math.random() * 2,
                     z: p[1] + (Math.random() - 0.5) * 5, t: 0, life: 1 + Math.random() });
       }
     }
@@ -293,7 +371,7 @@
       var lane = cart && lanes[cart.lane];
       if (!lane) return;
       var at = lane.at(shown[team]);
-      var base = [at[0], 0.44, at[1]], yaw = at[2];
+      var base = [at[0], at[3] + 0.44, at[1], at[4]], yaw = at[2];
       var colour = TEAM[team];
       var moving = cart.speed > 0.05;
       var stoked = cart.stoke > 0;
@@ -344,7 +422,7 @@
       // the push ring: grey idle, team colour pushing, red contested
       var ring = cart.contest ? [1, 0.3, 0.25] : (cart.push > 0 ? rgb(TEAM_LIGHT[team]) : [0.75, 0.75, 0.78]);
       var pulse = 1 + 0.03 * Math.sin(time * (cart.push ? 6 : 2));
-      renderer.pushRaw('cyl', at[0], 0.32, at[1], 0, 0, 0, PUSH_R * 2 * pulse, 0.1, PUSH_R * 2 * pulse,
+      renderer.pushRaw('cyl', at[0], at[3] + 0.32, at[1], 0, 0, 0, PUSH_R * 2 * pulse, 0.1, PUSH_R * 2 * pulse,
                        ring, cart.contest ? 0.32 : 0.2, 0, 2, 0.6, null);
       // smoke from the stack, thicker when stoked
       if (Math.random() < (stoked ? 0.5 : (moving ? 0.12 : 0.03))) {
@@ -354,11 +432,12 @@
       }
       if (client.settings.showNames) {
         var status = cart.contest ? 'CONTESTED' : braked ? 'BRAKES ON ' + Math.ceil(cart.brake) + 's'
-          : cart.held === 'signal' ? 'HELD AT THE SIGNAL' : cart.held === 'drift' ? 'SNOWED IN'
-          : cart.held === 'bridge' ? 'BRIDGE UP' : stoked ? 'FULL STEAM' :
+          : cart.held === 'signal' ? 'HELD AT THE SIGNAL' : cart.held === 'drift' ? (style.drift === 'sand' ? 'SANDED IN' : 'SNOWED IN')
+          : cart.held === 'bridge' ? 'BRIDGE UP' : (cart.held && tw && tw.held) ? tw.held(cart.held)
+          : stoked ? 'FULL STEAM' :
           (cart.push ? cart.push + ' pushing' : 'idle');
         renderer.queueTag('rrcart' + team, arena.teamName(team) + '  ' + Math.round((cart.f || 0) * 100) + '%',
-                          TEAM_LIGHT[team], status, [at[0], 10.4, at[1]], 1.7);
+                          TEAM_LIGHT[team], status, [at[0], at[3] + 10.4, at[1]], 1.7);
       }
     }
 
@@ -371,19 +450,19 @@
           lv.swing += (target - lv.swing) * 0.2;
           var yaw = lv.yaw;
           var off = [Math.sin(lv.swing) * Math.sin(yaw), Math.cos(lv.swing), Math.sin(lv.swing) * Math.cos(yaw)];
-          var pivot = [lv.p[0], 2.1, lv.p[2]];
+          var pivot = [lv.p[0], lv.p[1] + 0.1, lv.p[2]];
           renderer.pushRaw('box', pivot[0] + off[0] * 1.5, pivot[1] + off[1] * 1.5, pivot[2] + off[2] * 1.5,
                            lv.swing, yaw, 0, 0.32, 3.0, 0.32, rgb('#c8ccd2'), 1, 0, 1, 0, null);
           renderer.pushRaw('sph', pivot[0] + off[0] * 3.1, pivot[1] + off[1] * 3.1, pivot[2] + off[2] * 3.1,
                            0, 0, 0, 0.8, 0.8, 0.8, lv.pulled ? [1, 0.25, 0.2] : rgb('#fff4d6'), 1, 0, 0,
                            lv.pulled ? 0.6 : 0, null);
           // the lamp on the stand: whose track it is
-          renderer.pushRaw('box', lv.p[0], 2.1, lv.p[2], 0, yaw, 0, 0.5, 0.5, 1.26,
+          renderer.pushRaw('box', lv.p[0], lv.p[1] + 0.1, lv.p[2], 0, yaw, 0, 0.5, 0.5, 1.26,
                            rgb(TEAM[owner]), 1, 0, 2, 0.5, null);
           var can = me && ((owner !== me && !lv.pulled && lv.cool <= 0) || (owner === me && lv.pulled));
           if (can && Math.hypot(p[0] - lv.p[0], p[2] - lv.p[2]) < 60) {
             var k = 0.5 + 0.5 * Math.sin(time * 4);
-            renderer.pushRaw('cyl', lv.p[0], 0.08, lv.p[2], 0, 0, 0, LEVER_R * 2, 0.06, LEVER_R * 2,
+            renderer.pushRaw('cyl', lv.p[0], lv.p[1] - 1.92, lv.p[2], 0, 0, 0, LEVER_R * 2, 0.06, LEVER_R * 2,
                              owner === me ? [0.4, 1, 0.5] : [1, 0.75, 0.25], 0.18 + 0.12 * k, 0, 2, 0.5, null);
           }
         });
@@ -419,7 +498,7 @@
         });
         var fin = finishes[lane];
         if (fin) {
-          renderer.pushRaw('cyl', fin[0], 20, fin[2], 0, 0, 0, 1.6, 40, 1.6, rgb(GOLD), 0.3, 0, 2, 0.7, null);
+          renderer.pushRaw('cyl', fin[0], fin[1] + 19.5, fin[2], 0, 0, 0, 1.6, 40, 1.6, rgb(GOLD), 0.3, 0, 2, 0.7, null);
         }
       });
     }
@@ -429,7 +508,8 @@
         var held = twist.team;
         var col = held ? rgb(TEAM_LIGHT[held]) : [1, 1, 0.85];
         var blink = held ? 0.6 + 0.4 * Math.sin(time * 5) : 0.5;
-        renderer.pushRaw('sph', signal.p[0], 25.5, signal.p[2], 0, 0, 0, 2.2, 2.2, 2.2, col, 1, 0, 2, blink, null);
+        renderer.pushRaw('sph', signal.p[0], (signal.top || 22.2) + 3.3, signal.p[2], 0, 0, 0, 2.2, 2.2, 2.2, col, 1, 0, 2,
+                         blink, null);
         if (cross.x !== undefined) {
           renderer.pushRaw('cyl', cross.x, 0.2, cross.z, 0, 0, 0, 36, 0.08, 36,
                            held ? rgb(TEAM[held]) : [1, 0.85, 0.4], held ? 0.22 : 0.08, 0, 2, 0.4, null);
@@ -445,25 +525,28 @@
           var path = lanes[lane];
           if (!path) return;
           var at = path.at(drift.d), k = Math.max(0.25, drift.left === undefined ? 1 : drift.left);
+          var sand = style.drift === 'sand', ay = at[3] || 0;
           for (var i = 0; i < 5; i++) {
             var a = i * 1.26;
-            renderer.pushRaw('sph', at[0] + Math.cos(a) * 2.2 * k, 0.6 + (i % 2) * 0.7 * k,
+            renderer.pushRaw('sph', at[0] + Math.cos(a) * 2.2 * k, ay + 0.6 + (i % 2) * 0.7 * k,
                              at[1] + Math.sin(a) * 2.2 * k, 0, 0, 0, 4.5 * k, 2.8 * k, 4.2 * k,
-                             rgb('#f4f8fc'), 1, 0, 0, 0, null);
+                             rgb(sand ? (i % 2 ? '#d8b878' : '#e2c48a') : '#f4f8fc'), 1, 0, 0, 0, null);
           }
-          renderer.pushRaw('sph', at[0], 1.6 * k, at[1], 0, 0, 0, 7 * k, 3.6 * k, 6 * k,
-                           rgb('#ffffff'), 1, 0, 0, 0, null);
+          renderer.pushRaw('sph', at[0], ay + 1.6 * k, at[1], 0, 0, 0, 7 * k, 3.6 * k, 6 * k,
+                           rgb(sand ? '#e8cc92' : '#ffffff'), 1, 0, 0, 0, null);
           if (lane === myLane) {
-            renderer.pushRaw('cyl', at[0], 0.12, at[1], 0, 0, 0, DRIFT_R * 2, 0.06, DRIFT_R * 2,
-                             [0.6, 0.85, 1], 0.2 + 0.1 * Math.sin(time * 4), 0, 2, 0.5, null);
+            renderer.pushRaw('cyl', at[0], ay + 0.12, at[1], 0, 0, 0, DRIFT_R * 2, 0.06, DRIFT_R * 2,
+                             sand ? [1, 0.85, 0.5] : [0.6, 0.85, 1], 0.2 + 0.1 * Math.sin(time * 4), 0, 2, 0.5, null);
           }
         });
-        // snow on the wind, round the player
+        // snow (or sand) on the wind, round the player
         var me = client.local.pos;
+        var grit = style.drift === 'sand';
         for (var f = 0; f < 18; f++) {
-          var fx = me[0] + ((f * 37.3 + time * 6) % 60) - 30, fz = me[2] + ((f * 53.1 + time * 2) % 60) - 30;
-          var fy = me[1] + 22 - ((time * 4 + f * 3.1) % 24);
-          renderer.pushRaw('box', fx, fy, fz, time + f, f, 0, 0.18, 0.18, 0.18, [1, 1, 1], 0.85, 0, 2, 0.3, null);
+          var fx = me[0] + ((f * 37.3 + time * (grit ? 18 : 6)) % 60) - 30, fz = me[2] + ((f * 53.1 + time * 2) % 60) - 30;
+          var fy = me[1] + (grit ? 8 : 22) - ((time * (grit ? 1.5 : 4) + f * 3.1) % (grit ? 9 : 24));
+          renderer.pushRaw('box', fx, fy, fz, time + f, f, 0, 0.18, 0.18, 0.18, grit ? [0.92, 0.8, 0.55] : [1, 1, 1],
+                           0.85, 0, 2, 0.3, null);
         }
       } else if (twist.kind === 'bridges') {
         Object.keys(bridgeSpans).forEach(function (lane) {
@@ -474,27 +557,35 @@
           var on = Math.sin(time * 10) > 0;
           [span[0] - 3, span[1] + 3].forEach(function (d) {
             var at = path.at(d);
-            renderer.pushRaw('sph', at[0], 39.4, at[1], 0, 0, 0, 1.6, 1.6, 1.6,
+            renderer.pushRaw('sph', at[0], style.lampY, at[1], 0, 0, 0, 1.6, 1.6, 1.6,
                              on ? [1, 0.2, 0.1] : [0.3, 0.05, 0.05], 1, 0, 2, on ? 1 : 0, null);
           });
         });
       } else if (twist.kind === 'firedamp' && gasWarn) {
         var since = performance.now() / 1000 - gasWarn.at;
         var grow = Math.min(1, since / Math.max(0.5, gasWarn.left || 6));
+        var oil = style.gas === 'oil';
         for (var g = 0; g < 7; g++) {
           var ang = g * 0.9 + time * 0.6;
-          renderer.pushRaw('sph', gasWarn.p[0] + Math.cos(ang) * 6 * grow, 1.5 + (g % 3) * 1.4,
+          renderer.pushRaw('sph', gasWarn.p[0] + Math.cos(ang) * 6 * grow, gasWarn.p[1] + 0.5 + (g % 3) * 1.4,
                            gasWarn.p[2] + Math.sin(ang) * 6 * grow, 0, 0, 0,
-                           9 * grow + 2, 4 * grow + 1, 9 * grow + 2, [0.55, 0.85, 0.35], 0.22, 0, 2, 0.3, null);
+                           9 * grow + 2, 4 * grow + 1, 9 * grow + 2, oil ? [0.12, 0.1, 0.08] : [0.55, 0.85, 0.35],
+                           oil ? 0.4 : 0.22, 0, oil ? 0 : 2, 0.3, null);
+        }
+        if (oil) {
+          // the gusher itself, black and rising as the pressure builds
+          renderer.pushRaw('cyl', gasWarn.p[0], gasWarn.p[1] + 9 * grow, gasWarn.p[2], 0, 0, 0, 1.4 + grow, 18 * grow, 1.4 + grow,
+                           [0.06, 0.05, 0.04], 0.85, 0, 0, 0, null);
         }
         renderer.pushRaw('cyl', gasWarn.p[0], 0.1, gasWarn.p[2], 0, 0, 0, 24, 0.06, 24,
                          [1, 0.9, 0.2], 0.18 + 0.15 * Math.sin(time * 9), 0, 2, 0.6, null);
       }
+      if (tw && tw.draw) tw.draw(renderer, time, dt);
       blasts = blasts.filter(function (b) {
         b.t += dt;
         var k = b.t / 0.8;
         if (k >= 1) return false;
-        renderer.pushRaw('sph', b.p[0], 4, b.p[2], 0, 0, 0, 10 + k * 34, 6 + k * 18, 10 + k * 34,
+        renderer.pushRaw('sph', b.p[0], (b.p[1] === undefined ? 1 : b.p[1]) + 3, b.p[2], 0, 0, 0, 10 + k * 34, 6 + k * 18, 10 + k * 34,
                          [1, 0.65 - k * 0.4, 0.2], 0.6 * (1 - k), 0, 2, 1, null);
         return true;
       });
@@ -534,6 +625,10 @@
         var at = cartPos(me);
         if (at && Math.hypot(at[0] - p[0], at[1] - p[2]) <= STOKE_R) return { k: 'stoke', text: 'Press <b>E</b> to stoke your cart with coal' };
         return { k: 'carry', text: 'Carrying coal &bull; take it to your cart' };
+      }
+      if (tw && tw.here) {
+        var th = tw.here(p);
+        if (th) return th;
       }
       var lane, i, lv;
       for (lane in levers) {
@@ -603,16 +698,19 @@
         });
         coal = {};
         (ax.coal || []).forEach(function (id) { coal[id] = true; });
+        carry = ax.carry || {};
       },
       onMe: function (me) {
         if (me.lane) myLane = me.lane;
-        if (me.act) arena.setHold(me.act.p, ACT_LABEL[me.act.k] || '');
+        if (me.act) arena.setHold(me.act.p, ACT_LABEL[me.act.k] || (tw && tw.labels && tw.labels[me.act.k]) || '');
         else arena.setHold(null);
         var team = me.team;
         if (team && arena.phase !== 'intermission') {
           arena.setRole('<b style="color:' + TEAM_LIGHT[team] + '">' + esc(arena.teamName(team)) +
                         '</b> &bull; ' + esc(names[me.lane] || 'your line') +
-                        (me.coal ? ' &bull; <b>carrying coal</b>' : ''), team);
+                        (me.coal ? ' &bull; <b>carrying coal</b>' : '') +
+                        (me.carry ? ' &bull; <b>carrying ' + esc((tw && tw.carryName && tw.carryName(me.carry)) ||
+                                                                 me.carry) + '</b>' : ''), team);
         }
       },
       messages: messages,
@@ -623,7 +721,8 @@
         ['red', 'blue'].forEach(function (team) {
           var c = carts[team] || {};
           var status = c.contest ? 'CONTESTED' : c.brake > 0 ? 'BRAKES' : c.held === 'signal' ? 'SIGNAL'
-            : c.held === 'drift' ? 'SNOWED IN' : c.held === 'bridge' ? 'BRIDGE UP'
+            : c.held === 'drift' ? (style.drift === 'sand' ? 'SANDED IN' : 'SNOWED IN') : c.held === 'bridge' ? 'BRIDGE UP'
+            : (c.held && tw && tw.held) ? tw.held(c.held)
             : c.stoke > 0 ? 'STEAM' : (c.push ? c.push + ' pushing' : 'idle');
           bars.push({ label: arena.teamName(team), value: c.f || 0, marks: c.depots || [],
                       colour: TEAM[team], text: Math.round((c.f || 0) * 100) + '% · ' + status,
@@ -637,13 +736,17 @@
             : (twist.rest > 0 ? 'Signal resetting (' + Math.ceil(twist.rest) + 's)' : 'Junction signal: clear');
         } else if (twist.kind === 'drifts') {
           var snowed = Object.keys(drifts).map(function (l) { return names[l] || l; });
-          sub = snowed.length ? 'Drift on ' + esc(snowed.join(' and ')) : 'Silverpine Pass: the track is clear';
+          sub = snowed.length ? 'Drift on ' + esc(snowed.join(' and ')) : esc(areaName || 'Silverpine Pass') + ': the track is clear';
         } else if (twist.kind === 'bridges') {
           var up = Object.keys(twist.bridges || {}).filter(function (l) { return twist.bridges[l].up; });
           sub = up.length ? 'Lift bridge UP on ' + esc(up.map(function (l) { return names[l] || l; }).join(' and '))
             : 'Both lift bridges down';
+        } else if (tw && tw.hud) {
+          sub = tw.hud() || '';
         } else if (twist.kind === 'firedamp') {
-          sub = gasWarn ? '<b>Firedamp venting!</b> Keep clear of the hissing board' : 'Lantern Deep: mind the firedamp';
+          sub = style.gas === 'oil' ? (gasWarn ? '<b>A gusher is blowing!</b> Keep clear of the hissing wellhead'
+            : esc(areaName) + ': mind the gushers')
+            : (gasWarn ? '<b>Firedamp venting!</b> Keep clear of the hissing board' : esc(areaName || 'Lantern Deep') + ': mind the firedamp');
         }
         var own = carts[me] || {};
         return {
@@ -673,8 +776,13 @@
         drawDepots(renderer, time);
         drawTwist(renderer, time, dt);
         drawSmoke(renderer, dt);
+        if (rigs.length && global.Rigs) {
+          global.Rigs.draw(rigs, renderer, dt, eye(), rigCtx, (client.map && client.map.fog) || 900);
+        }
       },
       avatarParts: function (player, parts, self) {
+        var load = self ? (arena.me && arena.me.carry) : carry[String(player.id)];
+        if (load && tw && tw.avatar) parts = tw.avatar(player, parts, load);
         var carrying = self ? (arena.me && arena.me.coal) : coal[player.id];
         if (!carrying) return parts;
         var yaw = player.yaw || 0, p = player.pos;
@@ -687,6 +795,8 @@
       },
       nameTag: function (player) {
         if (coal[player.id]) return { sub: 'coal' };
+        var load = carry[String(player.id)];
+        if (load) return { sub: (tw && tw.carryName && tw.carryName(load)) || load };
         return null;
       },
       scoreHead: function () {
@@ -1278,4 +1388,6 @@
       additive(ctx, function () { dot(ctx, '#ffb347', 800, 250, 700, 0.2 * seg(t, 1.6, 2.2), 180); });
     }
   });
+  // the newer lines' scenes (rail_rivals_lines.js) draw with the same hand
+  global.RailRivalsArt = { loco: loco, puffs: puffs, makePuffs: makePuffs, nameText: nameText };
 })(window);
