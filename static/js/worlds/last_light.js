@@ -2518,5 +2518,134 @@
     }
   });
 
+  // ==================================================== Splash Kingdom
+  Intro.register('waterpark', {
+    tagline: 'Last night of the season. The pools are warm. They are coming in anyway.',
+    accent: '#4ae8f2',
+    cues: [[0.2, 'll_wind', 0.3], [0.9, 'll_ding', 0.6], [1.6, 'll_bigsplash', 0.9], [2.5, 'll_wavehorn', 0.5]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 80, 0, 320), steam: [], zeds: [], tubes: [] };
+      for (var i = 0; i < 26; i++) d.steam.push({ x: r() * VW, y: between(r, 660, 800), p: r() * 6, s: between(r, 30, 70) });
+      var looks = [['#2ac8c8', '#ff7a5a', '#6fae55'], ['#f2f2ee', '#c82a2a', '#7fb069'], ['#ff8a3a', '#c8b088', '#5f9a4c'],
+                   ['#4aa83a', '#4aa83a', '#86b86a'], ['#f6f6f2', '#f6f6f2', '#6c9f68'], ['#1a1a1e', '#1a1a1e', '#79a84e']];
+      for (i = 0; i < 6; i++) d.zeds.push({ x: 360 + i * 175 + between(r, -30, 30), at: 0.6 + i * 0.28, p: r() * 6, look: looks[i] });
+      for (i = 0; i < 4; i++) d.tubes.push({ x: 300 + i * 300 + between(r, -40, 40), c: ['#ffd84a', '#ff7a5a', '#2ac8c8', '#7a3aa8'][i], p: r() * 6 });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050c16'], [0.6, '#10283a'], [1, '#1e4a5a']], 640);
+      starsK(ctx, d.stars, t, 0.6);
+      var base = 640;
+      // the Kraken: the tower, its head with the yellow eyes, the tubes
+      ctx.fillStyle = '#20142c';
+      ctx.fillRect(1140, base - 260, 90, 260);
+      ctx.fillStyle = '#3a1a52';
+      ctx.beginPath(); ctx.ellipse(1185, base - 300, 110, 70, 0, 0, TAU); ctx.fill();
+      for (var tn = 0; tn < 5; tn++) {
+        ctx.save(); ctx.translate(1100 + tn * 42, base - 260); ctx.rotate(Math.sin(t * 1.2 + tn) * 0.15);
+        ctx.fillRect(-9, 0, 18, 120 + tn * 8); ctx.restore();
+      }
+      additive(ctx, function () { dot(ctx, '#ffd84a', 1150, base - 305, 16, 0.95); dot(ctx, '#ffd84a', 1220, base - 305, 16, 0.95); });
+      ctx.strokeStyle = '#6a2a8a'; ctx.lineWidth = 26; ctx.beginPath();
+      for (var h = 0; h <= 40; h++) {
+        var k = h / 40, a = k * 2.3 * TAU, x = 1290 + Math.cos(a) * 90 * (1 - k * 0.3), y = base - 250 + k * 230;
+        if (h) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = '#2a8a4a'; ctx.beginPath(); ctx.moveTo(1230, base - 240);
+      ctx.quadraticCurveTo(1480, base - 220, 1560, base - 10); ctx.stroke();
+      // Fort Splashmore and the big bucket, which tips
+      ctx.fillStyle = '#2a1e14';
+      ctx.fillRect(280, base - 120, 260, 120); ctx.fillRect(320, base - 190, 180, 70); ctx.fillRect(370, base - 250, 80, 60);
+      ctx.fillRect(360, base - 330, 10, 80); ctx.fillRect(450, base - 330, 10, 80); ctx.fillRect(355, base - 336, 110, 10);
+      var tip = seg(t, 1.3, 1.6);
+      ctx.save(); ctx.translate(410, base - 326); ctx.rotate(tip * 2.2);
+      ctx.fillStyle = '#a8222a'; ctx.fillRect(-34, 0, 68, 56); ctx.fillStyle = '#e8b83a'; ctx.fillRect(-36, -4, 72, 8);
+      ctx.restore();
+      var pour = t - 1.4;
+      if (pour > 0 && pour < 1.4) {
+        ctx.fillStyle = 'rgba(160,240,255,' + (0.6 * (1 - pour / 1.4)) + ')';
+        ctx.fillRect(420, base - 300, 70, 300 * Math.min(1, pour * 2));
+        additive(ctx, function () { dot(ctx, '#d8faff', 455, base - 10, 120 * Math.min(1, pour * 1.5), 0.3 * (1 - pour / 1.4)); });
+      }
+      // palms, the lifeguard chair, the arch's neon at the back
+      ctx.fillStyle = '#0c1a18';
+      [120, 640, 980, 1500].forEach(function (px, i) {
+        ctx.fillRect(px - 5, base - 200 - i * 10, 10, 200 + i * 10);
+        for (var f = 0; f < 6; f++) {
+          ctx.save(); ctx.translate(px, base - 200 - i * 10); ctx.rotate(-1.5 + f * 0.6 + Math.sin(t + i) * 0.05);
+          ctx.beginPath(); ctx.ellipse(40, 0, 44, 7, 0, 0, TAU); ctx.fill(); ctx.restore();
+        }
+      });
+      ctx.fillStyle = '#e8e8e2'; ctx.fillRect(760, base - 110, 6, 110); ctx.fillRect(820, base - 110, 6, 110);
+      ctx.fillStyle = '#ff7a5a'; ctx.fillRect(752, base - 120, 82, 12);
+      ctx.beginPath(); ctx.moveTo(740, base - 150); ctx.lineTo(793, base - 176); ctx.lineTo(846, base - 150); ctx.fill();
+      // the wave pool: the glow, the steam, the tubes, them wading in
+      var g = ctx.createLinearGradient(0, base, 0, VH);
+      g.addColorStop(0, '#1a8a9a'); g.addColorStop(1, '#0a3a48');
+      ctx.fillStyle = g; ctx.fillRect(0, base, VW, VH - base);
+      for (var w = 0; w < 5; w++) {
+        var wy = base + 20 + ((t * 30 + w * 50) % 260);
+        ctx.strokeStyle = 'rgba(200,250,255,0.25)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, wy); ctx.quadraticCurveTo(VW / 2, wy - 8, VW, wy); ctx.stroke();
+      }
+      d.tubes.forEach(function (tb) {
+        var x = tb.x + Math.sin(t * 0.5 + tb.p) * 30, y = base + 60 + Math.sin(t * 1.3 + tb.p) * 5;
+        ctx.fillStyle = tb.c; ctx.beginPath(); ctx.ellipse(x, y, 34, 12, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#0e4a58'; ctx.beginPath(); ctx.ellipse(x, y, 14, 5, 0, 0, TAU); ctx.fill();
+      });
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var y = 700 + (t - z.at) * 26;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x, y, 2.2, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(22,120,136,0.88)';
+        ctx.fillRect(z.x - 40, y - 34, 80, 40);
+        ctx.strokeStyle = 'rgba(220,250,255,0.6)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(z.x, y - 34, 30, 5, 0, 0, TAU); ctx.stroke();
+      });
+      d.steam.forEach(function (st) {
+        var y = st.y - ((t * 22 + st.p * 40) % 120);
+        ctx.fillStyle = 'rgba(230,245,248,' + (0.08 + 0.04 * Math.sin(t + st.p)) + ')';
+        ctx.beginPath(); ctx.ellipse(st.x + Math.sin(t * 0.5 + st.p) * 20, y, st.s, st.s * 0.6, 0, 0, TAU); ctx.fill();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Splash Kingdom').toUpperCase();
+      var k = outBack(seg(t, 0.35, 0.8), 1.3);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 210);
+      ctx.rotate(0.05 - (1 - k) * 0.4);
+      ctx.scale(0.8 * k, 0.8 * k);
+      // a day pass: teal, the stub torn along its perforations, the King
+      ctx.fillStyle = '#2ac8c8'; roundRect(ctx, -470, -120, 940, 240, 18); ctx.fill();
+      ctx.fillStyle = '#ffd84a'; roundRect(ctx, -470, -120, 170, 240, 18); ctx.fill();
+      ctx.fillStyle = '#123a48';
+      for (var p = 0; p < 12; p++) { ctx.beginPath(); ctx.arc(-300, -104 + p * 19, 4, 0, TAU); ctx.fill(); }
+      ctx.save(); ctx.translate(-385, 0);
+      ctx.fillStyle = '#4aa83a'; ctx.beginPath(); ctx.ellipse(0, 18, 56, 44, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f2f2ee'; ctx.beginPath(); ctx.arc(-22, -18, 16, 0, TAU); ctx.arc(22, -18, 16, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(-20, -16, 7, 0, TAU); ctx.arc(24, -16, 7, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e8b83a'; ctx.beginPath(); ctx.moveTo(-30, -38); ctx.lineTo(-20, -62); ctx.lineTo(-6, -44); ctx.lineTo(0, -66);
+      ctx.lineTo(6, -44); ctx.lineTo(20, -62); ctx.lineTo(30, -38); ctx.fill();
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#123a48';
+      spaced(ctx, 'ADMIT ONE  ·  DAY PASS  ·  ALL RIDES', 90, -72, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 76, 600, 0.05);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = '#7a3aa8'; spaced(ctx, name, 95, 9, size * 0.05);
+      ctx.fillStyle = '#ffffff'; spaced(ctx, name, 90, 4, size * 0.05);
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#123a48';
+      spaced(ctx, 'VALID THE LAST NIGHT OF THE SEASON ONLY', 90, 76, 3);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

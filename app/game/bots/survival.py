@@ -210,6 +210,13 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the organ": "e", "the abbot's lodging": "s", "the beacon rock": "er", "the stranded coach": "er",
         "the wreck": "e", "the car park": "h", "the salt meadow": "e", "the north strand": "r",
     },
+    "waterpark": {
+        "Lifeguard HQ": "sh", "the gate": "s", "the car park": "e", "King Splash": "e", "the gift shop": "s",
+        "the lazy river": "r", "the volcano": "pc", "Fort Splashmore": "spc", "the big bucket": "e",
+        "the snack shack": "h", "the dive pool": "r", "the high boards": "pc", "the wave pool": "r",
+        "the wave machine": "s", "the cabanas": "h", "the lifeguard chair": "pc", "the Kraken": "spc",
+        "the splash basin": "r", "the chlorine store": "e", "the staff lot": "e", "the promenade": "h",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.

@@ -3324,7 +3324,7 @@
   });
 
   /* Surf: lines of white water rolling in to the beach. */
-  Rigs.register('surf', function (spec) {
+  Rigs.register('beach_surf', function (spec) {
     var x0 = spec.p[0] + 14, x1 = spec.p[0] - 4, y = spec.p[1], z0 = spec.z0, z1 = spec.z1;
     return {
       radius: Math.abs(z1 - z0) / 2 + 40,
@@ -4906,6 +4906,279 @@
           pen.part(head, 'box', [0.5, 0.3, 0.3], [0.5, 0.18, 0.3], '#1e1e1e');
           pen.part(head, 'box', [-0.5, 0.3, 0.3], [0.5, 0.18, 0.3], '#1e1e1e');
         }
+      }
+    };
+  });
+
+  // ==================================================== Splash Kingdom
+  if (GA) {
+    GA.register('ll_wavehorn', function (vol) {
+      // the wave pool's klaxon, twice, and the machine starting up under it
+      for (var i = 0; i < 2; i++) {
+        this.later(i * 700, function () {
+          this.tone({ type: 'sawtooth', freq: 180, freqEnd: 420, dur: 0.5, gain: 0.09 * vol });
+          this.tone({ type: 'square', freq: 90, freqEnd: 210, dur: 0.5, gain: 0.04 * vol });
+        });
+      }
+      this.later(1500, function () {
+        this.tone({ type: 'sawtooth', freq: 45, freqEnd: 60, dur: 2.5, gain: 0.08 * vol });
+        this.noise({ filter: 'lowpass', freq: 300, dur: 2.5, gain: 0.08 * vol });
+      });
+    });
+    GA.register('ll_bigsplash', function (vol) {
+      // a thousand gallons landing at once (the dolphins' ll_splash is a
+      // smaller thing)
+      this.noise({ filter: 'lowpass', freq: 2400, freqEnd: 300, dur: 1.0, gain: 0.16 * vol });
+      this.noise({ filter: 'highpass', freq: 3000, dur: 0.5, gain: 0.05 * vol });
+    });
+  }
+
+  /* The wave pool.  Between times a slow swell rolls down it.  Sound the
+     horn (the lure) and for half a minute the machine sends real waves down
+     the pool from the deep end to the beach, the horn going again and
+     again. */
+  Rigs.register('wave_pool', function (spec) {
+    var a = spec.area || [-50, 50, -50, 50], y = spec.p[1], lit = -100, honked = 0;
+    var w = a[1] - a[0], cx = (a[0] + a[1]) / 2;
+    return {
+      radius: Math.max(w, a[3] - a[2]) / 2 + 30,
+      event: function (kind) { if (kind === 'lure') { lit = Rigs.clock(); honked = lit; } },
+      update: function (dt, t, ctx) {
+        if (t - lit < 30 && t - honked > 8 && ctx.sound) { honked = t; ctx.sound('ll_wavehorn', [cx, y, a[3]], 0.9); }
+      },
+      draw: function (pen, t) {
+        var big = t - lit < 30, n = big ? 4 : 3, i;
+        for (i = 0; i < n; i++) {
+          var u = ((t * (big ? 0.11 : 0.03)) + i / n) % 1;
+          var z = a[3] - u * (a[3] - a[2]);
+          var h = big ? 1.6 * Math.sin(Math.min(1, u * 1.2) * Math.PI) : 0.25;
+          pen.part(frame([cx, y + h / 2, z], 0), 'box', [0, 0, 0], [w - 1, h + 0.05, big ? 6 : 10], '#5ad8e8', { a: 0.45 });
+          if (big) pen.part(frame([cx, y + h + 0.05, z - 1.5], 0), 'box', [0, 0, 0], [w - 2, 0.12, 1.4], '#f2fbff', { a: 0.7 });
+        }
+      }
+    };
+  });
+
+  /* The big bucket on top of Fort Splashmore: it fills, and fills, rings
+     its bell -- and tips, a thousand gallons down onto the decks. */
+  Rigs.register('tipping_bucket', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0), period = 50, rung = -1, dumped = -1;
+    return {
+      radius: 70,
+      update: function (dt, t, ctx) {
+        var cycle = Math.floor(t / period), u = t - cycle * period;
+        if (u > period - 4 && rung !== cycle && ctx.sound) { rung = cycle; ctx.sound('ll_ding', spec.p, 0.9); }
+        if (u > period - 2.6 && dumped !== cycle && ctx.sound) { dumped = cycle; ctx.sound('ll_bigsplash', [spec.p[0], 5, spec.p[2]], 1.2); }
+      },
+      draw: function (pen, t) {
+        var u = t % period;
+        var tip = u > period - 3 ? Math.min(1, (u - (period - 3)) / 0.8) * 2.3 : (u < 3 ? (1 - u / 3) * 2.3 : 0);
+        var fill = u > period - 3 ? Math.max(0, 1 - (u - (period - 3)) * 2) : Math.min(1, u / (period - 4));
+        pen.part(f0, 'cyl', [0, 0, 0], [0.6, 12.2, 0.6], '#3a3a3a', { rz: Math.PI / 2 });
+        var bucket = child(f0, [0, 0, 0], tip, 0, 0);
+        pen.part(bucket, 'cyl', [0, -3.0, 0], [6.4, 5.0, 6.4], '#c8282a');
+        pen.part(bucket, 'cyl', [0, -0.6, 0], [6.8, 0.4, 6.8], SUNNY_RIG);
+        if (fill > 0.02) pen.part(bucket, 'cyl', [0, -5.4 + fill * 4.6, 0], [5.8, 0.3, 5.8], '#7ae8f2', { a: 0.85 });
+        var pour = u - (period - 3);
+        if (pour > 0.3 && pour < 2.2) {
+          var mouth = Rigs.point(bucket, [0, -0.5, 3.0]);
+          for (var k = 0; k < 10; k++) {
+            var q = (pour * 3 + k / 10) % 1;
+            pen.part(frame([mouth[0] + Math.sin(k) * 1.2, mouth[1] - q * (mouth[1] - 5.6), mouth[2] + q * 2], 0), 'box', [0, 0, 0],
+                     [2.4, 2.2, 2.4], '#9af2ff', { a: 0.55 * (1 - q * 0.5) });
+          }
+          for (var sp = 0; sp < 8; sp++) {
+            var aa = sp / 8 * TAU, r2 = 2 + pour * 6;
+            pen.part(frame([mouth[0] + Math.cos(aa) * r2, 5.4 + Math.sin(pour * 6 + sp) * 0.4, mouth[2] + 2 + Math.sin(aa) * r2], 0),
+                     'sph', [0, 0, 0], [1.2, 0.6, 1.2], '#e8fbff', { a: 0.6 });
+          }
+        }
+      }
+    };
+  });
+  var SUNNY_RIG = '#ffd84a';
+
+  /* Inner tubes going round the lazy river by themselves, turning as they
+     go -- and in one of them, somebody who isn't getting out. */
+  Rigs.register('lazy_tubes', function (spec) {
+    var loop = spec.loop_path || [], n = spec.n || 6, cols = ['#ffd84a', '#ff7a5a', '#2ac8c8', '#7a3aa8', '#f2f2ee'];
+    var lens = [], total = 0;
+    for (var i = 0; i < loop.length; i++) {
+      var p = loop[i], q = loop[(i + 1) % loop.length];
+      lens.push(Math.hypot(q[0] - p[0], q[2] - p[2]));
+      total += lens[i];
+    }
+    function at(s) {
+      s = ((s % total) + total) % total;
+      for (var i = 0; i < loop.length; i++) {
+        if (s <= lens[i]) {
+          var p = loop[i], q = loop[(i + 1) % loop.length], k = s / lens[i];
+          return [p[0] + (q[0] - p[0]) * k, p[1], p[2] + (q[2] - p[2]) * k];
+        }
+        s -= lens[i];
+      }
+      return loop[0];
+    }
+    return {
+      radius: total / 4 + 40,
+      draw: function (pen, t) {
+        if (!loop.length) return;
+        for (var i = 0; i < n; i++) {
+          var c = at(t * 2.4 + i * total / n);
+          var f = frame([c[0], c[1] + 0.2 + Math.sin(t * 1.7 + i) * 0.12, c[2]], t * 0.3 + i);
+          pen.part(f, 'cyl', [0, 0, 0], [3.2, 0.9, 3.2], cols[i % cols.length]);
+          pen.part(f, 'cyl', [0, 0.05, 0], [1.4, 0.95, 1.4], '#1a3a4a');
+          if (i === 0) {
+            pen.part(f, 'box', [0, 1.4, -0.3], [1.3, 1.6, 0.8], '#ff7a5a');
+            pen.part(f, 'box', [0, 2.6, -0.3], [0.8, 0.8, 0.8], '#7fb069');
+            pen.part(child(f, [0.6, 1.9, 0], -2.4, 0, 0.3), 'box', [0, 0.6, 0], [0.35, 1.2, 0.35], '#7fb069');
+            pen.part(child(f, [-0.6, 1.9, 0], -2.4, 0, -0.3), 'box', [0, 0.6, 0], [0.35, 1.2, 0.35], '#7fb069');
+          }
+        }
+      }
+    };
+  });
+
+  /* The falls down Volcano Island's north face, tier by tier, the spray
+     at the bottom; and the lava in the crater spitting. */
+  Rigs.register('volcano_falls', function (spec) {
+    var f0 = frame(spec.p, 0), steps = typeof spec.steps === 'number' ? spec.steps : 8;
+    return {
+      radius: 70,
+      draw: function (pen, t) {
+        for (var k = 0; k < steps; k++) {
+          var z = -4 * steps + 4 + 4 * k;
+          pen.part(f0, 'box', [0, -2 * k - 1, z - 0.2], [6, 2, 0.4], '#9af2ff', { a: 0.5 });
+          if (pen.near) {
+            var q = (t * 1.6 + k * 0.3) % 1;
+            pen.part(f0, 'box', [Math.sin(k * 3) * 2, -2 * k - q * 2, z - 0.45], [0.6, 0.6, 0.1], '#f2fbff', { a: 0.7 });
+          }
+        }
+        for (var m = 0; m < 4; m++) {
+          var u = (t * 0.4 + m / 4) % 1;
+          pen.part(f0, 'sph', [Math.sin(m * 2 + t * 0.3) * 4, -2 * steps + u * 4, 1 + u * 4], [3 + u * 4, 2 + u * 3, 3 + u * 4],
+                   '#e8fbff', { a: 0.25 * (1 - u) });
+        }
+        for (var e = 0; e < 5; e++) {
+          var v = (t * 0.8 + e / 5) % 1;
+          pen.part(f0, 'sph', [Math.sin(e * 7) * 3, v * 5 + 0.2, -4 * steps + 10 + Math.cos(e * 5) * 3], [0.6, 0.6, 0.6], '#ff6a1a',
+                   { m: 'neon', a: 1 - v });
+        }
+      }
+    };
+  });
+
+  /* The splash pad's sprayers: each one throwing its arc of water round,
+     on and off. */
+  Rigs.register('sprayers', function (spec) {
+    var heads = spec.heads || [];
+    return {
+      radius: 80,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < heads.length; i++) {
+          if (Math.sin(t * 0.5 + i * 1.3) < -0.3) continue;
+          var h = heads[i], ang = t * 0.8 + i * 1.7;
+          for (var k = 0; k < 9; k++) {
+            var q = ((t * 1.4 + k / 9) % 1), d = q * 7;
+            pen.part(frame([h[0] + Math.sin(ang) * d, h[1] + 4 * q * (1 - q) * 4, h[2] + Math.cos(ang) * d], 0), 'sph', [0, 0, 0],
+                     [0.4, 0.4, 0.4], '#bff8ff', { a: 0.75 });
+          }
+        }
+      }
+    };
+  });
+
+  /* King Splash spouting from his mouth into the plaza, his crown glinting. */
+  Rigs.register('king_spout', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    return {
+      radius: 30,
+      draw: function (pen, t) {
+        for (var k = 0; k < 12; k++) {
+          var q = (t * 1.2 + k / 12) % 1;
+          pen.part(f0, 'sph', [0, 1.2 + 4 * q * (1 - q) * 3 - q * 8, q * 7], [0.6, 0.6, 0.6], '#bff8ff', { a: 0.8 });
+        }
+        if (Math.sin(t * 2.3) > 0.85) pen.part(f0, 'sph', [1.0, 3.2, -0.6], [0.8, 0.8, 0.8], '#fff8d8', { m: 'neon' });
+      }
+    };
+  });
+
+  /* The Kraken's two tubes: the corkscrew down round the tower and the
+     long drop, from the top deck into the splash basin.  Every so often
+     somebody comes down one of them in an inner tube, and does not get up. */
+  Rigs.register('kraken_slides', function (spec) {
+    var top = spec.p, basin = spec.basin_p || [spec.p[0] + 30, 0, spec.p[2]];
+    var helix = [], drop = [], i;
+    var hc = [top[0] + 14, top[2] - 6], turns = 2.25, n = 36;
+    for (i = 0; i <= n; i++) {
+      var k = i / n, a = Math.PI + k * turns * TAU;
+      helix.push([hc[0] + Math.cos(a) * 12 * (1 - k * 0.3), top[1] - 1 - k * (top[1] - basin[1] - 1.5), hc[1] + Math.sin(a) * 12 * (1 - k * 0.3)]);
+    }
+    var d0 = [top[0], top[1] - 1, top[2] + 8], d1 = [basin[0] + 36, basin[1] + 1.5, basin[2] + 20];
+    for (i = 0; i <= 12; i++) {
+      var u = i / 12, sag = Math.sin(u * Math.PI) * 4;
+      drop.push([d0[0] + (d1[0] - d0[0]) * u, d0[1] + (d1[1] - d0[1]) * Math.pow(u, 0.7) - sag * 0.2, d0[2] + (d1[2] - d0[2]) * u]);
+    }
+    var splashed = -1;
+    function tube(pen, path, colour) {
+      for (var j = 0; j < path.length - 1; j++) pen.rod(path[j], path[j + 1], 3.2, colour);
+    }
+    function along(path, u) {
+      var s = u * (path.length - 1), j = Math.min(path.length - 2, Math.floor(s)), k = s - j;
+      return [path[j][0] + (path[j + 1][0] - path[j][0]) * k, path[j][1] + (path[j + 1][1] - path[j][1]) * k + 1.4,
+              path[j][2] + (path[j + 1][2] - path[j][2]) * k];
+    }
+    return {
+      radius: 120,
+      update: function (dt, t, ctx) {
+        var ride = Math.floor(t / 20), u = (t - ride * 20) / 5;
+        if (u >= 1 && splashed !== ride && ctx.sound) { splashed = ride; ctx.sound('ll_bigsplash', basin, 0.9); }
+      },
+      draw: function (pen, t) {
+        tube(pen, helix, '#8a3ab8');
+        tube(pen, drop, '#3ac86a');
+        var ride = Math.floor(t / 20), u = (t - ride * 20) / 5;
+        var path = ride % 2 ? drop : helix;
+        if (u >= 0 && u < 1) {
+          var p = along(path, u);
+          pen.part(frame(p, 0), 'cyl', [0, -0.6, 0], [2.6, 0.7, 2.6], '#ffd84a');
+          pen.part(frame(p, 0), 'box', [0, 0.3, 0], [1.0, 1.2, 0.8], '#7fb069');
+        } else if (u >= 1 && u < 2.2) {
+          var end = path[path.length - 1], sp = u - 1;
+          for (var m = 0; m < 10; m++) {
+            var a2 = m / 10 * TAU;
+            pen.part(frame([end[0] + Math.cos(a2) * (1 + sp * 5), end[1] + 0.4 + Math.sin(sp * 3) * 2 * (1 - sp / 1.2),
+                            end[2] + Math.sin(a2) * (1 + sp * 5)], 0), 'sph', [0, 0, 0], [0.9, 0.9, 0.9], '#e8fbff',
+                     { a: 0.7 * (1 - sp / 1.2) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The inflatable gator in the wave pool, adrift, nodding on the swell --
+     and riding the waves when the machine is on. */
+  Rigs.register('pool_float', function (spec) {
+    var a = spec.area || [spec.p[0] - 20, spec.p[0] + 20, spec.p[2] - 20, spec.p[2] + 20], lit = -100;
+    return {
+      radius: 90,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      draw: function (pen, t) {
+        var big = t - lit < 30 ? 1 : 0;
+        var x = (a[0] + a[1]) / 2 + Math.sin(t * 0.031) * (a[1] - a[0]) * 0.4;
+        var z = (a[2] + a[3]) / 2 + Math.sin(t * 0.023 + 1) * (a[3] - a[2]) * 0.4;
+        var bob = Math.sin(t * 1.3) * (0.15 + big * 0.6);
+        var f = child(frame([x, spec.p[1] + 0.4 + bob, z], t * 0.05), [0, 0, 0], Math.sin(t * 1.1) * (0.05 + big * 0.2), 0, 0);
+        pen.part(f, 'box', [0, 0, 0], [2.4, 1.0, 6.0], '#3ac83a');
+        pen.part(f, 'box', [0, 0.1, 3.8], [1.8, 0.8, 2.2], '#3ac83a');
+        pen.part(f, 'box', [0, -0.1, -4.0], [1.2, 0.6, 2.6], '#3ac83a');
+        for (var s = -1; s <= 1; s += 2) {
+          pen.part(f, 'sph', [s * 0.6, 0.7, 3.4], [0.6, 0.6, 0.6], '#f2f2ee');
+          pen.part(f, 'sph', [s * 0.6, 0.75, 3.6], [0.25, 0.25, 0.25], '#1a1a1a');
+          pen.part(f, 'box', [s * 1.4, -0.2, 1.6], [0.6, 0.4, 0.8], '#3ac83a');
+        }
+        pen.part(f, 'box', [0, 0.5, 0], [1.2, 0.2, 5.0], '#2a9a2a');
       }
     };
   });

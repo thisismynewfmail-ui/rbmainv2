@@ -376,6 +376,14 @@ WORLDS: List[Dict[str, Any]] = [
                       "sands -- and play the great organ in the abbey church to "
                       "call everything out on the flats up the mount. Somebody "
                       "is still walking the great wheel."},
+            {"id": "waterpark", "name": "Splash Kingdom",
+             "blurb": "The water park on the last night of the season, steam "
+                      "coming off the pools into the cold. Hold Lifeguard HQ, "
+                      "take the decks of Fort Splashmore under the big bucket "
+                      "and the Kraken's platforms, wade the lazy river round "
+                      "Volcano Island, mind the drained dive pool -- and sound "
+                      "the wave horn to send the waves rolling and bring every "
+                      "one of the dead down to the beach."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

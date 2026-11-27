@@ -500,6 +500,38 @@
       { shirt: shirt('#2a3a5a', '#2a3a5a', { weave: 'knit' }), pants: pants('#5a4a38', { weave: 'sp_tweed' }),
         hat: hat([{ t: 'box', p: [0, 0.12, 0.1], s: [1.7, 0.24, 1.8], c: '#6a5a44' },
                   { t: 'box', p: [0, 0.04, 0.98], s: [1.4, 0.08, 0.5], c: '#6a5a44' }]) }
+    ],
+    waterpark: [
+      CLASSIC,
+      // the lifeguard: the red shorts, the white vest, the shades
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { sleeves: 0.0 }), pants: pants('#c82a2a', { length: 0.35 }),
+        hat: hat([{ t: 'box', p: [0.42, -0.1, 0.84], s: [0.6, 0.36, 0.08], c: '#1a1a1a' },
+                  { t: 'box', p: [-0.42, -0.1, 0.84], s: [0.6, 0.36, 0.08], c: '#1a1a1a' }]) },
+      // trunks, a rash vest and the goggles pushed up
+      { shirt: shirt('#2ac8c8', '#2ac8c8', { sleeves: 0.3, weave: 'vinyl' }), pants: pants('#ff7a5a', { length: 0.35 }),
+        hat: hat([{ t: 'box', p: [0, 0.3, 0.86], s: [1.4, 0.3, 0.1], c: '#2a2a2a' },
+                  { t: 'box', p: [0.36, 0.3, 0.9], s: [0.5, 0.36, 0.12], c: '#6ad8ff', a: 0.7 },
+                  { t: 'box', p: [-0.36, 0.3, 0.9], s: [0.5, 0.36, 0.12], c: '#6ad8ff', a: 0.7 }]) },
+      // a day out: the loud shirt and the bucket hat
+      { shirt: shirt('#ff8a3a', '#ff8a3a', { sleeves: 0.4, decal: 'flowers' }), pants: pants('#c8b088', { length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.2, 0], s: [1.8, 0.4, 1.8], c: '#e8e0c8' },
+                  { t: 'cyl', p: [0, 0.02, 0], s: [2.3, 0.08, 2.3], c: '#e8e0c8' }]) },
+      // King Splash himself, the costume anyway: green, the frog head, the crown
+      { shirt: shirt('#4aa83a', '#4aa83a', { weave: 'fur' }), pants: pants('#4aa83a', { weave: 'fur' }),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0.1], s: [2.2, 1.8, 2.2], c: '#4aa83a' },
+                  { t: 'sph', p: [0.5, 0.9, 0.7], s: [0.7, 0.7, 0.7], c: '#f2f2ee' },
+                  { t: 'sph', p: [-0.5, 0.9, 0.7], s: [0.7, 0.7, 0.7], c: '#f2f2ee' },
+                  { t: 'cyl', p: [0, 1.25, 0], s: [1.2, 0.5, 1.2], c: '#e8c35a' }]) },
+      // a hotel guest in the robe, a towel round the head
+      { shirt: shirt('#f6f6f2', '#f6f6f2', { weave: 'knit' }), pants: pants('#f6f6f2', { weave: 'knit' }),
+        hat: hat([{ t: 'sph', p: [0, 0.4, -0.05], s: [1.8, 1.0, 1.8], c: '#f2f2ee' }]) },
+      // Kraken Bites: the yellow shirt, the paper hat
+      { shirt: shirt('#ffd84a', '#ffd84a', { decal: 'logo_block' }), pants: pants('#c82a2a'),
+        hat: hat([{ t: 'box', p: [0, 0.3, 0], s: [0.6, 0.6, 1.8], c: '#f6f6f2' }]) },
+      // up out of the dive pool: the wetsuit, the mask and snorkel
+      { shirt: shirt('#1a1a1e', '#1a1a1e', { weave: 'vinyl' }), pants: pants('#1a1a1e', { weave: 'vinyl' }),
+        hat: hat([{ t: 'box', p: [0, -0.15, 0.86], s: [1.3, 0.6, 0.14], c: '#8ad8ff', a: 0.6 },
+                  { t: 'cyl', p: [0.75, 0.0, 0.5], s: [0.18, 1.4, 0.18], c: '#ffd84a' }]) }
     ]
   };
 

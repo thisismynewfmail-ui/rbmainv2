@@ -725,5 +725,48 @@
     }
   });
 
+  Thumbs.registerWorld('ll_waterpark', {
+    camera: [[-30, 28, 30], [40, 14, 140], 60],
+    sky: { top: '#081420', horizon: '#2a4a5a', sun: [0.2, 0.35, 0.8], clouds: 0.4, tint: '#b0d0d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 100], [300, 1, 300], '#4a7a3a', { st: 1 });
+      k.box([-10, 0.15, 60], [180, 0.3, 40], '#c8c4b8', { st: 1 });
+      k.box([-10, 0.15, 75], [160, 0.3, 10], '#e0cc9a', { st: 1 });
+      // the wave pool stepping down, glowing
+      [[95, -1], [125, -2], [155, -3], [190, -4]].forEach(function (b2) {
+        k.box([-10, b2[1] - 0.5, b2[0]], [160, 1, b2[0] === 190 ? 40 : 30], '#3ab8c8', { st: 1 });
+      });
+      k.box([-10, -0.9, 145], [160, 0.8, 130], '#3ac8d8', { a: 0.6 });
+      // the Kraken and its head, the tubes
+      k.box([160, 8, 120], [20, 0.6, 20], '#7a3aa8', { st: 1 });
+      k.box([160, 16, 120], [20, 0.6, 20], '#7a3aa8', { st: 1 });
+      k.box([160, 24, 120], [20, 0.6, 20], '#7a3aa8', { st: 1 });
+      for (var l = 0; l < 4; l++) k.box([150.4 + (l % 2) * 19.2, 12, 110.4 + Math.floor(l / 2) * 19.2], [0.8, 24, 0.8], '#5a2a7a');
+      k.shape('sph', [157, 38, 120], [16, 10, 18], '#8a3ab8');
+      k.shape('sph', [153, 37, 128.6], [3.4, 3.4, 1.6], '#ffd84a', { m: 'neon' });
+      k.shape('sph', [161, 37, 128.6], [3.4, 3.4, 1.6], '#ffd84a', { m: 'neon' });
+      for (var h = 0; h < 14; h++) {
+        var a = Math.PI + h / 14 * 2.2 * Math.PI * 2;
+        k.shape('sph', [184 + Math.cos(a) * 12, 23 - h * 1.6, 112 + Math.sin(a) * 12], [3.4, 3.4, 3.4], '#8a3ab8');
+      }
+      // a cabana, the lifeguard chair, palms
+      k.box([-111, 3.5, 133], [14, 7, 14], '#ff7a5a');
+      k.box([77, 6.2, 120], [4, 0.4, 4], '#ff7a5a');
+      for (var c = 0; c < 4; c++) k.box([75.4 + (c % 2) * 3.2, 3, 118.4 + Math.floor(c / 2) * 3.2], [0.6, 6, 0.6], '#f2f2ee');
+      [[-100, 76], [80, 76], [-100, 205]].forEach(function (p) {
+        k.shape('cyl', [p[0], 5, p[1]], [1.2, 10, 1.2], '#8a6a4a');
+        k.shape('sph', [p[0], 10.4, p[1]], [8, 2, 8], '#2a7a3a');
+      });
+      // them in the pool, the team on the beach
+      k.zombie('common', -30, 110, Math.PI, 2, 'waterpark', 0, -1);
+      k.zombie('common', 0, 124, Math.PI + 0.2, 4, 'waterpark', 2, -2);
+      k.zombie('common', 30, 104, -2.8, 1, 'waterpark', 0, -1);
+      k.zombie('common', 14, 140, Math.PI, 7, 'waterpark', 0, -2);
+      k.survivor(-10, 74, 0, 0, 0.3);
+      k.survivor(2, 72, 0.3, 1, 0.3);
+      k.survivor(-22, 70, -0.3, 2, 0.3);
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);
