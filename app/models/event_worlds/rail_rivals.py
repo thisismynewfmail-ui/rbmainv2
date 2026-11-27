@@ -44,7 +44,7 @@ WORLD: Dict[str, Any] = {
     "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/rail_rivals.js",
                      "/static/js/worlds/rail_rivals_lines.js"],
     "features": ["16 players", "Payload race", "Brake levers", "Coal boosts",
-                 "Depot respawns", "9 rotating railroads", "A twist on every line"],
+                 "Depot respawns", "10 rotating railroads", "A twist on every line"],
     "areas": [
         {"id": "dustbowl", "name": "Dustbowl Gulch",
          "blurb": "A gold town at the mouth of a red canyon. The lines cross "
@@ -94,6 +94,13 @@ WORLD: Dict[str, Any] = {
                   "and a pipeline catwalk over both lines. The wells beside the tracks blow out "
                   "-- open a valve beside their line to set their track on fire in front of their "
                   "cart, and shut the one hissing beside yours."},
+        {"id": "pelican", "name": "Pelican Wharf",
+         "blurb": "A bright fishing town on a bay: the harbour gardens and their floral clock, "
+                  "the pleasure pier and its carousel, Cannery Row, pastel cottages climbing "
+                  "Chapel Hill and a lighthouse on the point. Both lines cross the Cut on swing "
+                  "bridges right out of the yards, worked from the clock-towered control house "
+                  "between them -- swing theirs open in their faces while a tug steams through. "
+                  "Fall in and the harbour has you."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -166,7 +173,8 @@ BADGES: List[Tuple[Any, ...]] = [
      "em_rr_drift", "drifts dug"),
     ("rr_bridgekeeper", "Bridgekeeper", "rr_winch", [1, 10, 30, 80, 200],
      ["Winch Hand", "Bridge Tender", "Keeper", "Lift Master", "Troll Under the Bridge"],
-     "Raised a lift bridge in the other team's path, or lowered one for your own.",
+     "Opened a bridge in the other team's path -- Redrock's lift bridges, Pelican Wharf's swing "
+     "bridges -- or closed one for your own.",
      "em_rr_bridge", "bridges worked"),
     ("rr_canary", "Canary", "rr_canary", [1, 5, 15, 40, 100],
      ["Sniffer", "Canary", "Gas Man", "Firedamp Dodger", "Lungs of Iron"],
@@ -309,12 +317,12 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
         return ("The other cart is %s in." % ("sanded" if sand else "snowed"), "ally")
     if kind == "rr_bridge":
         if me:
-            return ("You winched the lift bridge up in front of %s's cart." % company,
+            return ("You opened the bridge in front of %s's cart." % company,
                     "actor")
         if cart:
-            return ("%s raised the lift bridge on your line; your cart cannot cross until "
-                    "it comes down." % by, "victim")
-        return ("Your team raised the bridge on the other line.", "ally")
+            return ("%s opened the bridge on your line; your cart cannot cross until "
+                    "it closes again." % by, "victim")
+        return ("Your team opened the bridge on the other line.", "ally")
     if kind == "rr_gas":
         return ("Firedamp is venting near %s and about to go up -- get clear!"
                 % (what or "you"), "victim")

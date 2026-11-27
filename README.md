@@ -535,6 +535,34 @@ with it, the cart pitched on the grade -- and each brings a twist of its own
   throws burns across its line for a while, holding any cart short of the
   flames. Hold **E** at a quiet well's valve to set it blowing (beside the
   other line, just ahead of their cart), or at a hissing one to shut it.
+* **Pelican Wharf** -- a bright fishing town on a bay. The Shore line and
+  the Cannery line leave their yards on the west bank of the Cut, a ship
+  channel from the bay to the boatyard basin, and cross it at once on two
+  red swing bridges; two tall footbridges carry people over when the
+  bridges are open. The west bank is the harbour front: the Cut control
+  house on the quay (cream and navy, a clock tower with a face to every
+  quarter telling the real time, a cockerel on top), narrowboats moored
+  along the promenade with flowers on their roofs and their stoves
+  smoking, the harbour gardens climbing a knoll behind (the bandstand on
+  top under strings of lights, rings of bedding plants, a floral clock and
+  a pelican clipped out of box hedge), crazy golf with a turning windmill,
+  a boating pond of swan pedalos, a row of tall painted harbour houses,
+  the lifeboat station with its slipway and the coastguard's lookout,
+  upturned boats as fishermen's sheds, a whelk stall, the cannery stores,
+  nets drying and the kipper smokehouse. Over the Cut: the beach, the
+  pleasure pier with a carousel turning on its end, the fishing piers, the
+  fish market and the net lofts, Pelican Square round the pelican fountain,
+  Cannery Row (the Pelican Brand Sardines works and the boatyard schooner),
+  Chapel Hill's pastel cottages climbing to the chapel, a tower mill
+  turning, washing lines and sheep, the Grand Pelican Hotel above Bayside,
+  and a red-and-white lighthouse on the point sweeping its beam over the
+  bay. Gulls wheel, pelicans sit on the pilings, sailboats tack across the
+  bay. *Swing bridges*, as Redrock Mesa's lift bridges: both are worked
+  from the control house, halfway between the lines -- hold **E** at the
+  other company's wheel and their bridge swings open across the Cut (a
+  bell, two seconds to get off it) while a tug steams through; their cart
+  waits at the bank until it closes, by itself or when their own side gets
+  to their wheel. Fall in and the harbour has you.
 
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal

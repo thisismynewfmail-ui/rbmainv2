@@ -168,7 +168,8 @@
       accent = extra.accent || accent;
       areaName = map.name || '';
       style = { drift: extra.drift_style || 'snow', gas: extra.gas_style || 'firedamp',
-                lampY: extra.bridge_lamp_y || 39.4 };
+                lampY: extra.bridge_lamp_y || 39.4, bridge: extra.bridge_style || 'lift' };
+      bridgeUpAt = {};
       levers = { a: [], b: [] };
       (pts.lever || []).forEach(function (m) {
         if (!levers[m.lane]) levers[m.lane] = [];
@@ -206,6 +207,7 @@
     }
 
     var drifts = {};
+    var bridgeUpAt = {};
 
     function applyState(rr) {
       if (!rr) return;
@@ -317,13 +319,16 @@
           }
         } else if (k === 'bridge') {
           var mineBr = msg.lane === laneOf[me];
+          var swing = style.bridge === 'swing';
           if (msg.state === 'warn') {
             client.audio.play('rr_bell', { volume: 0.7 });
             client.audio.later(500, function () { this.play('rr_bell', { volume: 0.7 }); });
-            say('bridge', mineBr ? 'YOUR BRIDGE IS LIFTING' : 'BRIDGE LIFTING', 'bad');
+            say('bridge', mineBr ? (swing ? 'YOUR BRIDGE IS SWINGING OPEN' : 'YOUR BRIDGE IS LIFTING')
+              : (swing ? 'BRIDGE SWINGING OPEN' : 'BRIDGE LIFTING'), 'bad');
           } else if (msg.state === 'up') {
+            bridgeUpAt[msg.lane] = performance.now() / 1000;
             client.audio.play('rr_lift', { volume: 0.7 });
-            if (mineBr) say('bridge2', 'BRIDGE UP', 'bad');
+            if (mineBr) say('bridge2', swing ? 'BRIDGE OPEN' : 'BRIDGE UP', 'bad');
           } else if (msg.state === 'down') {
             client.audio.play('rr_lift', { volume: 0.4 });
           }
@@ -553,6 +558,7 @@
           var span = bridgeSpans[lane], path = lanes[lane];
           if (!path || !span) return;
           var b = (twist.bridges || {})[lane] || {};
+          if (b.up && style.bridge === 'swing') drawTug(renderer, path, span, lane, time);
           if (!b.warn && !b.up) return;
           var on = Math.sin(time * 10) > 0;
           [span[0] - 3, span[1] + 3].forEach(function (d) {
@@ -589,6 +595,37 @@
                          [1, 0.65 - k * 0.4, 0.2], 0.6 * (1 - k), 0, 2, 1, null);
         return true;
       });
+    }
+
+    /* A steam tug coming up the channel through an open swing bridge:
+       across the line, from one side of the span to the other. */
+    function drawTug(renderer, path, span, lane, time) {
+      var since = performance.now() / 1000 - (bridgeUpAt[lane] || performance.now() / 1000);
+      var u = Math.min(1, since / 16);
+      var mid = path.at((span[0] + span[1]) / 2);
+      var yaw = mid[2] + Math.PI / 2;
+      var cy = (mid[3] || 0) - 3.6;
+      var off = -70 + 140 * u;
+      // through the open water beside the swung deck, not through its pier
+      var x = mid[0] + Math.sin(yaw) * off + Math.sin(mid[2]) * 12, z = mid[1] + Math.cos(yaw) * off + Math.cos(mid[2]) * 12;
+      var base = [x, cy + Math.sin(time * 1.6) * 0.2, z, 0];
+      local(renderer, 'box', base, yaw, [0, 1.0, 0], [4.6, 2.2, 13], '#c8281e');
+      local(renderer, 'box', base, yaw, [0, 2.2, 0], [4.8, 0.3, 13.4], '#2a2a2e');
+      local(renderer, 'box', base, yaw, [0, 3.6, -1.0], [3.4, 2.6, 5.0], '#f2ece0');
+      local(renderer, 'box', base, yaw, [0, 5.0, -1.0], [3.8, 0.3, 5.4], '#2a3a6a');
+      local(renderer, 'box', base, yaw, [1.71, 3.8, -0.4], [0.05, 1.0, 3.0], '#ffd88a', { m: 2 });
+      local(renderer, 'box', base, yaw, [-1.71, 3.8, -0.4], [0.05, 1.0, 3.0], '#ffd88a', { m: 2 });
+      local(renderer, 'cyl', base, yaw, [0, 6.6, 1.2], [1.2, 3.0, 1.2], '#e8b23a');
+      local(renderer, 'cyl', base, yaw, [0, 8.2, 1.2], [1.3, 0.4, 1.3], '#2a2a2e');
+      for (var k = 0; k < 4; k++) {
+        var v = ((time * 0.8 + k / 4) % 1);
+        renderer.pushRaw('sph', x + Math.sin(yaw) * (-v * 6), cy + 9 + v * 6, z + Math.cos(yaw) * (-v * 6), 0, 0, 0,
+                         1.6 + v * 3, 1.4 + v * 2.4, 1.6 + v * 3, [0.85, 0.85, 0.85], 0.6 * (1 - v), 0, 0, 0, null);
+      }
+      for (var w = 1; w <= 4; w++) {
+        renderer.pushRaw('box', x - Math.sin(yaw) * (7 + w * 3.4), cy + 0.1, z - Math.cos(yaw) * (7 + w * 3.4), 0, yaw, 0,
+                         4 + w * 1.6, 0.06, 2.8, [0.92, 0.97, 1.0], 0.55 - w * 0.12, 0, 0, 0, null);
+      }
     }
 
     function drawSmoke(renderer, dt) {
@@ -652,8 +689,13 @@
         if (Math.hypot(w[0] - p[0], w[2] - p[2]) > WINCH_R) continue;
         var b = ((twist.bridges || {})[lane]) || {};
         var ownerW = teamOfLane(lane);
-        if (b.up && ownerW === me) return { k: 'lower', text: 'Hold <b>E</b> to lower your bridge' };
-        if (!b.up && !b.warn && ownerW !== me) return { k: 'raise', text: 'Hold <b>E</b> to winch their bridge up' };
+        var swingW = style.bridge === 'swing';
+        if (b.up && ownerW === me) {
+          return { k: 'lower', text: swingW ? 'Hold <b>E</b> to swing your bridge shut' : 'Hold <b>E</b> to lower your bridge' };
+        }
+        if (!b.up && !b.warn && ownerW !== me) {
+          return { k: 'raise', text: swingW ? 'Hold <b>E</b> to swing their bridge open' : 'Hold <b>E</b> to winch their bridge up' };
+        }
       }
       for (i = 0; i < heaps.length; i++) {
         if (Math.hypot(heaps[i][0] - p[0], heaps[i][2] - p[2]) <= COAL_R) {
@@ -702,7 +744,9 @@
       },
       onMe: function (me) {
         if (me.lane) myLane = me.lane;
-        if (me.act) arena.setHold(me.act.p, ACT_LABEL[me.act.k] || (tw && tw.labels && tw.labels[me.act.k]) || '');
+        var swingL = style.bridge === 'swing' && (me.act || {}).k;
+        var label = swingL === 'raise' ? 'Swinging their bridge open' : swingL === 'lower' ? 'Swinging the bridge shut' : '';
+        if (me.act) arena.setHold(me.act.p, label || ACT_LABEL[me.act.k] || (tw && tw.labels && tw.labels[me.act.k]) || '');
         else arena.setHold(null);
         var team = me.team;
         if (team && arena.phase !== 'intermission') {
@@ -721,7 +765,8 @@
         ['red', 'blue'].forEach(function (team) {
           var c = carts[team] || {};
           var status = c.contest ? 'CONTESTED' : c.brake > 0 ? 'BRAKES' : c.held === 'signal' ? 'SIGNAL'
-            : c.held === 'drift' ? (style.drift === 'sand' ? 'SANDED IN' : 'SNOWED IN') : c.held === 'bridge' ? 'BRIDGE UP'
+            : c.held === 'drift' ? (style.drift === 'sand' ? 'SANDED IN' : 'SNOWED IN')
+            : c.held === 'bridge' ? (style.bridge === 'swing' ? 'BRIDGE OPEN' : 'BRIDGE UP')
             : (c.held && tw && tw.held) ? tw.held(c.held)
             : c.stoke > 0 ? 'STEAM' : (c.push ? c.push + ' pushing' : 'idle');
           bars.push({ label: arena.teamName(team), value: c.f || 0, marks: c.depots || [],
@@ -739,8 +784,9 @@
           sub = snowed.length ? 'Drift on ' + esc(snowed.join(' and ')) : esc(areaName || 'Silverpine Pass') + ': the track is clear';
         } else if (twist.kind === 'bridges') {
           var up = Object.keys(twist.bridges || {}).filter(function (l) { return twist.bridges[l].up; });
-          sub = up.length ? 'Lift bridge UP on ' + esc(up.map(function (l) { return names[l] || l; }).join(' and '))
-            : 'Both lift bridges down';
+          var kindB = style.bridge === 'swing' ? 'Swing bridge OPEN' : 'Lift bridge UP';
+          sub = up.length ? kindB + ' on ' + esc(up.map(function (l) { return names[l] || l; }).join(' and '))
+            : (style.bridge === 'swing' ? 'Both swing bridges closed' : 'Both lift bridges down');
         } else if (tw && tw.hud) {
           sub = tw.hud() || '';
         } else if (twist.kind === 'firedamp') {

@@ -1700,6 +1700,157 @@
     }
   });
 
+  // ------------------------------------------------------ Pelican Wharf
+  /* A bright morning on the harbour.  Gulls cross the sky, the lighthouse
+     on the point sweeps its beam, the pastel town climbs the hill behind;
+     the bridge bell rings and the swing bridge turns open on its pier, a
+     red tug steams through the gap tooting, a pelican sails down onto the
+     piling in front of us -- and the bridge swings shut.  The name hangs
+     from a bracket on a navy harbour board. */
+  Intro.register('rr_pelican', {
+    name: 'Pelican Wharf',
+    tagline: 'Swing their bridge open in their faces -- and mind the water.',
+    accent: '#ff6a5a',
+    cues: [[0.3, 'rr_gull', 0.6], [0.6, 'rr_bell', 0.6], [0.9, 'rr_bell', 0.6], [1.0, 'rr_lift', 0.6],
+           [1.6, 'rr_whistle', 0.6], [2.0, 'rr_gull', 0.5], [2.8, 'rr_lift', 0.4]],
+    shakes: [],
+    tagY: 430, tagAt: 3.0,
+    setup: function (r) {
+      var d = { houses: [], gulls: [], waves: [], puffs: Art.makePuffs(r, 18, 0, 6, 0) };
+      var cols = ['#f4b8c8', '#b8e8d0', '#fbe49a', '#b8d8f4', '#f8c89a', '#d8c8f0', '#f4f0e0'];
+      for (var i = 0; i < 22; i++) {
+        d.houses.push({ x: 40 + i * 70 + between(r, -10, 10), y: 470 - Math.sin(i / 21 * Math.PI) * 120 + between(r, -10, 10),
+                        w: between(r, 40, 60), h: between(r, 30, 46), c: cols[i % cols.length], roof: ['#d8322a', '#2a3a6a', '#3a8a6a'][i % 3] });
+      }
+      for (i = 0; i < 6; i++) d.gulls.push({ y: between(r, 120, 260), v: between(r, 160, 280), p: r() * 6, s: between(r, 0.7, 1.2) });
+      for (i = 0; i < 40; i++) d.waves.push({ x: r() * VW, y: between(r, 600, 860), w: between(r, 30, 90), p: r() * 6 });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var HZ = 520;
+      var sky = ctx.createLinearGradient(0, 0, 0, HZ);
+      sky.addColorStop(0, '#2a7ad0');
+      sky.addColorStop(1, '#cfeaf8');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, VW, HZ + 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      [[220, 150, 90], [300, 170, 70], [1080, 120, 110], [1180, 140, 80]].forEach(function (c) {
+        ctx.beginPath(); ctx.ellipse(c[0] + t * 8, c[1], c[2], c[2] * 0.35, 0, 0, TAU); ctx.fill();
+      });
+      // the town on its hill across the water, the chapel on top
+      ctx.fillStyle = '#7ab84e';
+      ctx.beginPath(); ctx.moveTo(0, HZ); ctx.quadraticCurveTo(800, 260, VW, HZ); ctx.fill();
+      d.houses.forEach(function (h) {
+        ctx.fillStyle = h.c; ctx.fillRect(h.x, h.y - h.h, h.w, h.h);
+        ctx.fillStyle = h.roof;
+        ctx.beginPath(); ctx.moveTo(h.x - 4, h.y - h.h); ctx.lineTo(h.x + h.w / 2, h.y - h.h - 18); ctx.lineTo(h.x + h.w + 4, h.y - h.h); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(h.x + 8, h.y - h.h + 10, 8, 10); ctx.fillRect(h.x + h.w - 16, h.y - h.h + 10, 8, 10);
+      });
+      ctx.fillStyle = '#f8f6f0'; ctx.fillRect(780, 290, 40, 60);
+      ctx.fillStyle = '#2a3a6a'; ctx.beginPath(); ctx.moveTo(772, 290); ctx.lineTo(800, 250); ctx.lineTo(828, 290); ctx.fill();
+      // the lighthouse on the point, its beam sweeping
+      var lx = 1430;
+      for (var b2 = 0; b2 < 6; b2++) {
+        ctx.fillStyle = b2 % 2 ? '#d8322a' : '#f8f6f0';
+        ctx.fillRect(lx - 22 + b2 * 1.5, 470 - (b2 + 1) * 34, 44 - b2 * 3, 34);
+      }
+      var beam = Math.sin(t * 1.8);
+      additive(ctx, function () {
+        ctx.fillStyle = 'rgba(255,248,200,' + (0.18 + 0.12 * Math.abs(beam)) + ')';
+        ctx.beginPath(); ctx.moveTo(lx, 252); ctx.lineTo(lx - 700, 252 - 120 * beam - 60); ctx.lineTo(lx - 700, 252 - 120 * beam + 60); ctx.fill();
+        dot(ctx, '#fff6c8', lx, 252, 40, 0.9);
+      });
+      // the water
+      var sea = ctx.createLinearGradient(0, HZ, 0, VH);
+      sea.addColorStop(0, '#3a9ad0'); sea.addColorStop(1, '#1a6a9a');
+      ctx.fillStyle = sea;
+      ctx.fillRect(0, HZ, VW, VH - HZ);
+      d.waves.forEach(function (w) {
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.25 + 0.2 * Math.sin(t * 2 + w.p)) + ')';
+        ctx.fillRect((w.x + t * 20) % VW, w.y, w.w, 3);
+      });
+      // the swing bridge on its pier: open from 0.9 to 2.7
+      var open = seg(t, 0.9, 1.5) * (1 - seg(t, 2.7, 3.3));
+      var bw = 900 * Math.cos(open * Math.PI / 2) + 60, by = 610;
+      ctx.fillStyle = '#b8b0a0'; ctx.fillRect(760, by + 10, 80, 200);
+      ctx.fillStyle = '#d8322a';
+      ctx.fillRect(800 - bw / 2, by - 20, bw, 26);
+      ctx.fillStyle = '#f8f6f0';
+      for (var rp = 0; rp <= 12; rp++) ctx.fillRect(800 - bw / 2 + rp * bw / 12 - 2, by - 50, 4, 30);
+      ctx.fillRect(800 - bw / 2, by - 52, bw, 5);
+      ctx.fillStyle = '#e8b23a'; ctx.fillRect(785, by - 70, 30, 24);
+      // the banks either side
+      ctx.fillStyle = '#7ab84e'; ctx.fillRect(0, by + 6, 340, VH - by); ctx.fillRect(1260, by + 6, VW - 1260, VH - by);
+      ctx.fillStyle = '#b8b0a0'; ctx.fillRect(330, by + 6, 14, VH - by); ctx.fillRect(1256, by + 6, 14, VH - by);
+      // the tug through the gap
+      var tx = lerp(-240, VW + 240, seg(t, 1.2, 3.2));
+      if (t > 1.2 && t < 3.3) {
+        Art.puffs(ctx, d.puffs.map(function (p) {
+          return { at: p.at * 0.4 + 1.2, x: lerp(-240, VW + 240, seg(p.at * 0.4 + 1.2, 1.2, 3.2)) - 10, y: 560,
+                   vx: -40, vy: p.vy, r: p.r * 0.8, life: p.life };
+        }), t, '#e8e8e8');
+        ctx.fillStyle = '#d8322a'; ctx.beginPath(); ctx.moveTo(tx - 110, 640); ctx.lineTo(tx + 120, 640); ctx.lineTo(tx + 90, 690); ctx.lineTo(tx - 100, 690); ctx.fill();
+        ctx.fillStyle = '#1a1a1e'; ctx.fillRect(tx - 110, 636, 230, 8);
+        ctx.fillStyle = '#f8f6f0'; ctx.fillRect(tx - 50, 590, 90, 46);
+        ctx.fillStyle = '#2a3a6a'; ctx.fillRect(tx - 56, 584, 102, 8);
+        ctx.fillStyle = '#ffd88a'; ctx.fillRect(tx - 36, 600, 18, 14); ctx.fillRect(tx + 4, 600, 18, 14);
+        ctx.fillStyle = '#e8b23a'; ctx.fillRect(tx + 10, 548, 22, 40);
+      }
+      // gulls crossing
+      d.gulls.forEach(function (g) {
+        var gx = ((t * g.v + g.p * 300) % (VW + 200)) - 100;
+        var flap = Math.sin(t * 9 + g.p) * 10 * g.s;
+        ctx.strokeStyle = '#f8f8f4'; ctx.lineWidth = 4 * g.s;
+        ctx.beginPath(); ctx.moveTo(gx - 22 * g.s, g.y + flap); ctx.quadraticCurveTo(gx - 8, g.y - 8, gx, g.y);
+        ctx.quadraticCurveTo(gx + 8, g.y - 8, gx + 22 * g.s, g.y + flap); ctx.stroke();
+      });
+      // the pelican sailing down onto the piling in front
+      var land = outCubic(seg(t, 1.5, 2.2));
+      var px = lerp(-100, 1110, land), py = lerp(140, 690, land);
+      ctx.fillStyle = '#6a5a48'; ctx.fillRect(1090, 700, 44, VH - 700);
+      ctx.fillStyle = '#5a4a3a'; ctx.fillRect(1086, 696, 52, 8);
+      ctx.save(); ctx.translate(px, py);
+      var wings = land < 1 ? Math.sin(t * 6) * 0.4 : -0.8;
+      ctx.fillStyle = '#f2f0ea';
+      ctx.beginPath(); ctx.ellipse(0, -10, 30, 20, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.rotate(wings); ctx.fillStyle = '#d8d4cc'; ctx.fillRect(-70, -18, 70, 12); ctx.restore();
+      ctx.fillStyle = '#f2f0ea'; ctx.fillRect(14, -48, 10, 34);
+      ctx.beginPath(); ctx.arc(20, -52, 10, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e8a830'; ctx.beginPath(); ctx.moveTo(26, -56); ctx.lineTo(64, -46); ctx.lineTo(26, -44); ctx.fill();
+      ctx.fillStyle = '#d8902a'; ctx.beginPath(); ctx.moveTo(26, -46); ctx.quadraticCurveTo(46, -30, 60, -46); ctx.fill();
+      ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(22, -55, 2, 0, TAU); ctx.fill();
+      ctx.restore();
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Pelican Wharf').toUpperCase();
+      var k = outBack(seg(t, 1.8, 2.25), 1.3);
+      if (k <= 0) return;
+      var swing = Math.sin(t * 3.2) * 0.04 * Math.max(0, 1 - seg(t, 2.2, 3.6));
+      ctx.save();
+      ctx.translate(800, 110);
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(-520, -14, 1040, 10);
+      ctx.rotate(swing);
+      ctx.scale(k, k);
+      ctx.strokeStyle = '#8a8680'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(-380, -4); ctx.lineTo(-380, 60); ctx.moveTo(380, -4); ctx.lineTo(380, 60); ctx.stroke();
+      var w = 1000, h = 180;
+      ctx.fillStyle = '#1a2a5a';
+      roundRect(ctx, -w / 2, 60, w, h, 18); ctx.fill();
+      ctx.strokeStyle = '#e8b23a'; ctx.lineWidth = 6;
+      roundRect(ctx, -w / 2 + 10, 70, w - 20, h - 20, 12); ctx.stroke();
+      nameText(ctx, name, 0, 60 + h / 2 + 6, w - 120, '#ffd84a', 'rgba(0,0,0,0.35)', 1);
+      ctx.fillStyle = '#d8322a';
+      ctx.beginPath(); ctx.arc(-w / 2 + 50, 60 + h / 2, 26, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(w / 2 - 50, 60 + h / 2, 26, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f8f6f0';
+      [-w / 2 + 50, w / 2 - 50].forEach(function (cx) {
+        ctx.beginPath(); ctx.arc(cx, 60 + h / 2, 12, 0, TAU); ctx.fill();
+      });
+      ctx.restore();
+    }
+  });
+
   Intro.register('rr_union', {
     name: 'Union Terminal',
     tagline: 'The race ends under the glass. Take the tower -- hold their cart at the diamond.',

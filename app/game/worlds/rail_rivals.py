@@ -365,6 +365,8 @@ class RailRivalsWorld(ArenaWorld):
                  "bridges": "Hold E in a bridge cabin to winch their lift bridge up. Mind the river.",
                  "firedamp": "When a firedamp board hisses, get clear before it goes up. "
                              "Mind the lava."}.get(self.twist)
+        if twist and self.twist == "bridges" and (self.area.get("extra") or {}).get("bridge_style") == "swing":
+            twist = "Hold E at their bridge's wheel in the control house to swing it open. Mind the water."
         if twist:
             lines.append(twist)
         elif self.tw is not None and self.tw.welcome:
@@ -1538,9 +1540,13 @@ class RailRivalsWorld(ArenaWorld):
         out = [("the bots push their carts down the line", moved > 60.0, "%.0f units" % moved),
                ("somebody pulls a brake lever", levers > 0, levers),
                ("somebody fetches coal", coal > 0, coal)]
-        # each newer line's twist, if the run raced on it
+        # each newer line's twist, if the run raced on it long enough for
+        # the twist to have come round (a line visited for the last minute
+        # of a run has not had its trains, its wells, its drifts yet)
         for area_id in sorted({o.get("area") for o in obs if o.get("phase") == "active"}):
             seen = [o for o in obs if o.get("area") == area_id and o.get("phase") == "active"]
+            if len(seen) * 10 * engine.TICK_DT < 150.0:
+                continue
             kind = str(((self.areas.get(area_id) or {}).get("extra") or {}).get("twist") or "")
             twist = rail_twists.make(self, kind)
             if twist is not None:
