@@ -532,6 +532,153 @@
     };
   });
 
+  /* A flame at the top of a flare stack (or a torch): tongues of fire
+     licking up and leaning downwind, a plume of black smoke above. */
+  Rigs.register('rr_flame', function (spec) {
+    var s0 = spec.s || 1, wind = spec.wind || [0.8, 0.2];
+    return {
+      radius: 60,
+      draw: function (pen, t) {
+        for (var i = 0; i < 6; i++) {
+          var u = ((t * 1.8 + i / 6) % 1);
+          var lean = u * u * 3 * s0;
+          var f = frame([spec.p[0] + wind[0] * lean + Math.sin(t * 9 + i) * 0.3 * s0, spec.p[1] + u * 5 * s0,
+                         spec.p[2] + wind[1] * lean], t * 3 + i, 1);
+          var w = (1.6 - u * 1.1) * s0;
+          pen.part(f, 'cone', [0, 0, 0], [w * 1.6, (2.4 - u) * s0, w * 1.6], u < 0.4 ? '#fff0a0' : '#ff8a2a',
+                   { m: 'neon', a: 0.9 - u * 0.5 });
+        }
+        for (var j = 0; j < 6; j++) {
+          var v = ((t * 0.35 + j / 6) % 1);
+          var sz = (2 + v * 7) * s0;
+          pen.part(frame([spec.p[0] + wind[0] * v * 22 * s0, spec.p[1] + (5 + v * 22) * s0, spec.p[2] + wind[1] * v * 22 * s0], 0),
+                   'sph', [0, 0, 0], [sz, sz * 0.8, sz], '#2a2624', { a: 0.6 * (1 - v) });
+        }
+      }
+    };
+  });
+
+  /* A cable-tool rig's walking beam: the long timber rocking on its
+     samson post, the pitman driving it from the band wheel's crank, the
+     cable and the tools rising and falling at its far end. */
+  Rigs.register('rr_walking_beam', function (spec) {
+    var L = spec.l || 14;
+    return {
+      radius: L + 20,
+      draw: function (pen, t) {
+        var a = Math.sin(t * 1.6) * 0.22;
+        var f = frame(spec.p, spec.yaw || 0, 1);
+        var beam = child(f, [0, 0, 0], a, 0, 0);
+        pen.part(beam, 'box', [0, 0, 0], [0.9, 0.9, L], '#6a4a30');
+        pen.part(beam, 'box', [0, 0.4, L / 2 - 0.4], [1.0, 1.4, 0.8], '#5a3e28');
+        // the cable down from the head of the beam to the drill tools
+        var head = Rigs.point(beam, [0, 0, L / 2]);
+        pen.rod(head, [head[0], spec.p[1] - 6, head[2]], 0.12, '#2a2a2a');
+        pen.part(frame([head[0], head[1] - 4.5, head[2]], 0), 'cyl', [0, 0, 0], [0.5, 2.4, 0.5], '#5a5a5e', { m: 'metal' });
+        // the pitman to the crank on the band wheel
+        var tail = Rigs.point(beam, [0, 0, -L / 2 + 0.6]);
+        var crank = Rigs.point(f, [0, -6 + Math.sin(t * 1.6 + Math.PI / 2) * 0.8, -L / 2 + 0.6 + Math.cos(t * 1.6) * 0.8]);
+        pen.rod(tail, crank, 0.3, '#4a3a2a', null, 'box');
+        var wheel = child(f, [0, -6, -L / 2 + 0.6], t * 1.6, 0, 0);
+        pen.part(wheel, 'cyl', [0, 0, 0], [3.2, 0.4, 3.2], '#5a3e28', { rz: Math.PI / 2 });
+      }
+    };
+  });
+
+  /* A pumpjack nodding on its skid: the walking beam see-sawing on the
+     samson post, the horsehead dipping the polished rod into the well, the
+     counterweights going round on the crank -- each one out of step with
+     its neighbours. */
+  Rigs.register('rr_pumpjack', function (spec) {
+    var s0 = spec.s || 1, rate = spec.rate || 1.3, phase = spec.seed || 0;
+    var paint = spec.colour || '#c8a02a';
+    return {
+      radius: 30,
+      draw: function (pen, t) {
+        var a = t * rate + phase;
+        var tilt = Math.sin(a) * 0.32;
+        var f = frame(spec.p, spec.yaw || 0, s0);
+        // the skid, the samson post, the gearbox
+        pen.part(f, 'box', [0, 0.3, 0], [2.6, 0.6, 11.0], '#3a3a3e', { m: 'metal' });
+        pen.part(f, 'box', [0, 3.4, 0.6], [0.5, 6.2, 0.5], paint, { m: 'metal', rx: 0.12 });
+        pen.part(f, 'box', [0, 3.4, -0.6], [0.5, 6.2, 0.5], paint, { m: 'metal', rx: -0.12 });
+        pen.part(f, 'box', [0, 1.6, -3.4], [1.8, 2.0, 2.0], '#4a4a4e', { m: 'metal' });
+        // the beam and its horsehead
+        var beam = child(f, [0, 6.6, 0], tilt, 0, 0);
+        pen.part(beam, 'box', [0, 0, 0.8], [0.7, 0.8, 9.0], paint, { m: 'metal' });
+        pen.part(beam, 'box', [0, -0.6, 5.2], [0.8, 2.6, 1.0], paint, { m: 'metal' });
+        pen.part(beam, 'box', [0, -0.6, 5.75], [0.6, 2.4, 0.2], '#2a2a2a', { m: 'metal' });
+        // the polished rod into the wellhead
+        var head = Rigs.point(beam, [0, -1.9, 5.8]);
+        pen.rod(head, Rigs.point(f, [0, 0.6, 5.8]), 0.12, '#d8d8d0', { m: 'metal' });
+        pen.part(f, 'box', [0, 1.0, 5.8], [0.8, 1.2, 0.8], '#c8281e', { m: 'metal' });
+        // the crank and its counterweights, and the pitman up to the beam
+        var crank = child(f, [0, 1.8, -3.4], -a, 0, 0);
+        pen.part(crank, 'box', [0.9, 0, 0], [0.3, 0.5, 3.6], '#3a3a3e', { m: 'metal' });
+        pen.part(crank, 'box', [0.9, 0, 1.6], [0.6, 1.6, 1.4], '#2a2a2c', { m: 'metal' });
+        pen.part(crank, 'box', [0.9, 0, -1.6], [0.6, 1.6, 1.4], '#2a2a2c', { m: 'metal' });
+        var pin = Rigs.point(crank, [0.9, 0, -1.6]);
+        var tail = Rigs.point(beam, [0, -0.4, -3.4]);
+        pen.rod(pin, tail, 0.3, paint, { m: 'metal' }, 'box');
+      }
+    };
+  });
+
+  /* A string of lights between two points: the rope sagging, the bulbs in
+     their colours swinging a little in the wind and glowing, now and then
+     one flickering. */
+  Rigs.register('rr_lights', function (spec) {
+    var a = spec.p, b = spec.q || spec.p, n = spec.n || 14, sag = spec.sag || 2.4;
+    var colours = spec.colours || ['#ffd27a', '#ff6a4a', '#7ae0ff', '#a8ff7a', '#ff9ae0'];
+    return {
+      radius: flat(a, b) / 2 + 20,
+      at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2],
+      draw: function (pen, t) {
+        var sway = Math.sin(t * 1.1 + a[0] * 0.1) * 0.5;
+        var last = null;
+        for (var i = 0; i <= n; i++) {
+          var u = i / n;
+          var pt = [a[0] + (b[0] - a[0]) * u + sway * Math.sin(u * Math.PI) * 0.4,
+                    a[1] + (b[1] - a[1]) * u - Math.sin(u * Math.PI) * sag,
+                    a[2] + (b[2] - a[2]) * u + sway * Math.sin(u * Math.PI)];
+          if (last) pen.rod(last, pt, 0.06, '#2a2a2a');
+          if (i > 0 && i < n) {
+            var flick = Rigs.hash(Math.floor(t * 3) + i * 7) < 0.04 ? 0.25 : 1;
+            pen.part(frame([pt[0], pt[1] - 0.45, pt[2]], 0), 'sph', [0, 0, 0], [0.55, 0.7, 0.55],
+                     colours[i % colours.length], { m: 'neon', a: flick });
+          }
+          last = pt;
+        }
+      }
+    };
+  });
+
+  /* Bubbles working up through a pool of crude: they swell, shine and
+     burst, rings spreading where they went. */
+  Rigs.register('rr_bubbles', function (spec) {
+    var w = spec.w || 16, d = spec.d || 10, n = spec.n || 7;
+    return {
+      radius: Math.max(w, d) + 10,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < n; i++) {
+          var period = 2.2 + (i % 3) * 0.7;
+          var u = ((t + i * 1.37) % period) / period;
+          var x = spec.p[0] + (Rigs.hash(i * 3 + Math.floor((t + i * 1.37) / period)) - 0.5) * w;
+          var z = spec.p[2] + (Rigs.hash(i * 5 + 1 + Math.floor((t + i * 1.37) / period)) - 0.5) * d;
+          if (u < 0.8) {
+            var r = 0.3 + u * 1.1;
+            pen.part(frame([x, spec.p[1] + r * 0.3, z], 0), 'sph', [0, 0, 0], [r, r * 0.7, r], '#1a1614', { m: 'metal' });
+          } else {
+            var k = (u - 0.8) / 0.2;
+            pen.part(frame([x, spec.p[1] + 0.02, z], 0), 'cyl', [0, 0, 0], [1 + k * 3, 0.03, 1 + k * 3], '#5a4a40',
+                     { a: 0.7 * (1 - k) });
+          }
+        }
+      }
+    };
+  });
+
   // ===================================================== the railroad
   function trainOn(ctx) {
     var tw = ctx.twist ? ctx.twist() : null;

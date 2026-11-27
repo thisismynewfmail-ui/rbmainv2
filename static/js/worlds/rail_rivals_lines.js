@@ -644,6 +644,185 @@
     };
   };
 
+  // ============================================================ gushers
+  /* Gusher Flats: the wells beside the lines.  While one hisses, oil
+     sprays out of its wellhead higher and higher and the ground round it
+     glows a warning; then it blows -- a column of oil and fire -- and the
+     oil it threw burns across its line, holding the cart short of it.
+     The valve ring at every wellhead says what E does there. */
+  Twists.gushers = function (ctx) {
+    var VALVE_R = 4.4, EDGE = 16, HALF = 9;
+    var wells = [], states = [], stAt = 0, blasts = [], drops = [], crackAt = 0;
+
+    function now() { return performance.now() / 1000; }
+    function load(map) {
+      var mk = (map && map.markers) || {};
+      wells = ((mk.points || {}).well || []).map(function (m, i) {
+        return { i: i, p: m.p, h: m.head || m.p, lane: m.lane, d: m.d || 0, name: m.name || 'a well' };
+      });
+      states = wells.map(function () { return { s: 'idle' }; });
+      blasts = []; drops = [];
+    }
+    function apply(tw) {
+      if (!tw.wells) return;
+      states = tw.wells.map(function (w) { return { s: w.s, left: w.left || 0, rest: w.rest || 0 }; });
+      stAt = now();
+    }
+    function left(i) { return Math.max(0, ((states[i] || {}).left || 0) - (now() - stAt)); }
+    function rest(i) { return Math.max(0, ((states[i] || {}).rest || 0) - (now() - stAt)); }
+    function hissing() {
+      for (var i = 0; i < states.length; i++) if (states[i].s === 'warn') return i;
+      return -1;
+    }
+
+    function drawSpray(r, w, k, time) {
+      // oil forcing its way out: a jet climbing as the pressure builds
+      var h = 4 + 26 * k, hp = w.h;
+      for (var j = 0; j < 9; j++) {
+        var u = ((time * 1.6 + j / 9) % 1);
+        var y = hp[1] + 2 + u * h;
+        var spread = 0.6 + u * (2 + 4 * k);
+        r.pushRaw('sph', hp[0] + Math.sin(j * 2.1 + time * 5) * spread, y, hp[2] + Math.cos(j * 1.7 + time * 4) * spread,
+                  0, 0, 0, 1.2 + u * 2.4, 1.2 + u * 2.4, 1.2 + u * 2.4, [0.07, 0.06, 0.05], 0.85 * (1 - u * 0.6), 0, 0, 0, null);
+      }
+      r.pushRaw('cyl', hp[0], hp[1] + h / 2 + 1, hp[2], 0, 0, 0, 0.8 + k, h, 0.8 + k, [0.05, 0.04, 0.03], 0.9, 0, 0, 0, null);
+      var pulse = 0.18 + 0.16 * Math.abs(Math.sin(time * (6 + k * 10)));
+      r.pushRaw('cyl', hp[0], hp[1] + 0.1, hp[2], 0, 0, 0, EDGE * 2, 0.05, EDGE * 2, [1, 0.5, 0.1], pulse, 0, 2, 0.5, null);
+      r.pushRaw('cyl', hp[0], hp[1] + 0.12, hp[2], 0, 0, 0, 20 * k, 0.05, 20 * k, [1, 0.15, 0.08], 0.35, 0, 2, 0.6, null);
+    }
+
+    function drawFire(r, w, time, k) {
+      var path = ctx.lanes()[w.lane];
+      if (!path) return;
+      // the stretch of track alight, flames dancing along it
+      for (var dd = -HALF; dd <= HALF; dd += 2.2) {
+        var at = path.at(w.d + dd);
+        var flick = Math.sin(time * 11 + dd * 1.7) * 0.5 + 0.5;
+        var off = Math.sin(dd * 3.1) * 1.6;
+        var x = at[0] + Math.cos(at[2]) * off, z = at[1] - Math.sin(at[2]) * off, y = (at[3] || 0);
+        var h = (3 + flick * 3) * k;
+        r.pushRaw('cone', x, y + h / 2, z, 0, time + dd, 0, 2.6, h, 2.6, [1, 0.45 + flick * 0.3, 0.1], 0.9, 0, 2, 1, null);
+        r.pushRaw('cone', x, y + h * 0.4, z, 0, 0, 0, 1.4, h * 0.6, 1.4, [1, 0.9, 0.4], 0.9, 0, 2, 1, null);
+        if (((dd + HALF) | 0) % 4 === 0) {
+          var u = (time * 0.5 + dd) % 1;
+          r.pushRaw('sph', x + u * 4, y + 6 + u * 14, z, 0, 0, 0, 3 + u * 5, 2.4 + u * 4, 3 + u * 5, [0.12, 0.11, 0.1],
+                    0.55 * (1 - u), 0, 0, 0, null);
+        }
+      }
+      // the wellhead burning like a torch
+      for (var j = 0; j < 5; j++) {
+        var v = ((time * 1.2 + j / 5) % 1);
+        r.pushRaw('sph', w.h[0] + v * 3, w.h[1] + 4 + v * 26, w.h[2], 0, 0, 0, 3 + v * 6, 3 + v * 6, 3 + v * 6,
+                  v < 0.35 ? [1, 0.55, 0.15] : [0.1, 0.09, 0.08], v < 0.35 ? 0.85 : 0.6 * (1 - v), 0, v < 0.35 ? 2 : 0,
+                  v < 0.35 ? 1 : 0, null);
+      }
+    }
+
+    function draw(renderer, time, dt) {
+      var p = ctx.client.local.pos;
+      wells.forEach(function (w, i) {
+        var st = states[i] || { s: 'idle' };
+        if (st.s === 'warn') drawSpray(renderer, w, 1 - Math.min(1, left(i) / 6), time);
+        else if (st.s === 'fire') drawFire(renderer, w, time, Math.min(1, left(i) / 2 + 0.2));
+        if (flat(w.p, p) < 60) {
+          var open = st.s === 'idle' && !rest(i) && hissing() < 0;
+          var col = st.s === 'warn' ? [1, 0.3, 0.2] : open ? [1, 0.85, 0.3] : [0.5, 0.5, 0.5];
+          renderer.pushRaw('cyl', w.p[0], w.p[1] + 0.14, w.p[2], 0, 0, 0, VALVE_R * 2, 0.05, VALVE_R * 2, col,
+                           0.12 + 0.1 * Math.sin(time * 4 + i), 0, 2, 0.4, null);
+        }
+      });
+      blasts = blasts.filter(function (b) {
+        b.t += dt;
+        var k = b.t / 1.4;
+        if (k >= 1) return false;
+        renderer.pushRaw('sph', b.p[0], b.p[1] + 6 + k * 10, b.p[2], 0, 0, 0, 12 + k * 30, 10 + k * 26, 12 + k * 30,
+                         [1, 0.6 - k * 0.4, 0.15], 0.75 * (1 - k), 0, 2, 1, null);
+        renderer.pushRaw('cyl', b.p[0], b.p[1] + 20 + k * 20, b.p[2], 0, 0, 0, 4 + k * 4, 40 + k * 40, 4 + k * 4,
+                         [0.06, 0.05, 0.04], 0.85 * (1 - k * 0.6), 0, 0, 0, null);
+        return true;
+      });
+      // oil rain after a blowout
+      drops = drops.filter(function (q) {
+        q.t += dt;
+        if (q.t > q.life) return false;
+        q.vy -= 40 * dt;
+        q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt;
+        renderer.pushRaw('box', q.x, q.y, q.z, 0, 0, 0, 0.35, 0.6, 0.35, [0.06, 0.05, 0.04], 1, 0, 0, 0, null);
+        return true;
+      });
+      // the crackle of a fire close by
+      var fire = wells.some(function (w, i) { return states[i] && states[i].s === 'fire' && flat(w.p, p) < 90; });
+      if (fire && time - crackAt > 0.5) {
+        crackAt = time;
+        ctx.client.audio.play('rr_fire', { volume: 0.5 });
+      }
+    }
+
+    function here(p) {
+      for (var i = 0; i < wells.length; i++) {
+        var w = wells[i];
+        if (flat(w.p, p) > VALVE_R) continue;
+        var st = states[i] || { s: 'idle' };
+        if (st.s === 'warn') return { k: 'shut', text: 'Hold <b>E</b> to SHUT the valve -- it blows in ' + Math.ceil(left(i)) + 's' };
+        if (st.s === 'fire') return { k: 'x', text: 'The well is burning' };
+        if (rest(i)) return { k: 'x', text: 'The well is spent (' + Math.ceil(rest(i)) + 's)' };
+        if (hissing() >= 0) return { k: 'x', text: 'Another well is blowing' };
+        return { k: 'open', text: 'Hold <b>E</b> to open the valve -- it blows six seconds later' };
+      }
+      return null;
+    }
+
+    function hud() {
+      var parts = [];
+      wells.forEach(function (w, i) {
+        var st = states[i] || {};
+        var who = ctx.esc(ctx.arena.teamName(ctx.teamOfLane(w.lane)));
+        if (st.s === 'warn') parts.push('<b>a well is hissing</b> by ' + who + "'s line (" + Math.ceil(left(i)) + 's)');
+        else if (st.s === 'fire') parts.push('oil burning on ' + who + "'s line (" + Math.ceil(left(i)) + 's)');
+      });
+      return parts.length ? parts.join(' &bull; ') : ctx.esc(ctx.areaName() || 'Gusher Flats') + ': the wells are quiet';
+    }
+
+    function message(msg) {
+      if (msg.k !== 'gush') return false;
+      var w = wells[msg.i];
+      if (!w) return true;
+      var me = ctx.client.myTeam, myLane = ctx.myLane(), q = ctx.client.local.pos;
+      var near = flat(w.p, q) < 80;
+      if (msg.state === 'warn') {
+        if (near) ctx.client.audio.play('rr_hiss', { volume: 0.7 });
+        if (msg.by) {
+          var ours = msg.team === me;
+          ctx.say('gush', ours ? 'WELL OPENED ON THEM' : 'THEY OPENED A WELL', ours ? 'go' : 'bad', 'rr_hiss',
+                  ctx.esc(msg.by) + ' opened the valve by ' + (w.lane === myLane ? 'your' : 'their') + ' line');
+        } else if (near || w.lane === myLane) {
+          ctx.say('gush', 'A WELL IS HISSING', 'bad', null, 'Get clear -- or shut its valve');
+        }
+      } else if (msg.state === 'blow') {
+        blasts.push({ p: w.h, t: 0 });
+        for (var j = 0; j < 40; j++) {
+          var a = j * 0.9, v = 6 + (j % 5) * 3;
+          drops.push({ x: w.h[0], y: w.h[1] + 20 + (j % 7) * 3, z: w.h[2], vx: Math.cos(a) * v, vy: 8 + (j % 4) * 4,
+                       vz: Math.sin(a) * v, t: 0, life: 2.4 });
+        }
+        ctx.client.audio.play('rr_blowout', { volume: Math.max(0.3, 1 - flat(w.p, q) / 260) });
+        if (w.lane === myLane) ctx.say('gushfire', 'OIL FIRE ON OUR LINE', 'bad');
+      } else if (msg.state === 'shut') {
+        var mine = msg.team === me;
+        ctx.say('gushshut', mine ? 'WELL CAPPED' : 'THEY CAPPED IT', mine ? 'go' : 'bad', 'rr_release',
+                ctx.esc(msg.by || '') + ' shut the valve in time');
+      }
+      return true;
+    }
+
+    return {
+      load: load, apply: apply, draw: draw, here: here, hud: hud, message: message,
+      held: function (reason) { return reason === 'fire' ? 'OIL FIRE AHEAD' : ''; },
+      labels: { open: 'Opening the valve', shut: 'Shutting the valve' },
+      carryName: function (kind) { return kind; }
+    };
+  };
+
   // ============================================================= sounds
   var GA = global.GameAudio;
   if (GA && GA.register) {
@@ -697,6 +876,21 @@
     GA.register('rr_rumble', function (vol) {
       this.noise({ freq: 220, freqEnd: 120, dur: 0.6, gain: 0.16 * vol });
       this.tone({ type: 'sawtooth', freq: 38, freqEnd: 34, dur: 0.5, gain: 0.04 * vol });
+    });
+    GA.register('rr_blowout', function (vol) {
+      // the well letting go: a roar of gas, the boom of it catching
+      this.noise({ freq: 600, freqEnd: 80, dur: 1.8, gain: 0.4 * vol });
+      this.tone({ type: 'sawtooth', freq: 70, freqEnd: 30, dur: 1.2, gain: 0.1 * vol });
+      this.later(120, function () { this.noise({ filter: 'highpass', freq: 1800, freqEnd: 400, dur: 1.4, gain: 0.18 * vol }); });
+    });
+    GA.register('rr_fire', function (vol) {
+      // a fire's crackle
+      for (var i = 0; i < 5; i++) {
+        this.later(i * 90 + (i * 37 % 50), function () {
+          this.noise({ filter: 'bandpass', freq: 2400, freqEnd: 900, dur: 0.05, gain: 0.07 * vol });
+        });
+      }
+      this.noise({ freq: 400, freqEnd: 200, dur: 0.5, gain: 0.05 * vol });
     });
     GA.register('rr_pry', function (vol) {
       this.tone({ type: 'sawtooth', freq: 220, freqEnd: 520, dur: 0.5, gain: 0.06 * vol });
@@ -1334,6 +1528,175 @@
           ctx.fillRect(ex - (i * 37 % 90), 150 + (i * 53 % 160), 6, 4);
         }
       }
+    }
+  });
+
+  // ------------------------------------------------------- Gusher Flats
+  /* Sunset over the oil field.  Derricks against a burning sky, pumpjacks
+     nodding in the foreground, the boomtown's lights winking on -- then
+     the ground shakes, the well in the middle starts to spit, and it comes
+     in: a black column into the sky, oil raining down, the roughnecks
+     throwing their hats.  The name comes up in dripping crude. */
+  function derrickShape(ctx, x, base, h, w, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, w * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, base); ctx.lineTo(x - w * 0.1, base - h); ctx.lineTo(x + w * 0.1, base - h); ctx.lineTo(x + w / 2, base);
+    for (var k = 1; k < 5; k++) {
+      var f = k / 5, half = w / 2 - (w * 0.4) * f;
+      ctx.moveTo(x - half, base - h * f); ctx.lineTo(x + half, base - h * f);
+      ctx.moveTo(x - half, base - h * f); ctx.lineTo(x + half - (w * 0.4) / 5, base - h * (f + 0.2));
+    }
+    ctx.stroke();
+  }
+  function pumpjackShape(ctx, x, base, s, t, col) {
+    var a = Math.sin(t * 2.2 + x) * 0.3;
+    ctx.fillStyle = col; ctx.strokeStyle = col;
+    ctx.fillRect(x - 40 * s, base - 6 * s, 80 * s, 6 * s);
+    ctx.lineWidth = 6 * s;
+    ctx.beginPath(); ctx.moveTo(x - 10 * s, base); ctx.lineTo(x, base - 50 * s); ctx.lineTo(x + 10 * s, base); ctx.stroke();
+    ctx.save(); ctx.translate(x, base - 50 * s); ctx.rotate(a);
+    ctx.fillRect(-46 * s, -4 * s, 92 * s, 8 * s);
+    ctx.beginPath(); ctx.moveTo(42 * s, -10 * s); ctx.quadraticCurveTo(62 * s, 4 * s, 44 * s, 24 * s); ctx.lineTo(38 * s, 6 * s); ctx.fill();
+    ctx.restore();
+    ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.moveTo(x + 50 * s, base - 50 * s + Math.sin(a) * 46 * s + 22 * s); ctx.lineTo(x + 50 * s, base); ctx.stroke();
+  }
+  Intro.register('rr_gusher', {
+    name: 'Gusher Flats',
+    tagline: 'Set their line on fire -- and shut the valve before yours goes up.',
+    accent: '#ffb030',
+    cues: [[0.2, 'rr_chug', 0.3], [0.8, 'rr_hiss', 0.6], [1.2, 'rr_hiss', 0.8], [1.6, 'rr_blowout', 1.0],
+           [1.95, 'rr_bell', 0.4], [2.4, 'rr_whistle', 0.5]],
+    shakes: [[0.9, 3, 0.7], [1.6, 11, 0.7]],
+    tagY: 430, tagAt: 3.0,
+    setup: function (r) {
+      var d = { far: [], near: [], lights: [], rain: [], hats: [], jacks: [] };
+      for (var i = 0; i < 26; i++) d.far.push({ x: r() * VW, h: between(r, 50, 110), w: between(r, 16, 28) });
+      for (i = 0; i < 6; i++) d.near.push({ x: 120 + i * 270 + between(r, -40, 40), h: between(r, 180, 250), w: between(r, 50, 70) });
+      for (i = 0; i < 40; i++) d.lights.push({ x: 40 + i * 14, y: 560 + Math.sin(i * 0.7) * 6, c: ['#ffd27a', '#ff6a4a', '#7ae0ff', '#a8ff7a'][i % 4], on: 0.5 + r() * 0.6 });
+      for (i = 0; i < 120; i++) d.rain.push({ x: between(r, 500, 1100), v: between(r, -260, 260), vy: between(r, -120, 80), s: between(r, 3, 7), at: between(r, 1.65, 2.6) });
+      for (i = 0; i < 9; i++) d.hats.push({ x: 640 + between(r, -260, 260), vx: between(r, -60, 60), vy: between(r, -420, -300), sp: between(r, -8, 8) });
+      for (i = 0; i < 4; i++) d.jacks.push({ x: 150 + i * 420 + between(r, -40, 40), s: between(r, 1.1, 1.5) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var HZ = 600, blow = seg(t, 1.6, 2.2);
+      var sky = ctx.createLinearGradient(0, 0, 0, HZ);
+      sky.addColorStop(0, '#24224e');
+      sky.addColorStop(0.45, '#8a3a5a');
+      sky.addColorStop(0.8, '#ff7a3a');
+      sky.addColorStop(1, '#ffc060');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, VW, HZ + 2);
+      additive(ctx, function () { dot(ctx, '#ffd890', 1180, HZ - 40, 300, 0.6); });
+      ctx.fillStyle = '#ffe2a0';
+      ctx.beginPath(); ctx.arc(1180, HZ - 40, 70, Math.PI, TAU); ctx.fill();
+      // the far field of derricks and the land
+      d.far.forEach(function (f) { derrickShape(ctx, f.x, HZ, f.h, f.w, '#3a2030'); });
+      ctx.fillStyle = '#2a1a1e';
+      ctx.fillRect(0, HZ, VW, VH - HZ);
+      // the town's lights winking on along the left
+      d.lights.forEach(function (l) {
+        if (t < l.on) return;
+        additive(ctx, function () { dot(ctx, l.c, l.x, l.y, 14, 0.9); });
+      });
+      ctx.fillStyle = '#20141a';
+      [[30, 90], [120, 70], [200, 110], [300, 80], [380, 100], [460, 60]].forEach(function (hb) {
+        ctx.fillRect(hb[0], HZ - hb[1], 70, hb[1]);
+      });
+      // the near derricks, and the one in the middle that comes in
+      d.near.forEach(function (n, i) { if (i !== 2) derrickShape(ctx, n.x, HZ + 60, n.h, n.w, '#1a1014'); });
+      var cx = 800, top = HZ + 60 - 260;
+      derrickShape(ctx, cx, HZ + 60, 260, 90, '#1a1014');
+      // the hiss: oil spitting out of the wellhead
+      var hiss = seg(t, 0.8, 1.6);
+      if (hiss > 0 && blow < 1) {
+        for (var k = 0; k < 14; k++) {
+          var u = ((t * 2 + k / 14) % 1);
+          ctx.fillStyle = rgba('#140c0a', 0.8 * (1 - u));
+          ctx.beginPath(); ctx.arc(cx + Math.sin(k * 2.3) * 20 * u, HZ + 40 - u * 120 * hiss, 6 + u * 10, 0, TAU); ctx.fill();
+        }
+      }
+      // the gusher: a black column up into the sky, spreading at its head
+      if (blow > 0) {
+        var colTop = lerp(HZ + 40, 40, outCubic(blow));
+        ctx.fillStyle = '#100a08';
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, HZ + 50);
+        ctx.quadraticCurveTo(cx - 10 + Math.sin(t * 6) * 6, (HZ + colTop) / 2, cx - 26 - 60 * blow, colTop + 30);
+        ctx.quadraticCurveTo(cx, colTop - 40 * blow, cx + 26 + 70 * blow, colTop + 30);
+        ctx.quadraticCurveTo(cx + 10 + Math.sin(t * 5) * 6, (HZ + colTop) / 2, cx + 18, HZ + 50);
+        ctx.fill();
+        for (var m = 0; m < 7; m++) {
+          ctx.fillStyle = rgba('#1a1210', 0.9);
+          ctx.beginPath(); ctx.ellipse(cx + (m - 3) * 40 * blow, colTop + 20 + (m % 2) * 18, 60 * blow, 30 * blow, 0, 0, TAU); ctx.fill();
+        }
+        additive(ctx, function () { dot(ctx, '#ff9a3a', cx, HZ + 40, 160 * (1 - seg(t, 1.6, 2.6)) + 40, 0.7); });
+        // fire catching at its foot
+        for (var fl = 0; fl < 6; fl++) {
+          var fh = 40 + 30 * Math.sin(t * 13 + fl * 1.7);
+          ctx.fillStyle = fl % 2 ? '#ff7a2a' : '#ffd84a';
+          ctx.beginPath(); ctx.moveTo(cx - 70 + fl * 26, HZ + 60); ctx.lineTo(cx - 58 + fl * 26, HZ + 60 - fh); ctx.lineTo(cx - 46 + fl * 26, HZ + 60); ctx.fill();
+        }
+      }
+      // oil raining down
+      d.rain.forEach(function (q) {
+        var age = t - q.at;
+        if (age < 0 || age > 1.6) return;
+        var x = q.x + q.v * age, y = 60 + q.vy * age + 420 * age * age;
+        ctx.fillStyle = '#120c0a';
+        ctx.beginPath(); ctx.ellipse(x, y, q.s * 0.7, q.s, 0, 0, TAU); ctx.fill();
+      });
+      // the roughnecks throwing their hats
+      if (t > 1.8) {
+        for (var w = 0; w < 7; w++) {
+          var rx = 560 + w * 70, jump = Math.abs(Math.sin(t * 8 + w)) * 10;
+          ctx.fillStyle = '#100a0c';
+          ctx.fillRect(rx - 6, HZ + 30 - jump, 12, 26); ctx.beginPath(); ctx.arc(rx, HZ + 24 - jump, 7, 0, TAU); ctx.fill();
+          ctx.fillRect(rx - 14, HZ + 30 - jump - 10 - (w % 2) * 6, 5, 16); ctx.fillRect(rx + 9, HZ + 30 - jump - 12, 5, 16);
+        }
+        d.hats.forEach(function (h) {
+          var age = t - 1.8;
+          ctx.save(); ctx.translate(h.x + h.vx * age, HZ + 10 + h.vy * age + 300 * age * age); ctx.rotate(h.sp * age);
+          ctx.fillStyle = '#2a1a14'; ctx.fillRect(-12, -3, 24, 5); ctx.fillRect(-7, -10, 14, 8);
+          ctx.restore();
+        });
+      }
+      // pumpjacks nodding in the foreground
+      d.jacks.forEach(function (j) { pumpjackShape(ctx, j.x, VH - 120, j.s, t, '#0e080a'); });
+      // the cart chugging across the foreground
+      var lx = lerp(-300, VW + 300, seg(t, 2.1, 3.6));
+      if (t > 2.1) {
+        ctx.fillStyle = '#0c0608';
+        ctx.fillRect(0, VH - 110, VW, 10);
+        Art.loco(ctx, lx, VH - 110, 0.9, '#0c0608', t * 4, '#fff2c0');
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Gusher Flats').toUpperCase();
+      var k = outBack(seg(t, 1.95, 2.35), 1.2);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 222);
+      ctx.scale(k, k);
+      var size = fitSize(ctx, name, 'bold #px ' + HEAVY, 140, 1300, 0.05);
+      ctx.font = 'bold ' + size + 'px ' + HEAVY;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 10; ctx.strokeStyle = '#ffb030'; ctx.lineJoin = 'round';
+      ctx.strokeText(name, 0, 0);
+      ctx.fillStyle = '#120c0a';
+      ctx.fillText(name, 0, 0);
+      // the drips running off the letters
+      var w = ctx.measureText(name).width;
+      var run2 = seg(t, 2.1, 3.4);
+      for (var i = 0; i < 16; i++) {
+        var dx = -w / 2 + (i + 0.5) * w / 16 + Math.sin(i * 7.3) * 14;
+        var len = (18 + (i * 37 % 40)) * run2;
+        ctx.fillStyle = '#120c0a';
+        ctx.fillRect(dx - 4, size * 0.32, 8, len);
+        ctx.beginPath(); ctx.arc(dx, size * 0.32 + len, 6, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
     }
   });
 
