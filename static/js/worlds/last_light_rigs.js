@@ -4185,5 +4185,529 @@
     };
   });
 
+  // ========================================== Blackpowder Fireworks Co.
+  if (GA) {
+    GA.register('ll_finale', function (vol) {
+      // the fuse spitting, the lift charges thumping away one after another,
+      // and the sky opening up
+      this.noise({ filter: 'highpass', freq: 3000, dur: 1.1, gain: 0.05 * vol });
+      for (var i = 0; i < 5; i++) {
+        this.later(900 + i * 260, function () {
+          this.tone({ type: 'sine', freq: 90, freqEnd: 40, dur: 0.25, gain: 0.16 * vol });
+          this.noise({ filter: 'lowpass', freq: 400, dur: 0.2, gain: 0.08 * vol });
+        });
+      }
+      this.later(2600, function () {
+        this.tone({ type: 'sine', freq: 60, freqEnd: 30, dur: 1.2, gain: 0.22 * vol });
+        this.noise({ filter: 'lowpass', freq: 900, freqEnd: 200, dur: 1.4, gain: 0.18 * vol });
+      });
+    });
+    GA.register('ll_boom', function (vol) {
+      this.tone({ type: 'sine', freq: 70, freqEnd: 32, dur: 0.6, gain: 0.2 * vol });
+      this.noise({ filter: 'lowpass', freq: 1200, freqEnd: 160, dur: 0.7, gain: 0.14 * vol });
+      for (var i = 0; i < 6; i++) {
+        this.later(220 + i * 90, function () { this.noise({ filter: 'highpass', freq: 2500, dur: 0.05, gain: 0.03 * vol }); });
+      }
+    });
+    GA.register('ll_whizz', function (vol) {
+      this.tone({ type: 'sine', freq: 900, freqEnd: 2200, dur: 0.9, gain: 0.03 * vol });
+      this.noise({ filter: 'bandpass', freq: 1800, freqEnd: 3200, dur: 0.9, gain: 0.03 * vol });
+    });
+    GA.register('ll_crackle', function (vol) {
+      for (var i = 0; i < 10; i++) {
+        this.later(i * 70 + (i % 3) * 20, function () { this.noise({ filter: 'highpass', freq: 3000, dur: 0.04, gain: 0.05 * vol }); });
+      }
+    });
+    GA.register('ll_firebell', function (vol) {
+      for (var i = 0; i < 6; i++) {
+        this.later(i * 330, function () {
+          this.tone({ type: 'triangle', freq: 1240, freqEnd: 1200, dur: 0.6, gain: 0.07 * vol });
+          this.tone({ type: 'sine', freq: 2480, freqEnd: 2400, dur: 0.4, gain: 0.03 * vol });
+        });
+      }
+    });
+    GA.register('ll_deflate', function (vol) {
+      this.noise({ filter: 'bandpass', freq: 2400, freqEnd: 600, dur: 1.8, gain: 0.07 * vol });
+      this.tone({ type: 'sawtooth', freq: 180, freqEnd: 60, dur: 1.6, gain: 0.03 * vol });
+    });
+  }
+
+  var FW_COLOURS = ['#ff3a3a', '#3a8aff', '#3aff7a', '#ffd84a', '#c83aff', '#ff8a2a', '#ffffff', '#6af2ff'];
+  var FW_RISE = 1.5;
+
+  /* The skull the finale closes on: a cranium, the cheeks and jaw, the
+     sockets, the nose, a row of teeth -- points in a unit square, x right
+     and y up, drawn facing the firing bunker. */
+  var SKULL = (function () {
+    var pts = [], a, i;
+    for (i = 0; i <= 16; i++) { a = Math.PI * 1.08 - i / 16 * Math.PI * 1.16; pts.push([Math.cos(a), 0.15 + Math.sin(a)]); }
+    for (i = 1; i <= 4; i++) { pts.push([-0.95 + i * 0.09, 0.1 - i * 0.16]); pts.push([0.95 - i * 0.09, 0.1 - i * 0.16]); }
+    for (i = -2; i <= 2; i++) pts.push([i * 0.15, -0.58]);
+    for (i = 0; i < 7; i++) {
+      a = i / 7 * TAU;
+      pts.push([-0.38 + Math.cos(a) * 0.22, Math.sin(a) * 0.22]);
+      pts.push([0.38 + Math.cos(a) * 0.22, Math.sin(a) * 0.22]);
+    }
+    pts.push([0, -0.14], [-0.08, -0.28], [0.08, -0.28]);
+    for (i = -2; i <= 2; i++) pts.push([i * 0.13, -0.44]);
+    return pts;
+  })();
+
+  /* One shell: the rising star from ``from`` for FW_RISE seconds to
+     ``height`` above it, then the burst, by ``kind``.  ``u`` is the time
+     since it was fired. */
+  function fwShell(pen, t, from, u, seed, kind, colour, height) {
+    if (u < 0) return;
+    var dx = (hash(seed + 3) - 0.5) * 16, dz = (hash(seed + 5) - 0.5) * 16;
+    if (u < FW_RISE) {
+      var k = u / FW_RISE;
+      for (var tr = 0; tr < 5; tr++) {
+        var kk = Math.max(0, k - tr * 0.05), e = 1 - (1 - kk) * (1 - kk);
+        pen.part(frame([from[0] + dx * kk, from[1] + height * e, from[2] + dz * kk], 0), 'sph', [0, 0, 0],
+                 tr ? [0.5, 0.5, 0.5] : [0.9, 0.9, 0.9], tr ? '#ffb84a' : '#ffe8a8', { m: 'neon', a: 1 - tr * 0.18 });
+      }
+      return;
+    }
+    var b = u - FW_RISE, life = kind === 'willow' ? 3.6 : (kind === 'skull' ? 4.2 : 2.4);
+    if (b > life) return;
+    var c = [from[0] + dx, from[1] + height, from[2] + dz], fade = 1 - b / life, i, p;
+    if (b < 0.15) pen.part(frame(c, 0), 'sph', [0, 0, 0], [12, 12, 12], '#fff2d8', { m: 'neon', a: 0.45 * (1 - b / 0.15) });
+    if (kind === 'skull') {
+      var grow = Math.min(1, b / 0.45) * 26, sag = b * b * 1.2;
+      for (i = 0; i < SKULL.length; i++) {
+        p = SKULL[i];
+        pen.part(frame([c[0] - p[0] * grow, c[1] + p[1] * grow - sag, c[2]], 0), 'sph', [0, 0, 0], [1.1, 1.1, 1.1],
+                 '#d8ffd0', { m: 'neon', a: fade });
+      }
+      return;
+    }
+    var n = kind === 'ring' ? 20 : 26, speed = kind === 'willow' ? 14 : 22;
+    var dist = speed * (1 - Math.exp(-b * 2.2)), fall = (kind === 'willow' ? 5 : 3) * b * b;
+    var strobeOff = kind === 'strobe' && b > 0.5;
+    for (i = 0; i < n; i++) {
+      var dir;
+      if (kind === 'ring') {
+        var ang = i / n * TAU, tilt = hash(seed) * 1.2;
+        dir = [Math.cos(ang), Math.sin(ang) * Math.cos(tilt), Math.sin(ang) * Math.sin(tilt)];
+      } else {
+        var yv = 1 - (i + 0.5) / n * 2, rr = Math.sqrt(1 - yv * yv), th = i * 2.399963 + seed;
+        dir = [Math.cos(th) * rr, yv, Math.sin(th) * rr];
+      }
+      if (strobeOff && Math.sin(t * 40 + i * 1.7) < 0.2) continue;
+      var col = kind === 'chrysanthemum' && b > life * 0.45 ? '#ffd8a8' : (kind === 'willow' ? '#ffc86a' : colour);
+      p = [c[0] + dir[0] * dist, c[1] + dir[1] * dist - fall, c[2] + dir[2] * dist];
+      pen.part(frame(p, 0), 'sph', [0, 0, 0], [0.8, 0.8, 0.8], col, { m: 'neon', a: fade });
+      if (kind === 'willow' && pen.near !== false) {
+        for (var w = 1; w <= 2; w++) {
+          pen.part(frame([p[0] - dir[0] * w * 1.4, p[1] + w * 1.6, p[2] - dir[2] * w * 1.4], 0), 'sph', [0, 0, 0],
+                   [0.5, 0.5, 0.5], '#e8a84a', { m: 'neon', a: fade * (0.6 - w * 0.2) });
+        }
+      }
+      if (kind === 'crossette' && b > 0.7) {
+        var s2 = (b - 0.7) * 6;
+        pen.part(frame([p[0] + s2, p[1], p[2]], 0), 'sph', [0, 0, 0], [0.5, 0.5, 0.5], col, { m: 'neon', a: fade });
+        pen.part(frame([p[0] - s2, p[1], p[2]], 0), 'sph', [0, 0, 0], [0.5, 0.5, 0.5], col, { m: 'neon', a: fade });
+        pen.part(frame([p[0], p[1] + s2, p[2]], 0), 'sph', [0, 0, 0], [0.5, 0.5, 0.5], col, { m: 'neon', a: fade });
+      }
+    }
+  }
+
+  /* The show.  Between waves a test shell goes up off the raft on the
+     test pond now and then.  Light the finale (the lure) and for half a
+     minute the racks on the show field fire in their running order --
+     peonies, willows, rings, chrysanthemums, crossettes, strobes -- then
+     the finale's barrage, and the last shell of all is the skull. */
+  Rigs.register('show_finale', function (spec) {
+    var racks = spec.racks_path || [spec.p], raft = spec.raft_p || spec.p;
+    var KINDS = ['peony', 'willow', 'ring', 'chrysanthemum', 'crossette', 'strobe'];
+    var SHOW = 30, TEST = 37, lit = -100, heard = 1e9, tested = -1;
+    var shells = [], i;
+    for (i = 0; i * 0.42 < SHOW - 7; i++) {
+      shells.push({ at: i * 0.42, rack: Math.floor(hash(i * 7 + 1) * racks.length), kind: KINDS[i % KINDS.length],
+                    colour: FW_COLOURS[i % FW_COLOURS.length], height: 62 + hash(i + 9) * 40, seed: i });
+    }
+    for (i = 0; i < 30; i++) {
+      shells.push({ at: SHOW - 7 + i * 0.15, rack: Math.floor(hash(i * 13 + 2) * racks.length),
+                    kind: KINDS[(i * 5) % KINDS.length], colour: FW_COLOURS[(i * 3) % FW_COLOURS.length],
+                    height: 55 + hash(i + 31) * 55, seed: 100 + i });
+    }
+    shells.push({ at: SHOW - 4.6, rack: Math.floor(racks.length / 2), kind: 'skull', colour: '#d8ffd0', height: 112, seed: 777 });
+    function top(s) {
+      var r = racks[s.rack];
+      return [r[0] + (hash(s.seed + 3) - 0.5) * 16, r[1] + s.height, r[2] + (hash(s.seed + 5) - 0.5) * 16];
+    }
+    return {
+      radius: 420,
+      event: function (kind) { if (kind === 'lure') { lit = Rigs.clock(); heard = -1; } },
+      update: function (dt, t, ctx) {
+        var u = t - lit;
+        if (u >= -1 && u <= SHOW + 6 && ctx.sound) {
+          for (var k = 0; k < shells.length; k++) {
+            var s = shells[k];
+            if (k % 3 === 0 && heard < s.at && u >= s.at) ctx.sound('ll_whizz', racks[s.rack], 0.5);
+            if ((k % 2 === 0 || s.kind === 'skull') && heard < s.at + FW_RISE && u >= s.at + FW_RISE) {
+              ctx.sound('ll_boom', top(s), s.kind === 'skull' ? 1.5 : 0.8);
+            }
+          }
+        }
+        heard = u;
+        // the test shell off the raft
+        var round = Math.floor(t / TEST), v = t - round * TEST - 5;
+        if (round !== tested && v >= FW_RISE && ctx.sound) {
+          tested = round;
+          ctx.sound('ll_boom', [raft[0], raft[1] + 70, raft[2]], 0.7);
+        }
+      },
+      draw: function (pen, t) {
+        var u = t - lit;
+        if (u >= 0 && u < SHOW + 6) {
+          for (var k = 0; k < shells.length; k++) {
+            var s = shells[k];
+            if (u >= s.at && u < s.at + FW_RISE + 4.4) {
+              fwShell(pen, t, racks[s.rack], u - s.at, s.seed, s.kind, s.colour, s.height);
+            }
+          }
+          // the racks spitting as they fire
+          for (var r = 0; r < racks.length; r++) {
+            if (Math.sin(t * 9 + r * 2.3) > 0.6) {
+              pen.part(frame([racks[r][0], racks[r][1] + 0.8, racks[r][2]], 0), 'sph', [0, 0, 0], [1.6, 1.6, 1.6],
+                       '#ffd8a8', { m: 'neon', a: 0.6 });
+            }
+          }
+          return;
+        }
+        var round = Math.floor(t / TEST), v = t - round * TEST - 5;
+        if (v >= 0 && v < FW_RISE + 3.6) {
+          var kind = KINDS[round % KINDS.length];
+          fwShell(pen, t, raft, v, round, kind, FW_COLOURS[round % FW_COLOURS.length], 70);
+        }
+      }
+    };
+  });
+
+  /* The wheel frame on the proving ground: four Catherine wheels on their
+     posts.  Still most of the time -- a wave starting sets one off for a
+     test, and the finale sets all four going, spitting colour off their
+     drivers. */
+  Rigs.register('catherine_wheels', function (spec) {
+    var hubs = spec.hubs_path || [spec.p];
+    var lit = -100, tested = -100, crackled = 0;
+    return {
+      radius: 90,
+      event: function (kind) {
+        if (kind === 'lure') lit = Rigs.clock();
+        else if (kind === 'wave') tested = Rigs.clock();
+      },
+      update: function (dt, t, ctx) {
+        if ((t - lit < 30 || t - tested < 6) && t - crackled > 1.1 && ctx.sound) {
+          crackled = t;
+          ctx.sound('ll_crackle', spec.p, 0.7);
+        }
+      },
+      draw: function (pen, t) {
+        var show = t - lit < 30, which = Math.floor(tested) % hubs.length;
+        for (var i = 0; i < hubs.length; i++) {
+          var spinning = show || (t - tested < 6 && i === which);
+          var since = show ? t - lit : t - tested;
+          var ang = spinning ? since * (7 + i) * (i % 2 ? -1 : 1) : 0.3 * i;
+          var f = child(frame(hubs[i], 0), [0, 0, 0], 0, 0, ang);
+          pen.part(f, 'cyl', [0, 0, 0], [1.4, 0.6, 1.4], '#3a2a1a', { rx: Math.PI / 2 });
+          for (var sp = 0; sp < 6; sp++) {
+            var arm = child(f, [0, 0, 0], 0, 0, sp * TAU / 6);
+            pen.part(arm, 'box', [0, 1.9, 0], [0.25, 3.8, 0.25], '#5a3a1a');
+            pen.part(arm, 'cyl', [0.5, 3.6, 0], [0.5, 1.4, 0.5], '#c8b898', { rz: Math.PI / 2 });
+            if (!spinning) continue;
+            pen.part(arm, 'sph', [1.3, 3.6, 0], [0.9, 0.9, 0.9], '#fff2d8', { m: 'neon' });
+            for (var k = 0; k < 3; k++) {
+              var q = (t * 3 + k / 3 + sp * 0.17) % 1;
+              pen.part(arm, 'sph', [1.4 + q * 5, 3.6 - q * q * 3, 0], [0.45, 0.45, 0.45], FW_COLOURS[(i * 2 + sp) % 8],
+                       { m: 'neon', a: 1 - q });
+            }
+          }
+        }
+      }
+    };
+  });
+
+  /* The set piece at the back of the show field: a lattice of lances that
+     burns a picture.  Tonight's says GOODNIGHT.  The fuse runs along it
+     when the finale is lit, and it burns for the half minute. */
+  var LANCE_FONT = {
+    G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.###.'],
+    O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+    D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
+    N: ['#...#', '##..#', '#.#.#', '#.#.#', '#..##', '#...#', '#...#'],
+    I: ['.###.', '..#..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+    H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+    T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..']
+  };
+  Rigs.register('lancework', function (spec) {
+    var word = spec.word || 'GOODNIGHT', w = spec.w || 72;
+    var cols = word.length * 6 - 1, pitch = w / (cols + 1);
+    var dots = [];
+    for (var l = 0; l < word.length; l++) {
+      var glyph = LANCE_FONT[word[l]] || LANCE_FONT.O;
+      for (var r = 0; r < 7; r++) {
+        for (var c = 0; c < 5; c++) {
+          if (glyph[r][c] === '#') dots.push({ col: l * 6 + c, x: -w / 2 + (l * 6 + c + 1) * pitch, y: (3 - r) * pitch, letter: l });
+        }
+      }
+    }
+    var f0 = frame(spec.p, spec.yaw || 0), lit = -100;
+    var tints = ['#ff4a3a', '#ffffff', '#4a8aff'];
+    return {
+      radius: 80,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      draw: function (pen, t) {
+        var u = t - lit;
+        if (u < 0 || u > 31) return;
+        var reach = u / 2.5 * cols, fade = u > 27 ? Math.max(0, (31 - u) / 4) : 1;
+        if (reach < cols) {
+          pen.part(f0, 'sph', [-w / 2 + (reach + 1) * pitch, -4.8 * pitch, 0.1], [1.2, 1.2, 1.2], '#fff2a8', { m: 'neon' });
+        }
+        for (var i = 0; i < dots.length; i++) {
+          var d = dots[i];
+          if (d.col > reach) continue;
+          var flicker = 0.75 + 0.25 * Math.sin(t * 23 + i * 1.9);
+          pen.part(f0, 'sph', [d.x, d.y, 0.1], [0.75, 0.75, 0.75], tints[d.letter % 3], { m: 'neon', a: fade * flicker });
+        }
+        if (pen.near) {
+          for (var s = 0; s < 6; s++) {
+            var q = (t * 0.25 + s / 6) % 1;
+            pen.part(f0, 'sph', [-w / 2 + (s + 0.5) * w / 6, 5 + q * 12, -1 - q * 3], [3 + q * 4, 2 + q * 3, 3 + q * 4],
+                     '#bcb4b0', { a: 0.18 * (1 - q) * fade });
+          }
+        }
+      }
+    };
+  });
+
+  /* The outlet's gorilla: forty feet of inflatable on the roof, swaying on
+     its tethers, a rocket in its fist and SALE across its chest.  Put a
+     few rounds into it and it sags, wheezing, and blows itself back up. */
+  Rigs.register('inflatable_ape', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0), hit = -100;
+    var fur = '#2a2a30', face = '#6a6a78';
+    return {
+      radius: 60,
+      event: function (kind, msg, ctx) {
+        var from = msg && msg.from, t = Rigs.clock();
+        if (kind !== 'shot' || !from || t - hit < 9) return;
+        if (Math.hypot(from[0] - spec.p[0], from[2] - spec.p[2]) > 45) return;
+        hit = t;
+        if (ctx && ctx.sound) ctx.sound('ll_deflate', spec.p, 1);
+      },
+      draw: function (pen, t) {
+        var u = t - hit;
+        var sag = u < 0 ? 0 : u < 2 ? u / 2 : u < 5 ? 1 : u < 8 ? 1 - (u - 5) / 3 : 0;
+        var sway = Math.sin(t * 0.7) * 0.06 * (1 - sag), lean = sag * 0.5;
+        var body = child(f0, [0, 0, 0], lean + Math.sin(t * 0.5) * 0.03, 0, sway);
+        var squash = 1 - sag * 0.45, s = body;
+        // the tethers to the roof
+        for (var c = 0; c < 4; c++) {
+          var corner = Rigs.point(f0, [(c % 2 ? 1 : -1) * 6, 0, (c < 2 ? 1 : -1) * 6]);
+          pen.rod(corner, Rigs.point(s, [0, 5 * squash, 0]), 0.12, '#3a3a3a');
+        }
+        pen.part(s, 'sph', [-1.8, 1.4 * squash, 0], [2.6, 2.8 * squash, 2.6], fur);
+        pen.part(s, 'sph', [1.8, 1.4 * squash, 0], [2.6, 2.8 * squash, 2.6], fur);
+        pen.part(s, 'sph', [0, 6.5 * squash, 0], [8, 9 * squash, 6], fur);
+        pen.part(s, 'sph', [0, 6.2 * squash, 2.2], [5, 5.4 * squash, 1.6], '#4a4a56');
+        pen.part(s, 'box', [0, 6.6 * squash, 3.0], [6.4, 1.4, 0.2], '#e8c83a', { rz: 0.35, dec: textDecal('SALE', '#e8c83a', '#c8282a', 4.5) });
+        var head = child(s, [0, 12.4 * squash, 0.4], -0.1 + Math.sin(t * 0.9) * 0.05 + sag * 0.6, Math.sin(t * 0.4) * 0.15, 0);
+        pen.part(head, 'sph', [0, 0, 0], [5, 4.8, 4.6], fur);
+        pen.part(head, 'sph', [0, -0.7, 1.9], [3.4, 2.4, 1.8], face);
+        pen.part(head, 'box', [0, 1.0, 1.9], [3.6, 0.6, 0.8], '#1a1a1e');
+        for (var e = -1; e <= 1; e += 2) {
+          pen.part(head, 'sph', [e * 0.9, 0.3, 2.1], [0.9, 0.9, 0.5], '#f2f2ee');
+          pen.part(head, 'sph', [e * 0.9, 0.3, 2.35], [0.4, 0.4, 0.2], '#1a1a1a');
+          pen.part(head, 'sph', [e * 2.4, 0.4, 0], [1.0, 1.2, 0.6], face);
+        }
+        pen.part(head, 'box', [0, -1.2, 2.7], [1.8, 0.8 + sag * 0.6, 0.2], '#c8282a');
+        pen.part(head, 'box', [0, -0.85, 2.78], [1.6, 0.25, 0.1], '#f2f2ee');
+        // the arm with the rocket up, the other waving
+        var up = child(s, [3.6, 9.2 * squash, 0], 0, 0, -2.4 + Math.sin(t * 0.8) * 0.1 + sag * 1.6);
+        pen.part(up, 'box', [0, 2.2, 0], [1.9, 4.6, 1.9], fur);
+        var fist = child(up, [0, 4.8, 0], 0, 0, 0);
+        pen.part(fist, 'sph', [0, 0, 0], [2.0, 2.0, 2.0], face);
+        pen.part(fist, 'cyl', [0, 2.6, 0], [1.2, 5.0, 1.2], '#c8282a');
+        pen.part(fist, 'cone', [0, 5.8, 0], [1.4, 1.4, 1.4], '#e8b83a');
+        var wave = child(s, [-3.6, 9.2 * squash, 0], 0, 0, 2.2 + Math.sin(t * 2.0) * 0.4 - sag * 1.4);
+        pen.part(wave, 'box', [0, 2.2, 0], [1.9, 4.6, 1.9], fur);
+        pen.part(wave, 'sph', [0, 4.8, 0], [2.0, 2.0, 2.0], face);
+      }
+    };
+  });
+
+  /* A jar of sparklers on the hall's bench, fizzing down and lit again. */
+  Rigs.register('sparklers', function (spec) {
+    var f0 = frame(spec.p, 0);
+    return {
+      radius: 30,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < 5; i++) {
+          var stick = child(f0, [0, 0, 0], Math.cos(i * 1.3) * 0.25, 0, Math.sin(i * 1.3) * 0.25);
+          var burnt = ((t / 40 + i * 0.21) % 1) * 3.2;
+          pen.part(stick, 'box', [0, 1.6, 0], [0.12, 3.2, 0.12], '#7a7a7a');
+          var tip = [0, 3.2 - burnt, 0];
+          pen.part(stick, 'sph', tip, [0.5, 0.5, 0.5], '#fff8e0', { m: 'neon' });
+          for (var k = 0; k < 7; k++) {
+            var h = hash(Math.floor(t * 20) * 13 + k * 7 + i);
+            var a = h * TAU, r = 0.4 + hash(h * 99 + k) * 1.1;
+            pen.part(stick, 'box', [tip[0] + Math.cos(a) * r, tip[1] + Math.sin(a * 1.7) * r * 0.7, Math.sin(a) * r],
+                     [0.08, 0.08, 0.08], k % 2 ? '#ffd84a' : '#ffffff', { m: 'neon' });
+          }
+        }
+      }
+    };
+  });
+
+  /* The mixing drums: each shed's tumbler turning over on its stand. */
+  Rigs.register('tumblers', function (spec) {
+    var drums = spec.drums_path || [spec.p];
+    return {
+      radius: 140,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < drums.length; i++) {
+          var spin = t * (0.5 + i * 0.07);
+          var f = child(frame(drums[i], 0), [0, 0, 0], spin, 0, Math.PI / 2);
+          pen.part(f, 'cyl', [0, 0, 0], [2.6, 3.0, 2.6], '#8a6a4a');
+          pen.part(f, 'cyl', [0, 1.55, 0], [2.7, 0.2, 2.7], '#c8a868', { m: 'metal' });
+          pen.part(f, 'cyl', [0, -1.55, 0], [2.7, 0.2, 2.7], '#c8a868', { m: 'metal' });
+          pen.part(f, 'box', [0, 0, 1.3], [0.3, 3.0, 0.1], '#3a2a1a');
+          pen.part(f, 'box', [0, 0, -1.3], [0.3, 3.0, 0.1], '#3a2a1a');
+        }
+      }
+    };
+  });
+
+  /* The colour lab's bench: a flame in each jar burning its own colour --
+     strontium red, barium green, copper blue, potassium violet. */
+  Rigs.register('colour_flames', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    var cols = ['#ff3a2a', '#3aff5a', '#3a6aff', '#c83aff'];
+    return {
+      radius: 40,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < cols.length; i++) {
+          var x = -2.4 + i * 1.6, flick = 0.8 + 0.2 * Math.sin(t * 17 + i * 2.1) * Math.sin(t * 11 + i);
+          pen.part(f0, 'cone', [x, 0.7 * flick, 0], [0.8, 1.4 * flick, 0.8], cols[i], { m: 'neon', a: 0.85 });
+          pen.part(f0, 'cone', [x, 0.5, 0], [0.5, 0.9, 0.5], '#ffffff', { m: 'neon', a: 0.7 });
+          pen.part(f0, 'sph', [x, 0.8, 0], [1.6, 1.6, 1.6], cols[i], { m: 'neon', a: 0.15 });
+        }
+      }
+    };
+  });
+
+  /* The burn pit, smouldering: embers on the grate, a little flame, the
+     smoke.  When a wave starts it flares up. */
+  Rigs.register('burn_pit', function (spec) {
+    var f0 = frame(spec.p, 0), flared = -100;
+    return {
+      radius: 140,
+      event: function (kind, msg, ctx) {
+        if (kind !== 'wave' && kind !== 'blast') return;
+        flared = Rigs.clock();
+        if (ctx && ctx.sound) ctx.sound('ll_crackle', spec.p, 0.8);
+      },
+      draw: function (pen, t) {
+        var up = t - flared < 6 ? 1 - (t - flared) / 6 : 0;
+        for (var i = 0; i < 24; i++) {
+          var x = (hash(i * 3) - 0.5) * 15, z = (hash(i * 5 + 1) - 0.5) * 11;
+          var glow = 0.5 + 0.5 * Math.sin(t * (1.5 + hash(i) * 2) + i);
+          pen.part(f0, 'box', [x, 0.12, z], [0.9, 0.24, 0.7], glow > 0.6 ? '#ff8a2a' : '#8a2a10', { m: glow > 0.6 ? 'neon' : '' });
+        }
+        for (var k = 0; k < 3 + Math.round(up * 6); k++) {
+          var fx = (hash(k * 11) - 0.5) * 12, fz = (hash(k * 17) - 0.5) * 8;
+          var h = (1.2 + up * 6) * (0.7 + 0.3 * Math.sin(t * 9 + k * 2));
+          pen.part(f0, 'cone', [fx, h / 2, fz], [1.4 + up, h, 1.4 + up], k % 2 ? '#ff6a1a' : '#ffb84a', { m: 'neon', a: 0.8 });
+        }
+        if (pen.near) {
+          for (var s = 0; s < 5; s++) {
+            var q = (t * 0.12 + s / 5) % 1;
+            pen.part(f0, 'sph', [Math.sin(t * 0.3 + s) * 3 * q, 2 + q * 26, q * 4], [3 + q * 8, 2 + q * 5, 3 + q * 8],
+                     '#6a625e', { a: 0.22 * (1 - q) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The alarm bell in the hose tower: still, until a wave starts, and then
+     it swings and rings out over the works. */
+  Rigs.register('fire_bell', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0), rung = -100;
+    return {
+      radius: 120,
+      event: function (kind, msg, ctx) {
+        if (kind !== 'wave') return;
+        rung = Rigs.clock();
+        if (ctx && ctx.sound) ctx.sound('ll_firebell', spec.p, 1);
+      },
+      draw: function (pen, t) {
+        var u = t - rung, swing = u < 5 ? Math.sin(u * 6) * 0.6 * (1 - u / 5) : 0;
+        pen.part(f0, 'box', [0, 1.4, 0], [8.0, 0.5, 0.6], '#3a2a1a');
+        var bell = child(f0, [0, 1.2, 0], swing, 0, 0);
+        pen.part(bell, 'cone', [0, -1.4, 0], [3.0, 2.4, 3.0], '#c8a038', { m: 'metal' });
+        pen.part(bell, 'cyl', [0, -2.6, 0], [3.4, 0.3, 3.4], '#c8a038', { m: 'metal' });
+        pen.part(bell, 'sph', [0, -2.5 - Math.abs(swing) * 0.3, swing * 0.8], [0.6, 0.6, 0.6], '#5a4a2a');
+      }
+    };
+  });
+
+  /* The giant rocket's fuse, sputtering away as it has since 1911 (it is
+     not to be lit).  When the finale goes up the rocket tries to go with
+     it: fire out of its nozzle, smoke rolling out between the fins. */
+  Rigs.register('rocket_fuse', function (spec) {
+    var f0 = frame(spec.p, 0), lit = -100;
+    return {
+      radius: 80,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      draw: function (pen, t) {
+        if (pen.near) {
+          for (var k = 0; k < 5; k++) {
+            var h = hash(Math.floor(t * 16) * 7 + k);
+            pen.part(f0, 'box', [1.5 + (h - 0.5) * 1.2, 0.2 + hash(h * 31) * 0.8, (hash(h * 17) - 0.5) * 1.2],
+                     [0.12, 0.12, 0.12], k % 2 ? '#ffd84a' : '#ffffff', { m: 'neon' });
+          }
+        }
+        var u = t - lit;
+        if (u < 0 || u > 30) return;
+        var roar = Math.min(1, u / 1.5) * (u > 27 ? (30 - u) / 3 : 1);
+        for (var i = 0; i < 4; i++) {
+          var flick = 0.8 + 0.2 * Math.sin(t * 30 + i * 2);
+          pen.part(f0, 'cone', [0, 4.0 - 2.0 * flick * roar, 0], [3.6 - i * 0.6, 4.0 * flick * roar, 3.6 - i * 0.6],
+                   ['#ffffff', '#ffe08a', '#ff9a3a', '#ff5a1a'][i], { m: 'neon', a: 0.9, rx: Math.PI });
+        }
+        for (var s = 0; s < 8; s++) {
+          var q = (t * 0.6 + s / 8) % 1, a = s / 8 * TAU;
+          pen.part(f0, 'sph', [Math.cos(a) * (3 + q * 18), 1 + q * 6, Math.sin(a) * (3 + q * 18)], [3 + q * 6, 2 + q * 4, 3 + q * 6],
+                   '#d8d0c8', { a: 0.3 * (1 - q) * roar });
+        }
+      }
+    };
+  });
+
+  /* The company's flag over the office: red, a gold rocket, BP. */
+  Rigs.register('works_flag', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0);
+    return {
+      radius: 30,
+      draw: function (pen, t) {
+        for (var k = 0; k < 6; k++) {
+          var wave = Math.sin(t * 4 - k * 0.8) * 0.4 * (k / 6 + 0.2);
+          pen.part(f0, 'box', [0.8 + k * 1.0, -1.6 + Math.sin(t * 4 - k) * 0.15, wave], [1.0, 3.2, 0.1], '#c8282a',
+                   { ry: wave * 0.5 });
+        }
+        var mid = Math.sin(t * 4 - 2.4) * 0.2;
+        pen.part(f0, 'box', [3.0, -1.4, mid + 0.07], [0.5, 2.0, 0.06], '#e8b83a');
+        pen.part(f0, 'box', [3.0, -0.2, mid + 0.07], [0.9, 0.5, 0.06], '#e8b83a', { rz: 0.785 });
+        pen.part(f0, 'box', [4.6, -1.6, mid + 0.08], [1.4, 1.2, 0.06], '#c8282a', { dec: textDecal('BP', '#c8282a', '#e8b83a', 1.2) });
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);

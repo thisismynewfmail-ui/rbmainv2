@@ -360,6 +360,14 @@ WORLDS: List[Dict[str, Any]] = [
                       "the giant lily pads -- and open the Titan House's vents "
                       "to let the stink of the corpse flower draw the dead. "
                       "Mind the flytraps."},
+            {"id": "fireworks", "name": "Blackpowder Fireworks Co.",
+             "blurb": "The fireworks works, the night before the Fourth. Hold "
+                      "the office, fight among the magazines buried in their "
+                      "mounds and the mixing sheds in their horseshoes of "
+                      "earth, climb the giant rocket's gantry and the hall "
+                      "roof -- and light the finale in the firing bunker to "
+                      "send the whole show up and bring every one of the dead "
+                      "to watch. There are fuel drums everywhere."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

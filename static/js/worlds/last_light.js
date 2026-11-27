@@ -2188,5 +2188,199 @@
     }
   });
 
+  // ========================================== Blackpowder Fireworks Co.
+  var FW_SKULL = (function () {
+    var pts = [], a, i;
+    for (i = 0; i <= 16; i++) { a = Math.PI * 1.08 - i / 16 * Math.PI * 1.16; pts.push([Math.cos(a), -0.15 - Math.sin(a)]); }
+    for (i = 1; i <= 4; i++) { pts.push([-0.95 + i * 0.09, -0.1 + i * 0.16]); pts.push([0.95 - i * 0.09, -0.1 + i * 0.16]); }
+    for (i = -2; i <= 2; i++) pts.push([i * 0.15, 0.58]);
+    for (i = 0; i < 7; i++) {
+      a = i / 7 * TAU;
+      pts.push([-0.38 + Math.cos(a) * 0.22, Math.sin(a) * 0.22]);
+      pts.push([0.38 + Math.cos(a) * 0.22, Math.sin(a) * 0.22]);
+    }
+    pts.push([0, 0.14], [-0.08, 0.28], [0.08, 0.28]);
+    for (i = -2; i <= 2; i++) pts.push([i * 0.13, 0.44]);
+    return pts;
+  })();
+
+  /* A shell over the works: the trail up from behind the buildings, then
+     the burst -- a peony, a ring, a gold willow, or the skull. */
+  function fwBurst(ctx, t, b) {
+    var u = t - b.at;
+    if (u < -0.5) return 0;
+    if (u < 0) {
+      var k = (u + 0.5) / 0.5, y = 640 - (640 - b.y) * (1 - (1 - k) * (1 - k));
+      additive(ctx, function () {
+        dot(ctx, '#ffe8a8', b.x, y, 6, 0.9);
+        dot(ctx, '#ffb84a', b.x, y + 18, 4, 0.5);
+        dot(ctx, '#ffb84a', b.x, y + 34, 3, 0.3);
+      });
+      return 0;
+    }
+    var life = b.kind === 'willow' ? 2.6 : (b.kind === 'skull' ? 3.0 : 1.8);
+    if (u > life) return 0;
+    var fade = 1 - u / life, R = b.kind === 'willow' ? 140 : 170;
+    var grow = R * (1 - Math.exp(-u * 3.2)), sag = (b.kind === 'willow' ? 70 : 40) * u * u;
+    additive(ctx, function () {
+      if (u < 0.2) dot(ctx, '#fff2d8', b.x, b.y, 120, 0.35 * (1 - u / 0.2));
+      if (b.kind === 'skull') {
+        var s = Math.min(1, u / 0.4) * 95;
+        FW_SKULL.forEach(function (p) { dot(ctx, b.c, b.x + p[0] * s, b.y + p[1] * s + sag * 0.3, 7, fade); });
+        return;
+      }
+      var n = b.kind === 'ring' ? 28 : 40;
+      for (var i = 0; i < n; i++) {
+        var a = i / n * TAU + (b.kind === 'ring' ? 0 : (i % 3) * 0.09);
+        var rr = b.kind === 'ring' ? grow : grow * (0.75 + 0.25 * ((i * 7) % 5) / 4);
+        var px = b.x + Math.cos(a) * rr, py = b.y + Math.sin(a) * rr * (b.kind === 'ring' ? 0.45 : 1) + sag;
+        dot(ctx, b.c, px, py, 5, fade);
+        if (b.kind === 'willow') {
+          ctx.strokeStyle = rgba('#ffc86a', 0.5 * fade); ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(a) * 26, py - 30 - Math.sin(a) * 18); ctx.stroke();
+        }
+      }
+    });
+    return u < 0.6 ? 1 - u / 0.6 : 0;
+  }
+
+  Intro.register('fireworks', {
+    tagline: 'The night before the Fourth. Everything out here is a fuse.',
+    accent: '#ffb84a',
+    cues: [[0.1, 'll_whizz', 0.4], [0.55, 'll_boom', 0.6], [1.25, 'll_boom', 0.7], [1.85, 'll_crackle', 0.5],
+           [2.4, 'll_boom', 0.8], [3.0, 'll_boom', 1.0]],
+    shakes: [[3.0, 6, 0.3]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 90, 0, 360), embers: [], zeds: [] };
+      for (var i = 0; i < 60; i++) d.embers.push({ x: r() * VW, y: between(r, 300, 880), p: r() * 6, v: between(r, 20, 60) });
+      var looks = [['#2a3a5a', '#2a3a5a', '#6fae55'], ['#d8ccb0', '#6a6a66', '#7fb069'], ['#c8282a', '#c8b088', '#5f9a4c'],
+                   ['#c83a3a', '#3a4a7a', '#86b86a'], ['#c8a868', '#3a3a3a', '#6c9f68'], ['#c82a3a', '#c82a3a', '#79a84e']];
+      for (i = 0; i < 7; i++) d.zeds.push({ x: 1180 + i * 110 + between(r, -25, 25), at: 0.8 + i * 0.22, p: r() * 6, look: looks[i % looks.length] });
+      d.bursts = [
+        { at: 0.55, x: 250, y: 280, c: '#ffc86a', kind: 'willow' },
+        { at: 1.25, x: 1350, y: 230, c: '#ff4a4a', kind: 'peony' },
+        { at: 1.85, x: 720, y: 430, c: '#4a9aff', kind: 'ring' },
+        { at: 2.4, x: 160, y: 420, c: '#5aff7a', kind: 'peony' },
+        { at: 3.0, x: 1380, y: 200, c: '#d8ffd0', kind: 'skull' }
+      ];
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#05060f'], [0.55, '#151530'], [0.85, '#3a1e30'], [1, '#5a2a24']], 640);
+      starsK(ctx, d.stars, t, 0.6);
+      var flash = 0, tint = '#ffffff';
+      d.bursts.forEach(function (b) { var f = fwBurst(ctx, t, b); if (f > flash) { flash = f; tint = b.c; } });
+      var base = 640;
+      // the magazines under their mounds, the headwalls showing
+      ctx.fillStyle = '#16241a';
+      [[90, 120], [300, 110]].forEach(function (m) {
+        ctx.beginPath(); ctx.ellipse(m[0], base, m[1], 70, 0, Math.PI, 0); ctx.fill();
+      });
+      ctx.fillStyle = '#4a5054'; ctx.fillRect(150, base - 50, 60, 50); ctx.fillRect(360, base - 46, 56, 46);
+      ctx.fillStyle = '#0a0c0e'; ctx.fillRect(168, base - 34, 24, 34); ctx.fillRect(376, base - 30, 24, 30);
+      // the giant rocket and its gantry
+      var rx = 560;
+      ctx.strokeStyle = '#3a3e44'; ctx.lineWidth = 3;
+      ctx.strokeRect(rx - 110, base - 150, 60, 150);
+      ctx.beginPath(); ctx.moveTo(rx - 110, base - 75); ctx.lineTo(rx - 50, base - 75); ctx.stroke();
+      ctx.fillStyle = '#8a1a1e'; ctx.fillRect(rx - 26, base - 330, 52, 290);
+      ctx.fillStyle = '#c8a038';
+      [base - 300, base - 210, base - 120].forEach(function (y) { ctx.fillRect(rx - 28, y, 56, 14); });
+      ctx.beginPath(); ctx.moveTo(rx - 28, base - 330); ctx.lineTo(rx, base - 410); ctx.lineTo(rx + 28, base - 330); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(rx - 26, base - 40); ctx.lineTo(rx - 64, base); ctx.lineTo(rx - 26, base - 110); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(rx + 26, base - 40); ctx.lineTo(rx + 64, base); ctx.lineTo(rx + 26, base - 110); ctx.fill();
+      if (Math.sin(t * 30) > 0) additive(ctx, function () { dot(ctx, '#ffd84a', rx + 8, base - 6, 8, 0.9); });
+      // the assembly hall, the name on its roof
+      ctx.fillStyle = '#2a2622'; ctx.fillRect(700, base - 90, 420, 90);
+      ctx.fillStyle = 'rgba(255,207,122,0.55)';
+      for (var w = 0; w < 6; w++) ctx.fillRect(724 + w * 66, base - 64, 34, 26);
+      ctx.font = '900 34px ' + HEAVY; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = flash > 0.2 ? '#ff5a4a' : '#7a1a1a';
+      spaced(ctx, 'BLACKPOWDER', 910, base - 96, 4);
+      // the outlet and its gorilla, swaying
+      ctx.fillStyle = '#2a2a2c'; ctx.fillRect(1220, base - 70, 300, 70);
+      ctx.save(); ctx.translate(1370, base - 70); ctx.rotate(Math.sin(t * 0.9) * 0.05);
+      ctx.fillStyle = '#121216';
+      ctx.beginPath(); ctx.ellipse(0, -70, 52, 64, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, -150, 34, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(44, -110); ctx.rotate(-2.3 + Math.sin(t * 1.2) * 0.1); ctx.fillRect(-11, 0, 22, 70); ctx.restore();
+      ctx.save(); ctx.translate(-44, -110); ctx.rotate(2.0 + Math.sin(t * 2.0) * 0.3); ctx.fillRect(-11, 0, 22, 66); ctx.restore();
+      ctx.fillStyle = '#8a1a1e'; ctx.fillRect(88, -230, 14, 50);
+      ctx.fillStyle = '#e8e2d0'; ctx.fillRect(-14, -154, 9, 9); ctx.fillRect(5, -154, 9, 9);
+      ctx.restore();
+      // the water tower against the sky
+      ctx.fillStyle = '#1e2226';
+      ctx.fillRect(1500, base - 190, 6, 190); ctx.fillRect(1560, base - 190, 6, 190);
+      ctx.beginPath(); ctx.ellipse(1533, base - 220, 52, 40, 0, 0, TAU); ctx.fill();
+      // the show field: the sandbag line, the racks, them among the racks
+      var g = ctx.createLinearGradient(0, base, 0, VH);
+      g.addColorStop(0, '#12180e'); g.addColorStop(1, '#070906');
+      ctx.fillStyle = g; ctx.fillRect(0, base, VW, VH - base);
+      ctx.fillStyle = '#3a3426';
+      for (var sb = 0; sb < 9; sb++) { roundRect(ctx, 40 + sb * 180, base + 30, 140, 26, 10); ctx.fill(); }
+      for (var rk = 0; rk < 6; rk++) {
+        var x0 = 120 + rk * 250;
+        ctx.fillStyle = '#2a1e14'; ctx.fillRect(x0, base + 110, 120, 24);
+        ctx.fillStyle = '#151615';
+        for (var tb = 0; tb < 5; tb++) ctx.fillRect(x0 + 8 + tb * 23, base + 76, 14, 36);
+      }
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x - (t - z.at) * 70, 790, 2.1, t, z.look, -1, z.p);
+        ctx.restore();
+      });
+      // the burst lighting everything up
+      if (flash > 0) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = rgba(tint, 0.16 * flash); ctx.fillRect(0, 0, VW, VH);
+        ctx.restore();
+      }
+      // embers drifting up
+      additive(ctx, function () {
+        d.embers.forEach(function (e) {
+          var y = ((e.y - t * e.v) % 600 + 600) % 600 + 280;
+          dot(ctx, '#ffae4a', e.x + Math.sin(t + e.p) * 12, y, 3, 0.5 + 0.4 * Math.sin(t * 4 + e.p));
+        });
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Blackpowder Fireworks Co.').toUpperCase();
+      var k = outBack(seg(t, 0.35, 0.8), 1.4);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 220);
+      ctx.rotate(-0.04 - (1 - k) * 0.5);
+      ctx.scale(0.8 * k, 0.8 * k);
+      // the label off a crate of common fireworks: red, a gold double rule,
+      // the starburst with the rocket on it
+      ctx.fillStyle = '#b8242a'; roundRect(ctx, -480, -140, 960, 280, 6); ctx.fill();
+      ctx.strokeStyle = '#e8c35a'; ctx.lineWidth = 7; roundRect(ctx, -462, -122, 924, 244, 4); ctx.stroke();
+      ctx.lineWidth = 2; roundRect(ctx, -448, -108, 896, 216, 3); ctx.stroke();
+      ctx.save(); ctx.translate(-350, 0);
+      ctx.fillStyle = '#e8c35a'; ctx.beginPath();
+      for (var i = 0; i < 24; i++) { var a = i / 24 * TAU, rr = i % 2 ? 62 : 88; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#b8242a'; ctx.beginPath(); ctx.arc(0, 0, 56, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e8c35a'; ctx.fillRect(-9, -26, 18, 46);
+      ctx.beginPath(); ctx.moveTo(-11, -26); ctx.lineTo(0, -48); ctx.lineTo(11, -26); ctx.fill();
+      ctx.fillRect(-2, 20, 4, 26);
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#e8c35a';
+      spaced(ctx, 'CLASS C  ·  COMMON FIREWORKS  ·  EST. 1911', 90, -78, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 70, 640, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = '#4a0a0e'; spaced(ctx, name, 94, 6, size * 0.04);
+      ctx.fillStyle = '#f6e8c0'; spaced(ctx, name, 90, 2, size * 0.04);
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#e8c35a';
+      ctx.globalAlpha = Math.sin(t * 6) > -0.3 ? 1 : 0.4;
+      spaced(ctx, 'LIGHT FUSE AND GET AWAY', 90, 78, 5);
+      ctx.restore();
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

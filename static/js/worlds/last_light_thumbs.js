@@ -647,5 +647,45 @@
     }
   });
 
+  Thumbs.registerWorld('ll_fireworks', {
+    camera: [[46, 26, -40], [-6, 22, 60], 60],
+    sky: { top: '#070a1c', horizon: '#3a2238', sun: [0.3, 0.42, 0.7], clouds: 0.25, tint: '#d0b8d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [280, 1, 280], '#4a5a30', { st: 1 });
+      k.box([0, 0.15, 20], [80, 0.3, 84], '#b6bcc1', { st: 1 });
+      // the giant rocket on its fins, the gantry beside it
+      k.box([0, 0.5, 56], [22, 1, 22], '#b6bcc1', { st: 1 });
+      k.shape('cyl', [0, 23, 56], [9, 32, 9], '#b8282a');
+      [13, 25, 35].forEach(function (y) { k.shape('cyl', [0, y, 56], [9.4, 2, 9.4], '#e8b83a'); });
+      k.shape('cone', [0, 44, 56], [9.6, 10, 9.6], '#e8b83a');
+      k.box([7.5, 5, 56], [6, 8, 1.2], '#e8b83a'); k.box([-7.5, 5, 56], [6, 8, 1.2], '#e8b83a');
+      k.box([0, 5, 48.5], [1.2, 8, 6], '#e8b83a'); k.box([0, 5, 63.5], [1.2, 8, 6], '#e8b83a');
+      k.box([-19, 9.7, 56], [14, 0.6, 24], '#6f767d', { st: 1 });
+      k.box([-19, 19.7, 52], [14, 0.6, 16], '#6f767d', { st: 1 });
+      for (var l = 0; l < 4; l++) k.box([-25.6 + (l % 2) * 13.2, 9.8, 44.4 + Math.floor(l / 2) * 23.2], [0.8, 19.6, 0.8], '#4a5057');
+      // mortar racks and the bursts over them
+      for (var r = 0; r < 4; r++) {
+        var x = -36 + r * 24;
+        k.box([x, 0.5, 96], [12, 1, 5], '#543923');
+        for (var tb = 0; tb < 5; tb++) k.shape('cyl', [x - 4.4 + tb * 2.2, 2.6, 96], [1.6, 3.2, 1.6], '#2a2c2a');
+      }
+      var bursts = [[-30, 62, 120, '#ff4a4a'], [24, 74, 130, '#4a9aff'], [6, 54, 104, '#ffd84a']];
+      bursts.forEach(function (b) {
+        for (var i = 0; i < 22; i++) {
+          var yv = 1 - (i + 0.5) / 22 * 2, rr = Math.sqrt(1 - yv * yv), th = i * 2.4;
+          k.shape('sph', [b[0] + Math.cos(th) * rr * 12, b[1] + yv * 12, b[2] + Math.sin(th) * rr * 12], [0.9, 0.9, 0.9], b[3], { m: 'neon' });
+        }
+      });
+      // the dead coming through the racks, the team at the rocket's foot
+      k.zombie('common', -14, 84, Math.PI, 1, 'fireworks', 0, 0);
+      k.zombie('common', 10, 88, Math.PI + 0.3, 4, 'fireworks', 2, 0);
+      k.zombie('common', 26, 78, -2.6, 7, 'fireworks', 0, 0);
+      k.zombie('common', -30, 76, 2.7, 5, 'fireworks', 0, 0);
+      k.survivor(6, 30, 0.1, 0, 0.3);
+      k.survivor(16, 26, -0.3, 1, 0.3);
+      k.survivor(-4, 24, 0.4, 2, 0.3);
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

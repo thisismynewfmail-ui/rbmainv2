@@ -434,6 +434,42 @@
       { shirt: shirt('#c8b888', '#c8b888', { sleeves: 0.4 }), pants: pants('#8a7a5a', { length: 0.55 }),
         hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.9, 1.2, 1.9], c: '#e8e0c8' },
                   { t: 'cyl', p: [0, 0.04, 0], s: [2.2, 0.12, 2.2], c: '#e8e0c8' }]) }
+    ],
+    fireworks: [
+      CLASSIC,
+      // the shooter: fire-resistant navy coveralls, the hard hat and its face shield
+      { shirt: shirt('#2a3a5a', '#2a3a5a', { weave: 'canvas', decal: 'chevron' }), pants: pants('#2a3a5a', { weave: 'canvas' }),
+        hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.9, 1.2, 1.9], c: '#e8c83a' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.2, 0.12, 2.2], c: '#e8c83a' },
+                  { t: 'box', p: [0, -0.32, 0.98], s: [1.6, 1.0, 0.06], c: '#b8d8e8', a: 0.4 }]) },
+      // off the shell line: a cotton smock and a paper cap
+      { shirt: shirt('#d8ccb0', '#d8ccb0', { weave: 'linen' }), pants: pants('#6a6a66'),
+        hat: hat([{ t: 'cyl', p: [0, 0.18, 0], s: [1.7, 0.36, 1.7], c: '#f2f2ee' }]) },
+      // the outlet's clerk: the red polo and the visor
+      { shirt: shirt('#c8282a', '#c8282a', { sleeves: 0.4, decal: 'logo_block' }), pants: pants('#c8b088'),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [1.72, 0.22, 1.72], c: '#c8282a' },
+                  { t: 'box', p: [0, 0.04, 0.98], s: [1.4, 0.08, 0.7], c: '#c8282a' }]) },
+      // come for the show: the picnic gingham and the striped foam topper
+      { shirt: shirt('#c83a3a', '#c83a3a', { weave: 'jl_gingham' }), pants: pants('#3a4a7a', { weave: 'denim', length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.06, 0], s: [2.2, 0.12, 2.2], c: '#2a3a8a' },
+                  { t: 'cyl', p: [0, 0.32, 0], s: [1.46, 0.4, 1.46], c: '#2a3a8a' },
+                  { t: 'cyl', p: [0, 0.86, 0], s: [1.4, 0.7, 1.4], c: '#f2f2ee' },
+                  { t: 'cyl', p: [0, 1.5, 0], s: [1.4, 0.6, 1.4], c: '#c8282a' }]) },
+      // the works fire brigade: the turnout coat and the red helmet
+      { shirt: shirt('#c8a868', '#c8a868', { weave: 'hivis' }), pants: pants('#3a3a3a'),
+        hat: hat([{ t: 'sph', p: [0, 0.32, 0], s: [1.8, 1.1, 1.9], c: '#c42b20' },
+                  { t: 'cyl', p: [0, 0.06, -0.12], s: [2.4, 0.1, 2.6], c: '#c42b20' },
+                  { t: 'box', p: [0, 0.52, 0.92], s: [0.6, 0.6, 0.08], c: '#e8c83a' }]) },
+      // the night watchman
+      { shirt: shirt('#2a3442', '#2a3442', { decal: 'logo_block' }), pants: pants('#2a3442'),
+        hat: hat([{ t: 'box', p: [0, 0.14, 0], s: [1.66, 0.28, 1.66], c: '#1a2230' },
+                  { t: 'box', p: [0, 0.06, 0.95], s: [1.3, 0.1, 0.5], c: '#1a1a1a' }]) },
+      // Miss Firecracker: the sequins, the sash, the tiara
+      { shirt: shirt('#c82a3a', '#c82a3a', { weave: 'sequins', sleeves: 0.0 }), pants: pants('#c82a3a', { weave: 'sequins' }),
+        hat: hat([{ t: 'box', p: [0, 0.22, 0.56], s: [1.0, 0.24, 0.08], c: '#e8c83a' },
+                  { t: 'box', p: [0, 0.4, 0.56], s: [0.24, 0.24, 0.08], c: '#e8c83a', r: [0, 0, 0.785] }]),
+        hair: hair([{ p: [0, 0.34, -0.1], s: [1.1, 0.5, 1.1], c: '#e8b84a' },
+                    { p: [0, -0.4, -0.5], s: [1.1, 1.2, 0.3], c: '#e8b84a' }]) }
     ]
   };
 
