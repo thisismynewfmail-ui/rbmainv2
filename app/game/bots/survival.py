@@ -203,6 +203,13 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the spotter's tower": "pc", "the burn pit": "r", "Big Bertha": "ec", "the fire hall": "s",
         "the water tower": "e",
     },
+    "mount": {
+        "the inn": "shp", "the King's Gate": "s", "the causeway": "r", "the sands": "r", "the ramparts": "pc",
+        "the omelette house": "e", "the souvenir shop": "e", "the Grand Rue": "h", "the cemetery": "e",
+        "the parish church": "s", "the abbey": "spe", "the cloister": "s", "the great wheel": "e",
+        "the organ": "e", "the abbot's lodging": "s", "the beacon rock": "er", "the stranded coach": "er",
+        "the wreck": "e", "the car park": "h", "the salt meadow": "e", "the north strand": "r",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.

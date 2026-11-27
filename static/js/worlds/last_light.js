@@ -2247,8 +2247,8 @@
   Intro.register('fireworks', {
     tagline: 'The night before the Fourth. Everything out here is a fuse.',
     accent: '#ffb84a',
-    cues: [[0.1, 'll_whizz', 0.4], [0.55, 'll_boom', 0.6], [1.25, 'll_boom', 0.7], [1.85, 'll_crackle', 0.5],
-           [2.4, 'll_boom', 0.8], [3.0, 'll_boom', 1.0]],
+    cues: [[0.1, 'll_whizz', 0.4], [0.55, 'll_shellburst', 0.6], [1.25, 'll_shellburst', 0.7], [1.85, 'll_crackle', 0.5],
+           [2.4, 'll_shellburst', 0.8], [3.0, 'll_shellburst', 1.0]],
     shakes: [[3.0, 6, 0.3]],
     tagY: 850, tagAt: 2.6,
     setup: function (r) {
@@ -2378,6 +2378,142 @@
       ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#e8c35a';
       ctx.globalAlpha = Math.sin(t * 6) > -0.3 ? 1 : 0.4;
       spaced(ctx, 'LIGHT FUSE AND GET AWAY', 90, 78, 5);
+      ctx.restore();
+    }
+  });
+
+  // ================================================ St. Bride's Mount
+  Intro.register('mount', {
+    tagline: 'The tide comes in as fast as a galloping horse. So do they.',
+    accent: '#9ad8ff',
+    cues: [[0.1, 'll_wind', 0.4], [0.9, 'll_gull', 0.5], [1.8, 'll_organ', 0.6], [2.8, 'll_gull', 0.4]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 70, 0, 300), mist: [], zeds: [], gulls: [] };
+      for (var i = 0; i < 7; i++) d.mist.push({ y: between(r, 420, 640), x: r() * VW, w: between(r, 400, 800), v: between(r, 8, 20) });
+      var looks = [['#5a4028', '#5a4028', '#6fae55'], ['#e8c81a', '#3a4a6a', '#7fb069'], ['#6a5a48', '#4a4038', '#5f9a4c'],
+                   ['#e8a81a', '#e8a81a', '#86b86a'], ['#1a1a1e', '#1a1a1e', '#6c9f68'], ['#2a3a5a', '#5a4a38', '#79a84e']];
+      for (i = 0; i < 8; i++) {
+        var left = i % 2 === 0;
+        d.zeds.push({ x: left ? -40 - i * 60 : VW + 40 + i * 60, at: 0.5 + i * 0.25, p: r() * 6, look: looks[i % looks.length],
+                      dir: left ? 1 : -1, y: between(r, 720, 790) });
+      }
+      for (i = 0; i < 6; i++) d.gulls.push({ x: r() * VW, y: between(r, 140, 320), p: r() * 6, v: between(r, 30, 60) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#060c16'], [0.5, '#16222e'], [0.85, '#3a4a54'], [1, '#5a6a70']], 660);
+      starsK(ctx, d.stars, t, 0.5);
+      additive(ctx, function () { dot(ctx, '#e8f0f2', 1260, 170, 46, 0.5); dot(ctx, '#c8d8e0', 1260, 170, 140, 0.12); });
+      var base = 640, cx = 800;
+      // the rock in its terraces, the village climbing it, the abbey on top
+      // (kept under the title, so the saint on the spire shows)
+      ctx.fillStyle = '#1c2228';
+      ctx.fillRect(cx - 330, base - 37, 660, 37);
+      ctx.fillRect(cx - 270, base - 74, 540, 37);
+      ctx.fillRect(cx - 200, base - 112, 400, 38);
+      ctx.fillRect(cx - 130, base - 149, 260, 37);
+      ctx.fillStyle = '#242c32';
+      for (var m = 0; m < 22; m++) ctx.fillRect(cx - 330 + m * 30, base - 45, 16, 8);
+      ctx.fillStyle = '#20282e';
+      [[-250, -74], [-190, -74], [-120, -74], [140, -74], [210, -74], [-170, -112], [-90, -112], [100, -112], [150, -112]].forEach(function (h) {
+        var x = cx + h[0], y = base + h[1];
+        ctx.fillRect(x - 18, y - 28, 36, 28);
+        ctx.beginPath(); ctx.moveTo(x - 22, y - 28); ctx.lineTo(x, y - 46); ctx.lineTo(x + 22, y - 28); ctx.fill();
+      });
+      ctx.fillStyle = 'rgba(255,207,122,0.7)';
+      [[-250, -90], [-190, -96], [140, -90], [210, -96], [-90, -128], [100, -126]].forEach(function (w) {
+        if (Math.sin(t * 0.7 + w[0]) > -0.6) ctx.fillRect(cx + w[0] - 5, base + w[1], 10, 10);
+      });
+      // the abbey church, the spire, the saint
+      ctx.fillStyle = '#262e34';
+      ctx.fillRect(cx - 60, base - 205, 120, 56);
+      ctx.beginPath(); ctx.moveTo(cx - 70, base - 205); ctx.lineTo(cx, base - 236); ctx.lineTo(cx + 70, base - 205); ctx.fill();
+      ctx.fillRect(cx - 8, base - 292, 16, 62);
+      ctx.beginPath(); ctx.moveTo(cx - 8, base - 292); ctx.lineTo(cx, base - 330); ctx.lineTo(cx + 8, base - 292); ctx.fill();
+      var organ = seg(t, 1.8, 2.2);
+      ctx.fillStyle = 'rgba(255,200,120,' + (0.35 + organ * 0.5) + ')';
+      for (var l = 0; l < 4; l++) ctx.fillRect(cx - 48 + l * 28, base - 198, 12, 26);
+      additive(ctx, function () {
+        dot(ctx, '#ffd86a', cx, base - 336, 8, 0.9);
+        if (organ > 0) dot(ctx, '#ffc87a', cx, base - 180, 160, 0.18 * organ);
+      });
+      // the beacon on its rock, off to the left
+      ctx.fillStyle = '#1a2026'; ctx.beginPath(); ctx.ellipse(260, base, 90, 34, 0, Math.PI, 0); ctx.fill();
+      ctx.fillRect(252, base - 110, 16, 90);
+      if (Math.sin(t * 3) > 0) additive(ctx, function () { dot(ctx, '#ffe8a8', 260, base - 116, 16, 0.95); });
+      // the sands, the causeway with its lamps, and the tide coming in
+      var g = ctx.createLinearGradient(0, base, 0, VH);
+      g.addColorStop(0, '#5a5040'); g.addColorStop(1, '#2a2620');
+      ctx.fillStyle = g; ctx.fillRect(0, base, VW, VH - base);
+      ctx.fillStyle = '#4a4438';
+      ctx.beginPath(); ctx.moveTo(cx - 40, base); ctx.lineTo(cx + 40, base); ctx.lineTo(cx + 140, VH); ctx.lineTo(cx - 140, VH); ctx.fill();
+      for (var lp = 0; lp < 6; lp++) {
+        var k = lp / 5, lx = 40 + k * 100, ly = base + 6 + k * (VH - base - 6);
+        additive(ctx, function () { dot(ctx, '#ffe2a8', cx - lx, ly - 30 - k * 20, 5 + k * 4, 0.9); dot(ctx, '#ffe2a8', cx + lx, ly - 30 - k * 20, 5 + k * 4, 0.9); });
+      }
+      var tide = Math.min(1, t / 3.4);
+      var water = base + 260 - tide * 190;
+      ctx.fillStyle = 'rgba(58,106,122,0.55)';
+      ctx.fillRect(0, water, cx - 60 - (VH - water) * 0.4, VH - water);
+      ctx.fillRect(cx + 60 + (VH - water) * 0.4, water, VW, VH - water);
+      ctx.strokeStyle = 'rgba(200,225,230,0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, water + Math.sin(t * 2) * 2); ctx.lineTo(cx - 60 - (VH - water) * 0.4, water); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + 60 + (VH - water) * 0.4, water); ctx.lineTo(VW, water + Math.sin(t * 2 + 1) * 2); ctx.stroke();
+      // them, wading in from both sides toward the causeway
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var x = z.x + (t - z.at) * 75 * z.dir;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, x, z.y, 1.9, t, z.look, z.dir, z.p);
+        ctx.restore();
+        if (z.y > water) {
+          ctx.fillStyle = 'rgba(58,106,122,0.8)';
+          ctx.fillRect(x - 30, Math.max(water, z.y - 30), 60, z.y - Math.max(water, z.y - 30) + 8);
+        }
+      });
+      // mist drifting over the bay, and the gulls
+      d.mist.forEach(function (mi) {
+        var x = ((mi.x + t * mi.v) % (VW + mi.w)) - mi.w;
+        var mg = ctx.createLinearGradient(0, mi.y - 30, 0, mi.y + 30);
+        mg.addColorStop(0, 'rgba(220,232,236,0)'); mg.addColorStop(0.5, 'rgba(220,232,236,0.16)'); mg.addColorStop(1, 'rgba(220,232,236,0)');
+        ctx.fillStyle = mg; ctx.fillRect(x, mi.y - 30, mi.w, 60);
+      });
+      ctx.strokeStyle = '#c8d0d4'; ctx.lineWidth = 2;
+      d.gulls.forEach(function (gl) {
+        var x = (gl.x + t * gl.v) % VW, y = gl.y + Math.sin(t * 1.3 + gl.p) * 10, flap = Math.sin(t * 8 + gl.p) * 5;
+        ctx.beginPath(); ctx.moveTo(x - 10, y - flap); ctx.lineTo(x, y); ctx.lineTo(x + 10, y - flap); ctx.stroke();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || "St. Bride's Mount").toUpperCase();
+      var k = outCubic(seg(t, 0.35, 0.95));
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 200);
+      ctx.globalAlpha = k;
+      ctx.scale(0.8, 0.8);
+      // a leaf from the abbey's book: vellum, a ruled border, the illuminated
+      // capital in its gold square, the name, the warning in red
+      ctx.fillStyle = '#efe4c8'; roundRect(ctx, -470, -130 + (1 - k) * 30, 940, 250, 4); ctx.fill();
+      ctx.strokeStyle = '#8a2a1a'; ctx.lineWidth = 3; roundRect(ctx, -450, -110 + (1 - k) * 30, 900, 210, 2); ctx.stroke();
+      ctx.save(); ctx.translate(-360, -6 + (1 - k) * 30);
+      ctx.fillStyle = '#c8a03a'; ctx.fillRect(-70, -70, 140, 140);
+      ctx.fillStyle = '#1a3a8a'; ctx.fillRect(-60, -60, 120, 120);
+      ctx.font = '900 110px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#c8282a'; ctx.fillText('S', 0, 6);
+      ctx.strokeStyle = '#e8c35a'; ctx.lineWidth = 3; ctx.strokeText('S', 0, 6);
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#5a4a38';
+      spaced(ctx, 'THE ABBEY  ·  THE VILLAGE  ·  THE CAUSEWAY', 80, -62 + (1 - k) * 30, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 66, 640, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.fillStyle = '#2a1a10';
+      spaced(ctx, name, 80, 4 + (1 - k) * 30, size * 0.04);
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#8a2a1a';
+      spaced(ctx, 'MIND  THE  TIDE', 80, 66 + (1 - k) * 30, 6);
       ctx.restore();
     }
   });

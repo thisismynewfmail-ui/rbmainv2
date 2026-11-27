@@ -24,6 +24,7 @@ ORDER = [
     ("rooftops", "Rooftops of Harrow Heights", "#5a5e66", 640.0),
     ("gardens", "Glasshouse Gardens", "#3a6a32", 600.0),
     ("fireworks", "Blackpowder Fireworks Co.", "#4a5a30", 640.0),
+    ("mount", "St. Bride's Mount", "#c8b48a", 620.0),
 ]
 
 # where each new place sits, in units of the spacing, in the order above

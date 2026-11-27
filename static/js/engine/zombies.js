@@ -470,6 +470,36 @@
                   { t: 'box', p: [0, 0.4, 0.56], s: [0.24, 0.24, 0.08], c: '#e8c83a', r: [0, 0, 0.785] }]),
         hair: hair([{ p: [0, 0.34, -0.1], s: [1.1, 0.5, 1.1], c: '#e8b84a' },
                     { p: [0, -0.4, -0.5], s: [1.1, 1.2, 0.3], c: '#e8b84a' }]) }
+    ],
+    mount: [
+      CLASSIC,
+      // a brother of the abbey: the brown habit, the cowl up, the rope belt
+      { shirt: shirt('#5a4028', '#5a4028', { hood: true, weave: 'canvas' }), pants: pants('#5a4028', { weave: 'canvas' }),
+        hat: hat([{ t: 'box', p: [0, -1.25, 0], s: [1.9, 0.18, 1.3], c: '#c8b088' }]) },
+      // a sister: black and white
+      { shirt: shirt('#1a1a1e', '#1a1a1e'), pants: pants('#1a1a1e'),
+        hat: hat([{ t: 'box', p: [0, 0.1, -0.1], s: [1.9, 1.0, 1.9], c: '#1a1a1e' },
+                  { t: 'box', p: [0, -0.2, 0.9], s: [1.5, 0.3, 0.1], c: '#f2f2ee' },
+                  { t: 'box', p: [0, -0.9, -0.6], s: [1.9, 1.6, 0.3], c: '#1a1a1e' }]) },
+      // a pilgrim: the cloak, the scallop shell on the hat brim
+      { shirt: shirt('#6a5a48', '#6a5a48', { weave: 'linen' }), pants: pants('#4a4038'),
+        hat: hat([{ t: 'cyl', p: [0, 0.08, 0], s: [2.6, 0.12, 2.6], c: '#3a3028' },
+                  { t: 'cyl', p: [0, 0.34, 0], s: [1.4, 0.4, 1.4], c: '#3a3028' },
+                  { t: 'box', p: [0, 0.16, 1.24], s: [0.5, 0.44, 0.08], c: '#f2e8d8' }]) },
+      // caught by the tide on the causeway: the yellow cagoule
+      { shirt: shirt('#e8c81a', '#e8c81a', { hood: true, weave: 'vinyl' }), pants: pants('#3a4a6a', { weave: 'denim' }) },
+      // Mother Bride's cook: whites and the toque
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { weave: 'canvas' }), pants: pants('#3a3a3a', { weave: 'jl_gingham' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.6, 0], s: [1.5, 1.2, 1.5], c: '#f6f6f2' },
+                  { t: 'sph', p: [0, 1.2, 0], s: [1.8, 0.7, 1.8], c: '#f6f6f2' }]) },
+      // the cockle picker off the flats: oilskins and the sou'wester
+      { shirt: shirt('#e8a81a', '#e8a81a', { weave: 'vinyl' }), pants: pants('#e8a81a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'sph', p: [0, 0.24, 0], s: [1.8, 0.9, 1.8], c: '#e8a81a' },
+                  { t: 'cyl', p: [0, 0.02, -0.25], s: [2.2, 0.1, 2.5], c: '#e8a81a' }]) },
+      // the shepherd off the salt meadow: the fisherman's knit and the flat cap
+      { shirt: shirt('#2a3a5a', '#2a3a5a', { weave: 'knit' }), pants: pants('#5a4a38', { weave: 'sp_tweed' }),
+        hat: hat([{ t: 'box', p: [0, 0.12, 0.1], s: [1.7, 0.24, 1.8], c: '#6a5a44' },
+                  { t: 'box', p: [0, 0.04, 0.98], s: [1.4, 0.08, 0.5], c: '#6a5a44' }]) }
     ]
   };
 

@@ -368,6 +368,14 @@ WORLDS: List[Dict[str, Any]] = [
                       "roof -- and light the finale in the firing bunker to "
                       "send the whole show up and bring every one of the dead "
                       "to watch. There are fuel drums everywhere."},
+            {"id": "mount", "name": "St. Bride's Mount",
+             "blurb": "The tidal abbey, the night the tide came in over the "
+                      "causeway. Hold the Pilgrim's Rest at the top of the gate "
+                      "stair, climb the village in its terraces to the abbey on "
+                      "the rock, walk the ramparts, wade the channels out on the "
+                      "sands -- and play the great organ in the abbey church to "
+                      "call everything out on the flats up the mount. Somebody "
+                      "is still walking the great wheel."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws

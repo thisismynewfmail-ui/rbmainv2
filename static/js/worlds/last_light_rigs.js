@@ -4202,7 +4202,7 @@
         this.noise({ filter: 'lowpass', freq: 900, freqEnd: 200, dur: 1.4, gain: 0.18 * vol });
       });
     });
-    GA.register('ll_boom', function (vol) {
+    GA.register('ll_shellburst', function (vol) {
       this.tone({ type: 'sine', freq: 70, freqEnd: 32, dur: 0.6, gain: 0.2 * vol });
       this.noise({ filter: 'lowpass', freq: 1200, freqEnd: 160, dur: 0.7, gain: 0.14 * vol });
       for (var i = 0; i < 6; i++) {
@@ -4346,7 +4346,7 @@
             var s = shells[k];
             if (k % 3 === 0 && heard < s.at && u >= s.at) ctx.sound('ll_whizz', racks[s.rack], 0.5);
             if ((k % 2 === 0 || s.kind === 'skull') && heard < s.at + FW_RISE && u >= s.at + FW_RISE) {
-              ctx.sound('ll_boom', top(s), s.kind === 'skull' ? 1.5 : 0.8);
+              ctx.sound('ll_shellburst', top(s), s.kind === 'skull' ? 1.5 : 0.8);
             }
           }
         }
@@ -4355,7 +4355,7 @@
         var round = Math.floor(t / TEST), v = t - round * TEST - 5;
         if (round !== tested && v >= FW_RISE && ctx.sound) {
           tested = round;
-          ctx.sound('ll_boom', [raft[0], raft[1] + 70, raft[2]], 0.7);
+          ctx.sound('ll_shellburst', [raft[0], raft[1] + 70, raft[2]], 0.7);
         }
       },
       draw: function (pen, t) {
@@ -4705,6 +4705,207 @@
         pen.part(f0, 'box', [3.0, -1.4, mid + 0.07], [0.5, 2.0, 0.06], '#e8b83a');
         pen.part(f0, 'box', [3.0, -0.2, mid + 0.07], [0.9, 0.5, 0.06], '#e8b83a', { rz: 0.785 });
         pen.part(f0, 'box', [4.6, -1.6, mid + 0.08], [1.4, 1.2, 0.06], '#c8282a', { dec: textDecal('BP', '#c8282a', '#e8b83a', 1.2) });
+      }
+    };
+  });
+
+  // ================================================ St. Bride's Mount
+  if (GA) {
+    GA.register('ll_organ', function (vol) {
+      // the toccata: the mordent on the high A, the run down, and the great
+      // D minor chord underneath it all
+      var run = [880, 784, 880, 0, 784, 698, 659, 587, 554, 587];
+      run.forEach(function (f, i) {
+        if (!f) return;
+        this.later(i * 120, function () {
+          this.tone({ type: 'square', freq: f, dur: 0.16, gain: 0.035 * vol });
+          this.tone({ type: 'sine', freq: f / 2, dur: 0.16, gain: 0.03 * vol });
+        });
+      }, this);
+      this.later(1300, function () {
+        [73.4, 146.8, 174.6, 220, 293.7].forEach(function (f) {
+          this.tone({ type: 'square', freq: f, dur: 2.6, gain: 0.03 * vol });
+          this.tone({ type: 'sine', freq: f * 2, dur: 2.6, gain: 0.02 * vol });
+        }, this);
+      });
+    });
+    GA.register('ll_baa', function (vol) {
+      this.tone({ type: 'sawtooth', freq: 340, freqEnd: 300, dur: 0.18, gain: 0.04 * vol });
+      this.later(160, function () { this.tone({ type: 'sawtooth', freq: 320, freqEnd: 260, dur: 0.5, gain: 0.04 * vol }); });
+    });
+  }
+
+  /* The tide over the sands: a sheet of grey water creeping in across the
+     flats and draining off again, round and round, everybody's clock the
+     same -- the causeway and the mount stand out of it; the sands do not. */
+  Rigs.register('tide', function (spec) {
+    var a = spec.area || [-200, 200, -200, 200], period = spec.period || 180;
+    var cx = (a[0] + a[1]) / 2, cz = (a[2] + a[3]) / 2, w = a[1] - a[0], d = a[3] - a[2];
+    return {
+      radius: Math.max(w, d) / 2 + 40,
+      draw: function (pen, t) {
+        var h = -0.3 + 1.5 * (0.5 + 0.5 * Math.sin(t / period * TAU));
+        if (h < 0.03) return;
+        pen.part(frame([cx, h - 0.05, cz], 0), 'box', [0, 0, 0], [w, 0.1, d], '#3a6a7a', { a: 0.5 });
+        if (!pen.near) return;
+        for (var i = 0; i < 6; i++) {
+          var u = (t * 0.01 + i / 6) % 1;
+          pen.part(frame([a[0] + w * (0.1 + 0.8 * hash(i * 5)), h + 0.01, a[2] + d * u], 0), 'box', [0, 0, 0],
+                   [40 + hash(i) * 60, 0.02, 1.2], '#a8c8d0', { a: 0.25 });
+        }
+      }
+    };
+  });
+
+  /* The monks' great wheel, face on through its window: two rims, the
+     spokes, the treads between, turning on its axle -- walked from inside
+     by somebody in a habit who never stops.  It hauls a sledge up the rope
+     out of the window.  The organ sets him running. */
+  Rigs.register('great_wheel', function (spec) {
+    var f0 = frame(spec.p, 0), r = spec.r || 7, half = 3.5, lit = -100;
+    var rope = [spec.p[0] - 92, 0.5, spec.p[2]];
+    return {
+      radius: 120,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      draw: function (pen, t) {
+        var fast = t - lit < 30;
+        var spin = t * 0.3 + (fast ? (t - lit) * 1.2 : 0);
+        var wheel = child(f0, [0, 0, 0], spin, 0, 0);
+        var seg = TAU * r / 16 + 0.15, i, a;
+        for (i = 0; i < 16; i++) {
+          a = i / 16 * TAU;
+          for (var side = -1; side <= 1; side += 2) {
+            pen.part(child(wheel, [side * half, Math.cos(a) * r, Math.sin(a) * r], a, 0, 0), 'box', [0, 0, 0],
+                     [0.5, 0.5, seg], '#6a4a2a');
+          }
+          if (pen.near) pen.part(child(wheel, [0, Math.cos(a) * (r - 0.3), Math.sin(a) * (r - 0.3)], a, 0, 0), 'box',
+                                 [0, 0, 0], [half * 2, 0.25, 0.9], '#8a6a4a');
+        }
+        for (i = 0; i < 6; i++) {
+          a = i / 6 * TAU;
+          for (var s2 = -1; s2 <= 1; s2 += 2) {
+            pen.part(child(wheel, [s2 * half, 0, 0], a, 0, 0), 'box', [0, r / 2, 0], [0.35, r, 0.35], '#5a3a1a');
+          }
+        }
+        pen.part(f0, 'cyl', [0, 0, 0], [2.2, half * 2 + 1.0, 2.2], '#4a3a2a', { rz: Math.PI / 2 });
+        // the walker, at the bottom of the wheel, forever
+        var gait = fast ? 9 : 3, stride = Math.sin(t * gait);
+        var w = child(f0, [0, -r + 0.3, 0], 0, Math.PI / 2, 0);
+        pen.part(child(w, [-0.35, 1.4, 0], stride * 0.5, 0, 0), 'box', [0, -0.7, 0], [0.45, 1.4, 0.45], '#3a2a1a');
+        pen.part(child(w, [0.35, 1.4, 0], -stride * 0.5, 0, 0), 'box', [0, -0.7, 0], [0.45, 1.4, 0.45], '#3a2a1a');
+        pen.part(w, 'box', [0, 2.3, 0.1], [1.3, 1.9, 0.8], '#5a4028');
+        pen.part(w, 'box', [0, 3.6, 0.2], [0.8, 0.8, 0.8], '#7fb069');
+        pen.part(w, 'box', [0, 3.75, -0.05], [1.0, 1.0, 0.9], '#4a3420');
+        pen.part(child(w, [0.6, 2.9, 0.1], -1.4 + stride * 0.1, 0, 0), 'box', [0, -0.6, 0], [0.35, 1.2, 0.35], '#7fb069');
+        pen.part(child(w, [-0.6, 2.9, 0.1], -1.4 - stride * 0.1, 0, 0), 'box', [0, -0.6, 0], [0.35, 1.2, 0.35], '#7fb069');
+        // the rope out of the window down the rock, and the sledge on it
+        var top = Rigs.point(f0, [0, 1.1, 0]);
+        pen.rod(top, rope, 0.18, '#8a7a5a');
+        var u = (spin * 0.04) % 1;
+        pen.part(frame([rope[0] + (top[0] - rope[0]) * u, rope[1] + (top[1] - rope[1]) * u + 0.6,
+                        rope[2] + (top[2] - rope[2]) * u], 0), 'box', [0, 0, 0], [3.0, 1.2, 2.0], '#6a4a2a');
+      }
+    };
+  });
+
+  /* The organ's pipes: still, until somebody sits down at the console --
+     then the mouths light up as the notes run up and down the ranks. */
+  Rigs.register('organ_pipes', function (spec) {
+    var f0 = frame(spec.p, 0), n = spec.n || 11, lit = -100, chord = 0;
+    var tune = [8, 7, 8, 7, 6, 5, 4, 3, 2, 3, 0, 1, 2, 5, 9, 10, 9, 8];
+    return {
+      radius: 60,
+      event: function (kind) { if (kind === 'lure') { lit = Rigs.clock(); chord = lit; } },
+      update: function (dt, t, ctx) {
+        if (t - lit < 30 && t - chord > 6 && ctx.sound) { chord = t; ctx.sound('ll_organ', spec.p, 0.8); }
+      },
+      draw: function (pen, t) {
+        var u = t - lit;
+        if (u < 0 || u > 30) return;
+        var note = tune[Math.floor(u * 8) % tune.length];
+        for (var k = 0; k < n; k++) {
+          var h = 6 + (5 - Math.abs(k - 5)) * 1.6;
+          var on = k === note || (u % 6 > 4.5);
+          var shake = on ? Math.sin(t * 60 + k) * 0.03 : 0;
+          pen.part(f0, 'box', [-10 + k * 2 + shake, 1.4, 0.62], [0.8, 0.5, 0.1], on ? '#ffe8a8' : '#3a2a1a',
+                   { m: on ? 'neon' : '' });
+          if (on) pen.part(f0, 'sph', [-10 + k * 2, h * 0.6, 0.8], [1.6, h * 0.8, 0.8], '#ffd88a', { m: 'neon', a: 0.15 });
+        }
+      }
+    };
+  });
+
+  /* The abbey's lancets in stained glass: a saint in each in ruby, blue
+     and gold, candlelit from inside -- and blazing while the organ plays. */
+  Rigs.register('abbey_windows', function (spec) {
+    var panes = spec.panes_path || [], lit = -100;
+    var glass = ['#1a3a8a', '#8a1a2a', '#c8a03a', '#2a6a3a', '#5a2a7a'];
+    return {
+      radius: 140,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        var blaze = t - lit < 30 ? 1 : 0;
+        for (var p = 0; p < panes.length; p++) {
+          var at = panes[p], east = at[0] > spec.p[0];
+          var f = frame(at, 0), flick = 0.55 + 0.1 * Math.sin(t * 7 + p * 2) + 0.35 * blaze;
+          for (var row = 0; row < 6; row++) {
+            for (var col = 0; col < 3; col++) {
+              var figure = (col === 1 && row > 0 && row < 5) || (row === 1 && col !== 1);
+              var c = figure ? (row === 1 ? '#e8c87a' : glass[(p + row) % 2]) : glass[2 + (row + col + p) % 3];
+              pen.part(f, 'box', [east ? 0.03 : -0.03, 5 - row * 2, -2 + col * 2], [0.05, 1.9, 1.9], c,
+                       { m: 'neon', a: flick });
+            }
+          }
+        }
+      }
+    };
+  });
+
+  /* Salt-meadow sheep: white fleeces, black faces, grazing their way about
+     the meadow, heads down; come close and they trot off, bleating. */
+  Rigs.register('sheep', function (spec) {
+    var a = spec.area || [spec.p[0] - 30, spec.p[0] + 30, spec.p[2] - 30, spec.p[2] + 30], n = spec.n || 6;
+    var flock = [], baa = -10;
+    for (var i = 0; i < n; i++) {
+      flock.push({ x: a[0] + (a[1] - a[0]) * hash(i * 3 + 1), z: a[2] + (a[3] - a[2]) * hash(i * 7 + 2), yaw: hash(i) * TAU,
+                   graze: 0, run: 0, seed: i * 1.7 });
+    }
+    return {
+      radius: Math.max(a[1] - a[0], a[3] - a[2]) / 2 + 20,
+      update: function (dt, t, ctx) {
+        var ps = ctx.players ? ctx.players() : [];
+        for (var i = 0; i < flock.length; i++) {
+          var s = flock[i];
+          var near = nearest(ps, [s.x, 0, s.z], 14);
+          var vx, vz, speed;
+          if (near) {
+            var dx = s.x - near.who.pos[0], dz = s.z - near.who.pos[2], len = Math.hypot(dx, dz) || 1;
+            vx = dx / len; vz = dz / len; speed = 9;
+            if (t - baa > 3 && ctx.sound) { baa = t; ctx.sound('ll_baa', [s.x, spec.p[1], s.z], 0.8); }
+          } else {
+            var ang = wander(t * 0.05, i) * Math.PI + s.seed;
+            vx = Math.sin(ang); vz = Math.cos(ang); speed = (wander(t * 0.2, i + 9) > 0.3 ? 1.2 : 0);
+          }
+          s.run = approach(s.run, speed, 6, dt);
+          s.x = clamp(s.x + vx * s.run * dt, a[0] + 2, a[1] - 2);
+          s.z = clamp(s.z + vz * s.run * dt, a[2] + 2, a[3] - 2);
+          if (s.run > 0.2) s.yaw = approachAngle(s.yaw, Math.atan2(vx, vz), 4, dt);
+          s.graze = approach(s.graze, s.run < 0.5 ? 1 : 0, 2, dt);
+        }
+      },
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < flock.length; i++) {
+          var s = flock[i], f = frame([s.x, spec.p[1], s.z], s.yaw);
+          legsAt(pen, f, [[-0.6, 0.9], [0.6, 0.9], [-0.6, -0.9], [0.6, -0.9]], 1.3, 0.35, '#1a1a1a', t * 8 * (s.run / 4) + i, s.run > 0.5 ? 0.5 : 0);
+          pen.part(f, 'box', [0, 2.1, 0], [2.2, 1.7, 3.0], '#ece8dc');
+          pen.part(f, 'box', [0, 2.6, 0.2], [1.8, 0.6, 2.4], '#f6f2e8');
+          var head = child(f, [0, 2.2, 1.6], 0.2 + s.graze * 0.9, 0, 0);
+          pen.part(head, 'box', [0, 0.1, 0.5], [0.8, 0.8, 1.1], '#1e1e1e');
+          pen.part(head, 'box', [0.5, 0.3, 0.3], [0.5, 0.18, 0.3], '#1e1e1e');
+          pen.part(head, 'box', [-0.5, 0.3, 0.3], [0.5, 0.18, 0.3], '#1e1e1e');
+        }
       }
     };
   });

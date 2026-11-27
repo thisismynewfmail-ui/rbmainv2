@@ -687,5 +687,43 @@
     }
   });
 
+  Thumbs.registerWorld('ll_mount', {
+    camera: [[-70, 40, -120], [0, 28, 70], 58],
+    sky: { top: '#0a1018', horizon: '#3a4a58', sun: [-0.4, 0.3, 0.8], clouds: 0.6, tint: '#b8c8d0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [300, 1, 300], '#c8b48a', { st: 1 });
+      k.box([0, 0.4, 30], [300, 0.1, 300], '#3a6a7a', { a: 0.45 });
+      k.box([0, 1, -115], [16, 2, 142], '#8a8478', { st: 1 });
+      // the rock in its terraces
+      k.box([0, 2, 58], [220, 4, 212], '#6a6a66', { st: 1 });
+      k.box([0, 7, 60], [184, 6, 180], '#9a9488', { st: 1 });
+      k.box([0, 13.5, 73], [140, 7, 126], '#9a9488', { st: 1 });
+      k.box([0, 20.5, 77], [92, 7, 94], '#a49c8c', { st: 1 });
+      k.box([0, 8, -45], [220, 8, 6], '#8a8a84');
+      for (var c = 0; c < 18; c++) k.box([-102 + c * 12, 13, -47.4], [3, 2, 1.2], '#8a8a84');
+      // houses, the inn
+      [[-50, -13, 68, 34], [-56, 24, 22, 12], [-25, 24, 26, 12], [23, 24, 22, 12], [73, -11, 30, 30]].forEach(function (h, i) {
+        var y = i === 0 || i === 4 ? 10 : 17;
+        k.box([h[0] + (i === 0 ? 40 : 0), y + 6, h[1]], [h[2], 12, h[3]], ['#e8e0cc', '#d8c0a0', '#c8d0c8', '#e8e0cc', '#d8c8a8'][i]);
+        k.box([h[0] + (i === 0 ? 40 : 0), y + 13, h[1]], [h[2] + 1, 2, h[3] * 0.6], '#3a4048');
+      });
+      // the abbey church and its spire, the saint in gold
+      k.box([0, 35, 85], [28, 22, 66], '#a49c8c');
+      k.box([0, 48, 85], [24, 4, 66], '#3a4048');
+      k.box([0, 52, 85], [12, 4, 66], '#3a4048');
+      k.box([0, 60, 85], [5, 13, 6], '#a49c8c');
+      k.shape('cone', [0, 75, 85], [3.4, 10, 3.4], '#3a4048');
+      k.shape('sph', [0, 81, 85], [1.2, 1.2, 1.2], '#e8c35a', { m: 'neon' });
+      for (var w = 0; w < 4; w++) k.box([-14.1, 36, 63 + w * 14], [0.1, 12, 6], ['#1a3a8a', '#8a1a2a', '#c8a03a', '#2a6a3a'][w], { m: 'neon', a: 0.8 });
+      // them on the sands and the causeway, the team at the gate
+      k.zombie('common', -24, -90, 0.2, 4, 'mount', 0, 0);
+      k.zombie('common', 30, -110, -0.3, 1, 'mount', 2, 0);
+      k.zombie('common', -60, -70, 0.6, 5, 'mount', 0, 0);
+      k.zombie('common', 2, -130, 0, 2, 'mount', 0, 2);
+      k.survivor(-4, -52, Math.PI, 0, 2);
+      k.survivor(5, -54, Math.PI + 0.2, 1, 2);
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);
