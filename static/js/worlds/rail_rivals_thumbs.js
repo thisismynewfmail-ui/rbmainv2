@@ -604,4 +604,77 @@
       k.box([-2, 0.5, 40], [1.6, 1, 2], '#ece4d0');
     }
   });
+  // ------------------------------------------------------- Gusher Flats
+  /* Sunset in the oil field: a well blowing beside the Bluebird line, its
+     black column into the sky and fire across the track, their cart held
+     short of it; a red cart rolling past; derricks on Spindle Hill, the
+     painted fronts of the boomtown under their strings of lights, a
+     pumpjack nodding, the tanks with their company colours. */
+  function thumbDerrick(k, x, z, h, base, colour) {
+    var lean = Math.atan2(3.2, h);
+    for (var sx = -1; sx <= 1; sx += 2) {
+      for (var sz = -1; sz <= 1; sz += 2) {
+        k.box([x + sx * 2.6, base + h / 2, z + sz * 2.6], [0.6, h + 0.4, 0.6], colour, { r: [-sz * lean, 0, sx * lean] });
+      }
+    }
+    for (var g = 1; g < 5; g++) {
+      var f = g / 5, w = (4.2 - 3.2 * f) * 2;
+      k.box([x, base + h * f, z - w / 2], [w, 0.3, 0.3], colour);
+      k.box([x, base + h * f, z + w / 2], [w, 0.3, 0.3], colour);
+      k.box([x - w / 2, base + h * f, z], [0.3, 0.3, w], colour);
+      k.box([x + w / 2, base + h * f, z], [0.3, 0.3, w], colour);
+    }
+    k.box([x, base + h + 0.6, z], [2.6, 1.2, 2.6], '#5a3e28');
+  }
+  Thumbs.registerWorld('rr_gusher', {
+    sky: { top: '#2e3a7a', horizon: '#ff9448', sun: [0.62, 0.2, -0.55], clouds: 0.55, tint: '#ffc488' },
+    camera: [[-46, 26, 44], [14, 12, -22], 52],
+    build: function (parts, k) {
+      k.box([0, -0.5, -10], [260, 1, 220], '#c8a84e', { st: 1 });
+      k.shape('sph', [20, -10, -90], [120, 40, 70], '#d8b85a');
+      slant(k, -80, 34, 60, -40);
+      slant(k, -80, -40, 60, 34);
+      // Spindle Hill's derricks behind
+      [[-10, -84, 22], [12, -96, 26], [32, -78, 20], [-30, -100, 24], [50, -104, 22]].forEach(function (d) {
+        thumbDerrick(k, d[0], d[1], d[2], 4, '#7a5a3a');
+      });
+      // the well blowing beside the blue line, and the fire across it
+      thumbDerrick(k, 34, -44, 22, 0, '#6a4a30');
+      k.box([34, 1.2, -44], [9.6, 1.2, 9.6], '#3e3024');
+      for (var c = 0; c < 9; c++) {
+        k.shape('cyl', [34 + Math.sin(c) * 0.8, 6 + c * 6, -44], [2.2 + c * 0.9, 6.4, 2.2 + c * 0.9], '#141010');
+      }
+      for (var m = 0; m < 5; m++) k.shape('sph', [34 + (m - 2) * 6, 58, -44 + (m % 2) * 4], [12, 7, 10], '#1a1412');
+      for (var f2 = 0; f2 < 10; f2++) {
+        var fx = 12 + f2 * 2.4, fz = 34 - 74 * (fx + 80) / 140 + Math.sin(f2 * 2.1) * 1.2;
+        k.shape('cone', [fx, 2.6, fz], [2.6, 5 + (f2 % 3) * 2, 2.6], f2 % 2 ? '#ff7a2a' : '#ffd84a', { m: 'neon' });
+        if (f2 % 3 === 0) k.shape('sph', [fx + 2, 10 + f2, fz - 1], [5, 4, 5], '#2a2420', { a: 0.6 });
+      }
+      k.shape('sph', [34, 3, -44], [12, 6, 12], '#ff8a2a', { a: 0.5, m: 'neon' });
+      cart(k, 2, -9.3, Math.atan2(140, -74), BLUE);
+      pushers(k, 2, -9.3, Math.atan2(140, -74), BLUE, 2, 0.4);
+      cart(k, -30, -11, Math.atan2(140, 74), RED);
+      pushers(k, -30, -11, Math.atan2(140, 74), RED, 1, 0.2);
+      k.player(-16, 10, 1.4, { anim: 'run', time: 0.7, wear: cap(RED) });
+      // the boomtown fronts and their lights
+      [['#b84a3a', -58, 6, 14], ['#3a8a8a', -58, -10, 11], ['#d8a83a', -58, -24, 12]].forEach(function (b) {
+        k.box([b[1], b[3] / 2, b[2]], [10, b[3], 12], b[0]);
+        k.box([b[1] + 5.05, b[3] - 2, b[2]], [0.1, 2, 9], '#f2ece0');
+      });
+      for (var l = 0; l < 12; l++) {
+        k.shape('sph', [-50, 12 - Math.sin(l / 11 * Math.PI) * 2.4, -28 + l * 3.2], [0.6, 0.7, 0.6],
+                ['#ffd27a', '#ff6a4a', '#7ae0ff', '#a8ff7a'][l % 4], { m: 'neon' });
+      }
+      // a pumpjack nodding in front
+      k.box([-34, 0.4, 34], [2.6, 0.8, 11], '#3a3a3e', { m: 'metal' });
+      k.box([-34, 3.4, 34], [0.6, 6.2, 0.6], '#c8a02a', { m: 'metal' });
+      k.box([-34, 6.6, 34.6], [0.7, 0.8, 9], '#c8a02a', { r: [0.25, 0, 0], m: 'metal' });
+      k.box([-34, 5.4, 39.4], [0.8, 2.6, 1], '#c8a02a', { r: [0.25, 0, 0], m: 'metal' });
+      // the tanks in their colours
+      [['#c8281e', 60, -50], ['#2f6aa8', 82, -46]].forEach(function (t2) {
+        k.shape('cyl', [t2[1], 8, t2[2]], [20, 16, 20], '#d8d0c0', { m: 'metal' });
+        k.box([t2[1], 9, t2[2] + 10.2], [9, 3, 0.3], t2[0]);
+      });
+    }
+  });
 })(window);

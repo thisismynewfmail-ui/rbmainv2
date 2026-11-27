@@ -44,7 +44,7 @@ WORLD: Dict[str, Any] = {
     "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/rail_rivals.js",
                      "/static/js/worlds/rail_rivals_lines.js"],
     "features": ["16 players", "Payload race", "Brake levers", "Coal boosts",
-                 "Depot respawns", "8 rotating railroads", "A twist on every line"],
+                 "Depot respawns", "9 rotating railroads", "A twist on every line"],
     "areas": [
         {"id": "dustbowl", "name": "Dustbowl Gulch",
          "blurb": "A gold town at the mouth of a red canyon. The lines cross "
@@ -88,6 +88,12 @@ WORLD: Dict[str, Any] = {
                   "team, the oasis and the Army's camels, a ghost town half under a dune and a "
                   "schooner stranded on the Great Dune. The wind lays sand drifts across the "
                   "track: dig your cart out before theirs gets away."},
+        {"id": "gusher", "name": "Gusher Flats",
+         "blurb": "An oil boomtown at sunset: derricks thick as trees on Spindle Hill, the tank "
+                  "farm, the refinery's flare, tent saloons on a river of mud, pumpjacks nodding "
+                  "and a pipeline catwalk over both lines. The wells beside the tracks blow out "
+                  "-- open a valve beside their line to set their track on fire in front of their "
+                  "cart, and shut the one hissing beside yours."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -182,6 +188,13 @@ BADGES: List[Tuple[Any, ...]] = [
      ["Close Shave", "Daredevil", "Hair Trigger", "Thunder Runner", "Faster Than Freight"],
      "Pushed your company's cart over the crossing with the bells ringing and the freight coming.",
      "em_rr_bells", "crossings beaten"),
+    ("rr_wildcatter", "Wildcatter", "rr_gushers", [1, 5, 15, 40, 100],
+     ["Roustabout", "Driller", "Wildcatter", "Oil Baron", "King of the Gushers"],
+     "Opened a well's valve at Gusher Flats and set the other company's line on fire in "
+     "front of their cart.", "em_rr_gusher", "lines set alight"),
+    ("rr_roughneck", "Roughneck", "rr_capped", [1, 5, 15, 40, 100],
+     ["Swamper", "Tool Dresser", "Roughneck", "Well Capper", "Hellfighter"],
+     "Shut a hissing well's valve at Gusher Flats before it blew.", "em_rr_valve", "wells capped"),
     ("rr_four_lines", "Four Lines", "rr_areas", [1, 2, 3, 4],
      ["Day Tripper", "Two-Line Man", "Three-Line Hand", "Master of the Four Lines"],
      "Won a race on each of Rail Rivals' four railroads.", "em_rr_map", "railroads"),
@@ -219,6 +232,10 @@ SPEECH: List[Tuple[str, str, int, str]] = [
      "Thunder Junction: somebody calls the through freight down to shut the crossings."),
     ("rr_beat_freight", "Beat the freight", 35,
      "Thunder Junction: a cart is pushed over the crossing with the freight coming."),
+    ("rr_gusher_opened", "Well opened", 40,
+     "Gusher Flats: somebody opens a well's valve and it starts hissing beside a line."),
+    ("rr_gusher_capped", "Well capped", 35,
+     "Gusher Flats: somebody shuts a hissing well's valve before it blows."),
 ]
 
 
@@ -336,6 +353,22 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
                     "it is clear of the main line.", "ally")
         return ("%s pushed their cart over the crossing just ahead of the freight." % company,
                 "victim")
+    if kind == "rr_gusher_opened":
+        if me:
+            return ("You opened the valve on a well beside %s's line: it blows in six "
+                    "seconds and the oil will burn across their track." % company, "actor")
+        if cart:
+            return ("%s opened a well's valve beside YOUR line near %s: it blows in six seconds. "
+                    "Shut it (hold E at the valve) or get clear." % (by, what or "the track"), "victim")
+        if mine:
+            return ("Your teammate %s opened a well beside the other line." % by, "ally")
+        return ("%s opened a well's valve. Keep clear of it." % by, "neutral")
+    if kind == "rr_gusher_capped":
+        if me:
+            return ("You shut the valve on a hissing well before it blew.", "actor")
+        if mine:
+            return ("%s shut a hissing well's valve in time." % by, "ally")
+        return ("%s shut the valve on the well before it could blow." % by, "victim")
     if kind == "round_end" and event.get("world") == WORLD["id"]:
         return None
     return None
@@ -378,6 +411,13 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("rr_freight_called", "neutral"): ["train!!", "off the main line"],
     ("rr_beat_freight", "ally"): ["made it", "beat the train", "close one", "go go"],
     ("rr_beat_freight", "victim"): ["they beat the train", "how", "contest it"],
+    ("rr_gusher_opened", "actor"): ["gusher incoming lol", "opened it", "light em up"],
+    ("rr_gusher_opened", "victim"): ["WELL", "shut the valve!!", "its gonna blow", "get away from the derrick"],
+    ("rr_gusher_opened", "ally"): ["nice", "burn their track", "push now"],
+    ("rr_gusher_opened", "neutral"): ["gusher!!", "move"],
+    ("rr_gusher_capped", "actor"): ["capped it", "valve shut", "not today"],
+    ("rr_gusher_capped", "ally"): ["nice save", "ty", "close one"],
+    ("rr_gusher_capped", "victim"): ["they capped it", "ugh", "open another"],
 }
 
 # ----------------------------------------------------------------- the bots
@@ -481,7 +521,9 @@ def history_badges(history: Dict[str, Any], traits: Dict[str, float], rng
            ("rr_rails", int(rounds / 6.0 * rng.uniform(0.0, 2.0) * (0.4 + objective)), "add"),
            ("rr_rails_pulled", int(rounds / 6.0 * rng.uniform(0.0, 0.8) * (0.4 + chaos)), "add"),
            ("rr_freight_calls", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + chaos)), "add"),
-           ("rr_beat_freight", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add")]
+           ("rr_beat_freight", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add"),
+           ("rr_gushers", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + chaos)), "add"),
+           ("rr_capped", int(rounds / 6.0 * rng.uniform(0.0, 0.5) * (0.4 + support)), "add")]
     areas = [a["id"] for a in WORLD["areas"]]
     rng.shuffle(areas)
     for area in areas[:min(len(areas), wins // 3)]:

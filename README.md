@@ -517,6 +517,24 @@ with it, the cart pitched on the grade -- and each brings a twist of its own
   rattlesnakes loop across the sand. *Sand drifts*, as in Silverpine Pass:
   the wind lays a drift across the track ahead of a cart and its company
   digs it out.
+* **Gusher Flats** -- an oil boomtown at sunset. The Discovery line starts
+  at the tank farm (four company tanks in their berms, a stair up the first
+  to its roof), the Sour Creek line at the refinery (stills over glowing
+  fireboxes, the cracking tower's platforms, the flare stack burning). Main
+  Street is a river of mud under strings of coloured lights: the red
+  Gusher Hotel and its balcony, the Gazette, the lease office, two striped
+  tent saloons, Doc Pettibone's medicine-show wagon and a tank wagon sunk
+  to its hubs. Spindle Hill is a dome thick with derricks and the gilded
+  discovery well on its crown; Sour Creek runs with oil sheen past the
+  wildcatters' camp (its cable-tool rig's walking beam thumping) and a
+  bubbling slick; pumpjacks nod all over the field, and a pipeline catwalk
+  carries you over both lines. *The gushers*: six wells stand beside the
+  tracks, three on each line's outer side. Every so often one blows out by
+  itself -- six seconds of hissing and spitting oil, then a column of oil
+  and fire, deadly at the wellhead and a burn round it -- and the oil it
+  throws burns across its line for a while, holding any cart short of the
+  flames. Hold **E** at a quiet well's valve to set it blowing (beside the
+  other line, just ahead of their cart), or at a hissing one to shut it.
 
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
@@ -525,7 +543,9 @@ theirs nine tenths of the way), Signalman, Snowplow (snow or sand), Bridgekeeper
 (out of a venting pocket in time), Spike Driver (rails laid), Claim Jumper
 (their rails pulled up), Train Orders (a freight you called held their
 cart), Beat the Freight (your cart over the crossing with the freight
-coming) and Four Lines (a race won on every railroad).
+coming), Wildcatter (a well you opened set their line alight), Roughneck
+(a hissing well shut in time) and Four Lines (a race won on every
+railroad).
 
 **Bots** take a job for the race by persona and settings -- pusher, raider,
 sniper on the water towers and decks, or a flexible hand who fetches coal

@@ -201,6 +201,32 @@
     stroked(ctx, function (g) { g.moveTo(14, 100); g.lineTo(24, 100); g.moveTo(16, 88); g.lineTo(24, 92); g.moveTo(16, 112); g.lineTo(24, 108); }, RR_RED, 4);
   });
 
+  emblem('em_rr_gusher', function (ctx) {
+    // a derrick with its well come in: the black plume, fire at its foot
+    stroked(ctx, function (g) {
+      g.moveTo(40, 116); g.lineTo(58, 30); g.lineTo(70, 30); g.lineTo(88, 116);
+      g.moveTo(46, 90); g.lineTo(82, 90); g.moveTo(51, 64); g.lineTo(77, 64); g.moveTo(55, 44); g.lineTo(73, 44);
+    }, '#8a6040', 6);
+    inked(ctx, function (g) {
+      g.moveTo(58, 30); g.quadraticCurveTo(40, 8, 26, 20); g.quadraticCurveTo(44, 2, 64, 6);
+      g.quadraticCurveTo(86, 0, 102, 18); g.quadraticCurveTo(86, 10, 70, 30); g.closePath();
+    }, '#1a1614');
+    inked(ctx, poly([[30, 116], [40, 96], [48, 108], [60, 88], [70, 106], [80, 92], [92, 116]]), '#ff8a2a', 4);
+    inked(ctx, poly([[46, 116], [54, 104], [62, 112], [72, 102], [78, 116]]), '#ffd84a', 3);
+  });
+
+  emblem('em_rr_valve', function (ctx) {
+    // a wellhead's valve wheel, spun shut
+    inked(ctx, function (g) { g.rect(56, 70, 16, 46); }, '#5a5a62', 5);
+    inked(ctx, circlePath(64, 50, 34), RR_RED, 6);
+    inked(ctx, circlePath(64, 50, 22), '#2a2a2e', 4);
+    stroked(ctx, function (g) {
+      g.moveTo(64, 18); g.lineTo(64, 82); g.moveTo(32, 50); g.lineTo(96, 50);
+      g.moveTo(41, 27); g.lineTo(87, 73); g.moveTo(87, 27); g.lineTo(41, 73);
+    }, RR_RED, 6);
+    inked(ctx, circlePath(64, 50, 8), RR_GOLD, 3);
+  });
+
   // ------------------------------------------------------------- Prop Panic
   var PP_PINK = '#f06a8a', PP_GOLD = '#ffc83a', PP_BLUE = '#5aa0f0', PP_GREEN = '#6ac860';
 

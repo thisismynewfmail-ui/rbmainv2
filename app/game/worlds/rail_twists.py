@@ -738,3 +738,312 @@ class Sweep(Twist):
         return [("trains come through on the timetable", passes >= 2, passes),
                 ("a cart is held at a crossing, or a train is called down",
                  held > 0 or calls > 0, {"held": held, "calls": calls})]
+
+
+# ========================================================== the gushers
+GUSH_EVERY = (40.0, 58.0)     # between one well blowing and the next, left alone
+GUSH_WARN = 6.0               # the hiss before it blows
+GUSH_R = 10.0                 # deadly this close to the wellhead
+GUSH_EDGE = 16.0              # a bad burn out to here
+FIRE_SECONDS = 13.0           # how long the spilled oil burns on the track
+FIRE_HALF = 9.0               # the burning stretch either side of its middle
+FIRE_HOLD = 4.0               # how far short of the flames a cart stops
+FIRE_BURN = 22.0              # damage a second standing in it
+WELL_REST = 26.0              # a well that has blown is spent this long
+VALVE_R = 4.4
+VALVE_OPEN = 2.0
+VALVE_SHUT = 1.4
+
+
+@register
+class Gushers(Twist):
+    """Gusher Flats: the wells beside the lines (``points["well"]``: each
+    a wellhead ``p``, the ``lane`` it stands by and how far along it
+    ``d``).  Every so often one blows out of its own accord -- a hiss for
+    six seconds, then a column of oil and fire: deadly at the wellhead, a
+    burn round it -- and the oil it throws burns across its line for a
+    while, holding any cart short of the flames.
+
+    Anyone can open a quiet well's valve (hold E at it) to set it blowing
+    now -- by the other company's line, just ahead of their cart, if they
+    are any good -- and anyone can shut it again while it hisses."""
+
+    kind = "gushers"
+    welcome = ("The wells blow out by themselves, and the burning oil holds a cart short of the "
+               "flames. Hold E at a wellhead's valve to set it blowing beside their line -- or to "
+               "shut one that is hissing beside yours.")
+    jobs = ("gushers", "capped")
+    award = ("gushers", "Wildcatter", "set %d wells blowing")
+    job_lines = {"open_valve": ["opening a valve on them", "gusher time lol", "blowing a well"],
+                 "shut_valve": ["capping that well", "shutting the valve", "well about to blow on us"]}
+
+    def setup(self, area, extra, points, moment):
+        self.wells: List[Dict[str, Any]] = []
+        for i, m in enumerate(points.get("well", [])):
+            lane = str(m.get("lane") or "a")
+            path = self.w.lanes.get(lane)
+            d = float(m.get("d", 0.0))
+            if path is None:
+                continue
+            self.wells.append({"i": i, "p": list(m["p"]), "head": list(m.get("head") or m["p"]),
+                               "lane": lane, "d": d, "state": "idle",
+                               "until": 0.0, "rest": 0.0, "by": None, "fire": 0.0,
+                               "name": str(m.get("name") or "a well")})
+        self.next_at = moment + 1e9
+        self.blowouts = 0
+        self.opened = 0
+        self.capped = 0
+        self.held_seen = 0
+        self.burned = 0
+
+    def on_live(self, moment):
+        self.next_at = moment + self.w.rng.uniform(*GUSH_EVERY) * 0.6
+
+    # ------------------------------------------------------------ wells
+    def _hissing(self) -> Optional[Dict[str, Any]]:
+        for well in self.wells:
+            if well["state"] == "warn":
+                return well
+        return None
+
+    def _start(self, well, moment: float, by=None) -> None:
+        well["state"] = "warn"
+        well["until"] = moment + GUSH_WARN
+        well["by"] = (by.pid, by.team) if by is not None else None
+        self.send({"t": "rrx", "k": "gush", "i": well["i"], "state": "warn", "in": GUSH_WARN,
+                   "by": by.username if by is not None else "", "team": by.team if by is not None else ""})
+        if by is not None:
+            self.event("rr_gusher_opened", by, self.lane_team(well["lane"]),
+                       what=self.w._place(well["p"]))
+        self.w._broadcast_state()
+
+    def _blow(self, well, playing, moment: float) -> None:
+        well["state"] = "fire"
+        well["fire"] = moment + FIRE_SECONDS
+        well["rest"] = moment + WELL_REST
+        self.blowouts += 1
+        self.next_at = moment + self.w.rng.uniform(*GUSH_EVERY)
+        wx, wy, wz = well["head"]
+        for player in playing:
+            dist = math.hypot(player.pos[0] - wx, player.pos[2] - wz)
+            if abs(player.pos[1] - wy) > 12.0:
+                continue
+            if dist < GUSH_R:
+                self.w.apply_damage(player, None, 95.0, "the gusher")
+            elif dist < GUSH_EDGE:
+                self.w.apply_damage(player, None, 35.0, "the gusher")
+        self.send({"t": "rrx", "k": "gush", "i": well["i"], "state": "blow"})
+        self.w._broadcast_state()
+
+    def _fire_span(self, well) -> Tuple[float, float]:
+        return well["d"] - FIRE_HALF, well["d"] + FIRE_HALF
+
+    def tick(self, playing, dt, moment):
+        if not self.wells:
+            return
+        hissing = self._hissing()
+        if hissing is None and moment >= self.next_at:
+            quiet = [w for w in self.wells if w["state"] == "idle" and moment >= w["rest"]]
+            if quiet:
+                self._start(self.w.rng.choice(quiet), moment)
+        for well in self.wells:
+            if well["state"] == "warn" and moment >= well["until"]:
+                self._blow(well, playing, moment)
+            elif well["state"] == "fire":
+                if moment >= well["fire"]:
+                    well["state"] = "idle"
+                    well["by"] = None
+                    self.send({"t": "rrx", "k": "gush", "i": well["i"], "state": "out"})
+                    self.w._broadcast_state()
+                    continue
+                # the burning stretch: anybody standing in it burns
+                path = self.w.lanes[well["lane"]]
+                d0, d1 = self._fire_span(well)
+                for player in playing:
+                    d, off = path.project(player.pos[0], player.pos[2])
+                    if d0 <= d <= d1 and off < 4.5 and abs(player.pos[1] - path.height(d)) < 5.0:
+                        self.burned += 1
+                        self.w.apply_damage(player, None, FIRE_BURN * dt, "the burning oil")
+                # the cart it holds: credit whoever set it blowing
+                cart = self.cart_on(well["lane"])
+                if cart is not None and cart.held == "fire":
+                    self.held_seen += 1
+                    if well["by"] is not None:
+                        pid, team = well["by"]
+                        well["by"] = None
+                        caller = self.w.players.get(pid)
+                        if caller is not None and team != cart.team:
+                            self.score(caller, 10, "", "rr_gushers")
+
+    # ------------------------------------------------------------ carts
+    def limit(self, cart, moment):
+        stops = []
+        for well in self.wells:
+            if well["state"] != "fire" or well["lane"] != cart.lane:
+                continue
+            d0, _d1 = self._fire_span(well)
+            if cart.d <= d0 - FIRE_HOLD + 0.05:
+                stops.append((d0 - FIRE_HOLD, "fire"))
+        return min(stops) if stops else None
+
+    # -------------------------------------------------------- holding E
+    def what_here(self, player, moment):
+        if player.extra.get("coal"):
+            return None
+        for well in self.wells:
+            if not self.near(player, well["p"], VALVE_R, 5.0):
+                continue
+            if well["state"] == "warn":
+                return ("shut", well["i"], VALVE_SHUT)
+            if well["state"] == "idle" and moment >= well["rest"] and self._hissing() is None:
+                return ("open", well["i"], VALVE_OPEN)
+        return None
+
+    def do(self, player, kind, key, moment):
+        if kind not in ("open", "shut"):
+            return False
+        well = next((w for w in self.wells if w["i"] == key), None)
+        if well is None:
+            return True
+        if kind == "open":
+            if well["state"] != "idle" or moment < well["rest"] or self._hissing() is not None:
+                return True
+            self.opened += 1
+            self.score(player, 4, "gushers")
+            self._start(well, moment, player)
+            return True
+        if well["state"] != "warn":
+            return True
+        well["state"] = "idle"
+        well["rest"] = moment + 10.0
+        well["by"] = None
+        self.capped += 1
+        self.score(player, 8, "capped", "rr_capped")
+        self.next_at = max(self.next_at, moment + 14.0)
+        self.send({"t": "rrx", "k": "gush", "i": well["i"], "state": "shut", "by": player.username,
+                   "team": player.team})
+        self.event("rr_gusher_capped", player, player.team, what=self.w._place(well["p"]))
+        self.w._broadcast_state()
+        return True
+
+    # ------------------------------------------------------------ state
+    def state(self, moment):
+        out = []
+        for well in self.wells:
+            row = {"s": well["state"]}
+            if well["state"] == "warn":
+                row["left"] = round(max(0.0, well["until"] - moment), 1)
+            elif well["state"] == "fire":
+                row["left"] = round(max(0.0, well["fire"] - moment), 1)
+            elif moment < well["rest"]:
+                row["rest"] = round(well["rest"] - moment, 1)
+            out.append(row)
+        return {"wells": out}
+
+    def context(self):
+        lines = []
+        for well in self.wells:
+            team = self.w.team_name(self.lane_team(well["lane"]))
+            if well["state"] == "warn":
+                lines.append("A well beside %s's line is hissing and about to blow." % team)
+            elif well["state"] == "fire":
+                lines.append("Oil is burning across %s's line." % team)
+        return lines
+
+    # ------------------------------------------------------------- bots
+    def _danger_well(self, pos) -> Optional[Dict[str, Any]]:
+        for well in self.wells:
+            if well["state"] == "warn" and flat(pos, well["head"]) < GUSH_EDGE + 3.0:
+                return well
+        return None
+
+    def urgent(self, brain):
+        return self._danger_well(brain.p.pos) is not None or self._in_fire(brain.p.pos)
+
+    def _in_fire(self, pos) -> bool:
+        for well in self.wells:
+            if well["state"] != "fire":
+                continue
+            path = self.w.lanes[well["lane"]]
+            d, off = path.project(pos[0], pos[2])
+            d0, d1 = self._fire_span(well)
+            if d0 - 2 <= d <= d1 + 2 and off < 7.0:
+                return True
+        return False
+
+    def flee(self, brain):
+        p = brain.p
+        well = self._danger_well(p.pos)
+        if well is not None:
+            # somebody of ours shutting it stays put; everybody else runs
+            job = p.extra.get("rr_job") or {}
+            if job.get("k") == "shut_valve" and flat(p.pos, well["p"]) < VALVE_R:
+                return None
+            hx, hz = well["head"][0], well["head"][2]
+            dx, dz = p.pos[0] - hx, p.pos[2] - hz
+            dist = max(0.1, math.hypot(dx, dz))
+            k = (GUSH_EDGE + 8.0) / dist
+            self.w.doing(brain, "getting clear of the well")
+            return [hx + dx * k, p.pos[1], hz + dz * k]
+        if self._in_fire(p.pos):
+            for well in self.wells:
+                if well["state"] != "fire":
+                    continue
+                path = self.w.lanes[well["lane"]]
+                d, _off = path.project(p.pos[0], p.pos[2])
+                x, z, yaw = path.at(d)
+                rx, rz = math.cos(yaw), -math.sin(yaw)
+                side = 1.0 if (p.pos[0] - x) * rx + (p.pos[2] - z) * rz >= 0 else -1.0
+                self.w.doing(brain, "out of the fire")
+                return [x + rx * side * 10.0, p.pos[1], z + rz * side * 10.0]
+        return None
+
+    def bot_job(self, brain, own, rival, moment):
+        rng = brain.rng
+        twist = self.w.pct("twist")
+        team = brain.p.team
+        # a well hissing beside our own line: somebody near shuts it
+        for well in self.wells:
+            if well["state"] == "warn" and well["lane"] == own.lane and \
+                    flat(well["p"], brain.p.pos) < 70.0 and well["until"] - moment > 2.2 and \
+                    rng.random() < 0.3 + twist * 0.6:
+                return {"k": "shut_valve", "i": well["i"], "at": list(well["p"]), "r": VALVE_R - 1.6,
+                        "key": "shut%d" % well["i"], "say": "shutting the valve on a hissing well",
+                        "for": 8.0}
+        if self._hissing() is not None:
+            return None
+        if brain.role not in ("raider", "flex") and rng.random() > 0.2:
+            return None
+        # a quiet well a little ahead of their cart: open it
+        best = None
+        for well in self.wells:
+            if well["lane"] != rival.lane or well["state"] != "idle" or moment < well["rest"]:
+                continue
+            ahead = well["d"] - FIRE_HALF - rival.d
+            if 20.0 < ahead < 70.0 and flat(well["p"], brain.p.pos) < 150.0:
+                best = well
+                break
+        if best is None or rng.random() > 0.25 + twist * 0.6:
+            return None
+        return {"k": "open_valve", "i": best["i"], "at": list(best["p"]), "r": VALVE_R - 1.6,
+                "key": "open%d" % best["i"], "say": "opening a well's valve by their line", "for": 25.0}
+
+    def job_valid(self, job, team):
+        well = next((w for w in self.wells if w["i"] == job.get("i")), None)
+        if job["k"] == "shut_valve":
+            return well is not None and well["state"] == "warn"
+        if job["k"] == "open_valve":
+            if well is None or well["state"] != "idle" or now() < well["rest"] or self._hissing() is not None:
+                return False
+            rival = self.w.carts.get(self.w.rival(team))
+            return rival is not None and -5.0 < well["d"] - FIRE_HALF - rival.d < 80.0
+        return None
+
+    # ------------------------------------------------------------ tests
+    def observe(self):
+        return {"blowouts": self.blowouts, "opened": self.opened, "capped": self.capped,
+                "held": self.held_seen, "burned": self.burned}
+
+    def selftest(self, observations):
+        blowouts = max([o.get("blowouts", 0) for o in observations] or [0])
+        return [("the wells blow out", blowouts >= 2, blowouts)]
