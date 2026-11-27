@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ..kit import build_world
-from . import dustbowl, goldspike, lantern, redrock, silverpine, union
+from . import dustbowl, goldspike, lantern, redrock, silverpine, thunder, union
 
 AREAS = [
     ("dustbowl", dustbowl, "Dustbowl Gulch"),
@@ -19,6 +19,7 @@ AREAS = [
     # the lines built since, each with a twist of its own (rail_twists.py)
     ("goldspike", goldspike, "Golden Spike Summit"),
     ("union", union, "Union Terminal"),
+    ("thunder", thunder, "Thunder Junction"),
 ]
 
 

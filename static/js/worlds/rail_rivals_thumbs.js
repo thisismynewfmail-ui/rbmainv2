@@ -449,4 +449,99 @@
       k.box([-6, 13.4, 30], [1.6, 1.2, 1.6], '#ffcf7a', { m: 'neon' });
     }
   });
+  // ------------------------------------------------ Thunder Junction
+  /* Storm light at the Star Diamond: the through freight thundering down
+     the main line over the crossing, the gates down and their lamps lit,
+     a red cart held at its stop board with its pushers, the yellow depot
+     with its order board, the grain elevators behind -- lightning on the
+     tall one's rod -- and the breaks under the storm. */
+  Thumbs.registerWorld('rr_thunder', {
+    sky: { top: '#1e242e', horizon: '#c8b888', sun: [-0.7, 0.16, 0.4], clouds: 0.95, tint: '#c8ccc0' },
+    camera: [[-34, 24, 66], [-18, 10, -26], 50],
+    build: function (parts, k) {
+      k.box([0, -0.5, -10], [240, 1, 200], '#6f8048', { st: 1 });
+      // swells and the breaks behind
+      k.shape('sph', [-70, -6, 30], [70, 16, 50], '#7a8a4e');
+      k.shape('sph', [70, -6, 40], [80, 18, 60], '#7a8a4e');
+      for (var b = 0; b < 12; b++) {
+        var bh = 14 + (b * 7 % 5) * 4;
+        k.box([-130 + b * 24, bh / 2, -104 - (b % 2) * 6], [26, bh, 18], b % 2 ? '#6e5038' : '#8a6a4a', { st: 1 });
+        k.box([-130 + b * 24, bh * 0.55, -94.9 - (b % 2) * 6], [26.2, 1.6, 0.2], '#a8865c');
+      }
+      // the lines: the main line north to south, the race lines across it
+      slant(k, 0, -92, 0, 70);
+      slant(k, -90, 40, 70, -46);
+      slant(k, -90, -46, 70, 40);
+      // the grain elevators and the lightning on the tallest
+      [[-76, 26], [-60, 31], [-44, 36]].forEach(function (e, i) {
+        k.box([e[0], e[1] / 2, -70], [13, e[1], 13], '#8a3428');
+        k.box([e[0], e[1] + 3, -70], [6.5, 6, 9], '#6a2a22');
+        k.box([e[0], e[1] * 0.62, -63.4], [11, 2.6, 0.2], '#e8e2d4');
+      });
+      k.box([-44, 46, -70], [0.3, 8, 0.3], '#8a8680', { m: 'metal' });
+      var bolt = [[-34, 80], [-31, 72], [-38, 65], [-34, 58], [-41, 54], [-44, 50]];
+      for (var j = 0; j < bolt.length - 1; j++) {
+        var a = bolt[j], c = bolt[j + 1];
+        var len = Math.hypot(c[0] - a[0], c[1] - a[1]);
+        k.box([(a[0] + c[0]) / 2, (a[1] + c[1]) / 2, -70], [0.8, len, 0.8], '#eef2ff',
+              { r: [0, 0, Math.atan2(c[0] - a[0], c[1] - a[1])], m: 'neon' });
+      }
+      k.shape('sph', [-44, 50, -70], [8, 8, 8], '#dce4ff', { a: 0.5, m: 'neon' });
+      // the depot, its bay and the order board
+      k.box([-22, 5.4, -36], [10, 9, 22], '#d8b860');
+      k.box([-22, 10.4, -36], [11, 1, 23], '#6a3e24');
+      k.box([-22, 11.6, -36], [6, 1.4, 23], '#6a3e24');
+      k.box([-16, 3.2, -36], [2.4, 5, 5], '#d8b860');
+      k.box([-14.75, 3.6, -36], [0.1, 2.4, 3.6], '#ffd88a', { m: 'neon' });
+      k.box([-12, 8, -36], [0.5, 16, 0.5], '#3a3a3e', { m: 'metal' });
+      k.box([-12, 15.6, -38.4], [0.2, 0.6, 4.4], '#c8281e', { r: [0.5, 0, 0] });
+      k.box([-12, 15.6, -33.6], [0.2, 0.6, 4.4], '#c8281e', { r: [-0.5, 0, 0] });
+      k.shape('sph', [-11.6, 14.6, -36], [0.8, 0.8, 0.8], '#5aff7a', { m: 'neon' });
+      // the freight: engine over the diamond, its cars strung out behind
+      var y0 = 0.44;
+      k.box([0, y0 + 1.6, 6], [4, 1.8, 20], '#141414', { m: 'metal' });
+      k.shape('cyl', [0, y0 + 4.9, 8], [4.8, 13, 4.8], '#1e2022', { r: [Math.PI / 2, 0, 0], m: 'metal' });
+      k.shape('cyl', [0, y0 + 4.9, 2], [4.96, 0.4, 4.96], '#c8a040', { r: [Math.PI / 2, 0, 0], m: 'metal' });
+      k.shape('cyl', [0, y0 + 8.4, 13.4], [1.5, 3, 1.5], '#141414', { m: 'metal' });
+      k.box([0, y0 + 5.8, -0.8], [5.4, 5.6, 5], '#1e2022', { m: 'metal' });
+      k.box([0, y0 + 6.6, 1.72], [3, 1.4, 0.1], '#ffd88a', { m: 'neon' });
+      k.box([0, y0 + 7.6, 16.3], [1.2, 1.1, 0.1], '#fff6c8', { m: 'neon' });
+      k.shape('sph', [0, y0 + 7.6, 16.6], [3.4, 3.4, 1.0], '#fff6c8', { a: 0.5, m: 'neon' });
+      for (var p2 = 0; p2 < 5; p2++) {
+        k.shape('sph', [p2 * 0.8, y0 + 11 + p2 * 1.6, 12 - p2 * 4.5], [2.6 + p2, 2 + p2 * 0.8, 2.6 + p2], '#4a4a4e',
+                { a: 0.8 - p2 * 0.12 });
+      }
+      k.box([0, y0 + 4.2, -9], [5.2, 4.4, 10], '#1e2022', { m: 'metal' });
+      var cars = [['#6a2e22', 'box'], ['#1e1e22', 'tank'], ['#7a5232', 'box'], ['#3a3a3c', 'box'], ['#d8b048', 'box']];
+      cars.forEach(function (c2, i) {
+        var cz = -23 - i * 15.2;
+        if (c2[1] === 'tank') {
+          k.shape('cyl', [0, y0 + 5, cz], [4.8, 13, 4.8], c2[0], { r: [Math.PI / 2, 0, 0], m: 'metal' });
+        } else {
+          k.box([0, y0 + 5.4, cz], [5.4, 6, 13.4], c2[0]);
+          k.box([0, y0 + 8.5, cz], [5.6, 0.25, 13.6], '#2a2624');
+        }
+        k.box([0, y0 + 1.6, cz], [4.4, 1.6, 12.8], '#1e1c1a', { m: 'metal' });
+      });
+      // the gates down, their lamps lit
+      [[-6.3, -10.1, -0.62], [6.3, 10.1, 2.5]].forEach(function (g) {
+        k.box([g[0], 4.3, g[1]], [0.7, 8.6, 0.7], '#e8e2d4');
+        for (var sgm = 0; sgm < 5; sgm++) {
+          var u = 1 + sgm * 1.7;
+          k.box([g[0] + Math.sin(g[2]) * u, 4.2, g[1] + Math.cos(g[2]) * u], [0.36, 0.36, 1.72],
+                sgm % 2 ? '#f2f2ee' : '#c82a1e', { r: [0, g[2], 0] });
+        }
+        k.shape('sph', [g[0] - 0.6, 4.6, g[1] + 0.6], [1.0, 1.0, 1.0], '#ff3a2a', { m: 'neon' });
+        k.box([g[0], 7.8, g[1]], [5, 0.7, 0.12], '#e8e2d4', { r: [0, 0.6, 0.78] });
+        k.box([g[0], 7.8, g[1]], [5, 0.7, 0.12], '#e8e2d4', { r: [0, 0.6, -0.78] });
+      });
+      // a red cart held at its stop board, pushing in vain; blue on the watch
+      cart(k, -20, 14.3, Math.atan2(80, -43), RED);
+      pushers(k, -20, 14.3, Math.atan2(80, -43), RED, 2, 0.5);
+      k.player(-30, -12, 1.2, { anim: 'run', time: 0.4, wear: cap(BLUE) });
+      k.box([-14, 2.2, 21], [0.4, 4.4, 0.4], '#5a3a22');
+      k.box([-14, 4.8, 21], [2.4, 1.6, 0.2], '#e8e2d4');
+      k.box([-14, 4.8, 21.12], [1.6, 0.8, 0.05], '#c8281e');
+    }
+  });
 })(window);

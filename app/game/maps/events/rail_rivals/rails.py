@@ -658,7 +658,7 @@ CAR_FLOOR = 1.24        # top of the trucks: a car's body sits on this
 
 
 def _trucks(b: ArenaArea, x: float, z: float, along: str, length: float,
-            width: float = 5.2) -> None:
+            width: float = 5.2, base: float = 0.0) -> None:
     """Two four-wheeled trucks under a car, solid from the rail tops up, the
     wheels only just proud of their sides."""
     for end in (-1, 1):
@@ -666,65 +666,67 @@ def _trucks(b: ArenaArea, x: float, z: float, along: str, length: float,
         cx, cz = (x + off, z) if along == "x" else (x, z + off)
         size = [4.6, CAR_FLOOR - RAIL_TOP, width] if along == "x" else \
             [width, CAR_FLOOR - RAIL_TOP, 4.6]
-        b.box([cx, (RAIL_TOP + CAR_FLOOR) / 2.0, cz], size, IRON, material="metal")
+        b.box([cx, base + (RAIL_TOP + CAR_FLOOR) / 2.0, cz], size, IRON, material="metal")
         for wheel in (-1.3, 1.3):
             wx, wz = (cx + wheel, cz) if along == "x" else (cx, cz + wheel)
-            b.cyl([wx, (RAIL_TOP + CAR_FLOOR) / 2.0 + 0.01, wz],
+            b.cyl([wx, base + (RAIL_TOP + CAR_FLOOR) / 2.0 + 0.01, wz],
                   [0.76, width + 0.08, 0.76], "#2a2826", collide=False, material="metal",
                   r=[math.pi / 2.0, 0, 0] if along == "x" else [0, 0, math.pi / 2.0])
 
 
-def _buffers(b: ArenaArea, x: float, z: float, along: str, length: float) -> None:
+def _buffers(b: ArenaArea, x: float, z: float, along: str, length: float,
+             base: float = 0.0) -> None:
     """The buffer beams at both ends of a car: a step up off the ground,
     and from there a jump to the roof."""
     for end in (-1, 1):
         off = end * (length / 2.0 + 0.6)
         if along == "x":
-            b.box([x + off, 1.6, z], [1.2, 1.0, 3.2], IRON, material="metal")
+            b.box([x + off, base + 1.6, z], [1.2, 1.0, 3.2], IRON, material="metal")
         else:
-            b.box([x, 1.6, z + off], [3.2, 1.0, 1.2], IRON, material="metal")
+            b.box([x, base + 1.6, z + off], [3.2, 1.0, 1.2], IRON, material="metal")
 
 
 def boxcar(b: ArenaArea, x: float, z: float, along: str = "x", colour: str = "#8a3a2a",
-           label: str = "", door: str = "open", length: float = 22.0) -> None:
+           label: str = "", door: str = "open", length: float = 22.0, base: float = 0.0) -> None:
     """A parked boxcar: solid body and roof, a door open on the side that
     faces ``door`` ("open" -- both sides -- or "shut"), buffers at the ends.
     The roof is a jump and a climb up from the ground: a fine place to
-    stand, and nothing to hide under."""
+    stand, and nothing to hide under.  ``base``: the rails' bed."""
     width, top = 6.0, 8.2
-    _trucks(b, x, z, along, length)
+    y = base
+    _trucks(b, x, z, along, length, base=base)
     size = [length, top - CAR_FLOOR, width] if along == "x" else [width, top - CAR_FLOOR, length]
-    b.box([x, (CAR_FLOOR + top) / 2.0, z], size, colour)
+    b.box([x, y + (CAR_FLOOR + top) / 2.0, z], size, colour)
     roof = [length + 0.4, 0.4, width + 0.6] if along == "x" else [width + 0.6, 0.4, length + 0.4]
-    b.box([x, top + 0.2, z], roof, "#4a4642", material="metal")
+    b.box([x, y + top + 0.2, z], roof, "#4a4642", material="metal")
     walk = [length - 1.0, 0.1, 1.2] if along == "x" else [1.2, 0.1, length - 1.0]
-    b.box([x, top + 0.45, z], walk, WOOD_DARK, collide=False)
+    b.box([x, y + top + 0.45, z], walk, WOOD_DARK, collide=False)
     for side in (-1, 1):
         # the doorway, a dark panel just proud of the side, and the slid-back
         # door beside it
         if along == "x":
             face = z + side * width / 2.0
             if door == "open":
-                b.box([x, 4.2, face + side * 0.02], [5.6, 5.4, 0.04], "#1c1714", collide=False)
-                b.box([x + 5.8, 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
+                b.box([x, y + 4.2, face + side * 0.02], [5.6, 5.4, 0.04], "#1c1714", collide=False)
+                b.box([x + 5.8, y + 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
             else:
-                b.box([x, 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
+                b.box([x, y + 4.3, face + side * 0.16], [5.8, 5.8, 0.3], colour)
             if label:
-                wall_sign(b, x - length * 0.3, 6.9, face - side * 0.3, length * 0.32, 1.1,
+                wall_sign(b, x - length * 0.3, y + 6.9, face - side * 0.3, length * 0.32, 1.1,
                           sign_decal(label, colour, CREAM, length * 0.32 / 1.1),
                           "z+" if side > 0 else "z-", colour)
         else:
             face = x + side * width / 2.0
             if door == "open":
-                b.box([face + side * 0.02, 4.2, z], [0.04, 5.4, 5.6], "#1c1714", collide=False)
-                b.box([face + side * 0.16, 4.3, z + 5.8], [0.3, 5.8, 5.8], colour)
+                b.box([face + side * 0.02, y + 4.2, z], [0.04, 5.4, 5.6], "#1c1714", collide=False)
+                b.box([face + side * 0.16, y + 4.3, z + 5.8], [0.3, 5.8, 5.8], colour)
             else:
-                b.box([face + side * 0.16, 4.3, z], [0.3, 5.8, 5.8], colour)
+                b.box([face + side * 0.16, y + 4.3, z], [0.3, 5.8, 5.8], colour)
             if label:
-                wall_sign(b, face - side * 0.3, 6.9, z - length * 0.3, length * 0.32, 1.1,
+                wall_sign(b, face - side * 0.3, y + 6.9, z - length * 0.3, length * 0.32, 1.1,
                           sign_decal(label, colour, CREAM, length * 0.32 / 1.1),
                           "x+" if side > 0 else "x-", colour)
-    _buffers(b, x, z, along, length)
+    _buffers(b, x, z, along, length, base=base)
 
 
 def caboose(b: ArenaArea, x: float, z: float, along: str = "x",

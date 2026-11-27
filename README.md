@@ -479,13 +479,35 @@ with it, the cart pitched on the grade -- and each brings a twist of its own
   between, the Union Canal and its towpath under the quays, a footbridge
   over the shed approach. *The signal*, as at Dustbowl Gulch: hold the cabin on top of
   Union Tower and the junction signal is set against the other company.
+* **Thunder Junction** -- a prairie division point with a thunderstorm
+  rolling in (rain round you, lightning, a twister walking the horizon,
+  and now and then a strike on the tall grain elevator's rod). Both lines
+  start by the engine house and its turntable or the grain elevators, climb
+  over the west swell past a homesteader's sod house, windpump and storm
+  cellar, and come down into the Bottoms, where they cross each other *and*
+  the transcontinental main line at once: the Star Diamond, with the depot
+  and its operator's bay on one side and TJ Tower on the other. Then over
+  the east swell past the ice house and its icing dock to the town's two
+  stations. The main line runs north through Deadman's Cut (the county road
+  crosses it on a bridge) and south over Buffalo Creek on the Big Fill,
+  with a culvert under it and a hobo jungle in the coulee. *The through
+  freight*: every minute or so a long freight comes down the main line out
+  of one portal and into the other. From the moment it sets off until its
+  caboose has cleared, the crossing gates are down and the bells ringing:
+  a cart short of the crossing waits at its stop board, and a cart already
+  on it goes over if its company pushes it and is rolled back off it if
+  not -- or if the other lot are on it. Anybody on the main line when it
+  comes is under it. Hold **E** at a call box -- the telegraph in the depot's
+  bay or the telephone by the tower -- to call the next freight down now.
 
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
 delivered), Lawman (raiders stopped by your cart), Photo Finish (won with
 theirs nine tenths of the way), Signalman, Snowplow, Bridgekeeper, Canary
 (out of a venting pocket in time), Spike Driver (rails laid), Claim Jumper
-(their rails pulled up) and Four Lines (a race won on every railroad).
+(their rails pulled up), Train Orders (a freight you called held their
+cart), Beat the Freight (your cart over the crossing with the freight
+coming) and Four Lines (a race won on every railroad).
 
 **Bots** take a job for the race by persona and settings -- pusher, raider,
 sniper on the water towers and decks, or a flexible hand who fetches coal

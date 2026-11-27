@@ -412,3 +412,329 @@ class Railhead(Twist):
         carried = max([o.get("carried", 0) for o in observations] or [0])
         return [("somebody carries rails from a stack", carried > 0, carried),
                 ("somebody lays rails at a railhead", laid > 0, laid)]
+
+
+# =========================================================== the sweep
+SWEEP_EVERY = (50.0, 70.0)    # seconds between one and the next, uncalled
+SWEEP_HOLD = 13.0             # how far short of the crossing a cart is held
+SWEEP_CLEAR = 7.0             # how far past it a cart is clear of it
+SWEEP_ROLL = 4.0              # how fast an abandoned cart is rolled back off it
+SWEEP_DY = 7.0
+SWEEP_WARN = 150.0            # how far off a coming head sends bots off the line
+CALL_R = 4.6
+CALL_HOLD = 2.5
+CALL_REST = 14.0              # after one has gone by, how long before the next can be called
+CALL_SOON = 14.0              # no calling one that is due sooner than this anyway
+
+SWEEP_STYLES = {
+    "freight": {"what": "the through freight", "held": "freight",
+                "welcome": ("A through freight comes down the main line every minute or so. "
+                            "When the crossing bells ring your cart is held short of the "
+                            "crossing -- and anybody on the main line is in its way. Hold E "
+                            "at a call box to call the next one down on their cart."),
+                "context": "the through freight"},
+    "stampede": {"what": "the stampede", "held": "stampede",
+                 "welcome": ("Every minute or so the herd breaks and stampedes down the cattle "
+                             "trail across both lines. Your cart is held short of the trail "
+                             "while it runs -- and anybody on the trail is trampled. Hold E at "
+                             "a corral gate to turn the herd loose on their cart."),
+                 "context": "the stampede"},
+}
+
+
+@register
+class Sweep(Twist):
+    """Thunder Junction: something big comes through across both lines on
+    a timetable -- a through freight on the main line (``extra["sweep"]``:
+    its ``path`` in world coordinates, ``speed``, ``length``, ``half`` its
+    half-width, ``style``).
+
+    From the moment it sets off -- out of sight, beyond the area -- until
+    its tail has cleared, each line's crossing is shut: a cart short of it
+    is held at the stop line, and a cart already on it goes over if its own
+    company pushes it, or is rolled back off it if they do not (or the
+    other lot are on it).  Anybody on the line where it passes is killed.
+    Anyone can hold E at a call box (``points["call"]``) to send the next
+    one down now -- on the other cart, if they time it."""
+
+    kind = "sweep"
+    jobs = ("called", "beat")
+    award = ("called", "Train Dispatcher", "called the freight down %d times")
+    job_lines = {"call": ["calling the freight down", "freight on them lol", "calling it in"]}
+
+    def setup(self, area, extra, points, moment):
+        from .rail_rivals import Lane, _crossing
+        spec = extra.get("sweep") or {}
+        self.style = str(spec.get("style") or "freight")
+        look = SWEEP_STYLES.get(self.style, SWEEP_STYLES["freight"])
+        self.what = look["what"]
+        self.reason = look["held"]
+        self.welcome = look["welcome"]
+        self.track = Lane(spec.get("path") or [[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
+        self.speed = float(spec.get("speed", 40.0))
+        self.length = float(spec.get("length", 230.0))
+        self.half = float(spec.get("half", 4.0))
+        every = spec.get("every") or SWEEP_EVERY
+        self.every = (float(every[0]), float(every[1]))
+        self.cross: Dict[str, Tuple[float, float]] = {}
+        for lane, path in self.w.lanes.items():
+            self.cross[lane] = _crossing(path, self.track)
+        self.calls = [list(m["p"]) for m in points.get("call", [])]
+        self.phase = "idle"
+        self.next_at = moment + 1e9
+        self.t0 = 0.0
+        self.dir = 1
+        self.count = 0
+        self.called_by: Optional[Tuple[int, str]] = None
+        self.call_ok = moment
+        self.credited = False
+        self.beaten: Dict[str, bool] = {}
+        self.last_d: Dict[str, float] = {}
+        self.passes = 0
+        self.calls_made = 0
+        self.hits = 0
+        self.held_seen = 0
+        self.beats = 0
+
+    def on_live(self, moment):
+        self.next_at = moment + self.w.rng.uniform(*self.every) * 0.5
+        self.call_ok = moment + CALL_REST
+
+    # ------------------------------------------------------------ train
+    def head(self, moment: float) -> float:
+        """How far the head has come from its own end of the line."""
+        return (moment - self.t0) * self.speed if self.phase == "run" else -1e9
+
+    def travel(self, s: float) -> float:
+        """A distance along the line, counted the way this one is going."""
+        return s if self.dir > 0 else self.track.length - s
+
+    def closed(self, lane: str, moment: float) -> bool:
+        if self.phase != "run" or lane not in self.cross:
+            return False
+        tail = self.head(moment) - self.length
+        return tail < self.travel(self.cross[lane][1]) + 6.0
+
+    def start(self, moment: float, caller=None) -> None:
+        self.phase = "run"
+        self.t0 = moment
+        self.dir = 1 if self.count % 2 == 0 else -1
+        self.count += 1
+        self.credited = False
+        self.beaten = {}
+        self.called_by = (caller.pid, caller.team) if caller is not None else None
+        self.send({"t": "rrx", "k": "sweep", "on": 1, "dir": self.dir, "n": self.count,
+                   "speed": self.speed, "len": self.length,
+                   "by": caller.username if caller is not None else "",
+                   "team": caller.team if caller is not None else ""})
+        if caller is not None:
+            self.event("rr_freight_called", caller, self.w.rival(caller.team))
+        self.w._broadcast_state()
+
+    def finish(self, moment: float) -> None:
+        self.phase = "idle"
+        self.passes += 1
+        self.next_at = moment + self.w.rng.uniform(*self.every)
+        self.call_ok = moment + CALL_REST
+        self.called_by = None
+        self.send({"t": "rrx", "k": "sweep", "on": 0})
+        self.w._broadcast_state()
+
+    def in_way(self, pos: Sequence[float], moment: float, ahead: float = 3.0) -> bool:
+        """Is this spot under the train right now?"""
+        s, off = self.track.project(pos[0], pos[2])
+        if off > self.half or abs(pos[1] - self.track.height(s)) > SWEEP_DY:
+            return False
+        u = self.travel(s)
+        head = self.head(moment)
+        return head - self.length - 2.0 <= u <= head + ahead
+
+    def tick(self, playing, dt, moment):
+        if self.phase == "idle":
+            if moment >= self.next_at:
+                self.start(moment)
+            return
+        for player in playing:
+            if self.in_way(player.pos, moment):
+                self.hits += 1
+                self.w.kill(player, None, self.what)
+        head = self.head(moment)
+        for lane, (d_x, s_x) in self.cross.items():
+            cart = self.cart_on(lane)
+            if cart is None:
+                continue
+            last = self.last_d.get(lane, cart.d)
+            self.last_d[lane] = cart.d
+            if not self.closed(lane, moment):
+                continue
+            if cart.held == self.reason:
+                self.held_seen += 1
+                self._credit(cart, moment)
+            # over the crossing with the bells going and the train not there yet
+            if last < d_x <= cart.d and head < self.travel(s_x) and not self.beaten.get(lane):
+                self.beaten[lane] = True
+                self.beats += 1
+                pushers = [p for p in playing if p.pid in cart.pushers]
+                for p in pushers:
+                    self.score(p, 10, "beat", "rr_beat_freight")
+                self.send({"t": "rrx", "k": "beat", "lane": lane, "team": cart.team})
+                self.event("rr_beat_freight", pushers[0] if pushers else None, cart.team)
+        if head >= self.track.length + self.length + 10.0:
+            self.finish(moment)
+
+    def _credit(self, cart, moment: float) -> None:
+        """The one who called this train down, when it holds the other cart."""
+        if self.credited or self.called_by is None:
+            return
+        pid, team = self.called_by
+        if cart.team == team:
+            return
+        self.credited = True
+        caller = self.w.players.get(pid)
+        if caller is not None:
+            self.score(caller, 10, "", "rr_freight_calls")
+
+    # ------------------------------------------------------------ carts
+    def limit(self, cart, moment):
+        if not self.closed(cart.lane, moment):
+            return None
+        stop = self.cross[cart.lane][0] - SWEEP_HOLD
+        if cart.d <= stop + 0.05:
+            return (stop, self.reason)
+        return None
+
+    def drive(self, cart, pushers, contested, braked, dt, moment):
+        if not self.closed(cart.lane, moment):
+            return None
+        d_x = self.cross[cart.lane][0]
+        if d_x - SWEEP_HOLD + 0.05 < cart.d < d_x + SWEEP_CLEAR:
+            if pushers and not contested and not braked:
+                return None
+            return -SWEEP_ROLL
+        return None
+
+    def floor(self, cart):
+        return self.cross[cart.lane][0] - SWEEP_HOLD if cart.lane in self.cross else 0.0
+
+    # -------------------------------------------------------- holding E
+    def callable(self, moment: float) -> bool:
+        return self.phase == "idle" and moment >= self.call_ok and self.next_at - moment > CALL_SOON
+
+    def what_here(self, player, moment):
+        if player.extra.get("coal") or not self.callable(moment):
+            return None
+        for i, box in enumerate(self.calls):
+            if self.near(player, box, CALL_R, 4.0):
+                return ("call", i, CALL_HOLD)
+        return None
+
+    def do(self, player, kind, key, moment):
+        if kind != "call":
+            return False
+        if not self.callable(moment):
+            return True
+        self.calls_made += 1
+        self.score(player, 4, "called")
+        self.start(moment, player)
+        return True
+
+    # ------------------------------------------------------------ state
+    def state(self, moment):
+        out: Dict[str, Any] = {"phase": self.phase, "style": self.style}
+        if self.phase == "run":
+            out.update({"dir": self.dir, "head": round(self.head(moment), 1),
+                        "speed": self.speed, "len": self.length, "n": self.count})
+        else:
+            out["next"] = round(max(0.0, self.next_at - moment), 1)
+            out["call"] = 1 if self.callable(moment) else 0
+        return {"sweep": out}
+
+    def context(self):
+        moment = now()
+        if self.phase == "run":
+            return ["%s is coming through: both crossings are shut until it has gone by, "
+                    "and anybody on the line is in its way." % self.what.capitalize()]
+        return ["%s is due in about %d seconds%s." % (
+            self.what.capitalize(), max(0, int(self.next_at - moment)),
+            "; a call box can bring it now" if self.callable(moment) else "")]
+
+    # ------------------------------------------------------------- bots
+    def _danger(self, pos: Sequence[float], moment: float) -> Optional[Tuple[float, float]]:
+        """(distance along the line, which side) if this spot is in the way
+        of a train that is coming or going by."""
+        if self.phase != "run":
+            return None
+        s, off = self.track.project(pos[0], pos[2])
+        if off > self.half + 6.0 or abs(pos[1] - self.track.height(s)) > SWEEP_DY:
+            return None
+        u = self.travel(s)
+        head = self.head(moment)
+        if head - self.length - 4.0 <= u <= head + SWEEP_WARN:
+            return s, off
+        return None
+
+    def urgent(self, brain):
+        return self._danger(brain.p.pos, now()) is not None
+
+    def flee(self, brain):
+        p = brain.p
+        danger = self._danger(p.pos, now())
+        if danger is None:
+            return None
+        s, _off = danger
+        x, z, yaw = self.track.at(s)
+        rx, rz = math.cos(yaw), -math.sin(yaw)
+        side = 1.0 if (p.pos[0] - x) * rx + (p.pos[2] - z) * rz >= 0 else -1.0
+        out = self.half + 10.0
+        self.w.doing(brain, "getting off the line -- %s" % self.what)
+        return [x + rx * side * out, p.pos[1], z + rz * side * out]
+
+    def _box_near(self, pos) -> Tuple[int, Optional[List[float]]]:
+        best, best_i, best_d = None, -1, 1e9
+        for i, box in enumerate(self.calls):
+            d = flat(box, pos)
+            if d < best_d:
+                best, best_i, best_d = box, i, d
+        return best_i, best
+
+    def _worth_calling(self, team: str) -> bool:
+        own = self.w.carts.get(team)
+        rival = self.w.carts.get(self.w.rival(team))
+        if own is None or rival is None or rival.lane not in self.cross:
+            return False
+        to_go = self.cross[rival.lane][0] - rival.d
+        mine = self.cross[own.lane][0] - own.d
+        return SWEEP_HOLD + 1.0 < to_go < 80.0 and not (-SWEEP_CLEAR < mine < 100.0)
+
+    def bot_job(self, brain, own, rival, moment):
+        if not self.calls or not self.callable(moment) or not self._worth_calling(brain.p.team):
+            return None
+        rng = brain.rng
+        if brain.role not in ("raider", "flex") and rng.random() > 0.2:
+            return None
+        if rng.random() > 0.25 + self.w.pct("twist") * 0.6:
+            return None
+        i, box = self._box_near(brain.p.pos)
+        if box is None or flat(box, brain.p.pos) > 170.0:
+            return None
+        return {"k": "call", "at": [box[0], box[1], box[2]], "r": CALL_R - 1.6,
+                "key": "call%d" % i, "say": "calling %s down on their cart" % self.what,
+                "for": 25.0}
+
+    def job_valid(self, job, team):
+        if job["k"] != "call":
+            return None
+        return self.callable(now()) and self._worth_calling(team)
+
+    # ------------------------------------------------------------ tests
+    def observe(self):
+        return {"passes": self.passes, "calls": self.calls_made, "hits": self.hits,
+                "held": self.held_seen, "beats": self.beats, "phase": self.phase}
+
+    def selftest(self, observations):
+        passes = max([o.get("passes", 0) for o in observations] or [0])
+        held = max([o.get("held", 0) for o in observations] or [0])
+        calls = max([o.get("calls", 0) for o in observations] or [0])
+        return [("trains come through on the timetable", passes >= 2, passes),
+                ("a cart is held at a crossing, or a train is called down",
+                 held > 0 or calls > 0, {"held": held, "calls": calls})]

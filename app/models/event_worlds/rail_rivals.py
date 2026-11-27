@@ -28,11 +28,12 @@ WORLD: Dict[str, Any] = {
         "in the middle, so every race turns into a brawl at the junction. "
         "Pull the brake levers by the other team's track, shovel coal into "
         "your own firebox, and keep your cart moving past the depots so you "
-        "come back further up the line. Four railroads, two races on each "
-        "(you swap tracks for the second), and every line has a twist of "
-        "its own: the signal tower over Dustbowl Gulch, snowdrifts on "
-        "Silverpine Pass, the lift bridges over Redrock Mesa's gorge and the "
-        "firedamp in Lantern Deep."),
+        "come back further up the line. A rotation of railroads, two races "
+        "on each (you swap tracks for the second), and every line has a "
+        "twist of its own: the signal tower over Dustbowl Gulch, snowdrifts "
+        "on Silverpine Pass, the lift bridges over Redrock Mesa's gorge, the "
+        "firedamp in Lantern Deep, the unfinished rails of Golden Spike "
+        "Summit, the through freight at Thunder Junction and more."),
     "max_players": 16,
     "team_count": 2,
     "mode": "payload_race",
@@ -40,9 +41,10 @@ WORLD: Dict[str, Any] = {
     "colors": ["#c4281c", "#2f6aa8", "#e8b23a"],
     "thumb": "rail_rivals",
     # the newer lines' twists and arrival scenes live in a second script
-    "game_scripts": ["/static/js/worlds/rail_rivals.js", "/static/js/worlds/rail_rivals_lines.js"],
+    "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/rail_rivals.js",
+                     "/static/js/worlds/rail_rivals_lines.js"],
     "features": ["16 players", "Payload race", "Brake levers", "Coal boosts",
-                 "Depot respawns", "4 rotating railroads", "A twist on every line"],
+                 "Depot respawns", "7 rotating railroads", "A twist on every line"],
     "areas": [
         {"id": "dustbowl", "name": "Dustbowl Gulch",
          "blurb": "A gold town at the mouth of a red canyon. The lines cross "
@@ -73,6 +75,13 @@ WORLD: Dict[str, Any] = {
                   "through the throat under the signal gantries and into the "
                   "train shed. Take the cabin on Union Tower and their cart is "
                   "held at the Grand Diamond."},
+        {"id": "thunder", "name": "Thunder Junction",
+         "blurb": "A prairie division point with a storm coming in. Both lines cross the "
+                  "transcontinental main line at the Star Diamond, and every minute or so a "
+                  "through freight comes down it: the gates drop, the bells ring, and any "
+                  "cart short of the crossing waits. Call the freight down from the depot's "
+                  "telegraph or the tower's telephone -- on their cart, if you time it -- and "
+                  "keep off the main line when it comes."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -159,6 +168,14 @@ BADGES: List[Tuple[Any, ...]] = [
      ["Pilferer", "Rail Thief", "Claim Jumper", "Track Bandit", "Iron Highwayman"],
      "Pulled the other company's rails back up before their cart got there.",
      "em_rr_claim", "rails pulled"),
+    ("rr_train_orders", "Train Orders", "rr_freight_calls", [1, 5, 15, 40, 100],
+     ["Call Boy", "Operator", "Train Dispatcher", "Chief Dispatcher", "Master of the Main Line"],
+     "Called the through freight down at Thunder Junction -- and it held the other company's cart "
+     "at the crossing.", "em_rr_freight", "freights called"),
+    ("rr_beat_the_freight", "Beat the Freight", "rr_beat_freight", [1, 5, 15, 40, 100],
+     ["Close Shave", "Daredevil", "Hair Trigger", "Thunder Runner", "Faster Than Freight"],
+     "Pushed your company's cart over the crossing with the bells ringing and the freight coming.",
+     "em_rr_bells", "crossings beaten"),
     ("rr_four_lines", "Four Lines", "rr_areas", [1, 2, 3, 4],
      ["Day Tripper", "Two-Line Man", "Three-Line Hand", "Master of the Four Lines"],
      "Won a race on each of Rail Rivals' four railroads.", "em_rr_map", "railroads"),
@@ -192,6 +209,10 @@ SPEECH: List[Tuple[str, str, int, str]] = [
      "Golden Spike Summit: a team lays the last rail across one of its gaps."),
     ("rr_rail_pulled", "Rails pulled", 35,
      "Golden Spike Summit: somebody pulls a rail back up off a railhead."),
+    ("rr_freight_called", "Freight called", 40,
+     "Thunder Junction: somebody calls the through freight down to shut the crossings."),
+    ("rr_beat_freight", "Beat the freight", 35,
+     "Thunder Junction: a cart is pushed over the crossing with the freight coming."),
 ]
 
 
@@ -292,6 +313,22 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
         if mine:
             return ("Your teammate %s pulled up one of the other line's rails." % by, "ally")
         return ("%s pulled up a rail." % by, "neutral")
+    if kind == "rr_freight_called":
+        if me:
+            return ("You called the through freight down: both crossings are shut until it has "
+                    "gone by, and %s's cart is short of theirs." % company, "actor")
+        if cart:
+            return ("%s called the through freight down: YOUR cart is held at the crossing until "
+                    "it has gone by. Keep off the main line." % by, "victim")
+        if mine:
+            return ("Your teammate %s called the through freight down on the other cart." % by, "ally")
+        return ("%s called the through freight down. Keep off the main line." % by, "neutral")
+    if kind == "rr_beat_freight":
+        if cart:
+            return ("Your company's cart just got over the crossing with the freight coming -- "
+                    "it is clear of the main line.", "ally")
+        return ("%s pushed their cart over the crossing just ahead of the freight." % company,
+                "victim")
     if kind == "round_end" and event.get("world") == WORLD["id"]:
         return None
     return None
@@ -328,6 +365,12 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("rr_rail_pulled", "victim"): ["they took our rail", "more rails!!", "relay it"],
     ("rr_rail_pulled", "ally"): ["nice steal", "lol their rails"],
     ("rr_rail_pulled", "neutral"): ["rails"],
+    ("rr_freight_called", "actor"): ["freight on them lol", "called it", "here comes the train"],
+    ("rr_freight_called", "victim"): ["FREIGHT", "get off the tracks", "they called the train", "ugh the crossing"],
+    ("rr_freight_called", "ally"): ["nice call", "theyre stuck at the crossing", "push now"],
+    ("rr_freight_called", "neutral"): ["train!!", "off the main line"],
+    ("rr_beat_freight", "ally"): ["made it", "beat the train", "close one", "go go"],
+    ("rr_beat_freight", "victim"): ["they beat the train", "how", "contest it"],
 }
 
 # ----------------------------------------------------------------- the bots
@@ -427,7 +470,11 @@ def history_badges(history: Dict[str, Any], traits: Dict[str, float], rng
            ("rr_signal", int(rounds / 4.0 * rng.uniform(0.0, 0.5) * (0.4 + objective)), "add"),
            ("rr_dig", int(rounds / 4.0 * rng.uniform(0.0, 1.2) * (0.4 + objective)), "add"),
            ("rr_winch", int(rounds / 4.0 * rng.uniform(0.0, 0.7) * (0.4 + chaos)), "add"),
-           ("rr_canary", int(rounds / 4.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add")]
+           ("rr_canary", int(rounds / 4.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add"),
+           ("rr_rails", int(rounds / 6.0 * rng.uniform(0.0, 2.0) * (0.4 + objective)), "add"),
+           ("rr_rails_pulled", int(rounds / 6.0 * rng.uniform(0.0, 0.8) * (0.4 + chaos)), "add"),
+           ("rr_freight_calls", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + chaos)), "add"),
+           ("rr_beat_freight", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add")]
     areas = [a["id"] for a in WORLD["areas"]]
     rng.shuffle(areas)
     for area in areas[:min(len(areas), wins // 3)]:

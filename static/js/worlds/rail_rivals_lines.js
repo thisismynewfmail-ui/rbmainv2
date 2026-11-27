@@ -216,6 +216,434 @@
     };
   };
 
+  // ============================================================== sweep
+  /* Thunder Junction: the through freight on the main line.  The server
+     says when one sets off (and where its head is in every state); the
+     client runs it from there: the engine and its string of cars rolling
+     down the line out of one portal and into the other, its headlight and
+     smoke, the crossing gates coming down and their lamps flashing, the
+     danger along the line while it comes, the call boxes -- and the bells,
+     the whistle at the crossing and the clatter of every car going by. */
+  function seeded(n) {
+    var x = (n * 2654435761) % 4294967296;
+    return function () {
+      x = (x * 1664525 + 1013904223) % 4294967296;
+      return x / 4294967296;
+    };
+  }
+
+  var CAR_COLOURS = ['#7a2e22', '#6a3a26', '#8a4a2a', '#5a2a22', '#4a3a30', '#2f3a4a'];
+  var HERALDS = ['#efe2c4', '#e8b23a', '#f2f2ee', '#c8d8e8'];
+
+  Twists.sweep = function (ctx) {
+    var CALL_R = 4.6, GAP = 1.2;
+    var spec = {}, main = null, gates = [], calls = [], cross = {}, show = [-1e9, 1e9];
+    var st = { phase: 'idle' }, stAt = 0;
+    var cars = [], carsN = -1;
+    var bellAt = 0, whistled = false, rumbleAt = 0, joints = -1, puffs = [], puffAt = 0;
+
+    function now() { return performance.now() / 1000; }
+    function load(map) {
+      var mk = (map && map.markers) || {};
+      spec = (mk.extra || {}).sweep || {};
+      main = spec.path ? new ctx.Lane(spec.path) : null;
+      gates = (spec.gates || []).map(function (g) { return { g: g, up: 1 }; });
+      calls = ((mk.points || {}).call || []).map(function (m) { return m.p; });
+      cross = spec.cross || {};
+      show = spec.show || show;
+      st = { phase: 'idle', next: 60, call: 0 };
+      stAt = now();
+      puffs = [];
+    }
+    function apply(tw) {
+      if (!tw.sweep) return;
+      st = tw.sweep;
+      stAt = now();
+    }
+    function speed() { return st.speed || spec.speed || 40; }
+    function trainLen() { return st.len || spec.length || 230; }
+    function head() { return st.phase === 'run' ? (st.head || 0) + (now() - stAt) * speed() : -1e9; }
+    function travel(s) { return (st.dir || 1) > 0 ? s : main.length - s; }
+    function closed(lane) {
+      if (st.phase !== 'run' || !main || cross[lane] === undefined) return false;
+      return head() - trainLen() < travel(cross[lane]) + 6;
+    }
+    function anyClosed() { return closed('a') || closed('b'); }
+    function waitLeft() { return Math.max(0, (st.next || 0) - (now() - stAt)); }
+
+    // ------------------------------------------------------- the train
+    function consist(n) {
+      var rnd = seeded(n * 7919 + 13);
+      var out = [{ t: 'engine', len: 22 }, { t: 'tender', len: 11 }];
+      var used = 33 + GAP * 2, L = trainLen();
+      var kinds = ['box', 'box', 'reefer', 'tank', 'hopper', 'stock', 'flat', 'box', 'hopper'];
+      while (used + 14 + GAP + 13 <= L) {
+        out.push({ t: kinds[Math.floor(rnd() * kinds.length)], len: 14,
+                   c: CAR_COLOURS[Math.floor(rnd() * CAR_COLOURS.length)],
+                   h: HERALDS[Math.floor(rnd() * HERALDS.length)], r: rnd() });
+        used += 14 + GAP;
+      }
+      out.push({ t: 'caboose', len: 13 });
+      var u = 0;
+      out.forEach(function (c) { c.back = u + c.len / 2; u += c.len + GAP; });
+      return out;
+    }
+
+    function part(renderer, base, yaw, kind, lp, size, colour, o) {
+      ctx.local(renderer, kind, base, yaw, lp, size, colour, o);
+    }
+
+    function trucks(r, b, yaw, len) {
+      for (var e = -1; e <= 1; e += 2) {
+        part(r, b, yaw, 'box', [0, 1.2, e * (len / 2 - 3.2)], [4.0, 1.3, 3.4], '#1e1c1a', { m: 1 });
+        for (var side = -1; side <= 1; side += 2) {
+          for (var w = -1; w <= 1; w += 2) {
+            part(r, b, yaw, 'cyl', [side * 1.95, 1.0, e * (len / 2 - 3.2) + w * 1.1], [1.6, 0.3, 1.6], '#141210',
+                 { r: [0, 0, Math.PI / 2], m: 1 });
+          }
+        }
+      }
+      part(r, b, yaw, 'box', [0, 2.1, 0], [4.6, 0.5, len - 0.6], '#2a2826', { m: 1 });
+    }
+
+    function drawEngine(r, b, yaw, rolled, time) {
+      var black = '#1e2022', trim = '#c8a040';
+      part(r, b, yaw, 'box', [0, 1.7, -1], [4.2, 1.8, 20], '#141414', { m: 1 });
+      for (var side = -1; side <= 1; side += 2) {
+        part(r, b, yaw, 'box', [side * 2.5, 3.0, 0], [1.1, 0.3, 16], '#2a2826', { m: 1 });
+        for (var k = 0; k < 4; k++) {
+          part(r, b, yaw, 'cyl', [side * 2.05, 2.0, -5.6 + k * 3.4], [3.4, 0.36, 3.4], '#141210',
+               { r: [0, 0, Math.PI / 2], m: 1 });
+          part(r, b, yaw, 'cyl', [side * 2.2, 2.0, -5.6 + k * 3.4], [1.1, 0.4, 1.1], '#b8322a',
+               { r: [0, 0, Math.PI / 2] });
+        }
+        // the side rods going round with the drivers
+        var ph = rolled / 1.7;
+        part(r, b, yaw, 'box', [side * 2.42, 2.0 + Math.sin(ph) * 0.8, -0.5 + Math.cos(ph) * 0.8],
+             [0.18, 0.3, 10.6], '#8a8680', { m: 1 });
+        part(r, b, yaw, 'box', [side * 2.42, 2.6 + Math.sin(ph) * 0.4, 6.0], [0.3, 1.0, 2.4], '#3a3836', { m: 1 });
+      }
+      part(r, b, yaw, 'cyl', [0, 4.9, 1.6], [4.8, 13, 4.8], black, { r: [Math.PI / 2, 0, 0], m: 1 });
+      for (var band = 0; band < 3; band++) {
+        part(r, b, yaw, 'cyl', [0, 4.9, -3 + band * 4], [4.96, 0.3, 4.96], trim, { r: [Math.PI / 2, 0, 0], m: 1 });
+      }
+      part(r, b, yaw, 'cyl', [0, 4.9, 8.8], [5.0, 2.4, 5.0], '#141414', { r: [Math.PI / 2, 0, 0], m: 1 });
+      part(r, b, yaw, 'cyl', [0, 4.9, 10.02], [2.0, 0.1, 2.0], '#3a3836', { r: [Math.PI / 2, 0, 0], m: 1 });
+      part(r, b, yaw, 'cyl', [0, 8.4, 7.6], [1.5, 3.0, 1.5], '#141414', { m: 1 });
+      part(r, b, yaw, 'cyl', [0, 9.95, 7.6], [1.9, 0.3, 1.9], trim, { m: 1 });
+      part(r, b, yaw, 'sph', [0, 7.5, 3.4], [1.8, 1.4, 2.0], trim, { m: 1 });
+      part(r, b, yaw, 'sph', [0, 7.4, -1.2], [1.6, 1.3, 1.8], black, { m: 1 });
+      part(r, b, yaw, 'sph', [0, 7.6, 5.4], [0.8, 0.9, 0.8], '#e8c060', { m: 1 });
+      // the headlamp, the number board, the pilot
+      part(r, b, yaw, 'box', [0, 7.6, 9.6], [1.6, 1.5, 1.4], '#2a2826', { m: 1 });
+      part(r, b, yaw, 'box', [0, 7.6, 10.32], [1.2, 1.1, 0.06], '#fff6c8', { m: 2, e: 1 });
+      part(r, b, yaw, 'box', [0, 6.2, 9.9], [2.2, 0.7, 0.06], '#efe2c4');
+      part(r, b, yaw, 'box', [0, 1.3, 10.6], [4.4, 1.6, 1.4], '#8a2a1c', { r: [0.5, 0, 0] });
+      part(r, b, yaw, 'box', [0, 2.6, 10.0], [4.6, 0.6, 0.8], '#b8322a');
+      // the cab, its windows lit
+      part(r, b, yaw, 'box', [0, 5.8, -6.6], [5.4, 5.6, 5.0], black, { m: 1 });
+      part(r, b, yaw, 'box', [0, 8.8, -6.6], [6.0, 0.4, 5.8], '#141414', { m: 1 });
+      for (var s2 = -1; s2 <= 1; s2 += 2) {
+        part(r, b, yaw, 'box', [s2 * 2.72, 6.6, -6.2], [0.06, 1.6, 2.4], '#ffd88a', { m: 2 });
+        part(r, b, yaw, 'box', [s2 * 1.2, 7.0, -4.08], [1.4, 1.2, 0.06], '#ffd88a', { m: 2 });
+      }
+      // the beam ahead of it down the line
+      part(r, b, yaw, 'cone', [0, 7.6, 10.4 + 30], [16, 60, 10], '#fff2c0',
+           { r: [-Math.PI / 2, 0, 0], a: 0.1, m: 2 });
+    }
+
+    function drawCar(r, b, yaw, c, time) {
+      var len = c.len, roof = '#2a2624';
+      if (c.t === 'tender') {
+        part(r, b, yaw, 'box', [0, 4.2, 0], [5.2, 4.4, len - 1], '#1e2022', { m: 1 });
+        part(r, b, yaw, 'box', [0, 6.6, 0.8], [4.4, 0.8, len - 3.4], '#1f1d1c', { st: 1 });
+        part(r, b, yaw, 'box', [0, 6.5, -len / 2 + 1.4], [5.2, 0.6, 1.6], '#2a2826', { m: 1 });
+        trucks(r, b, yaw, len);
+        return;
+      }
+      trucks(r, b, yaw, len);
+      if (c.t === 'box' || c.t === 'reefer') {
+        var body = c.t === 'reefer' ? '#d8b048' : c.c;
+        part(r, b, yaw, 'box', [0, 5.4, 0], [5.4, 6.0, len - 0.6], body);
+        part(r, b, yaw, 'box', [0, 8.5, 0], [5.6, 0.25, len - 0.4], c.t === 'reefer' ? '#6a3a26' : roof);
+        part(r, b, yaw, 'box', [0, 8.72, 0], [0.9, 0.2, len - 0.6], '#6a4e34');
+        for (var side = -1; side <= 1; side += 2) {
+          if (c.t === 'box') {
+            part(r, b, yaw, 'box', [side * 2.72, 5.0, 0.4], [0.06, 5.0, 4.4], '#3a2a22');
+            part(r, b, yaw, 'box', [side * 2.73, 7.0, -3.8], [0.04, 0.7, 3.8], c.h);
+          } else {
+            part(r, b, yaw, 'box', [side * 2.72, 5.0, 0], [0.06, 4.6, 3.6], '#c8a040');
+            part(r, b, yaw, 'box', [side * 2.73, 7.0, -3.6], [0.04, 0.8, 4.4], '#3a2a22');
+          }
+          part(r, b, yaw, 'box', [side * 2.74, 5.4, len / 2 - 0.9], [0.1, 5.4, 0.3], '#2a2826', { m: 1 });
+        }
+        if (c.t === 'reefer') {
+          for (var hz = -1; hz <= 1; hz += 2) part(r, b, yaw, 'box', [0, 8.75, hz * (len / 2 - 1.5)], [2.4, 0.2, 1.6], '#8a8680', { m: 1 });
+        }
+      } else if (c.t === 'tank') {
+        part(r, b, yaw, 'cyl', [0, 5.0, 0], [4.8, len - 1.2, 4.8], c.r < 0.5 ? '#1e2022' : '#a8aaa8',
+             { r: [Math.PI / 2, 0, 0], m: 1 });
+        part(r, b, yaw, 'cyl', [0, 7.6, 0], [2.0, 1.2, 2.0], '#2a2826', { m: 1 });
+        for (var ring = -1; ring <= 1; ring += 2) {
+          part(r, b, yaw, 'cyl', [0, 5.0, ring * 3.2], [4.96, 0.25, 4.96], '#3a3836', { r: [Math.PI / 2, 0, 0], m: 1 });
+        }
+        part(r, b, yaw, 'box', [0, 2.7, 0], [3.0, 0.6, len - 1], '#2a2826', { m: 1 });
+      } else if (c.t === 'hopper') {
+        part(r, b, yaw, 'box', [0, 5.2, 0], [5.4, 5.0, len - 0.8], c.r < 0.5 ? '#3a3a3c' : c.c);
+        part(r, b, yaw, 'box', [0, 7.9, 0], [4.8, 0.7, len - 2], '#1f1d1c', { st: 1 });
+        for (var bay = -1; bay <= 1; bay++) part(r, b, yaw, 'box', [0, 2.5, bay * 4], [4.6, 1.2, 2.4], '#2a2826', { m: 1 });
+      } else if (c.t === 'stock') {
+        part(r, b, yaw, 'box', [0, 8.4, 0], [5.6, 0.3, len - 0.4], roof);
+        part(r, b, yaw, 'box', [0, 2.8, 0], [5.4, 0.8, len - 0.6], '#6a4a30');
+        for (var slat = 0; slat < 5; slat++) {
+          for (var sd = -1; sd <= 1; sd += 2) {
+            part(r, b, yaw, 'box', [sd * 2.6, 3.8 + slat * 1.0, 0], [0.2, 0.5, len - 0.6], '#9a6a40');
+          }
+        }
+        for (var post = -2; post <= 2; post++) part(r, b, yaw, 'box', [0, 5.6, post * 3.2], [5.5, 5.4, 0.4], '#7a5232');
+        // somebody's looking out between the slats
+        var nod = Math.sin(time * 2 + c.r * 9) * 0.2;
+        part(r, b, yaw, 'box', [2.0, 5.3 + nod, -2.0], [1.4, 1.4, 1.8], '#7a4a2a');
+        part(r, b, yaw, 'box', [2.6, 5.1 + nod, -2.0], [0.4, 0.8, 1.0], '#f2ece0');
+        part(r, b, yaw, 'box', [2.0, 6.15 + nod, -2.6], [0.3, 0.4, 0.3], '#e8dcc8');
+        part(r, b, yaw, 'box', [2.0, 6.15 + nod, -1.4], [0.3, 0.4, 0.3], '#e8dcc8');
+      } else if (c.t === 'flat') {
+        part(r, b, yaw, 'box', [0, 2.8, 0], [5.4, 0.6, len - 0.4], '#6a4a30');
+        if (c.r < 0.5) {
+          for (var lay = 0; lay < 3; lay++) part(r, b, yaw, 'box', [0, 3.6 + lay * 0.9, 0], [4.4, 0.85, len - 2 - lay], lay % 2 ? '#c89a62' : '#b8875a');
+          part(r, b, yaw, 'box', [0, 5.2, 0], [4.6, 0.2, 0.4], '#3a3836', { m: 1 });
+        } else {
+          // a threshing machine bound for somebody's harvest
+          part(r, b, yaw, 'box', [0, 5.0, 1], [3.6, 3.6, 8], '#c43a28');
+          part(r, b, yaw, 'cyl', [0, 7.4, 4.6], [1.0, 3.0, 1.0], '#8a8680', { r: [0.7, 0, 0], m: 1 });
+          for (var wh = -1; wh <= 1; wh += 2) {
+            part(r, b, yaw, 'cyl', [wh * 2.0, 4.2, -3.5], [2.4, 0.4, 2.4], '#e8b23a', { r: [0, 0, Math.PI / 2] });
+          }
+        }
+      } else if (c.t === 'caboose') {
+        part(r, b, yaw, 'box', [0, 5.3, 0], [5.4, 5.6, len - 3.4], '#a8281e');
+        part(r, b, yaw, 'box', [0, 8.25, 0], [5.8, 0.3, len - 2.6], roof);
+        part(r, b, yaw, 'box', [0, 9.4, 0], [3.6, 2.0, 3.8], '#a8281e');
+        part(r, b, yaw, 'box', [0, 10.5, 0], [4.2, 0.3, 4.4], roof);
+        for (var cs = -1; cs <= 1; cs += 2) {
+          for (var w2 = -1; w2 <= 1; w2 += 2) {
+            part(r, b, yaw, 'box', [cs * 2.72, 6.0, w2 * 2.4], [0.06, 1.4, 1.6], '#ffd88a', { m: 2 });
+          }
+          part(r, b, yaw, 'box', [cs * 1.82, 9.5, 0], [0.06, 1.0, 2.4], '#ffd88a', { m: 2 });
+          part(r, b, yaw, 'box', [0, 2.8, cs * (len / 2 - 0.9)], [5.0, 0.3, 1.8], '#2a2826', { m: 1 });
+          part(r, b, yaw, 'box', [0, 4.2, cs * (len / 2 - 0.2)], [5.0, 0.12, 0.12], '#c8a040', { m: 1 });
+        }
+        // the markers on its tail, and the brakeman waving his lantern
+        for (var mk2 = -1; mk2 <= 1; mk2 += 2) {
+          part(r, b, yaw, 'box', [mk2 * 2.2, 7.4, -len / 2 + 1.0], [0.6, 0.8, 0.6], '#ff3a2a', { m: 2 });
+        }
+        var wave = Math.sin(time * 5) * 0.6;
+        part(r, b, yaw, 'box', [1.0, 4.0, -len / 2 + 0.9], [0.9, 1.6, 0.6], '#3a4a6a');
+        part(r, b, yaw, 'box', [1.0, 5.2, -len / 2 + 0.9], [0.7, 0.7, 0.7], '#f5cd30');
+        part(r, b, yaw, 'box', [1.0, 5.65, -len / 2 + 0.9], [0.8, 0.25, 0.8], '#2a3a5a');
+        part(r, b, yaw, 'box', [1.75, 4.7 + wave * 0.4, -len / 2 + 0.6 - wave * 0.3], [0.3, 1.1, 0.3], '#f5cd30');
+        part(r, b, yaw, 'box', [1.9, 4.1 + wave * 0.8, -len / 2 + 0.4 - wave * 0.5], [0.4, 0.5, 0.4], '#ffcf6a', { m: 2 });
+      }
+    }
+
+    function drawTrain(r, time, dt) {
+      if (st.phase !== 'run' || !main) return;
+      if (carsN !== (st.n || 0)) { cars = consist(st.n || 0); carsN = st.n || 0; }
+      var h = head(), flip = (st.dir || 1) < 0 ? Math.PI : 0;
+      for (var i = 0; i < cars.length; i++) {
+        var c = cars[i];
+        var s = travel(h - c.back);
+        if (s < show[0] - c.len || s > show[1] + c.len) continue;
+        var at = main.at(s);
+        var base = [at[0], (at[3] || 0) + 0.44, at[1], 0];
+        if (c.t === 'engine') {
+          drawEngine(r, base, at[2] + flip, h, time);
+          var stack = [at[0] + Math.sin(at[2] + flip) * 7.6, base[1] + 10.2, at[1] + Math.cos(at[2] + flip) * 7.6];
+          puffAt -= dt;
+          if (puffAt <= 0) {
+            puffAt = 0.05;
+            puffs.push({ x: stack[0], y: stack[1], z: stack[2], t: 0, s: 1.6 + Math.random() * 0.8 });
+          }
+        } else {
+          drawCar(r, base, at[2] + flip, c, time);
+        }
+      }
+    }
+
+    function drawPuffs(r, dt) {
+      puffs = puffs.filter(function (q) {
+        q.t += dt;
+        if (q.t > 2.6) return false;
+        var k = q.t / 2.6;
+        q.y += dt * (7 - k * 4);
+        q.x += dt * 2.0;
+        var size = q.s * (1 + k * 3.4);
+        var shade = 0.22 + k * 0.45;
+        r.pushRaw('sph', q.x, q.y, q.z, 0, 0, 0, size, size * 0.85, size, [shade, shade, shade * 1.02],
+                  0.6 * (1 - k), 0, 0, 0, null);
+        return true;
+      });
+      if (puffs.length > 140) puffs.splice(0, puffs.length - 140);
+    }
+
+    // ---------------------------------------------- the crossings
+    function drawGates(r, time, dt) {
+      gates.forEach(function (gate) {
+        var g = gate.g, shut = closed(g.lane);
+        gate.up = gate.up + ((shut ? 0 : 1) - gate.up) * Math.min(1, dt * (shut ? 1.6 : 1.1));
+        var th = gate.up * Math.PI / 2 * 0.96, yaw = g.yaw, L = g.len || 7;
+        var dir = [Math.sin(yaw) * Math.cos(th), Math.sin(th), Math.cos(yaw) * Math.cos(th)];
+        var n = 6, seg = L / n;
+        for (var i = 0; i < n; i++) {
+          var u = (i + 0.5) * seg + 0.6;
+          r.pushRaw('box', g.p[0] + dir[0] * u, g.p[1] + dir[1] * u, g.p[2] + dir[2] * u, -th, yaw, 0,
+                    0.32, 0.32, seg + 0.02, i % 2 ? [0.95, 0.95, 0.92] : [0.82, 0.12, 0.1], 1, 0, 0, 0, null);
+        }
+        var on = shut && Math.sin(time * 7.5) > 0;
+        var tip = [g.p[0] + dir[0] * (L + 0.5), g.p[1] + dir[1] * (L + 0.5), g.p[2] + dir[2] * (L + 0.5)];
+        r.pushRaw('sph', tip[0], tip[1], tip[2], 0, 0, 0, 0.45, 0.45, 0.45, on ? [1, 0.25, 0.15] : [0.35, 0.08, 0.06],
+                  1, 0, 2, on ? 1 : 0, null);
+        (g.lamps || []).forEach(function (lp, k) {
+          var lit = shut && ((Math.sin(time * 7.5) > 0) === (k === 0));
+          r.pushRaw('sph', lp[0], lp[1], lp[2], 0, 0, 0, 0.9, 0.9, 0.9, lit ? [1, 0.2, 0.12] : [0.3, 0.06, 0.05],
+                    1, 0, 2, lit ? 1 : 0, null);
+          if (lit) r.pushRaw('sph', lp[0], lp[1], lp[2], 0, 0, 0, 3.4, 3.4, 3.4, [1, 0.3, 0.2], 0.16, 0, 2, 0.5, null);
+        });
+      });
+    }
+
+    function drawDanger(r, time) {
+      if (st.phase !== 'run' || !main) return;
+      var p = ctx.client.local.pos, sp = main.project(p[0], p[2]);
+      var h = head(), tail = h - trainLen(), half = spec.half || 4;
+      var pulse = 0.12 + 0.1 * Math.abs(Math.sin(time * 5));
+      for (var s = sp - 110; s <= sp + 110; s += 8) {
+        if (s < show[0] || s > show[1]) continue;
+        var u = travel(s);
+        if (u < tail - 2 || u > h + 220) continue;
+        var at = main.at(s);
+        r.pushRaw('box', at[0], (at[3] || 0) + 0.62, at[1], 0, at[2], 0, half * 2, 0.04, 7.6, [1, 0.25, 0.12],
+                  pulse, 0, 2, 0.4, null);
+      }
+    }
+
+    function drawCalls(r, time) {
+      var p = ctx.client.local.pos, open = st.phase !== 'run' && st.call;
+      calls.forEach(function (box, i) {
+        if (flat(box, p) > 90) return;
+        var pulse = open ? 0.18 + 0.12 * Math.sin(time * 4 + i) : 0.06;
+        r.pushRaw('cyl', box[0], box[1] + 0.08, box[2], 0, 0, 0, CALL_R * 2, 0.05, CALL_R * 2,
+                  open ? [1, 0.82, 0.3] : [0.6, 0.6, 0.6], pulse, 0, 2, 0.4, null);
+        if (open) {
+          var bob = Math.sin(time * 2.4 + i) * 0.3;
+          r.pushRaw('box', box[0], box[1] + 4.2 + bob, box[2], 0, time * 1.2, 0, 1.0, 1.4, 0.2, [1, 0.85, 0.35], 0.9, 0, 2, 0.6, null);
+        }
+      });
+    }
+
+    // ------------------------------------------------------ the sounds
+    function sounds(time) {
+      if (!main) return;
+      var audio = ctx.client.audio, p = ctx.client.local.pos;
+      var mid = main.at(cross.a !== undefined ? cross.a : main.length / 2);
+      var toX = Math.hypot(mid[0] - p[0], mid[1] - p[2]);
+      if (anyClosed() && toX < 300 && time - bellAt > 0.55) {
+        bellAt = time;
+        audio.play('rr_xbell', { volume: Math.max(0.12, 0.7 * (1 - toX / 300)) });
+      }
+      if (st.phase !== 'run') { whistled = false; joints = -1; return; }
+      var h = head();
+      var ahead = travel(cross.a !== undefined ? cross.a : main.length / 2) - h;
+      if (!whistled && ahead < 150 && ahead > 0) {
+        whistled = true;
+        audio.play('rr_horn', { volume: Math.max(0.3, 0.9 * (1 - toX / 500)) });
+      }
+      // the clatter of the cars going by the nearest point of the line
+      var sp = main.project(p[0], p[2]), at = main.at(sp);
+      var off = Math.hypot(at[0] - p[0], at[1] - p[2]);
+      var u = travel(sp), count = 0;
+      cars.forEach(function (c) { if (h - c.back - c.len / 2 > u) count += 1; });
+      if (count > joints && joints >= 0 && off < 160 && u > h - trainLen() - 4) {
+        audio.play('rr_clack', { volume: Math.max(0.1, 0.8 * (1 - off / 160)) });
+      }
+      joints = count;
+      if (off < 140 && u > h - trainLen() - 20 && u < h + 160 && time - rumbleAt > 0.42) {
+        rumbleAt = time;
+        audio.play('rr_rumble', { volume: Math.max(0.1, 0.6 * (1 - off / 140)) });
+      }
+    }
+
+    function draw(renderer, time, dt) {
+      drawTrain(renderer, time, dt);
+      drawPuffs(renderer, dt);
+      drawGates(renderer, time, dt);
+      drawDanger(renderer, time);
+      drawCalls(renderer, time);
+      sounds(time);
+    }
+
+    function here(p) {
+      for (var i = 0; i < calls.length; i++) {
+        if (flat(calls[i], p) > CALL_R) continue;
+        if (st.phase === 'run') return { k: 'callx', text: 'The main line is occupied' };
+        if (st.call) return { k: 'call', text: 'Hold <b>E</b> to call the through freight down now' };
+        var left = waitLeft();
+        if (left <= 14) return { k: 'callx', text: 'The freight is due in ' + Math.ceil(left) + 's anyway' };
+        return { k: 'callx', text: 'The wire is busy &bull; try again in a moment' };
+      }
+      return null;
+    }
+
+    function hud() {
+      if (st.phase === 'run') {
+        if (!anyClosed()) return 'The freight is clearing the junction';
+        var h = head();
+        var past = Object.keys(cross).every(function (l) { return h > travel(cross[l]); });
+        return past ? '<b>The freight is going by</b> &bull; both crossings shut'
+          : '<b>FREIGHT COMING</b> &bull; crossings shut &bull; get off the main line';
+      }
+      var left = waitLeft(), m = Math.floor(left / 60), s = Math.floor(left % 60);
+      return 'Through freight due in <b>' + m + ':' + ('0' + s).slice(-2) + '</b>' +
+        (st.call ? ' &bull; the call boxes are open' : '');
+    }
+
+    function message(msg) {
+      var me = ctx.client.myTeam;
+      if (msg.k === 'sweep') {
+        if (msg.on) {
+          st = { phase: 'run', dir: msg.dir || 1, head: 0, speed: msg.speed || speed(), len: msg.len || trainLen(),
+                 n: msg.n || 0 };
+          stAt = now();
+          whistled = false;
+          if (msg.by) {
+            var ours = msg.team === me;
+            ctx.say('sweep', ours ? 'FREIGHT CALLED ON THEM' : 'THEY CALLED THE FREIGHT', ours ? 'go' : 'bad', 'rr_xbell',
+                    ctx.esc(msg.by) + ' called the through freight down');
+          } else {
+            ctx.say('sweep', 'FREIGHT COMING', 'bad', 'rr_xbell', 'The crossings are shut &bull; get off the main line');
+          }
+        } else {
+          st = { phase: 'idle', next: 60, call: 0 };
+          stAt = now();
+        }
+        return true;
+      }
+      if (msg.k === 'beat') {
+        var mine = msg.team === me;
+        ctx.say('beat' + msg.team, mine ? 'BEAT THE FREIGHT!' : 'THEY BEAT THE FREIGHT', mine ? 'go' : 'bad', 'rr_whistle');
+        return true;
+      }
+      return false;
+    }
+
+    return {
+      load: load, apply: apply, draw: draw, here: here, hud: hud, message: message,
+      held: function (reason) { return reason === 'freight' ? 'HELD FOR THE FREIGHT' : ''; },
+      labels: { call: 'Calling the freight down' },
+      carryName: function (kind) { return kind; }
+    };
+  };
+
   // ============================================================= sounds
   var GA = global.GameAudio;
   if (GA && GA.register) {
@@ -241,6 +669,34 @@
           this.noise({ filter: 'bandpass', freq: 3200, freqEnd: 2400, dur: 0.025, gain: 0.08 * vol });
         });
       }
+    });
+    GA.register('rr_xbell', function (vol) {
+      // a crossing bell: one hard ding with its ring
+      this.tone({ type: 'triangle', freq: 1320, freqEnd: 1300, dur: 0.32, gain: 0.12 * vol });
+      this.tone({ type: 'sine', freq: 2640, freqEnd: 2600, dur: 0.2, gain: 0.05 * vol });
+      this.noise({ filter: 'bandpass', freq: 4200, freqEnd: 3000, dur: 0.03, gain: 0.08 * vol });
+    });
+    GA.register('rr_horn', function (vol) {
+      // a steam chime at a crossing: long, long, short, long
+      var notes = [[0, 900], [1050, 900], [2100, 380], [2620, 1300]];
+      notes.forEach(function (n) {
+        this.later(n[0], function () {
+          var d = n[1] / 1000;
+          this.tone({ type: 'sawtooth', freq: 277, freqEnd: 270, dur: d, gain: 0.05 * vol });
+          this.tone({ type: 'sawtooth', freq: 349, freqEnd: 342, dur: d, gain: 0.04 * vol });
+          this.tone({ type: 'triangle', freq: 415, freqEnd: 408, dur: d, gain: 0.05 * vol });
+          this.noise({ filter: 'bandpass', freq: 1800, dur: d, gain: 0.02 * vol });
+        });
+      }, this);
+    });
+    GA.register('rr_clack', function (vol) {
+      // a car's wheels over a rail joint: clickety-clack
+      this.noise({ filter: 'bandpass', freq: 900, freqEnd: 500, dur: 0.06, gain: 0.22 * vol });
+      this.later(90, function () { this.noise({ filter: 'bandpass', freq: 800, freqEnd: 420, dur: 0.06, gain: 0.2 * vol }); });
+    });
+    GA.register('rr_rumble', function (vol) {
+      this.noise({ freq: 220, freqEnd: 120, dur: 0.6, gain: 0.16 * vol });
+      this.tone({ type: 'sawtooth', freq: 38, freqEnd: 34, dur: 0.5, gain: 0.04 * vol });
     });
     GA.register('rr_pry', function (vol) {
       this.tone({ type: 'sawtooth', freq: 220, freqEnd: 520, dur: 0.5, gain: 0.06 * vol });
@@ -460,6 +916,264 @@
      along the street, and an engine steams in under the great iron arch of
      the train shed; the station clock strikes.  The name clatters into
      place on the departures board, flap by flap. */
+  // --------------------------------------------------- Thunder Junction
+  /* Storm light on the prairie.  At the crossing the bells start and the
+     lamps swing, the gate comes down across the line, a headlamp grows out
+     of the rain -- lightning hits the tall elevator's rod -- and the
+     through freight thunders across the frame, engine, cars and caboose,
+     the whistle going.  The name comes up on a crossbuck. */
+  function freightCar(ctx, x, y, kind, colour, t) {
+    var w = 300, h = 120;
+    ctx.fillStyle = '#16161a';
+    ctx.fillRect(x - w / 2 + 6, y - 22, w - 12, 12);
+    [-1, 1].forEach(function (e) {
+      [-1, 1].forEach(function (k) {
+        ctx.fillStyle = '#0c0c0e';
+        ctx.beginPath(); ctx.arc(x + e * (w / 2 - 48) + k * 22, y - 8, 15, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#5a5650';
+        ctx.beginPath(); ctx.arc(x + e * (w / 2 - 48) + k * 22, y - 8, 5, 0, TAU); ctx.fill();
+      });
+    });
+    if (kind === 'tank') {
+      ctx.fillStyle = colour;
+      roundRect(ctx, x - w / 2 + 10, y - 22 - h * 0.78, w - 20, h * 0.74, 44); ctx.fill();
+      ctx.fillRect(x - 22, y - 22 - h * 0.95, 44, 22);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(x - w / 2 + 30, y - 22 - h * 0.66, w - 60, 8);
+    } else if (kind === 'hopper') {
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.moveTo(x - w / 2 + 6, y - 22 - h); ctx.lineTo(x + w / 2 - 6, y - 22 - h);
+      ctx.lineTo(x + w / 2 - 30, y - 30); ctx.lineTo(x - w / 2 + 30, y - 30); ctx.fill();
+      ctx.fillStyle = '#1a1816';
+      ctx.fillRect(x - w / 2 + 14, y - 30 - h, w - 28, 14);
+    } else if (kind === 'stock') {
+      ctx.fillStyle = '#2a2420';
+      ctx.fillRect(x - w / 2 + 6, y - 22 - h - 6, w - 12, 10);
+      for (var sl = 0; sl < 6; sl++) {
+        ctx.fillStyle = colour;
+        ctx.fillRect(x - w / 2 + 6, y - 30 - sl * 19, w - 12, 11);
+      }
+      ctx.fillStyle = '#8a5a3a';
+      ctx.fillRect(x - 40, y - 88, 34, 22);
+      ctx.fillStyle = '#f2ece0';
+      ctx.fillRect(x - 46, y - 82, 10, 12);
+    } else if (kind === 'caboose') {
+      ctx.fillStyle = '#a8281e';
+      ctx.fillRect(x - w / 2 + 40, y - 22 - h, w - 80, h - 2);
+      ctx.fillRect(x - 50, y - 22 - h - 40, 100, 42);
+      ctx.fillStyle = '#2a2420';
+      ctx.fillRect(x - w / 2 + 30, y - 24 - h, w - 60, 8);
+      ctx.fillRect(x - 60, y - 22 - h - 46, 120, 8);
+      ctx.fillStyle = '#ffd88a';
+      [-1, 1].forEach(function (k) { ctx.fillRect(x + k * 70 - 18, y - 22 - h + 26, 36, 28); });
+      ctx.fillRect(x - 30, y - 22 - h - 30, 60, 18);
+      additive(ctx, function () { dot(ctx, '#ff3a2a', x + w / 2 - 44, y - 22 - h + 12, 30, 0.8); });
+    } else {
+      ctx.fillStyle = colour;
+      ctx.fillRect(x - w / 2 + 6, y - 22 - h, w - 12, h);
+      ctx.fillStyle = '#2a2420';
+      ctx.fillRect(x - w / 2 + 2, y - 26 - h, w - 4, 8);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(x - 40, y - 18 - h + 14, 80, h - 18);
+      ctx.fillStyle = 'rgba(255,240,210,0.7)';
+      ctx.fillRect(x - w / 2 + 26, y - h + 4, 70, 8);
+    }
+  }
+
+  Intro.register('rr_thunder', {
+    name: 'Thunder Junction',
+    tagline: 'When the bells ring, the crossing is shut. Call the freight down on them -- and keep off the main line.',
+    accent: '#ffc24a',
+    cues: [[0.3, 'rr_xbell', 0.6], [0.85, 'rr_xbell', 0.6], [1.25, 'rr_crack', 0.9], [1.4, 'rr_xbell', 0.6],
+           [1.55, 'rr_rumble', 0.9], [1.75, 'rr_horn', 0.7], [1.95, 'rr_clack', 0.8], [2.2, 'rr_clack', 0.8],
+           [2.45, 'rr_clack', 0.8], [2.7, 'rr_clack', 0.8], [2.95, 'rr_clack', 0.7]],
+    shakes: [[1.25, 7, 0.3], [1.65, 4, 1.4]],
+    tagY: 430, tagAt: 3.0,
+    setup: function (r) {
+      var d = { rain: [], breaks: [], cars: [], puffs: Art.makePuffs(r, 22, 0, 9, 0), grass: [] };
+      for (var i = 0; i < 160; i++) d.rain.push({ x: r() * (VW + 300), y: r() * VH, s: between(r, 0.6, 1.4) });
+      var x = -40;
+      while (x < VW + 60) {
+        var w = between(r, 90, 200);
+        d.breaks.push({ x: x, w: w, h: between(r, 60, 150) });
+        x += w * 0.8;
+      }
+      var kinds = ['box', 'tank', 'stock', 'box', 'hopper', 'box', 'tank', 'box'];
+      var colours = ['#6a2e22', '#1e1e22', '#7a5232', '#5a3a26', '#3a3a3c', '#7a2e22', '#a8aaa8', '#4a3a30'];
+      for (i = 0; i < kinds.length; i++) d.cars.push({ kind: kinds[i], c: colours[i] });
+      d.cars.push({ kind: 'caboose', c: '#a8281e' });
+      for (i = 0; i < 60; i++) d.grass.push({ x: r() * VW, y: between(r, 700, 860), h: between(r, 10, 26) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var HZ = 600;
+      var strike = t >= 1.25 && t < 1.6 ? 1 - (t - 1.25) / 0.35 : 0;
+      var sky = ctx.createLinearGradient(0, 0, 0, HZ);
+      sky.addColorStop(0, '#161c24');
+      sky.addColorStop(0.55, '#3a4248');
+      sky.addColorStop(0.9, '#8a8a70');
+      sky.addColorStop(1, '#e0b878');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, VW, HZ + 2);
+      // the cloud deck rolling over
+      for (var c = 0; c < 9; c++) {
+        var cx = ((c * 230 + t * 30) % (VW + 400)) - 200;
+        ctx.fillStyle = rgba('#20262e', 0.7);
+        ctx.beginPath(); ctx.ellipse(cx, 90 + (c % 3) * 40, 220, 70, 0, 0, TAU); ctx.fill();
+      }
+      // the twister on the horizon, lit up by the strike
+      var tw = 0.35 + strike * 0.6;
+      ctx.fillStyle = rgba('#4a4a52', tw);
+      ctx.beginPath();
+      ctx.moveTo(1180, 170); ctx.quadraticCurveTo(1230 + Math.sin(t) * 10, 380, 1262 + Math.sin(t * 1.3) * 12, HZ);
+      ctx.lineTo(1274 + Math.sin(t * 1.3) * 12, HZ);
+      ctx.quadraticCurveTo(1260 + Math.sin(t) * 10, 380, 1300, 170); ctx.fill();
+      // the breaks and the prairie
+      d.breaks.forEach(function (m, i) {
+        ctx.fillStyle = i % 2 ? '#3a2c24' : '#46342a';
+        ctx.fillRect(m.x, HZ - m.h, m.w, m.h + 2);
+        ctx.fillStyle = 'rgba(160,120,80,0.25)';
+        ctx.fillRect(m.x, HZ - m.h * 0.6, m.w, 6);
+      });
+      ctx.fillStyle = '#3a4a2a';
+      ctx.fillRect(0, HZ, VW, VH - HZ);
+      // the grain elevators and the water tank, black against the light
+      ctx.fillStyle = '#241c1a';
+      [[150, 250, 70], [240, 290, 80], [340, 330, 90]].forEach(function (e) {
+        ctx.fillRect(e[0], HZ - e[1], e[2], e[1]);
+        ctx.fillRect(e[0] + e[2] * 0.25, HZ - e[1] - 40, e[2] * 0.5, 40);
+        ctx.beginPath(); ctx.moveTo(e[0] + e[2] * 0.2, HZ - e[1] - 40); ctx.lineTo(e[0] + e[2] * 0.5, HZ - e[1] - 62);
+        ctx.lineTo(e[0] + e[2] * 0.8, HZ - e[1] - 40); ctx.fill();
+      });
+      ctx.fillRect(383, HZ - 452, 4, 60);
+      ctx.fillRect(900, HZ - 170, 8, 110);
+      ctx.fillRect(960, HZ - 170, 8, 110);
+      ctx.beginPath(); ctx.ellipse(934, HZ - 200, 54, 40, 0, 0, TAU); ctx.fill();
+      ctx.fillRect(880, HZ - 214, 108, 16);
+      // the main line across the frame
+      var TY = 680;
+      ctx.fillStyle = '#4a4238';
+      ctx.fillRect(0, TY - 6, VW, 20);
+      ctx.fillStyle = '#8a8680';
+      ctx.fillRect(0, TY - 8, VW, 4); ctx.fillRect(0, TY + 8, VW, 4);
+      // the headlamp coming out of the rain, far off to the right
+      var come = seg(t, 0.55, 1.6);
+      if (t < 1.75) {
+        var hx = lerp(1700, 1500, come), hr = lerp(6, 60, come * come);
+        additive(ctx, function () {
+          dot(ctx, '#fff2c0', hx, TY - 90 * come, hr * 3, 0.5 + come * 0.4);
+          dot(ctx, '#ffffff', hx, TY - 90 * come, hr, 0.9);
+        });
+      }
+      // the freight: engine first, right to left, the cars after it
+      var run = seg(t, 1.55, 3.6);
+      var lx = lerp(VW + 260, -2900, run);
+      Art.puffs(ctx, d.puffs.map(function (p) {
+        var born = p.at * 0.25 + 1.55;
+        return { at: born, x: lerp(VW + 260, -2900, seg(born, 1.55, 3.6)) - 30, y: TY - 236 - (p.off % 5) * 12,
+                 vx: 90 - p.vx * 3, vy: p.vy * 2.0, r: p.r * (1.1 + (p.off % 3) * 0.35), life: p.life };
+      }), t, '#62626a');
+      if (run > 0) {
+        locoLeft(ctx, lx, TY + 6, 1.7, '#141416', t * 3, '#fff2c0');
+        additive(ctx, function () { dot(ctx, '#fff2c0', lx - 100, TY - 120, 120, 0.4); });
+        d.cars.forEach(function (car, i) {
+          var x = lx + 330 + i * 312;
+          if (x < -200 || x > VW + 200) return;
+          freightCar(ctx, x, TY + 6, car.kind, car.c, t);
+        });
+      }
+      // the crossing in front: the lane coming at us, the crossbuck, the lamps, the gate
+      ctx.fillStyle = '#5a5046';
+      ctx.beginPath(); ctx.moveTo(700, TY + 14); ctx.lineTo(900, TY + 14); ctx.lineTo(1160, VH); ctx.lineTo(440, VH); ctx.fill();
+      ctx.strokeStyle = '#8a8680'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(750, TY + 14); ctx.lineTo(560, VH); ctx.moveTo(850, TY + 14); ctx.lineTo(1040, VH); ctx.stroke();
+      d.grass.forEach(function (g) {
+        ctx.strokeStyle = '#5a6a3a'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(g.x + 6 + Math.sin(t * 3 + g.x) * 4, g.y - g.h); ctx.stroke();
+      });
+      var px = 1240;
+      ctx.fillStyle = '#e8e2d4';
+      ctx.fillRect(px - 8, 500, 16, VH - 500);
+      var on = t > 0.3 && Math.sin(t * 9) > 0;
+      [-1, 1].forEach(function (k, i) {
+        ctx.fillStyle = '#141414';
+        ctx.beginPath(); ctx.arc(px + k * 46, 630, 26, 0, TAU); ctx.fill();
+        var lit = t > 0.3 && (on === (i === 0));
+        additive(ctx, function () { dot(ctx, '#ff3a2a', px + k * 46, 630, lit ? 70 : 10, lit ? 0.95 : 0.2); });
+      });
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(px - 72, 620, 144, 8);
+      var down = outCubic(seg(t, 0.5, 1.2));
+      ctx.save();
+      ctx.translate(px - 20, 668);
+      ctx.rotate(-Math.PI / 2 * (1 - down) - 0.02);
+      for (var sgm = 0; sgm < 8; sgm++) {
+        ctx.fillStyle = sgm % 2 ? '#f2f2ee' : '#c82a1e';
+        ctx.fillRect(-sgm * 90 - 90, -9, 90, 18);
+      }
+      additive(ctx, function () { dot(ctx, '#ff3a2a', -730, 0, 30, on ? 0.9 : 0.25); });
+      ctx.restore();
+      // rain
+      ctx.strokeStyle = 'rgba(190,205,225,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      d.rain.forEach(function (q) {
+        var y = (q.y + t * 900 * q.s) % VH;
+        var x = (q.x - t * 220 * q.s) % (VW + 300);
+        if (x < -100) x += VW + 300;
+        ctx.moveTo(x, y); ctx.lineTo(x - 10 * q.s, y + 30 * q.s);
+      });
+      ctx.stroke();
+      // the strike on the elevator's rod, and the whole sky going white
+      if (strike > 0) {
+        ctx.strokeStyle = rgba('#f4f6ff', strike); ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(470, 90);
+        [[440, 110], [452, 120], [410, 132], [385, HZ - 452]].forEach(function (pt) { ctx.lineTo(pt[0], pt[1]); });
+        ctx.stroke();
+        additive(ctx, function () { dot(ctx, '#e8eeff', 385, HZ - 452, 160, strike); });
+        ctx.fillStyle = rgba('#eef2ff', strike * 0.55);
+        ctx.fillRect(0, 0, VW, VH);
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Thunder Junction').toUpperCase();
+      var words = name.split(' ');
+      var top = words.slice(0, Math.ceil(words.length / 2)).join(' ');
+      var bottom = words.slice(Math.ceil(words.length / 2)).join(' ') || top;
+      var k = outBack(seg(t, 1.9, 2.3), 1.3);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 262);
+      ctx.scale(k, k);
+      // a word to a board, split round the middle where the boards cross
+      [[top, 0.38], [bottom, -0.38]].forEach(function (b) {
+        ctx.save();
+        ctx.rotate(b[1]);
+        var w = 700, h = 84, gap = 150;
+        ctx.fillStyle = '#0e0e10';
+        ctx.fillRect(-w / 2 + 6, -h / 2 + 8, w, h);
+        ctx.fillStyle = '#f2ede0';
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.strokeStyle = '#141414'; ctx.lineWidth = 6;
+        ctx.strokeRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16);
+        var word = b[0], cut = Math.ceil(word.length / 2);
+        var left = word.slice(0, cut), right = word.slice(cut);
+        var size = Math.min(fitSize(ctx, left, 'bold #px ' + HEAVY, 70, (w - gap) / 2 - 30, 0.04),
+                            fitSize(ctx, right, 'bold #px ' + HEAVY, 70, (w - gap) / 2 - 30, 0.04));
+        ctx.font = 'bold ' + size + 'px ' + HEAVY;
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#141414';
+        ctx.textAlign = 'right'; ctx.fillText(left, -gap / 2, 4);
+        ctx.textAlign = 'left'; ctx.fillText(right, gap / 2, 4);
+        ctx.textAlign = 'left';
+        ctx.restore();
+      });
+      ctx.fillStyle = '#c8a040';
+      ctx.beginPath(); ctx.arc(0, 0, 18, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  });
+
   Intro.register('rr_union', {
     name: 'Union Terminal',
     tagline: 'The race ends under the glass. Take the tower -- hold their cart at the diamond.',

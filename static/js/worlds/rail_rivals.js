@@ -108,6 +108,43 @@
     var style = { drift: 'snow', gas: 'firedamp', lampY: 39.4 };
     var lastSaid = {}, myLane = 'a';
     var tw = null, carry = {};
+    // the railroad's moving scenery and weather (rail_rivals_rigs.js)
+    var rigs = [];
+    var rigCtx = {
+      players: function () {
+        var out = [];
+        if (client.myId && client.local && client.local.alive !== false) {
+          out.push({ id: client.myId, pos: client.local.pos, team: client.myTeam, me: true });
+        }
+        Object.keys(client.players || {}).forEach(function (id) {
+          var p = client.players[id];
+          if (p && p.pos && p.alive !== false && String(id) !== String(client.myId)) {
+            out.push({ id: id, pos: p.pos, team: p.team });
+          }
+        });
+        return out;
+      },
+      viewer: function () {
+        var cam = client.cameraPosition ? client.cameraPosition() : null;
+        var at = cam && cam.eye ? cam.eye : client.local.pos;
+        var yaw = client.local.yaw || 0, pitch = client.local.pitch || 0, cp = Math.cos(pitch);
+        return { eye: at, dir: [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp] };
+      },
+      sound: function (name, at, volume) {
+        if (!client.audio || !at) return;
+        var v = client.volumeAt ? client.volumeAt(at) : 1;
+        client.audio.play(name, { volume: (volume || 1) * v });
+      },
+      sound2d: function (name, volume) {
+        if (client.audio) client.audio.play(name, { volume: volume === undefined ? 1 : volume });
+      },
+      physics: function () { return client.physics; },
+      twist: function () { return twist; }
+    };
+    function eye() {
+      var cam = client.cameraPosition ? client.cameraPosition() : null;
+      return cam && cam.eye ? cam.eye : client.local.pos;
+    }
     var ctx = {
       client: client, arena: arena, rgb: rgb, esc: esc, local: local, TEAM: TEAM,
       TEAM_LIGHT: TEAM_LIGHT, GOLD: GOLD,
@@ -117,7 +154,8 @@
       laneOf: function () { return laneOf; }, names: function () { return names; },
       areaName: function () { return areaName; }, me: function () { return arena.me || {}; },
       say: function (key, title, kind, sound, sub) { say(key, title, kind, sound, sub); },
-      puff: function (pos, n) { puff(pos, n); }
+      puff: function (pos, n) { puff(pos, n); },
+      Lane: Lane, eye: eye
     };
 
     function loadMap(map) {
@@ -164,6 +202,7 @@
       carry = {};
       tw = Twists[extra.twist] ? Twists[extra.twist](ctx) : null;
       if (tw && tw.load) tw.load(map);
+      rigs = global.Rigs ? global.Rigs.build(map, rigCtx) : [];
     }
 
     var drifts = {};
@@ -237,6 +276,7 @@
       rrx: function (msg) {
         var me = client.myTeam;
         var k = msg.k;
+        if (rigs.length && global.Rigs) global.Rigs.notify(rigs, k, msg, rigCtx);
         if (tw && tw.message && tw.message(msg)) return;
         if (k === 'coal') {
           client.audio.play('rr_coal', { volume: 0.6 });
@@ -736,6 +776,9 @@
         drawDepots(renderer, time);
         drawTwist(renderer, time, dt);
         drawSmoke(renderer, dt);
+        if (rigs.length && global.Rigs) {
+          global.Rigs.draw(rigs, renderer, dt, eye(), rigCtx, (client.map && client.map.fog) || 900);
+        }
       },
       avatarParts: function (player, parts, self) {
         var load = self ? (arena.me && arena.me.carry) : carry[String(player.id)];
