@@ -687,14 +687,32 @@
     var HOLD_PITCH_RIGHT = 0.55;
     var HOLD_PITCH_LEFT = 0.40;
 
+    /* Looking down, the arms lower with that share of the look.  Looking
+       up they have to go all the way: carried at a share of the look alone
+       they stopped barely past level -- somebody staring at the sky still
+       held their weapon at chest height.  So above level they ease from
+       the carry angle to pointing the item straight along the look, there
+       by the time the look is 70 degrees up (the item hangs off the arm's
+       angle; -PI/2 - pitch points it along the look).  The left hand rides
+       a touch lower on the same line, so both stay on a two-handed grip. */
+    var UP_FULL = 1.2;
+    function heldSwing(rest, gain, pitch, lag) {
+      var lowered = rest - pitch * gain;
+      if (pitch <= 0) return lowered;
+      var k = Math.min(1, pitch / UP_FULL);
+      k = k * k * (3 - 2 * k);
+      var aim = -Math.PI / 2 - pitch + lag;
+      return lowered + (aim - lowered) * k;
+    }
+
     var holding = opts.holding;
     var rightSwing = pose.armR;
     if (holding) {
-      rightSwing = HOLD_ARM_RIGHT - (opts.pitch || 0) * HOLD_PITCH_RIGHT;
+      rightSwing = heldSwing(HOLD_ARM_RIGHT, HOLD_PITCH_RIGHT, opts.pitch || 0, 0);
     }
     var leftSwing = pose.armL;
     if (holding && holding.twoHanded !== false) {
-      leftSwing = HOLD_ARM_LEFT - (opts.pitch || 0) * HOLD_PITCH_LEFT;
+      leftSwing = heldSwing(HOLD_ARM_LEFT, HOLD_PITCH_LEFT, opts.pitch || 0, 0.1);
     }
     var rightHand = null;
 
