@@ -234,6 +234,14 @@
       this.noise({ filter: 'bandpass', freq: 1400, freqEnd: 2200, dur: 0.3, gain: 0.1 * vol });
       this.tone({ type: 'triangle', freq: 660, freqEnd: 700, dur: 0.25, gain: 0.05 * vol });
     });
+    GA.register('rr_flap', function (vol) {
+      // a split-flap board rattling: a burst of little clacks
+      for (var i = 0; i < 14; i++) {
+        this.later(i * 28, function () {
+          this.noise({ filter: 'bandpass', freq: 3200, freqEnd: 2400, dur: 0.025, gain: 0.08 * vol });
+        });
+      }
+    });
     GA.register('rr_pry', function (vol) {
       this.tone({ type: 'sawtooth', freq: 220, freqEnd: 520, dur: 0.5, gain: 0.06 * vol });
       this.noise({ filter: 'bandpass', freq: 1800, freqEnd: 600, dur: 0.45, gain: 0.12 * vol });
@@ -443,6 +451,166 @@
       ctx.beginPath(); ctx.moveTo(w / 2 - 40, -h / 2 - 30); ctx.lineTo(w / 2 - 28, -h / 2 - 30);
       ctx.lineTo(w / 2 - 30, 20); ctx.lineTo(w / 2 - 34, 34); ctx.lineTo(w / 2 - 38, 20); ctx.fill();
       ctx.fillRect(w / 2 - 46, -h / 2 - 38, 24, 10);
+      ctx.restore();
+    }
+  });
+
+  // ---------------------------------------------------- Union Terminal
+  /* Dusk over the city.  The signals drop to clear, the gas lamps come on
+     along the street, and an engine steams in under the great iron arch of
+     the train shed; the station clock strikes.  The name clatters into
+     place on the departures board, flap by flap. */
+  Intro.register('rr_union', {
+    name: 'Union Terminal',
+    tagline: 'The race ends under the glass. Take the tower -- hold their cart at the diamond.',
+    accent: '#ffb35a',
+    cues: [[0.2, 'rr_whistle', 0.4], [0.6, 'rr_signal', 0.6], [1.0, 'rr_chug', 0.5],
+           [1.6, 'rr_bell', 0.5], [2.0, 'rr_flap', 0.8], [2.4, 'rr_flap', 0.6], [2.75, 'rr_bell', 0.4]],
+    shakes: [],
+    tagY: 430, tagAt: 3.0,
+    setup: function (r) {
+      var d = { towers: [], lamps: [], puffs: Art.makePuffs(r, 24, 0, 6, 0), stars: [] };
+      var x = -40;
+      while (x < VW + 60) {
+        var w = between(r, 50, 110);
+        d.towers.push({ x: x, w: w, h: between(r, 90, 300), lit: [] });
+        var t = d.towers[d.towers.length - 1];
+        for (var i = 0; i < 14; i++) t.lit.push({ u: r(), v: r(), on: between(r, 0.3, 2.2) });
+        x += w + between(r, -6, 10);
+      }
+      for (var k = 0; k < 9; k++) d.lamps.push({ x: 90 + k * 180, at: 0.7 + k * 0.12 });
+      for (k = 0; k < 40; k++) d.stars.push({ x: r() * VW, y: r() * 220, p: r() * 6 });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var HZ = 600;
+      var sky = ctx.createLinearGradient(0, 0, 0, HZ);
+      sky.addColorStop(0, '#141c3a');
+      sky.addColorStop(0.55, '#5a3a5a');
+      sky.addColorStop(1, '#e8865a');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, VW, HZ + 2);
+      d.stars.forEach(function (s) {
+        ctx.fillStyle = rgba('#fff4d8', 0.3 + 0.3 * Math.sin(t * 2 + s.p));
+        ctx.fillRect(s.x, s.y, 2, 2);
+      });
+      // the skyline, its windows coming on
+      d.towers.forEach(function (tw) {
+        ctx.fillStyle = '#1e1a2a';
+        ctx.fillRect(tw.x, HZ - tw.h, tw.w, tw.h + 2);
+        tw.lit.forEach(function (l) {
+          if (t < l.on) return;
+          ctx.fillStyle = l.u > 0.5 ? '#ffd27a' : '#ffb35a';
+          ctx.fillRect(tw.x + 6 + l.u * (tw.w - 16), HZ - tw.h + 10 + l.v * (tw.h - 30), 6, 8);
+        });
+      });
+      // the shed: a great arch of iron ribs and glass, the clock tower by it
+      var ax = 980, ay = HZ, rad = 380;
+      ctx.fillStyle = 'rgba(160,200,220,0.16)';
+      ctx.beginPath(); ctx.arc(ax, ay, rad, Math.PI, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a2e38'; ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.arc(ax, ay, rad, Math.PI, TAU); ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(ax, ay, rad - 40, Math.PI, TAU); ctx.stroke();
+      for (var k2 = 1; k2 < 12; k2++) {
+        var a = Math.PI + k2 * Math.PI / 12;
+        ctx.beginPath(); ctx.moveTo(ax + Math.cos(a) * (rad - 40), ay + Math.sin(a) * (rad - 40));
+        ctx.lineTo(ax + Math.cos(a) * rad, ay + Math.sin(a) * rad); ctx.stroke();
+      }
+      ctx.fillStyle = '#3a2a2a';
+      ctx.fillRect(ax - rad - 40, HZ - 140, 40, 140);
+      ctx.fillRect(ax + rad, HZ - 140, 40, 140);
+      ctx.fillStyle = '#4a3434';
+      ctx.fillRect(500, HZ - 330, 90, 330);
+      ctx.beginPath(); ctx.moveTo(490, HZ - 330); ctx.lineTo(545, HZ - 400); ctx.lineTo(600, HZ - 330); ctx.fill();
+      ctx.fillStyle = '#f2ead8';
+      ctx.beginPath(); ctx.arc(545, HZ - 290, 30, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 4;
+      var hand = t * 0.5;
+      ctx.beginPath(); ctx.moveTo(545, HZ - 290); ctx.lineTo(545 + Math.sin(hand) * 22, HZ - 290 - Math.cos(hand) * 22);
+      ctx.moveTo(545, HZ - 290); ctx.lineTo(545 + Math.sin(hand / 12 + 2) * 14, HZ - 290 - Math.cos(hand / 12 + 2) * 14);
+      ctx.stroke();
+      additive(ctx, function () { dot(ctx, '#fff2d8', 545, HZ - 290, 60, 0.35); });
+      // the street, its lamps lighting one by one
+      ctx.fillStyle = '#2a2830';
+      ctx.fillRect(0, HZ, VW, VH - HZ);
+      d.lamps.forEach(function (l) {
+        ctx.fillStyle = '#16161c';
+        ctx.fillRect(l.x - 3, HZ + 40, 6, 120);
+        if (t < l.at) return;
+        var flick = t - l.at < 0.3 ? (Math.sin(t * 70) > 0 ? 1 : 0.3) : 1;
+        ctx.fillStyle = rgba('#ffcf7a', flick);
+        ctx.fillRect(l.x - 9, HZ + 30, 18, 14);
+        additive(ctx, function () { dot(ctx, '#ffb35a', l.x, HZ + 40, 90, 0.4 * flick); });
+      });
+      // the semaphores, dropping to clear
+      var clear = seg(t, 0.55, 0.8);
+      [180, 300].forEach(function (sx) {
+        ctx.fillStyle = '#1a1a20';
+        ctx.fillRect(sx - 4, HZ - 170, 8, 170);
+        ctx.save(); ctx.translate(sx, HZ - 160); ctx.rotate(-0.7 * clear);
+        ctx.fillStyle = '#c82a2a'; ctx.fillRect(0, -6, 60, 12);
+        ctx.restore();
+        additive(ctx, function () { dot(ctx, clear > 0.5 ? '#3aff6a' : '#ff3a2a', sx - 14, HZ - 160, 26, 0.9); });
+      });
+      // the track, and the train coming in under the arch
+      ctx.fillStyle = '#4a4440';
+      ctx.fillRect(0, HZ + 160, VW, 16);
+      ctx.fillStyle = '#8a8680';
+      ctx.fillRect(0, HZ + 156, VW, 4); ctx.fillRect(0, HZ + 174, VW, 4);
+      var lx = lerp(-260, 860, outCubic(seg(t, 0.8, 2.6)));
+      Art.puffs(ctx, d.puffs.map(function (p) {
+        return { at: p.at + 0.8, x: lerp(-260, 860, outCubic(seg(p.at + 0.8, 0.8, 2.6))) + 12, y: HZ + 30,
+                 vx: p.vx * 0.5, vy: p.vy, r: p.r, life: p.life };
+      }), t, '#d8d0c8');
+      loco(ctx, lx, HZ + 158, 1.0, '#141418', t * (1 - seg(t, 2.0, 2.6)), '#fff1b0');
+      for (var c = 1; c < 4; c++) {
+        ctx.fillStyle = c % 2 ? '#2f4a3a' : '#5a2a2a';
+        ctx.fillRect(lx - 190 - c * 170, HZ + 90, 155, 62);
+        ctx.fillStyle = '#ffe0a0';
+        for (var w2 = 0; w2 < 5; w2++) ctx.fillRect(lx - 180 - c * 170 + w2 * 28, HZ + 104, 18, 16);
+      }
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Union Terminal').toUpperCase();
+      var k = outBack(seg(t, 1.85, 2.2), 1.2);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 230);
+      ctx.scale(k, k);
+      var w = 1040, h = 220;
+      ctx.fillStyle = '#16161c';
+      roundRect(ctx, -w / 2, -h / 2, w, h, 14); ctx.fill();
+      ctx.strokeStyle = '#c8a03a'; ctx.lineWidth = 6;
+      roundRect(ctx, -w / 2 + 8, -h / 2 + 8, w - 16, h - 16, 10); ctx.stroke();
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#c8a03a';
+      spaced(ctx, 'DEPARTURES  ·  ARRIVALS', 0, -h / 2 + 34, 6);
+      // the flaps: each letter rattles through the alphabet and lands
+      var letters = name.split('');
+      var cell = Math.min(62, (w - 80) / Math.max(1, letters.length));
+      var x0 = -cell * letters.length / 2;
+      var ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      letters.forEach(function (ch, i) {
+        var land = 2.05 + i * 0.045;
+        var shown = ch;
+        if (t < land && ch !== ' ') shown = ABC.charAt(Math.floor((t * 40 + i * 7) % 26));
+        var cx = x0 + i * cell + cell / 2;
+        ctx.fillStyle = '#26262e';
+        roundRect(ctx, cx - cell / 2 + 3, -40, cell - 6, 92, 6); ctx.fill();
+        ctx.strokeStyle = '#0c0c10'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx - cell / 2 + 3, 6); ctx.lineTo(cx + cell / 2 - 3, 6); ctx.stroke();
+        if (ch === ' ') return;
+        ctx.font = 'bold ' + Math.floor(cell * 1.05) + 'px ' + HEAVY;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = t < land ? '#c8b070' : '#ffd84a';
+        ctx.fillText(shown, cx, 8);
+        ctx.textAlign = 'left';
+      });
+      ctx.font = 'bold 20px ' + HEAVY;
+      var blink = t > 2.7 && Math.sin(t * 6) > -0.3;
+      ctx.fillStyle = blink ? '#3aff6a' : '#2a4a2a';
+      spaced(ctx, 'PLATFORMS 1 & 7  ·  ON TIME', 0, h / 2 - 30, 4);
       ctx.restore();
     }
   });

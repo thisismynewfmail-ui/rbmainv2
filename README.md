@@ -465,6 +465,20 @@ with it, the cart pitched on the grade -- and each brings a twist of its own
   lay it, six units at a time -- before your cart gets there, if you are
   smart. The other company can pull the last rail back up while your cart
   is not on it, and walk off with it.
+* **Union Terminal** -- the city's great station at dusk. Both companies
+  start in the freight yards (the freight house's loft is a perch), cross
+  a streetcar street with its stalled tram and crossing gates, meet at the
+  Grand Diamond under Union Tower, run the throat under two signal
+  gantries and race into the train shed -- glass and iron over seven
+  platforms and the waiting coaches -- to the buffer stops at the
+  concourse and its clock. The city stands on two levels: Upper Town six
+  up on its retaining wall (the plaza with its fountain and the Baron's
+  statue, the Grand Hotel, the Exchange's colonnade, a grand stair down),
+  Gasworks Hill four up across the line (the gasholder, the retort house
+  and its chimney), the covered market and the cab rank in the low town
+  between, the Union Canal and its towpath under the quays, a footbridge
+  over the shed approach. *The signal*, as at Dustbowl Gulch: hold the cabin on top of
+  Union Tower and the junction signal is set against the other company.
 
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal

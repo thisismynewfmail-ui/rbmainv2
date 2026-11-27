@@ -67,6 +67,12 @@ WORLD: Dict[str, Any] = {
                   "trestle and through the Summit Cut -- and pull theirs up "
                   "before their cart gets there. The rails meet at the "
                   "ceremony ground, golden spike and all."},
+        {"id": "union", "name": "Union Terminal",
+         "blurb": "The city's great station at dusk. Race out of the freight "
+                  "yards, past Upper Town on its terrace and Gasworks Hill, "
+                  "through the throat under the signal gantries and into the "
+                  "train shed. Take the cabin on Union Tower and their cart is "
+                  "held at the Grand Diamond."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -131,7 +137,7 @@ BADGES: List[Tuple[Any, ...]] = [
      "em_rr_camera", "photo finishes"),
     ("rr_signalman", "Signalman", "rr_signal", [1, 10, 30, 80, 200],
      ["Lamp Boy", "Signalman", "Towerman", "Dispatcher", "Master of the Diamond"],
-     "Took Dustbowl Gulch's signal cabin and held the other cart at the diamond.",
+     "Took a signal cabin -- Dustbowl Gulch's or Union Tower's -- and held the other cart at the diamond.",
      "em_rr_signal", "signals set"),
     ("rr_snowplow", "Snowplow", "rr_dig", [1, 10, 30, 80, 200],
      ["Shovel Hand", "Digger", "Snowplow", "Rotary", "Avalanche Breaker"],

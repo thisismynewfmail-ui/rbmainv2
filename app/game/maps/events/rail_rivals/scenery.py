@@ -396,3 +396,39 @@ def survey_stakes(b: ArenaArea, points: Sequence[Tuple[float, float, float]]) ->
     for (x, y, z) in points:
         b.box([x, y + 0.6, z], [0.3, 1.2, 0.3], WOOD_LIGHT)
         b.box([x, y + 1.25, z], [0.5, 0.3, 0.06], "#d83a2a", collide=False)
+
+
+# ================================================================ cars
+def coach(b: ArenaArea, x: float, z: float, along: str = "x", colour: str = "#2f4a3a",
+          trim: str = GOLD, length: float = 24.0, lit: bool = True, name: str = "") -> None:
+    """A passenger coach standing on its rails at ground level: the body
+    with a row of windows down each side (lit from inside), the clerestory
+    roof, the vestibule doors at each end, the trucks under it.  Solid: a
+    jump and a climb to the roof."""
+    from .rails import CAR_FLOOR, _trucks
+    width, top = 6.0, 8.0
+    y0 = 0.0
+    _trucks(b, x, z, along, length)
+    body = _size(along, length, top - CAR_FLOOR, width)
+    b.box([x, y0 + (CAR_FLOOR + top) / 2.0, z], body, colour)
+    b.box([x, y0 + top + 0.25, z], _size(along, length + 0.4, 0.5, width + 0.4), "#2a2826",
+          material="metal")
+    b.box([x, y0 + top + 1.05, z], _size(along, length - 4.0, 1.1, width - 2.4), "#3a3632",
+          material="metal")
+    b.box([x, y0 + CAR_FLOOR + 2.0, z], _size(along, length + 0.04, 0.3, width + 0.04), trim,
+          collide=False)
+    n = max(3, int((length - 6.0) / 2.6))
+    for side in (-1, 1):
+        for k in range(n):
+            u = -length / 2.0 + 3.0 + (k + 0.5) * (length - 6.0) / n
+            px, pz = _place(x, z, along, u, side * (width / 2.0 + 0.03))
+            b.box([px, y0 + 5.2, pz], _size(along, 1.6, 1.8, 0.06),
+                  "#ffe0a0" if lit else "#3a4048", material="neon" if lit else "", collide=False)
+        for end in (-1, 1):
+            px, pz = _place(x, z, along, end * (length / 2.0 - 1.4), side * (width / 2.0 + 0.03))
+            b.box([px, y0 + 4.2, pz], _size(along, 1.6, 4.6, 0.06), "#1e1c1a", collide=False)
+    if name:
+        for side in (-1, 1):
+            px, pz = _place(x, z, along, 0.0, side * (width / 2.0 + 0.04))
+            b.box([px, y0 + 7.1, pz], _size(along, length * 0.5, 0.7, 0.04), colour, collide=False,
+                  decal=sign_decal(name, colour, trim, length * 0.5 / 0.7))

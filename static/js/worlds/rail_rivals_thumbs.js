@@ -343,4 +343,110 @@
       straight(k, 36, 150, -36);
     }
   });
+
+  // ------------------------------------------------ Union Terminal
+  /* Dusk at the throat: Union Tower with its cabin lit over the diamond, a
+     cart running under the signal gantry toward the train shed's great
+     glass arch and its clock, coaches waiting inside; Upper Town's wall
+     and the hotel above the line, the city's lit towers behind, a gas
+     lamp. */
+  Thumbs.registerWorld('rr_union', {
+    sky: { top: '#1a2448', horizon: '#e8865a', sun: [0.18, 0.12, -0.96], clouds: 0.4, tint: '#ffb88a' },
+    camera: [[-50, 30, 50], [26, 6, -10], 46],
+    build: function (parts, k) {
+      k.box([20, -0.5, -10], [260, 1, 220], '#5a5652', { st: 1 });
+      slant(k, -70, -46, 40, 30);
+      slant(k, -70, 30, 40, -46);
+      straight(k, 40, 100, 30);
+      straight(k, 40, 100, -46);
+      straight(k, 40, 100, -8);
+      // the city behind: towers with lit windows against the dusk
+      var towers = [[128, -96, 14, 34], [140, -60, 12, 46], [126, -24, 16, 28], [150, 8, 14, 52],
+                    [130, 44, 12, 30], [146, 76, 16, 40], [92, -112, 18, 38], [56, -118, 14, 26],
+                    [20, -110, 16, 44], [-16, -116, 12, 30], [118, 104, 14, 24]];
+      towers.forEach(function (t, n) {
+        var tone = n % 3 === 0 ? '#3a3442' : (n % 3 === 1 ? '#4a3a3a' : '#34383f');
+        k.box([t[0], t[3] / 2, t[1]], [t[2], t[3], t[2]], tone, { st: 1 });
+        k.box([t[0], t[3] + 0.6, t[1]], [t[2] + 1, 1.2, t[2] + 1], '#2a2630');
+        for (var f = 1; f * 6 < t[3] - 2; f++) {
+          for (var w = 0; w < 3; w++) {
+            if ((f * 7 + w * 3 + n) % 4 === 0) continue;
+            k.box([t[0] - t[2] / 2 - 0.12, f * 6, t[1] - t[2] / 3 + w * t[2] / 3], [0.2, 2.2, 1.8],
+                  '#ffd27a', { m: 'neon' });
+          }
+        }
+      });
+      // Upper Town's wall, its railing and the hotel
+      k.box([-40, 3, -58], [100, 6, 24], '#6a6660', { st: 1 });
+      k.box([-40, 3, -45.8], [100, 6, 0.6], '#8a3a2a');
+      k.box([-40, 7.5, -46.4], [100, 0.3, 0.3], '#3a4048', { m: 'metal' });
+      k.box([-56, 6 + 13, -62], [28, 26, 16], '#c8bca4');
+      for (var w2 = 0; w2 < 3; w2++) {
+        for (var f2 = 0; f2 < 3; f2++) k.box([-64 + w2 * 8, 10 + f2 * 7, -53.9], [3, 3.6, 0.2], '#ffd27a', { m: 'neon' });
+      }
+      k.box([-56, 6 + 26.6, -62], [29, 1.2, 17], '#4a3a3a');
+      // Union Tower and its cabin over the diamond
+      k.box([-26, 6, -8], [12, 12, 12], '#8a3a2a');
+      k.box([-26, 13.2 + 4.5, -8], [8, 9, 8], '#c8b898');
+      k.box([-26, 17.5, -3.95], [5, 3, 0.2], '#ffd27a', { m: 'neon' });
+      k.box([-21.8, 21, -8], [0.4, 1, 1], '#3aff6a', { m: 'neon' });
+      k.box([-26, 22.6, -8], [9, 0.6, 9], '#3a3a40');
+      // the gantry over the throat
+      k.box([22, 8.5, -40], [1.2, 17, 1.2], '#3a4048', { m: 'metal' });
+      k.box([22, 8.5, 26], [1.2, 17, 1.2], '#3a4048', { m: 'metal' });
+      k.box([22, 17.6, -7], [1.4, 1.2, 67], '#3a4048', { m: 'metal' });
+      k.box([22.3, 20, 16], [0.1, 0.5, 2.6], '#d8282a', { r: [0.5, 0, 0] });
+      k.box([22.3, 20, -30], [0.1, 0.5, 2.6], '#d8282a', { r: [-0.5, 0, 0] });
+      // the shed: brick sides, five ribs with glass between, the clock
+      k.box([72, 8, 48], [56, 16, 2], '#8a3a2a', { st: 1 });
+      k.box([72, 8, -64], [56, 16, 2], '#8a3a2a', { st: 1 });
+      for (var r = 0; r < 5; r++) {
+        for (var i = 0; i < 10; i++) {
+          var a0 = Math.PI * i / 10, a1 = Math.PI * (i + 1) / 10;
+          var za = -8 - Math.cos(a0) * 56, zb = -8 - Math.cos(a1) * 56;
+          var ya = 16 + Math.sin(a0) * 22, yb = 16 + Math.sin(a1) * 22;
+          var tilt = { r: [-Math.atan2(yb - ya, zb - za), 0, 0], m: 'metal' };
+          var len = Math.hypot(zb - za, yb - ya);
+          k.box([46 + r * 13, (ya + yb) / 2, (za + zb) / 2], [1.2, 1.2, len], '#2a2e38', tilt);
+          if (r < 4) {
+            k.box([52.5 + r * 13, (ya + yb) / 2, (za + zb) / 2], [11.8, 0.3, len], '#9ec4d4',
+                  { r: tilt.r, a: 0.45, m: 'glass' });
+          }
+        }
+      }
+      // the end screen: glazing strips under the arch, a fan of bars and
+      // the great clock
+      for (var zs = -60; zs < 44; zs += 8) {
+        var e = (zs + 4 + 8) / 56, h = 22 * Math.sqrt(Math.max(0, 1 - e * e));
+        k.box([45.9, 16 + h / 2, zs + 4], [0.2, h, 8], '#9ec4d4', { a: 0.3, m: 'glass' });
+      }
+      for (var b = 1; b < 6; b++) {
+        var ang = Math.PI * b / 6;
+        var dz = -Math.cos(ang) * 56, dy = Math.sin(ang) * 22;
+        k.box([45.6, 16 + dy / 2, -8 + dz / 2], [0.5, 0.5, Math.hypot(dz, dy)], '#2a2e38',
+              { r: [-Math.atan2(dy, dz), 0, 0], m: 'metal' });
+      }
+      k.shape('cyl', [45.4, 29, -8], [8, 0.4, 8], '#2a2e38', { r: [0, 0, Math.PI / 2], m: 'metal' });
+      k.shape('cyl', [45.0, 29, -8], [7, 0.4, 7], '#f4ecd8', { r: [0, 0, Math.PI / 2], m: 'neon' });
+      k.box([44.7, 30.4, -8], [0.2, 3, 0.45], '#1a1a1a');
+      k.box([44.7, 29, -6.9], [0.2, 0.45, 2.4], '#1a1a1a');
+      // coaches at the platforms, a lit concourse at the far end
+      [[30, '#2f4a3a'], [-8, '#5a2a2a'], [-46, '#2a3a5a']].forEach(function (c2, n) {
+        var cz = c2[0] - 22;
+        if (n === 1) return;
+        k.box([80, 4.6, cz], [28, 7.4, 6], c2[1]);
+        for (var c = 0; c < 6; c++) k.box([69 + c * 4.4, 5.4, cz + 3.1], [1.6, 1.8, 0.1], '#ffe0a0', { m: 'neon' });
+        k.box([80, 8.5, cz], [28.4, 0.5, 6.4], '#2a2826');
+      });
+      k.box([80, 0.6, 11], [44, 1.2, 8], '#8a6a4a', { st: 1 });
+      k.box([80, 0.6, -27], [44, 1.2, 8], '#8a6a4a', { st: 1 });
+      k.box([100, 6, -8], [4, 12, 110], '#c8bca4', { st: 1 });
+      for (var g = 0; g < 7; g++) k.box([97.9, 5, -50 + g * 14], [0.2, 4, 5], '#ffd27a', { m: 'neon' });
+      cart(k, 2, 0, Math.atan2(110, 76), RED);
+      pushers(k, 2, 0, Math.atan2(110, 76), RED, 2, 0.4);
+      k.player(-20, 22, 2.2, { anim: 'run', time: 0.6, wear: cap(BLUE) });
+      k.shape('cyl', [-6, 6.5, 30], [0.8, 13, 0.8], '#3a4048', { m: 'metal' });
+      k.box([-6, 13.4, 30], [1.6, 1.2, 1.6], '#ffcf7a', { m: 'neon' });
+    }
+  });
 })(window);

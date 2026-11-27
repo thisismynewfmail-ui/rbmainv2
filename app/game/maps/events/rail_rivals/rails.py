@@ -393,14 +393,15 @@ def storeyed(b: ArenaArea, area: Tuple[float, float, float, float], heights: Seq
              doors: Optional[Dict[str, Sequence[Tuple[float, float, float]]]] = None,
              windows: Sequence[Dict[str, Sequence[Tuple[float, float, float, float]]]] = (),
              wells: Sequence[Tuple[float, float, float, float]] = (), glass: bool = True,
-             lights: str = WARM, parapet: float = 0.0) -> List[float]:
-    """A building of several storeys: each storey's walls are a band of
-    their own, with that storey's windows in it, so windows can stack one
+             lights: str = WARM, parapet: float = 0.0, base: float = 0.0) -> List[float]:
+    """A building of several storeys, standing on ground at ``base``: each
+    storey's walls are a band of their own, with that storey's windows in
+    it (sill and lintel heights are absolute), so windows can stack one
     over another; every floor above the ground has ``wells`` cut out of it
     for the stairs.  Returns the height of each floor."""
     from ..kit import carve, plate, strip_light
     x0, x1, z0, z1 = area
-    y = 0.0
+    y = base
     levels = []
     for k, h in enumerate(heights):
         last = k == len(heights) - 1
