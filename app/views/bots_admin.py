@@ -373,6 +373,26 @@ def delete(req: Request):
     return api_ok(message=message, job=factory.job_status())
 
 
+@router.post("/api/admin/bots/shuffle")
+@admin_required
+def shuffle(req: Request):
+    """Shuffle loadouts: every bot that isn't in a live round -- offline,
+    on the site, asleep in a round -- has all five hotbar slots chosen again
+    from what is in its own inventory."""
+    live = _director().live_uids()
+    uids = [int(r["id"]) for r in db.query("SELECT id FROM users WHERE is_bot=1")
+            if int(r["id"]) not in live]
+    if not uids:
+        return api_error("There are no bots out of a live round to shuffle.")
+    ok, message = factory.start_shuffle(uids)
+    if not ok:
+        return api_error(message)
+    db.audit(int(req.user["id"]), "bots.shuffle.start", "", {"count": len(uids), "live": len(live)})
+    if live:
+        message += " %d in live rounds are left alone." % len(live)
+    return api_ok(message=message, job=factory.job_status())
+
+
 @router.post("/api/admin/bots/cancel")
 @admin_required
 def cancel(req: Request):

@@ -1058,7 +1058,13 @@
       '<div class="bz-generate"><input type="number" id="bz-count" min="1" max="100000" value="10">' +
       '<button class="btn go" type="button" data-bz="generate">Generate</button>' +
       '<button class="btn small" type="button" data-bz="cancel-job">Stop the job</button></div>' +
-      '<div id="bz-job"></div></div>' +
+      '<div id="bz-job"></div>' +
+      '<div style="margin-top:14px"><b>Shuffle loadouts</b><p class="tiny muted">Every bot that is not in a live ' +
+      'round right now — offline, on the site, or asleep in a round — has all five of its hotbar slots chosen again ' +
+      'from the weapons and tools in its own inventory, in a new order (always with something to fight with). ' +
+      'Nothing is bought or given; bots in rounds with people keep what they are holding.</p>' +
+      '<button class="btn small primary" type="button" data-bz="shuffle">Shuffle all bots’ hotbars</button></div>' +
+      '</div>' +
       '<div><b>Preview the built-in name generator</b><p class="tiny muted">What the fallback produces when the model ' +
       'is unavailable (or chosen as the only source).</p>' +
       '<button class="btn small" type="button" data-bz="names">Show 24 names</button><div class="bz-names" id="bz-names"></div>' +
@@ -1075,10 +1081,13 @@
     var html = '';
     if (job) {
       var pct = job.total ? Math.min(100, job.done / job.total * 100) : 0;
-      html += '<div class="bz-job"><b>' + (job.kind === 'delete' ? 'Deleting' : 'Creating') + ' ' + num(job.total) +
+      var verb = job.kind === 'delete' ? 'Deleting' : job.kind === 'shuffle' ? 'Shuffling the hotbars of' : 'Creating';
+      html += '<div class="bz-job"><b>' + verb + ' ' + num(job.total) +
         ' bot' + (job.total === 1 ? '' : 's') + '</b> ' + (job.running ? '<span class="loading"></span>' : '<span class="pill green">done</span>') +
         '<div class="progress"><i style="width:' + pct + '%"></i></div><div class="tiny">' + num(job.done) + ' done' +
         (job.failed ? ', ' + num(job.failed) + ' failed' : '') +
+        (job.kind === 'shuffle' ? ' • ' + num(job.changed || 0) + ' shuffled, ' + num(job.skipped || 0) +
+          ' left as they were (nothing else to carry, or now in a live round)' : '') +
         (job.kind === 'create' ? ' • names: ' + num(job.names_llm || 0) + ' from the model, ' + num(job.names_generated || 0) +
           ' generated, ' + num(job.duplicates || 0) + ' duplicates refused • profiles from the model: ' + num(job.profiles_llm || 0) : '') +
         '</div><div class="bz-joblog">' + (job.log || []).slice().reverse().map(function (l) {
@@ -1088,6 +1097,7 @@
     var history = (status.history || []).slice().reverse();
     if (history.length) {
       html += '<div class="tiny muted" style="margin-top:6px">Recent jobs: ' + history.slice(0, 5).map(function (h) {
+        if (h.kind === 'shuffle') return 'shuffled ' + num(h.changed || 0) + ' hotbars ' + ago(h.finished);
         return (h.kind === 'delete' ? 'deleted ' : 'created ') + num(h.done) + (h.origin === 'auto' ? ' (auto)' : '') +
           ' ' + ago(h.finished);
       }).join(' • ') + '</div>';
@@ -1585,6 +1595,17 @@
           Site.toast(res.message);
           if (BZ.overview) BZ.overview.job = res.job;
           drawJob();
+        });
+      } else if (action === 'shuffle') {
+        Site.confirm('Shuffle every bot’s hotbar?', 'All five slots of every bot that is not in a live round are ' +
+                     'chosen again from its own inventory.', { confirm: 'Shuffle' }).then(function (ok) {
+          if (!ok) return;
+          Site.post('/api/admin/bots/shuffle', {}).then(function (res) {
+            if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+            Site.toast(res.message);
+            if (BZ.overview) BZ.overview.job = res.job;
+            drawJob();
+          });
         });
       } else if (action === 'cancel-job') {
         Site.post('/api/admin/bots/cancel', {}).then(function (res) {

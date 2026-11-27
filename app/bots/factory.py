@@ -117,6 +117,24 @@ def start_delete(uids: Optional[Sequence[int]] = None) -> Tuple[bool, str]:
     return True, "Deleting %d bot%s." % (len(uids), "" if len(uids) == 1 else "s")
 
 
+def start_shuffle(uids: Sequence[int]) -> Tuple[bool, str]:
+    """Shuffle the hotbars of ``uids`` (the Bots Zone's "Shuffle loadouts"):
+    every one of the five slots chosen again from the bot's own inventory
+    (``arms.shuffle_all``), as a background job like creation."""
+    global _job
+    uids = [int(u) for u in uids]
+    with _lock:
+        if _job and _job.get("running"):
+            return False, "A job is already running."
+        _job = {"id": _now(), "kind": "shuffle", "total": len(uids), "done": 0,
+                "failed": 0, "skipped": 0, "changed": 0, "running": True,
+                "cancel": False, "started": _now(), "log": []}
+        job = _job
+    threading.Thread(target=_run_shuffle, args=(job, uids), daemon=True,
+                     name="bots-shuffle").start()
+    return True, "Shuffling the hotbars of %d bot%s." % (len(uids), "" if len(uids) == 1 else "s")
+
+
 def cancel() -> bool:
     with _lock:
         if _job and _job.get("running"):
@@ -130,7 +148,7 @@ def _finish(job: Dict[str, Any]) -> None:
         job["running"] = False
         job["finished"] = _now()
         _finished.append({k: job.get(k) for k in (
-            "id", "kind", "origin", "total", "done", "failed", "skipped",
+            "id", "kind", "origin", "total", "done", "failed", "skipped", "changed",
             "started", "finished", "names_llm", "names_generated", "duplicates")})
         del _finished[:-30]
 
@@ -185,6 +203,77 @@ def _run_delete(job: Dict[str, Any], uids: List[int]) -> None:
             director.reload()
         except Exception:
             traceback.print_exc()
+        _finish(job)
+
+
+def _hotbar_ids(raw: Any) -> List[int]:
+    """A saved hotbar as the five inventory ids (0 for an empty slot)."""
+    try:
+        values = json.loads(raw or "[]")
+    except (TypeError, ValueError):
+        values = []
+    if not isinstance(values, list):
+        values = []
+    bar = [int(v) if isinstance(v, (int, float)) and int(v) > 0 else 0
+           for v in values][:catalog.HOTBAR_SIZE]
+    return bar + [0] * (catalog.HOTBAR_SIZE - len(bar))
+
+
+def _run_shuffle(job: Dict[str, Any], uids: List[int]) -> None:
+    """The shuffle, two hundred bots at a time: their inventories and hotbars
+    read in one query each, the new hotbars written in one transaction.  A
+    bot in a live round -- one with people in it -- is left alone, so nobody
+    sees a bot's weapons change in its hands; that includes one that went
+    into a live round after the button was pressed.  Bots asleep in a round
+    take the new hotbar the next time their round is played for real."""
+    from . import director as director_module
+    rng = random.Random()
+    usable: Dict[str, bool] = {}
+
+    def is_usable(item_id: str) -> bool:
+        if item_id not in usable:
+            usable[item_id] = (catalog.get(item_id) or {}).get("slot") == "usable"
+        return usable[item_id]
+
+    try:
+        director = director_module.running() or director_module.get()
+        for start in range(0, len(uids), 200):
+            if job["cancel"]:
+                break
+            chunk = uids[start:start + 200]
+            live = director.live_uids()
+            marks = ",".join("?" * len(chunk))
+            owned: Dict[int, List[Tuple[int, str]]] = {uid: [] for uid in chunk}
+            for row in db.query("SELECT id, user_id, item_id FROM inventory WHERE user_id IN (%s)"
+                                " ORDER BY id" % marks, chunk):
+                if is_usable(row["item_id"]):
+                    owned[int(row["user_id"])].append((int(row["id"]), row["item_id"]))
+            bars = {int(row["user_id"]): _hotbar_ids(row["hotbar"]) for row in db.query(
+                "SELECT user_id, hotbar FROM avatars WHERE user_id IN (%s)" % marks, chunk)}
+            writes = []
+            for uid in chunk:
+                if uid in live or uid not in bars:
+                    job["skipped"] += 1
+                    continue
+                new = arms.shuffle_all(owned[uid], rng, bars[uid])
+                mine = {inv for inv, _item in owned[uid]}
+                if new == bars[uid] or any(inv and inv not in mine for inv in new):
+                    job["skipped"] += 1
+                    continue
+                writes.append((json.dumps(new, separators=(",", ":")), _now(), uid))
+            if writes:
+                with db.transaction() as conn:
+                    conn.executemany("UPDATE avatars SET hotbar=?, updated_at=? WHERE user_id=?",
+                                     writes)
+                job["changed"] += len(writes)
+            job["done"] += len(chunk)
+        _log(job, "finished: %d hotbars shuffled, %d left as they were"
+             % (job["changed"], job["skipped"]))
+        db.audit(None, "bots.shuffle", "", {"changed": job["changed"], "skipped": job["skipped"]})
+    except Exception as exc:
+        traceback.print_exc()
+        _log(job, "stopped: %s" % exc)
+    finally:
         _finish(job)
 
 

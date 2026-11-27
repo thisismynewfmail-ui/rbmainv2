@@ -219,6 +219,38 @@ def change_up(owned: Sequence[Tuple[int, str]], traits: Dict[str, float],
     return current
 
 
+def shuffle_all(owned: Sequence[Tuple[int, str]], rng: random.Random,
+                current: Sequence[int]) -> List[int]:
+    """Every slot of the hotbar chosen afresh (the Bots Zone's "Shuffle
+    loadouts"): up to five of the bot's own weapons and held items, picked
+    at random and dealt into the five slots in a random order -- slot 1
+    included, so the pistol can go too -- with at least one weapon among
+    them, so there is always something to fight with.  Nothing is bought or
+    given.  A bot that owns no more than fits gets the same things in a new
+    order; one with nothing to move gets its hotbar back as it was."""
+    size = catalog.HOTBAR_SIZE
+    current = list(current)
+    first: Dict[str, int] = {}
+    for inv_id, item_id in owned:
+        item = catalog.get(item_id)
+        if item is None or item.get("slot") != "usable" or item_id in first:
+            continue
+        first[item_id] = int(inv_id)
+    if not first:
+        return current
+    items = sorted(first)
+    weapons = [i for i in items if role(i) != "gear"]
+    for _ in range(12):
+        picked = rng.sample(items, min(size, len(items)))
+        if weapons and all(role(i) == "gear" for i in picked):
+            picked[rng.randrange(len(picked))] = rng.choice(weapons)
+        bar = [first[i] for i in picked] + [0] * (size - len(picked))
+        rng.shuffle(bar)
+        if bar != current:
+            return bar
+    return current
+
+
 # ----------------------------------------------------------- between games
 def plan(owned: Sequence[Tuple[int, str]], traits: Dict[str, float],
          rng: random.Random, current: Sequence[int], unsettled: bool = False) -> List[int]:
