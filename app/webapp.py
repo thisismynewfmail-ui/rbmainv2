@@ -13,8 +13,8 @@ from .models import users
 
 # importing the view modules registers their routes on the shared router
 from .views import base as views_base
-from .views import (admin, auth, avatar_view, bots_admin, home, internal,  # noqa: F401
-                    market_view, pets_view, profile, social_views, worlds_view)
+from .views import (admin, admin_instances, auth, avatar_view, bots_admin, home,  # noqa: F401
+                    internal, market_view, pets_view, profile, social_views, worlds_view)
 # Family accounts: the parent landing page, onboarding, dashboards (app/family)
 from .family import guard as family_guard
 from .family import views as family_views

@@ -142,7 +142,11 @@ class GameHost:
                 return instance
         return None
 
-    def pick_instance(self, prefer: Optional[int] = None) -> GameInstance:
+    def pick_instance(self, prefer: Optional[int] = None, pin: bool = False) -> GameInstance:
+        """The round a joining player goes into: the one they asked for if it
+        has room (or bots to make room), else the first with room, else a new
+        one.  ``pin`` -- an admin joining a particular round from the
+        dashboard -- seats them in it even when it is full of people."""
         with self.lock:
             if prefer:
                 instance = self.find_instance(prefer)
@@ -155,6 +159,8 @@ class GameHost:
                         self.bots_left.append({"uid": brain.uid,
                                                "inst": instance.instance_id})
                         instance.bots.remove(brain.uid, say_bye=False)
+                        return instance
+                    if pin:
                         return instance
                 else:
                     # the web server chose this number for a fresh round
@@ -614,7 +620,7 @@ class GameHost:
         uid = int(ticket.get("uid", 0))
         if uid > 0:
             self.drop_user(uid, "You opened this game in another window.")
-        instance = self.pick_instance(prefer)
+        instance = self.pick_instance(prefer, pin=bool(ticket.get("pin")) and bool(ticket.get("admin")))
         player = instance.add_player(
             int(ticket.get("uid", 0)), str(ticket.get("name", "Player")),
             expand_avatar(ticket.get("avatar") or {}), ws,

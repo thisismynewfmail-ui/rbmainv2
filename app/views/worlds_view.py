@@ -74,7 +74,10 @@ def _game_view(req: Request, world_id: str):
                   # bindings travel with the account, so they are on the page
                   # before the first frame rather than a fetch behind it
                   controls=users.controls_of(req.user),
-                  instance=req.query.get("instance", ""))
+                  instance=req.query.get("instance", ""),
+                  # the admin dashboard's Instances tab joins a round exactly
+                  # (pinned): admins only, and nothing on the site links it
+                  pin=bool(req.user["is_admin"]) and req.query.get("pin") == "1")
 
 
 def register_world_routes() -> None:
@@ -136,6 +139,10 @@ def join_ticket(req: Request):
         "tools": admin_tools.allowed_user(req.user),
         # a child's chat setting, for the host's Safe Chat (None for others)
         "fam": family_guard.ticket_flags(uid),
+        # an admin joining one particular round from the dashboard's
+        # Instances tab is seated in it even when it is full
+        "pin": bool(req.user["is_admin"]) and bool(data.get("pin"))
+        and str(data.get("instance", "") or "").isdigit(),
     }, config.GAME_TICKET_TTL)
     instance = str(data.get("instance", "") or "")
     # Where to seat them.  With bots about, the director picks: another

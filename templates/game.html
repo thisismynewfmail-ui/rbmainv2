@@ -13,7 +13,8 @@ window.BH = {
   world: {{& to_json(world) }},
   avatar: {{& to_json(avatar) }},
   controls: {{& to_json(controls) }},
-  instance: "{{ instance }}"
+  instance: "{{ instance }}",
+  pin: {{ 1 if pin else 0 }}
 };
 </script>
 </head>

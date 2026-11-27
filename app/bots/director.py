@@ -1308,6 +1308,24 @@ class Director:
                               "hidden": max(0, len(sleeping) + len(rows) - per_world)}
         return out
 
+    def sleeping_rounds(self, world: str, limit: int = 500) -> List[Dict[str, Any]]:
+        """Every sleeping round in ``world``, for the admin's instance list:
+        its number, round and phase, how full it is, and its best player."""
+        now = _now()
+        out: List[Dict[str, Any]] = []
+        with self.lock:
+            for inst in self.dormant.get(world, {}).values():
+                best = max(inst.members.items(), key=lambda kv: kv[1].s, default=None)
+                out.append({"id": int(inst.id), "state": "asleep", "count": inst.count,
+                            "bots": inst.count, "humans": 0, "max": inst.max,
+                            "round": int(inst.round), "phase": inst.phase,
+                            "summary": inst.summary(), "age": max(0, now - int(inst.created)),
+                            "wave": int(getattr(inst, "wave", 0) or 0),
+                            "top": int(best[1].s) if best else 0,
+                            "top_uid": int(best[0]) if best else 0})
+        out.sort(key=lambda r: (-r["round"], -r["top"], r["id"]))
+        return out[:limit]
+
     def dormant_players(self, world: str, limit: int = 60) -> List[Dict[str, Any]]:
         with self.lock:
             out = []
