@@ -10,6 +10,7 @@
       <a data-admin-tab="overview" class="on">Overview</a>
       <a data-admin-tab="network">Connections</a>
       <a data-admin-tab="bots" class="bz-tab"><span class="bz-tab-dot" id="bz-tab-dot"></span>Bots Zone</a>
+      <a data-admin-tab="instances">Instances</a>
     </div>
   </div>
   <div class="panel-body">
@@ -296,6 +297,45 @@
   </aside>
 </div>
 
+<!-- Instances: every world, every round in it (live on the host or asleep
+     in the bot director), and a Join for the admin.  Admin only. -->
+<div data-admin-panel="instances" class="hidden">
+  <div class="row">
+    <div class="col-side">
+      <div class="panel">
+        <div class="panel-head">Game worlds</div>
+        <div class="panel-body flush">
+          <div class="tablewrap"><table class="grid ai-worlds" id="ai-worlds">
+            <tr><td class="muted">Loading&hellip;</td></tr>
+          </table></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <div class="panel-head">
+          <span id="ai-title">Instances</span>
+          <span class="head-links">sort by
+            <select id="ai-sort" aria-label="Sort the instances">
+              <option value="round">round number</option>
+              <option value="stat">high stat</option>
+              <option value="players">people</option>
+            </select>
+            <button class="btn small" type="button" id="ai-refresh">Refresh</button></span>
+        </div>
+        <div class="panel-body flush">
+          <div class="tablewrap"><table class="grid" id="ai-instances">
+            <tr><td class="muted">Pick a world.</td></tr>
+          </table></div>
+        </div>
+        <div class="panel-foot tiny muted">Join opens the round in a new tab and seats you in exactly that
+          one, even when it is full; a sleeping bot round wakes up for you.  Only admins can do this, and
+          nothing outside this dashboard links to it.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="admin-modal" class="hidden" style="position:fixed;inset:0;background:rgba(8,16,26,.7);z-index:900;display:flex;align-items:center;justify-content:center">
   <div class="panel" style="width:640px;max-height:86vh;overflow:auto;margin:0">
     <div class="panel-head" id="am-title">Player</div>
@@ -304,5 +344,5 @@
   </div>
 </div>
 {% set page_script = "/static/js/ui/admin.js" %}
-{% set extra_scripts = ["/static/js/ui/bots_admin.js"] %}
+{% set extra_scripts = ["/static/js/ui/bots_admin.js", "/static/js/ui/admin_instances.js"] %}
 {% include "partials/foot.html" %}

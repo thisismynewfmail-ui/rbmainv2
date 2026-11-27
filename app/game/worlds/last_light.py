@@ -1753,6 +1753,7 @@ class LastLight(GameInstance):
     def describe(self) -> Dict[str, Any]:
         info = super().describe()
         info["summary"] = "Wave %d · %s" % (max(1, self.wave), self.area["name"])
+        info["wave"] = int(self.wave)
         return info
 
     # ======================================================== sleep / wake

@@ -47,7 +47,8 @@
         'X-CSRF-Token': (window.BH && BH.csrf) || '',
         'X-Requested-With': 'fetch'
       },
-      body: JSON.stringify({ world_id: this.worldId, instance: this.instance })
+      body: JSON.stringify({ world_id: this.worldId, instance: this.instance,
+                             pin: !!(window.BH && BH.pin) })
     }).then(function (r) { return r.json(); }).then(function (res) {
       if (!res.ok) throw new Error(res.error || 'Could not join.');
       var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
