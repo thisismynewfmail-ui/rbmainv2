@@ -23,6 +23,10 @@ ORDER = [
     ("cistern", "The Underneath", "#3a3a3a", 420.0),
     ("rooftops", "Rooftops of Harrow Heights", "#5a5e66", 640.0),
     ("gardens", "Glasshouse Gardens", "#3a6a32", 600.0),
+    ("fireworks", "Blackpowder Fireworks Co.", "#4a5a30", 640.0),
+    ("mount", "St. Bride's Mount", "#c8b48a", 620.0),
+    ("waterpark", "Splash Kingdom", "#4a7a3a", 640.0),
+    ("caverns", "Lumen Caverns", "#4a4640", 460.0),
 ]
 
 # where each new place sits, in units of the spacing, in the order above

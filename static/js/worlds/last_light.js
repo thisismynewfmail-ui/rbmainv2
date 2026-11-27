@@ -2188,5 +2188,651 @@
     }
   });
 
+  // ========================================== Blackpowder Fireworks Co.
+  var FW_SKULL = (function () {
+    var pts = [], a, i;
+    for (i = 0; i <= 16; i++) { a = Math.PI * 1.08 - i / 16 * Math.PI * 1.16; pts.push([Math.cos(a), -0.15 - Math.sin(a)]); }
+    for (i = 1; i <= 4; i++) { pts.push([-0.95 + i * 0.09, -0.1 + i * 0.16]); pts.push([0.95 - i * 0.09, -0.1 + i * 0.16]); }
+    for (i = -2; i <= 2; i++) pts.push([i * 0.15, 0.58]);
+    for (i = 0; i < 7; i++) {
+      a = i / 7 * TAU;
+      pts.push([-0.38 + Math.cos(a) * 0.22, Math.sin(a) * 0.22]);
+      pts.push([0.38 + Math.cos(a) * 0.22, Math.sin(a) * 0.22]);
+    }
+    pts.push([0, 0.14], [-0.08, 0.28], [0.08, 0.28]);
+    for (i = -2; i <= 2; i++) pts.push([i * 0.13, 0.44]);
+    return pts;
+  })();
+
+  /* A shell over the works: the trail up from behind the buildings, then
+     the burst -- a peony, a ring, a gold willow, or the skull. */
+  function fwBurst(ctx, t, b) {
+    var u = t - b.at;
+    if (u < -0.5) return 0;
+    if (u < 0) {
+      var k = (u + 0.5) / 0.5, y = 640 - (640 - b.y) * (1 - (1 - k) * (1 - k));
+      additive(ctx, function () {
+        dot(ctx, '#ffe8a8', b.x, y, 6, 0.9);
+        dot(ctx, '#ffb84a', b.x, y + 18, 4, 0.5);
+        dot(ctx, '#ffb84a', b.x, y + 34, 3, 0.3);
+      });
+      return 0;
+    }
+    var life = b.kind === 'willow' ? 2.6 : (b.kind === 'skull' ? 3.0 : 1.8);
+    if (u > life) return 0;
+    var fade = 1 - u / life, R = b.kind === 'willow' ? 140 : 170;
+    var grow = R * (1 - Math.exp(-u * 3.2)), sag = (b.kind === 'willow' ? 70 : 40) * u * u;
+    additive(ctx, function () {
+      if (u < 0.2) dot(ctx, '#fff2d8', b.x, b.y, 120, 0.35 * (1 - u / 0.2));
+      if (b.kind === 'skull') {
+        var s = Math.min(1, u / 0.4) * 95;
+        FW_SKULL.forEach(function (p) { dot(ctx, b.c, b.x + p[0] * s, b.y + p[1] * s + sag * 0.3, 7, fade); });
+        return;
+      }
+      var n = b.kind === 'ring' ? 28 : 40;
+      for (var i = 0; i < n; i++) {
+        var a = i / n * TAU + (b.kind === 'ring' ? 0 : (i % 3) * 0.09);
+        var rr = b.kind === 'ring' ? grow : grow * (0.75 + 0.25 * ((i * 7) % 5) / 4);
+        var px = b.x + Math.cos(a) * rr, py = b.y + Math.sin(a) * rr * (b.kind === 'ring' ? 0.45 : 1) + sag;
+        dot(ctx, b.c, px, py, 5, fade);
+        if (b.kind === 'willow') {
+          ctx.strokeStyle = rgba('#ffc86a', 0.5 * fade); ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(a) * 26, py - 30 - Math.sin(a) * 18); ctx.stroke();
+        }
+      }
+    });
+    return u < 0.6 ? 1 - u / 0.6 : 0;
+  }
+
+  Intro.register('fireworks', {
+    tagline: 'The night before the Fourth. Everything out here is a fuse.',
+    accent: '#ffb84a',
+    cues: [[0.1, 'll_whizz', 0.4], [0.55, 'll_shellburst', 0.6], [1.25, 'll_shellburst', 0.7], [1.85, 'll_crackle', 0.5],
+           [2.4, 'll_shellburst', 0.8], [3.0, 'll_shellburst', 1.0]],
+    shakes: [[3.0, 6, 0.3]],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 90, 0, 360), embers: [], zeds: [] };
+      for (var i = 0; i < 60; i++) d.embers.push({ x: r() * VW, y: between(r, 300, 880), p: r() * 6, v: between(r, 20, 60) });
+      var looks = [['#2a3a5a', '#2a3a5a', '#6fae55'], ['#d8ccb0', '#6a6a66', '#7fb069'], ['#c8282a', '#c8b088', '#5f9a4c'],
+                   ['#c83a3a', '#3a4a7a', '#86b86a'], ['#c8a868', '#3a3a3a', '#6c9f68'], ['#c82a3a', '#c82a3a', '#79a84e']];
+      for (i = 0; i < 7; i++) d.zeds.push({ x: 1180 + i * 110 + between(r, -25, 25), at: 0.8 + i * 0.22, p: r() * 6, look: looks[i % looks.length] });
+      d.bursts = [
+        { at: 0.55, x: 250, y: 280, c: '#ffc86a', kind: 'willow' },
+        { at: 1.25, x: 1350, y: 230, c: '#ff4a4a', kind: 'peony' },
+        { at: 1.85, x: 720, y: 430, c: '#4a9aff', kind: 'ring' },
+        { at: 2.4, x: 160, y: 420, c: '#5aff7a', kind: 'peony' },
+        { at: 3.0, x: 1380, y: 200, c: '#d8ffd0', kind: 'skull' }
+      ];
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#05060f'], [0.55, '#151530'], [0.85, '#3a1e30'], [1, '#5a2a24']], 640);
+      starsK(ctx, d.stars, t, 0.6);
+      var flash = 0, tint = '#ffffff';
+      d.bursts.forEach(function (b) { var f = fwBurst(ctx, t, b); if (f > flash) { flash = f; tint = b.c; } });
+      var base = 640;
+      // the magazines under their mounds, the headwalls showing
+      ctx.fillStyle = '#16241a';
+      [[90, 120], [300, 110]].forEach(function (m) {
+        ctx.beginPath(); ctx.ellipse(m[0], base, m[1], 70, 0, Math.PI, 0); ctx.fill();
+      });
+      ctx.fillStyle = '#4a5054'; ctx.fillRect(150, base - 50, 60, 50); ctx.fillRect(360, base - 46, 56, 46);
+      ctx.fillStyle = '#0a0c0e'; ctx.fillRect(168, base - 34, 24, 34); ctx.fillRect(376, base - 30, 24, 30);
+      // the giant rocket and its gantry
+      var rx = 560;
+      ctx.strokeStyle = '#3a3e44'; ctx.lineWidth = 3;
+      ctx.strokeRect(rx - 110, base - 150, 60, 150);
+      ctx.beginPath(); ctx.moveTo(rx - 110, base - 75); ctx.lineTo(rx - 50, base - 75); ctx.stroke();
+      ctx.fillStyle = '#8a1a1e'; ctx.fillRect(rx - 26, base - 330, 52, 290);
+      ctx.fillStyle = '#c8a038';
+      [base - 300, base - 210, base - 120].forEach(function (y) { ctx.fillRect(rx - 28, y, 56, 14); });
+      ctx.beginPath(); ctx.moveTo(rx - 28, base - 330); ctx.lineTo(rx, base - 410); ctx.lineTo(rx + 28, base - 330); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(rx - 26, base - 40); ctx.lineTo(rx - 64, base); ctx.lineTo(rx - 26, base - 110); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(rx + 26, base - 40); ctx.lineTo(rx + 64, base); ctx.lineTo(rx + 26, base - 110); ctx.fill();
+      if (Math.sin(t * 30) > 0) additive(ctx, function () { dot(ctx, '#ffd84a', rx + 8, base - 6, 8, 0.9); });
+      // the assembly hall, the name on its roof
+      ctx.fillStyle = '#2a2622'; ctx.fillRect(700, base - 90, 420, 90);
+      ctx.fillStyle = 'rgba(255,207,122,0.55)';
+      for (var w = 0; w < 6; w++) ctx.fillRect(724 + w * 66, base - 64, 34, 26);
+      ctx.font = '900 34px ' + HEAVY; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = flash > 0.2 ? '#ff5a4a' : '#7a1a1a';
+      spaced(ctx, 'BLACKPOWDER', 910, base - 96, 4);
+      // the outlet and its gorilla, swaying
+      ctx.fillStyle = '#2a2a2c'; ctx.fillRect(1220, base - 70, 300, 70);
+      ctx.save(); ctx.translate(1370, base - 70); ctx.rotate(Math.sin(t * 0.9) * 0.05);
+      ctx.fillStyle = '#121216';
+      ctx.beginPath(); ctx.ellipse(0, -70, 52, 64, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, -150, 34, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(44, -110); ctx.rotate(-2.3 + Math.sin(t * 1.2) * 0.1); ctx.fillRect(-11, 0, 22, 70); ctx.restore();
+      ctx.save(); ctx.translate(-44, -110); ctx.rotate(2.0 + Math.sin(t * 2.0) * 0.3); ctx.fillRect(-11, 0, 22, 66); ctx.restore();
+      ctx.fillStyle = '#8a1a1e'; ctx.fillRect(88, -230, 14, 50);
+      ctx.fillStyle = '#e8e2d0'; ctx.fillRect(-14, -154, 9, 9); ctx.fillRect(5, -154, 9, 9);
+      ctx.restore();
+      // the water tower against the sky
+      ctx.fillStyle = '#1e2226';
+      ctx.fillRect(1500, base - 190, 6, 190); ctx.fillRect(1560, base - 190, 6, 190);
+      ctx.beginPath(); ctx.ellipse(1533, base - 220, 52, 40, 0, 0, TAU); ctx.fill();
+      // the show field: the sandbag line, the racks, them among the racks
+      var g = ctx.createLinearGradient(0, base, 0, VH);
+      g.addColorStop(0, '#12180e'); g.addColorStop(1, '#070906');
+      ctx.fillStyle = g; ctx.fillRect(0, base, VW, VH - base);
+      ctx.fillStyle = '#3a3426';
+      for (var sb = 0; sb < 9; sb++) { roundRect(ctx, 40 + sb * 180, base + 30, 140, 26, 10); ctx.fill(); }
+      for (var rk = 0; rk < 6; rk++) {
+        var x0 = 120 + rk * 250;
+        ctx.fillStyle = '#2a1e14'; ctx.fillRect(x0, base + 110, 120, 24);
+        ctx.fillStyle = '#151615';
+        for (var tb = 0; tb < 5; tb++) ctx.fillRect(x0 + 8 + tb * 23, base + 76, 14, 36);
+      }
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x - (t - z.at) * 70, 790, 2.1, t, z.look, -1, z.p);
+        ctx.restore();
+      });
+      // the burst lighting everything up
+      if (flash > 0) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = rgba(tint, 0.16 * flash); ctx.fillRect(0, 0, VW, VH);
+        ctx.restore();
+      }
+      // embers drifting up
+      additive(ctx, function () {
+        d.embers.forEach(function (e) {
+          var y = ((e.y - t * e.v) % 600 + 600) % 600 + 280;
+          dot(ctx, '#ffae4a', e.x + Math.sin(t + e.p) * 12, y, 3, 0.5 + 0.4 * Math.sin(t * 4 + e.p));
+        });
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Blackpowder Fireworks Co.').toUpperCase();
+      var k = outBack(seg(t, 0.35, 0.8), 1.4);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 220);
+      ctx.rotate(-0.04 - (1 - k) * 0.5);
+      ctx.scale(0.8 * k, 0.8 * k);
+      // the label off a crate of common fireworks: red, a gold double rule,
+      // the starburst with the rocket on it
+      ctx.fillStyle = '#b8242a'; roundRect(ctx, -480, -140, 960, 280, 6); ctx.fill();
+      ctx.strokeStyle = '#e8c35a'; ctx.lineWidth = 7; roundRect(ctx, -462, -122, 924, 244, 4); ctx.stroke();
+      ctx.lineWidth = 2; roundRect(ctx, -448, -108, 896, 216, 3); ctx.stroke();
+      ctx.save(); ctx.translate(-350, 0);
+      ctx.fillStyle = '#e8c35a'; ctx.beginPath();
+      for (var i = 0; i < 24; i++) { var a = i / 24 * TAU, rr = i % 2 ? 62 : 88; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#b8242a'; ctx.beginPath(); ctx.arc(0, 0, 56, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e8c35a'; ctx.fillRect(-9, -26, 18, 46);
+      ctx.beginPath(); ctx.moveTo(-11, -26); ctx.lineTo(0, -48); ctx.lineTo(11, -26); ctx.fill();
+      ctx.fillRect(-2, 20, 4, 26);
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#e8c35a';
+      spaced(ctx, 'CLASS C  ·  COMMON FIREWORKS  ·  EST. 1911', 90, -78, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 70, 640, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = '#4a0a0e'; spaced(ctx, name, 94, 6, size * 0.04);
+      ctx.fillStyle = '#f6e8c0'; spaced(ctx, name, 90, 2, size * 0.04);
+      ctx.font = 'bold 22px ' + HEAVY; ctx.fillStyle = '#e8c35a';
+      ctx.globalAlpha = Math.sin(t * 6) > -0.3 ? 1 : 0.4;
+      spaced(ctx, 'LIGHT FUSE AND GET AWAY', 90, 78, 5);
+      ctx.restore();
+    }
+  });
+
+  // ================================================ St. Bride's Mount
+  Intro.register('mount', {
+    tagline: 'The tide comes in as fast as a galloping horse. So do they.',
+    accent: '#9ad8ff',
+    cues: [[0.1, 'll_wind', 0.4], [0.9, 'll_gull', 0.5], [1.8, 'll_organ', 0.6], [2.8, 'll_gull', 0.4]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 70, 0, 300), mist: [], zeds: [], gulls: [] };
+      for (var i = 0; i < 7; i++) d.mist.push({ y: between(r, 420, 640), x: r() * VW, w: between(r, 400, 800), v: between(r, 8, 20) });
+      var looks = [['#5a4028', '#5a4028', '#6fae55'], ['#e8c81a', '#3a4a6a', '#7fb069'], ['#6a5a48', '#4a4038', '#5f9a4c'],
+                   ['#e8a81a', '#e8a81a', '#86b86a'], ['#1a1a1e', '#1a1a1e', '#6c9f68'], ['#2a3a5a', '#5a4a38', '#79a84e']];
+      for (i = 0; i < 8; i++) {
+        var left = i % 2 === 0;
+        d.zeds.push({ x: left ? -40 - i * 60 : VW + 40 + i * 60, at: 0.5 + i * 0.25, p: r() * 6, look: looks[i % looks.length],
+                      dir: left ? 1 : -1, y: between(r, 720, 790) });
+      }
+      for (i = 0; i < 6; i++) d.gulls.push({ x: r() * VW, y: between(r, 140, 320), p: r() * 6, v: between(r, 30, 60) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#060c16'], [0.5, '#16222e'], [0.85, '#3a4a54'], [1, '#5a6a70']], 660);
+      starsK(ctx, d.stars, t, 0.5);
+      additive(ctx, function () { dot(ctx, '#e8f0f2', 1260, 170, 46, 0.5); dot(ctx, '#c8d8e0', 1260, 170, 140, 0.12); });
+      var base = 640, cx = 800;
+      // the rock in its terraces, the village climbing it, the abbey on top
+      // (kept under the title, so the saint on the spire shows)
+      ctx.fillStyle = '#1c2228';
+      ctx.fillRect(cx - 330, base - 37, 660, 37);
+      ctx.fillRect(cx - 270, base - 74, 540, 37);
+      ctx.fillRect(cx - 200, base - 112, 400, 38);
+      ctx.fillRect(cx - 130, base - 149, 260, 37);
+      ctx.fillStyle = '#242c32';
+      for (var m = 0; m < 22; m++) ctx.fillRect(cx - 330 + m * 30, base - 45, 16, 8);
+      ctx.fillStyle = '#20282e';
+      [[-250, -74], [-190, -74], [-120, -74], [140, -74], [210, -74], [-170, -112], [-90, -112], [100, -112], [150, -112]].forEach(function (h) {
+        var x = cx + h[0], y = base + h[1];
+        ctx.fillRect(x - 18, y - 28, 36, 28);
+        ctx.beginPath(); ctx.moveTo(x - 22, y - 28); ctx.lineTo(x, y - 46); ctx.lineTo(x + 22, y - 28); ctx.fill();
+      });
+      ctx.fillStyle = 'rgba(255,207,122,0.7)';
+      [[-250, -90], [-190, -96], [140, -90], [210, -96], [-90, -128], [100, -126]].forEach(function (w) {
+        if (Math.sin(t * 0.7 + w[0]) > -0.6) ctx.fillRect(cx + w[0] - 5, base + w[1], 10, 10);
+      });
+      // the abbey church, the spire, the saint
+      ctx.fillStyle = '#262e34';
+      ctx.fillRect(cx - 60, base - 205, 120, 56);
+      ctx.beginPath(); ctx.moveTo(cx - 70, base - 205); ctx.lineTo(cx, base - 236); ctx.lineTo(cx + 70, base - 205); ctx.fill();
+      ctx.fillRect(cx - 8, base - 292, 16, 62);
+      ctx.beginPath(); ctx.moveTo(cx - 8, base - 292); ctx.lineTo(cx, base - 330); ctx.lineTo(cx + 8, base - 292); ctx.fill();
+      var organ = seg(t, 1.8, 2.2);
+      ctx.fillStyle = 'rgba(255,200,120,' + (0.35 + organ * 0.5) + ')';
+      for (var l = 0; l < 4; l++) ctx.fillRect(cx - 48 + l * 28, base - 198, 12, 26);
+      additive(ctx, function () {
+        dot(ctx, '#ffd86a', cx, base - 336, 8, 0.9);
+        if (organ > 0) dot(ctx, '#ffc87a', cx, base - 180, 160, 0.18 * organ);
+      });
+      // the beacon on its rock, off to the left
+      ctx.fillStyle = '#1a2026'; ctx.beginPath(); ctx.ellipse(260, base, 90, 34, 0, Math.PI, 0); ctx.fill();
+      ctx.fillRect(252, base - 110, 16, 90);
+      if (Math.sin(t * 3) > 0) additive(ctx, function () { dot(ctx, '#ffe8a8', 260, base - 116, 16, 0.95); });
+      // the sands, the causeway with its lamps, and the tide coming in
+      var g = ctx.createLinearGradient(0, base, 0, VH);
+      g.addColorStop(0, '#5a5040'); g.addColorStop(1, '#2a2620');
+      ctx.fillStyle = g; ctx.fillRect(0, base, VW, VH - base);
+      ctx.fillStyle = '#4a4438';
+      ctx.beginPath(); ctx.moveTo(cx - 40, base); ctx.lineTo(cx + 40, base); ctx.lineTo(cx + 140, VH); ctx.lineTo(cx - 140, VH); ctx.fill();
+      for (var lp = 0; lp < 6; lp++) {
+        var k = lp / 5, lx = 40 + k * 100, ly = base + 6 + k * (VH - base - 6);
+        additive(ctx, function () { dot(ctx, '#ffe2a8', cx - lx, ly - 30 - k * 20, 5 + k * 4, 0.9); dot(ctx, '#ffe2a8', cx + lx, ly - 30 - k * 20, 5 + k * 4, 0.9); });
+      }
+      var tide = Math.min(1, t / 3.4);
+      var water = base + 260 - tide * 190;
+      ctx.fillStyle = 'rgba(58,106,122,0.55)';
+      ctx.fillRect(0, water, cx - 60 - (VH - water) * 0.4, VH - water);
+      ctx.fillRect(cx + 60 + (VH - water) * 0.4, water, VW, VH - water);
+      ctx.strokeStyle = 'rgba(200,225,230,0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, water + Math.sin(t * 2) * 2); ctx.lineTo(cx - 60 - (VH - water) * 0.4, water); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + 60 + (VH - water) * 0.4, water); ctx.lineTo(VW, water + Math.sin(t * 2 + 1) * 2); ctx.stroke();
+      // them, wading in from both sides toward the causeway
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var x = z.x + (t - z.at) * 75 * z.dir;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, x, z.y, 1.9, t, z.look, z.dir, z.p);
+        ctx.restore();
+        if (z.y > water) {
+          ctx.fillStyle = 'rgba(58,106,122,0.8)';
+          ctx.fillRect(x - 30, Math.max(water, z.y - 30), 60, z.y - Math.max(water, z.y - 30) + 8);
+        }
+      });
+      // mist drifting over the bay, and the gulls
+      d.mist.forEach(function (mi) {
+        var x = ((mi.x + t * mi.v) % (VW + mi.w)) - mi.w;
+        var mg = ctx.createLinearGradient(0, mi.y - 30, 0, mi.y + 30);
+        mg.addColorStop(0, 'rgba(220,232,236,0)'); mg.addColorStop(0.5, 'rgba(220,232,236,0.16)'); mg.addColorStop(1, 'rgba(220,232,236,0)');
+        ctx.fillStyle = mg; ctx.fillRect(x, mi.y - 30, mi.w, 60);
+      });
+      ctx.strokeStyle = '#c8d0d4'; ctx.lineWidth = 2;
+      d.gulls.forEach(function (gl) {
+        var x = (gl.x + t * gl.v) % VW, y = gl.y + Math.sin(t * 1.3 + gl.p) * 10, flap = Math.sin(t * 8 + gl.p) * 5;
+        ctx.beginPath(); ctx.moveTo(x - 10, y - flap); ctx.lineTo(x, y); ctx.lineTo(x + 10, y - flap); ctx.stroke();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || "St. Bride's Mount").toUpperCase();
+      var k = outCubic(seg(t, 0.35, 0.95));
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 200);
+      ctx.globalAlpha = k;
+      ctx.scale(0.8, 0.8);
+      // a leaf from the abbey's book: vellum, a ruled border, the illuminated
+      // capital in its gold square, the name, the warning in red
+      ctx.fillStyle = '#efe4c8'; roundRect(ctx, -470, -130 + (1 - k) * 30, 940, 250, 4); ctx.fill();
+      ctx.strokeStyle = '#8a2a1a'; ctx.lineWidth = 3; roundRect(ctx, -450, -110 + (1 - k) * 30, 900, 210, 2); ctx.stroke();
+      ctx.save(); ctx.translate(-360, -6 + (1 - k) * 30);
+      ctx.fillStyle = '#c8a03a'; ctx.fillRect(-70, -70, 140, 140);
+      ctx.fillStyle = '#1a3a8a'; ctx.fillRect(-60, -60, 120, 120);
+      ctx.font = '900 110px ' + HEAVY; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#c8282a'; ctx.fillText('S', 0, 6);
+      ctx.strokeStyle = '#e8c35a'; ctx.lineWidth = 3; ctx.strokeText('S', 0, 6);
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#5a4a38';
+      spaced(ctx, 'THE ABBEY  ·  THE VILLAGE  ·  THE CAUSEWAY', 80, -62 + (1 - k) * 30, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 66, 640, 0.04);
+      ctx.font = '900 ' + size + 'px ' + HEAVY; ctx.fillStyle = '#2a1a10';
+      spaced(ctx, name, 80, 4 + (1 - k) * 30, size * 0.04);
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#8a2a1a';
+      spaced(ctx, 'MIND  THE  TIDE', 80, 66 + (1 - k) * 30, 6);
+      ctx.restore();
+    }
+  });
+
+  // ==================================================== Splash Kingdom
+  Intro.register('waterpark', {
+    tagline: 'Last night of the season. The pools are warm. They are coming in anyway.',
+    accent: '#4ae8f2',
+    cues: [[0.2, 'll_wind', 0.3], [0.9, 'll_ding', 0.6], [1.6, 'll_bigsplash', 0.9], [2.5, 'll_wavehorn', 0.5]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 80, 0, 320), steam: [], zeds: [], tubes: [] };
+      for (var i = 0; i < 26; i++) d.steam.push({ x: r() * VW, y: between(r, 660, 800), p: r() * 6, s: between(r, 30, 70) });
+      var looks = [['#2ac8c8', '#ff7a5a', '#6fae55'], ['#f2f2ee', '#c82a2a', '#7fb069'], ['#ff8a3a', '#c8b088', '#5f9a4c'],
+                   ['#4aa83a', '#4aa83a', '#86b86a'], ['#f6f6f2', '#f6f6f2', '#6c9f68'], ['#1a1a1e', '#1a1a1e', '#79a84e']];
+      for (i = 0; i < 6; i++) d.zeds.push({ x: 360 + i * 175 + between(r, -30, 30), at: 0.6 + i * 0.28, p: r() * 6, look: looks[i] });
+      for (i = 0; i < 4; i++) d.tubes.push({ x: 300 + i * 300 + between(r, -40, 40), c: ['#ffd84a', '#ff7a5a', '#2ac8c8', '#7a3aa8'][i], p: r() * 6 });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050c16'], [0.6, '#10283a'], [1, '#1e4a5a']], 640);
+      starsK(ctx, d.stars, t, 0.6);
+      var base = 640;
+      // the Kraken: the tower, its head with the yellow eyes, the tubes
+      ctx.fillStyle = '#20142c';
+      ctx.fillRect(1140, base - 260, 90, 260);
+      ctx.fillStyle = '#3a1a52';
+      ctx.beginPath(); ctx.ellipse(1185, base - 300, 110, 70, 0, 0, TAU); ctx.fill();
+      for (var tn = 0; tn < 5; tn++) {
+        ctx.save(); ctx.translate(1100 + tn * 42, base - 260); ctx.rotate(Math.sin(t * 1.2 + tn) * 0.15);
+        ctx.fillRect(-9, 0, 18, 120 + tn * 8); ctx.restore();
+      }
+      additive(ctx, function () { dot(ctx, '#ffd84a', 1150, base - 305, 16, 0.95); dot(ctx, '#ffd84a', 1220, base - 305, 16, 0.95); });
+      ctx.strokeStyle = '#6a2a8a'; ctx.lineWidth = 26; ctx.beginPath();
+      for (var h = 0; h <= 40; h++) {
+        var k = h / 40, a = k * 2.3 * TAU, x = 1290 + Math.cos(a) * 90 * (1 - k * 0.3), y = base - 250 + k * 230;
+        if (h) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = '#2a8a4a'; ctx.beginPath(); ctx.moveTo(1230, base - 240);
+      ctx.quadraticCurveTo(1480, base - 220, 1560, base - 10); ctx.stroke();
+      // Fort Splashmore and the big bucket, which tips
+      ctx.fillStyle = '#2a1e14';
+      ctx.fillRect(280, base - 120, 260, 120); ctx.fillRect(320, base - 190, 180, 70); ctx.fillRect(370, base - 250, 80, 60);
+      ctx.fillRect(360, base - 330, 10, 80); ctx.fillRect(450, base - 330, 10, 80); ctx.fillRect(355, base - 336, 110, 10);
+      var tip = seg(t, 1.3, 1.6);
+      ctx.save(); ctx.translate(410, base - 326); ctx.rotate(tip * 2.2);
+      ctx.fillStyle = '#a8222a'; ctx.fillRect(-34, 0, 68, 56); ctx.fillStyle = '#e8b83a'; ctx.fillRect(-36, -4, 72, 8);
+      ctx.restore();
+      var pour = t - 1.4;
+      if (pour > 0 && pour < 1.4) {
+        ctx.fillStyle = 'rgba(160,240,255,' + (0.6 * (1 - pour / 1.4)) + ')';
+        ctx.fillRect(420, base - 300, 70, 300 * Math.min(1, pour * 2));
+        additive(ctx, function () { dot(ctx, '#d8faff', 455, base - 10, 120 * Math.min(1, pour * 1.5), 0.3 * (1 - pour / 1.4)); });
+      }
+      // palms, the lifeguard chair, the arch's neon at the back
+      ctx.fillStyle = '#0c1a18';
+      [120, 640, 980, 1500].forEach(function (px, i) {
+        ctx.fillRect(px - 5, base - 200 - i * 10, 10, 200 + i * 10);
+        for (var f = 0; f < 6; f++) {
+          ctx.save(); ctx.translate(px, base - 200 - i * 10); ctx.rotate(-1.5 + f * 0.6 + Math.sin(t + i) * 0.05);
+          ctx.beginPath(); ctx.ellipse(40, 0, 44, 7, 0, 0, TAU); ctx.fill(); ctx.restore();
+        }
+      });
+      ctx.fillStyle = '#e8e8e2'; ctx.fillRect(760, base - 110, 6, 110); ctx.fillRect(820, base - 110, 6, 110);
+      ctx.fillStyle = '#ff7a5a'; ctx.fillRect(752, base - 120, 82, 12);
+      ctx.beginPath(); ctx.moveTo(740, base - 150); ctx.lineTo(793, base - 176); ctx.lineTo(846, base - 150); ctx.fill();
+      // the wave pool: the glow, the steam, the tubes, them wading in
+      var g = ctx.createLinearGradient(0, base, 0, VH);
+      g.addColorStop(0, '#1a8a9a'); g.addColorStop(1, '#0a3a48');
+      ctx.fillStyle = g; ctx.fillRect(0, base, VW, VH - base);
+      for (var w = 0; w < 5; w++) {
+        var wy = base + 20 + ((t * 30 + w * 50) % 260);
+        ctx.strokeStyle = 'rgba(200,250,255,0.25)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, wy); ctx.quadraticCurveTo(VW / 2, wy - 8, VW, wy); ctx.stroke();
+      }
+      d.tubes.forEach(function (tb) {
+        var x = tb.x + Math.sin(t * 0.5 + tb.p) * 30, y = base + 60 + Math.sin(t * 1.3 + tb.p) * 5;
+        ctx.fillStyle = tb.c; ctx.beginPath(); ctx.ellipse(x, y, 34, 12, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#0e4a58'; ctx.beginPath(); ctx.ellipse(x, y, 14, 5, 0, 0, TAU); ctx.fill();
+      });
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.6);
+        if (k2 <= 0) return;
+        var y = 700 + (t - z.at) * 26;
+        ctx.save(); ctx.globalAlpha = k2;
+        LL.shambler(ctx, z.x, y, 2.2, t, z.look, z.x < 800 ? 1 : -1, z.p);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(22,120,136,0.88)';
+        ctx.fillRect(z.x - 40, y - 34, 80, 40);
+        ctx.strokeStyle = 'rgba(220,250,255,0.6)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(z.x, y - 34, 30, 5, 0, 0, TAU); ctx.stroke();
+      });
+      d.steam.forEach(function (st) {
+        var y = st.y - ((t * 22 + st.p * 40) % 120);
+        ctx.fillStyle = 'rgba(230,245,248,' + (0.08 + 0.04 * Math.sin(t + st.p)) + ')';
+        ctx.beginPath(); ctx.ellipse(st.x + Math.sin(t * 0.5 + st.p) * 20, y, st.s, st.s * 0.6, 0, 0, TAU); ctx.fill();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Splash Kingdom').toUpperCase();
+      var k = outBack(seg(t, 0.35, 0.8), 1.3);
+      if (k <= 0) return;
+      ctx.save();
+      ctx.translate(800, 210);
+      ctx.rotate(0.05 - (1 - k) * 0.4);
+      ctx.scale(0.8 * k, 0.8 * k);
+      // a day pass: teal, the stub torn along its perforations, the King
+      ctx.fillStyle = '#2ac8c8'; roundRect(ctx, -470, -120, 940, 240, 18); ctx.fill();
+      ctx.fillStyle = '#ffd84a'; roundRect(ctx, -470, -120, 170, 240, 18); ctx.fill();
+      ctx.fillStyle = '#123a48';
+      for (var p = 0; p < 12; p++) { ctx.beginPath(); ctx.arc(-300, -104 + p * 19, 4, 0, TAU); ctx.fill(); }
+      ctx.save(); ctx.translate(-385, 0);
+      ctx.fillStyle = '#4aa83a'; ctx.beginPath(); ctx.ellipse(0, 18, 56, 44, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f2f2ee'; ctx.beginPath(); ctx.arc(-22, -18, 16, 0, TAU); ctx.arc(22, -18, 16, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(-20, -16, 7, 0, TAU); ctx.arc(24, -16, 7, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e8b83a'; ctx.beginPath(); ctx.moveTo(-30, -38); ctx.lineTo(-20, -62); ctx.lineTo(-6, -44); ctx.lineTo(0, -66);
+      ctx.lineTo(6, -44); ctx.lineTo(20, -62); ctx.lineTo(30, -38); ctx.fill();
+      ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#123a48';
+      spaced(ctx, 'ADMIT ONE  ·  DAY PASS  ·  ALL RIDES', 90, -72, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 76, 600, 0.05);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = '#7a3aa8'; spaced(ctx, name, 95, 9, size * 0.05);
+      ctx.fillStyle = '#ffffff'; spaced(ctx, name, 90, 4, size * 0.05);
+      ctx.font = 'bold 20px ' + HEAVY; ctx.fillStyle = '#123a48';
+      spaced(ctx, 'VALID THE LAST NIGHT OF THE SEASON ONLY', 90, 76, 3);
+      ctx.restore();
+    }
+  });
+
+  // ===================================================== Lumen Caverns
+  /* Black, but for the glow-worms.  A drip.  Then the tour lights clunk on
+     at the formations' feet, the light show starts up over the Pillar of
+     Ages -- and in the colours, the last tour group shuffling in among the
+     stalagmites.  The bats go.  The cave's old wooden sign swings down on
+     its chains, the light show's board under it. */
+  Intro.register('caverns', {
+    tagline: 'Deep under the hill, the lights went out. The last tour is still coming through.',
+    accent: '#6af2c8',
+    cues: [[0.15, 'll_plop', 0.5], [0.7, 'll_clunk', 0.8], [1.5, 'll_lightshow', 0.7], [2.15, 'll_flutter', 0.7]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { worms: [], tites: [], mites: [], zeds: [], bats: [], lamps: [] };
+      for (var i = 0; i < 160; i++) {
+        d.worms.push({ x: r() * VW, y: 8 + Math.pow(r(), 1.6) * 330, p: r() * 6, s: between(r, 2, 5) });
+      }
+      for (i = 0; i < 28; i++) d.tites.push({ x: i * 60 + between(r, -18, 18), w: between(r, 14, 44), h: between(r, 50, 210) });
+      for (i = 0; i < 16; i++) {
+        var x = i * 104 + between(r, -30, 30);
+        if (Math.abs(x - 800) < 150) continue;
+        d.mites.push({ x: x, w: between(r, 30, 76), h: between(r, 80, 260), tone: r() });
+      }
+      var looks = [['#d86a2a', '#a8582a', '#6fae55'], ['#b8a878', '#5a5a3a', '#7fb069'], ['#3a4a5a', '#4a4038', '#5f9a4c'],
+                   ['#8ac8e8', '#c8b088', '#86b86a'], ['#7a6a4a', '#5a5048', '#6c9f68'], ['#2a6a5a', '#2a2a2e', '#79a84e']];
+      var xs = [250, 420, 580, 1030, 1190, 1360];
+      for (i = 0; i < 6; i++) {
+        d.zeds.push({ x: xs[i] + between(r, -20, 20), at: 0.95 + i * 0.2, p: r() * 6, look: looks[i], dir: xs[i] < 800 ? 1 : -1 });
+      }
+      for (i = 0; i < 16; i++) d.bats.push({ y: between(r, 340, 520), sp: between(r, 520, 860), p: r() * 6, at: 2.1 + r() * 0.5,
+                                             dir: i % 2 ? 1 : -1, s: between(r, 1.6, 2.6) });
+      d.lamps = [[130, 782], [520, 792], [1080, 792], [1470, 782]];
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050607'], [0.5, '#0e0c0a'], [1, '#1a1612']]);
+      var lights = seg(t, 0.7, 0.75) * (t < 0.95 ? (Math.sin(t * 90) > -0.3 ? 1 : 0.2) : 1);
+      var show = seg(t, 1.5, 1.9);
+      var cols = ['#ff3a5a', '#3af2a8', '#3a8aff', '#ffd84a', '#c83aff'];
+      var wash = cols[Math.floor(Math.max(0, t - 1.5) * 1.4) % cols.length];
+      // the glow-worms on the roof, breathing
+      additive(ctx, function () {
+        d.worms.forEach(function (w) {
+          dot(ctx, '#7affd8', w.x, w.y, w.s * 2.2, (0.35 + 0.35 * Math.sin(t * 1.4 + w.p)) * (1 - 0.5 * lights));
+        });
+      });
+      // the far wall: bulges of rock, warm where the tour lights reach
+      ctx.fillStyle = '#16120e';
+      for (var b = 0; b < 7; b++) {
+        ctx.beginPath(); ctx.ellipse(b * 260 + 60, 560 + (b % 2) * 50, 220, 260, 0, 0, TAU); ctx.fill();
+      }
+      // the Pillar of Ages: a column out of the roof to the floor, fluted
+      var px = 800;
+      ctx.fillStyle = '#4a4034';
+      ctx.beginPath();
+      ctx.moveTo(px - 90, 0); ctx.quadraticCurveTo(px - 40, 420, px - 120, 900);
+      ctx.lineTo(px + 120, 900); ctx.quadraticCurveTo(px + 40, 420, px + 90, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,24,18,0.6)'; ctx.lineWidth = 6;
+      for (var fl = -2; fl <= 2; fl++) {
+        ctx.beginPath(); ctx.moveTo(px + fl * 30, 0); ctx.quadraticCurveTo(px + fl * 12, 420, px + fl * 42, 900); ctx.stroke();
+      }
+      // the light on it: the tour lights' amber from below, then the show's colours
+      additive(ctx, function () {
+        dot(ctx, '#ffb86a', px, 820, 220, 0.35 * lights, 320);
+        if (show > 0) {
+          dot(ctx, wash, px, 560, 260, 0.45 * show, 420);
+          for (var k = 0; k < d.lamps.length; k++) {
+            var L = d.lamps[k], c = cols[(k + Math.floor(t * 1.4)) % cols.length];
+            var tx = px + Math.sin(t * 1.3 + k * 1.7) * 160, ty = 420 + Math.sin(t * 0.9 + k) * 150;
+            var g = ctx.createLinearGradient(L[0], L[1], tx, ty);
+            g.addColorStop(0, rgba(c, 0.5 * show)); g.addColorStop(1, rgba(c, 0));
+            ctx.fillStyle = g;
+            var ang = Math.atan2(ty - L[1], tx - L[0]), spread = 70;
+            ctx.beginPath(); ctx.moveTo(L[0], L[1]);
+            ctx.lineTo(tx + Math.sin(ang) * spread, ty - Math.cos(ang) * spread);
+            ctx.lineTo(tx - Math.sin(ang) * spread, ty + Math.cos(ang) * spread); ctx.closePath(); ctx.fill();
+            dot(ctx, c, L[0], L[1] - 6, 30, show);
+          }
+        }
+      });
+      // the stalactites along the roof, one of them dripping
+      ctx.fillStyle = '#231e18';
+      d.tites.forEach(function (s) {
+        ctx.beginPath(); ctx.moveTo(s.x - s.w / 2, 0); ctx.lineTo(s.x, s.h); ctx.lineTo(s.x + s.w / 2, 0); ctx.closePath(); ctx.fill();
+      });
+      var drip = d.tites[9], u = t % 2.2;
+      if (u < 0.5) {
+        ctx.fillStyle = 'rgba(200,232,242,0.8)';
+        ctx.beginPath(); ctx.ellipse(drip.x, Math.min(788, drip.h + u * u * 2700), 3, 5, 0, 0, TAU); ctx.fill();
+      }
+      // the stalagmites in front, rimmed in whatever light there is
+      d.mites.forEach(function (s) {
+        ctx.fillStyle = s.tone > 0.5 ? '#2c251c' : '#221c15';
+        ctx.beginPath(); ctx.moveTo(s.x - s.w / 2, 900); ctx.quadraticCurveTo(s.x - s.w * 0.15, 900 - s.h * 0.6, s.x, 900 - s.h);
+        ctx.quadraticCurveTo(s.x + s.w * 0.15, 900 - s.h * 0.6, s.x + s.w / 2, 900); ctx.closePath(); ctx.fill();
+      });
+      additive(ctx, function () {
+        d.mites.forEach(function (s) {
+          dot(ctx, '#ffb86a', s.x, 900 - s.h * 0.3, s.w * 0.9, 0.32 * lights, s.h * 0.4);
+          if (show > 0) dot(ctx, wash, s.x + (s.x < px ? 8 : -8), 900 - s.h * 0.7, s.w * 0.4, 0.3 * show, s.h * 0.3);
+        });
+        d.lamps.forEach(function (L) { dot(ctx, '#ffd8a0', L[0], L[1], 60, 0.4 * lights); });
+      });
+      // the last tour group, shuffling in
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.5);
+        if (k2 <= 0) return;
+        var x = z.x + z.dir * (t - z.at) * 30;
+        ctx.save(); ctx.globalAlpha = k2 * (0.35 + 0.65 * Math.max(lights * 0.6, show));
+        shambler(ctx, x, 772, 2.4, t, z.look, z.dir, z.p);
+        ctx.restore();
+      });
+      // the bats, off the roof and out over everybody
+      d.bats.forEach(function (bt) {
+        var a = t - bt.at;
+        if (a <= 0) return;
+        var x = px + bt.dir * a * bt.sp, y = bt.y - a * 60 + Math.sin(a * 8 + bt.p) * 14;
+        if (x < -40 || x > VW + 40) return;
+        batK(ctx, x, y, bt.s, t * 24 + bt.p);
+      });
+      // the puddle the drip lands in, the colours in it
+      ctx.fillStyle = 'rgba(8,16,20,0.85)';
+      ctx.beginPath(); ctx.ellipse(drip.x, 790, 120, 14, 0, 0, TAU); ctx.fill();
+      additive(ctx, function () {
+        dot(ctx, show > 0 ? wash : '#7affd8', drip.x, 790, 110, 0.1 + 0.15 * show, 10);
+        var ring = (t % 2.2) - 0.5;
+        if (ring > 0 && ring < 1.2) {
+          ctx.strokeStyle = rgba('#c8e8f2', 0.55 * (1 - ring / 1.2)); ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(drip.x, 790, 8 + ring * 60, 2 + ring * 7, 0, 0, TAU); ctx.stroke();
+        }
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Lumen Caverns').toUpperCase();
+      var k = outBack(seg(t, 0.35, 0.85), 1.15);
+      if (k <= 0) return;
+      var settle = Math.max(0, 1 - (t - 0.85) / 2.4);
+      var swing = Math.sin(t * 3.1) * 0.05 * settle;
+      ctx.save();
+      ctx.translate(800, 196 - (1 - k) * 360);
+      ctx.rotate(swing);
+      // the chains up into the dark
+      ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 4;
+      [-330, 330].forEach(function (cx) {
+        for (var y = -300; y < -96; y += 18) {
+          ctx.beginPath(); ctx.ellipse(cx, y + 9, (y / 18) % 2 ? 3 : 6, 9, 0, 0, TAU); ctx.stroke();
+        }
+      });
+      // the board: varnished planks, a routed border, a bat burned in at each end
+      ctx.fillStyle = '#3a2412'; roundRect(ctx, -440, -104, 880, 208, 16); ctx.fill();
+      ctx.fillStyle = '#6a4424'; roundRect(ctx, -430, -96, 860, 192, 12); ctx.fill();
+      ctx.strokeStyle = 'rgba(40,24,10,0.5)'; ctx.lineWidth = 2;
+      for (var pl = -2; pl <= 2; pl++) {
+        ctx.beginPath(); ctx.moveTo(-430, pl * 38); ctx.lineTo(430, pl * 38 + 2); ctx.stroke();
+      }
+      ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 4; roundRect(ctx, -410, -78, 820, 156, 10); ctx.stroke();
+      ctx.save(); ctx.translate(-360, -2); batK(ctx, 0, 0, 3.0, 1.2); ctx.restore();
+      ctx.save(); ctx.translate(360, -2); batK(ctx, 0, 0, 3.0, 1.2); ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#e8d8a8';
+      spaced(ctx, 'GUIDED TOURS ON THE HOUR  ·  MIND YOUR HEAD', 0, -54, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 78, 560, 0.08);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = '#1a0e04'; spaced(ctx, name, 4, 8, size * 0.08);
+      ctx.fillStyle = '#f2e2b0'; spaced(ctx, name, 0, 4, size * 0.08);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#e8d8a8';
+      spaced(ctx, 'EST. 1891  ·  280 FEET BELOW THE HILL', 0, 60, 4);
+      // the light show's board, hung under it on its own hooks, swinging late
+      var k3 = outBack(seg(t, 0.75, 1.2), 1.3);
+      if (k3 > 0) {
+        ctx.save();
+        ctx.translate(250, 104);
+        ctx.rotate(Math.sin(t * 3.1 - 0.9) * 0.08 * settle - (1 - k3) * 0.8);
+        ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-70, 0); ctx.lineTo(-70, 16); ctx.moveTo(70, 0); ctx.lineTo(70, 16); ctx.stroke();
+        ctx.fillStyle = '#1a1a22'; roundRect(ctx, -96, 16, 192, 40, 6); ctx.fill();
+        var lit = seg(t, 1.5, 1.6);
+        ctx.font = 'bold 18px ' + HEAVY;
+        ctx.fillStyle = lit > 0 ? cyc(t) : '#4a4a52';
+        spaced(ctx, 'LIGHT SHOW TONIGHT', 0, 37, 2);
+        ctx.restore();
+      }
+      ctx.restore();
+      function cyc(tt) { return ['#ff3a5a', '#3af2a8', '#3a8aff', '#ffd84a', '#c83aff'][Math.floor(tt * 3) % 5]; }
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

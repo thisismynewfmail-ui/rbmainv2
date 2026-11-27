@@ -195,6 +195,36 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the treetop walkway": "pc", "the lookout": "pc", "the main gate": "e", "the broad walk": "h",
         "the arboretum": "e",
     },
+    "fireworks": {
+        "the office": "sh", "the show field": "er", "the firing bunker": "sp", "the magazines": "sc",
+        "the mixing sheds": "er", "the assembly hall": "shp", "the tube shop": "pc", "the star racks": "pc",
+        "the giant rocket": "epc", "the outlet store": "hp", "the gorilla": "e", "the rail siding": "c",
+        "the loading dock": "s", "the test pond": "r", "the crater": "r", "the proving ground": "e",
+        "the spotter's tower": "pc", "the burn pit": "r", "Big Bertha": "ec", "the fire hall": "s",
+        "the water tower": "e",
+    },
+    "mount": {
+        "the inn": "shp", "the King's Gate": "s", "the causeway": "r", "the sands": "r", "the ramparts": "pc",
+        "the omelette house": "e", "the souvenir shop": "e", "the Grand Rue": "h", "the cemetery": "e",
+        "the parish church": "s", "the abbey": "spe", "the cloister": "s", "the great wheel": "e",
+        "the organ": "e", "the abbot's lodging": "s", "the beacon rock": "er", "the stranded coach": "er",
+        "the wreck": "e", "the car park": "h", "the salt meadow": "e", "the north strand": "r",
+    },
+    "waterpark": {
+        "Lifeguard HQ": "sh", "the gate": "s", "the car park": "e", "King Splash": "e", "the gift shop": "s",
+        "the lazy river": "r", "the volcano": "pc", "Fort Splashmore": "spc", "the big bucket": "e",
+        "the snack shack": "h", "the dive pool": "r", "the high boards": "pc", "the wave pool": "r",
+        "the wave machine": "s", "the cabanas": "h", "the lifeguard chair": "pc", "the Kraken": "spc",
+        "the splash basin": "r", "the chlorine store": "e", "the staff lot": "e", "the promenade": "h",
+    },
+    "caverns": {
+        "the elevator lobby": "sh", "the grand gallery": "he", "the rimstone pools": "er",
+        "the glow-worm grotto": "er", "the lost river": "r", "the river bridge": "s", "the cathedral room": "he",
+        "the pillar of ages": "sp", "the light show balcony": "spc", "the crystal chamber": "ec",
+        "the old mine": "er", "the hoist": "e", "the chasm": "r", "the rope bridge": "e", "the wishing pit": "e",
+        "the explorer's camp": "er", "the fossil wall": "e", "the dig scaffold": "pc", "the gift kiosk": "h",
+        "the boat dock": "h", "the stuck elevator": "e",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.

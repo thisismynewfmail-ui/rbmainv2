@@ -647,5 +647,195 @@
     }
   });
 
+  Thumbs.registerWorld('ll_fireworks', {
+    camera: [[46, 26, -40], [-6, 22, 60], 60],
+    sky: { top: '#070a1c', horizon: '#3a2238', sun: [0.3, 0.42, 0.7], clouds: 0.25, tint: '#d0b8d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [280, 1, 280], '#4a5a30', { st: 1 });
+      k.box([0, 0.15, 20], [80, 0.3, 84], '#b6bcc1', { st: 1 });
+      // the giant rocket on its fins, the gantry beside it
+      k.box([0, 0.5, 56], [22, 1, 22], '#b6bcc1', { st: 1 });
+      k.shape('cyl', [0, 23, 56], [9, 32, 9], '#b8282a');
+      [13, 25, 35].forEach(function (y) { k.shape('cyl', [0, y, 56], [9.4, 2, 9.4], '#e8b83a'); });
+      k.shape('cone', [0, 44, 56], [9.6, 10, 9.6], '#e8b83a');
+      k.box([7.5, 5, 56], [6, 8, 1.2], '#e8b83a'); k.box([-7.5, 5, 56], [6, 8, 1.2], '#e8b83a');
+      k.box([0, 5, 48.5], [1.2, 8, 6], '#e8b83a'); k.box([0, 5, 63.5], [1.2, 8, 6], '#e8b83a');
+      k.box([-19, 9.7, 56], [14, 0.6, 24], '#6f767d', { st: 1 });
+      k.box([-19, 19.7, 52], [14, 0.6, 16], '#6f767d', { st: 1 });
+      for (var l = 0; l < 4; l++) k.box([-25.6 + (l % 2) * 13.2, 9.8, 44.4 + Math.floor(l / 2) * 23.2], [0.8, 19.6, 0.8], '#4a5057');
+      // mortar racks and the bursts over them
+      for (var r = 0; r < 4; r++) {
+        var x = -36 + r * 24;
+        k.box([x, 0.5, 96], [12, 1, 5], '#543923');
+        for (var tb = 0; tb < 5; tb++) k.shape('cyl', [x - 4.4 + tb * 2.2, 2.6, 96], [1.6, 3.2, 1.6], '#2a2c2a');
+      }
+      var bursts = [[-30, 62, 120, '#ff4a4a'], [24, 74, 130, '#4a9aff'], [6, 54, 104, '#ffd84a']];
+      bursts.forEach(function (b) {
+        for (var i = 0; i < 22; i++) {
+          var yv = 1 - (i + 0.5) / 22 * 2, rr = Math.sqrt(1 - yv * yv), th = i * 2.4;
+          k.shape('sph', [b[0] + Math.cos(th) * rr * 12, b[1] + yv * 12, b[2] + Math.sin(th) * rr * 12], [0.9, 0.9, 0.9], b[3], { m: 'neon' });
+        }
+      });
+      // the dead coming through the racks, the team at the rocket's foot
+      k.zombie('common', -14, 84, Math.PI, 1, 'fireworks', 0, 0);
+      k.zombie('common', 10, 88, Math.PI + 0.3, 4, 'fireworks', 2, 0);
+      k.zombie('common', 26, 78, -2.6, 7, 'fireworks', 0, 0);
+      k.zombie('common', -30, 76, 2.7, 5, 'fireworks', 0, 0);
+      k.survivor(6, 30, 0.1, 0, 0.3);
+      k.survivor(16, 26, -0.3, 1, 0.3);
+      k.survivor(-4, 24, 0.4, 2, 0.3);
+    }
+  });
+
+  Thumbs.registerWorld('ll_mount', {
+    camera: [[-70, 40, -120], [0, 28, 70], 58],
+    sky: { top: '#0a1018', horizon: '#3a4a58', sun: [-0.4, 0.3, 0.8], clouds: 0.6, tint: '#b8c8d0' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 30], [300, 1, 300], '#c8b48a', { st: 1 });
+      k.box([0, 0.4, 30], [300, 0.1, 300], '#3a6a7a', { a: 0.45 });
+      k.box([0, 1, -115], [16, 2, 142], '#8a8478', { st: 1 });
+      // the rock in its terraces
+      k.box([0, 2, 58], [220, 4, 212], '#6a6a66', { st: 1 });
+      k.box([0, 7, 60], [184, 6, 180], '#9a9488', { st: 1 });
+      k.box([0, 13.5, 73], [140, 7, 126], '#9a9488', { st: 1 });
+      k.box([0, 20.5, 77], [92, 7, 94], '#a49c8c', { st: 1 });
+      k.box([0, 8, -45], [220, 8, 6], '#8a8a84');
+      for (var c = 0; c < 18; c++) k.box([-102 + c * 12, 13, -47.4], [3, 2, 1.2], '#8a8a84');
+      // houses, the inn
+      [[-50, -13, 68, 34], [-56, 24, 22, 12], [-25, 24, 26, 12], [23, 24, 22, 12], [73, -11, 30, 30]].forEach(function (h, i) {
+        var y = i === 0 || i === 4 ? 10 : 17;
+        k.box([h[0] + (i === 0 ? 40 : 0), y + 6, h[1]], [h[2], 12, h[3]], ['#e8e0cc', '#d8c0a0', '#c8d0c8', '#e8e0cc', '#d8c8a8'][i]);
+        k.box([h[0] + (i === 0 ? 40 : 0), y + 13, h[1]], [h[2] + 1, 2, h[3] * 0.6], '#3a4048');
+      });
+      // the abbey church and its spire, the saint in gold
+      k.box([0, 35, 85], [28, 22, 66], '#a49c8c');
+      k.box([0, 48, 85], [24, 4, 66], '#3a4048');
+      k.box([0, 52, 85], [12, 4, 66], '#3a4048');
+      k.box([0, 60, 85], [5, 13, 6], '#a49c8c');
+      k.shape('cone', [0, 75, 85], [3.4, 10, 3.4], '#3a4048');
+      k.shape('sph', [0, 81, 85], [1.2, 1.2, 1.2], '#e8c35a', { m: 'neon' });
+      for (var w = 0; w < 4; w++) k.box([-14.1, 36, 63 + w * 14], [0.1, 12, 6], ['#1a3a8a', '#8a1a2a', '#c8a03a', '#2a6a3a'][w], { m: 'neon', a: 0.8 });
+      // them on the sands and the causeway, the team at the gate
+      k.zombie('common', -24, -90, 0.2, 4, 'mount', 0, 0);
+      k.zombie('common', 30, -110, -0.3, 1, 'mount', 2, 0);
+      k.zombie('common', -60, -70, 0.6, 5, 'mount', 0, 0);
+      k.zombie('common', 2, -130, 0, 2, 'mount', 0, 2);
+      k.survivor(-4, -52, Math.PI, 0, 2);
+      k.survivor(5, -54, Math.PI + 0.2, 1, 2);
+    }
+  });
+
+  Thumbs.registerWorld('ll_waterpark', {
+    camera: [[-30, 28, 30], [40, 14, 140], 60],
+    sky: { top: '#081420', horizon: '#2a4a5a', sun: [0.2, 0.35, 0.8], clouds: 0.4, tint: '#b0d0d8' },
+    build: function (parts, k) {
+      k.box([0, -0.5, 100], [300, 1, 300], '#4a7a3a', { st: 1 });
+      k.box([-10, 0.15, 60], [180, 0.3, 40], '#c8c4b8', { st: 1 });
+      k.box([-10, 0.15, 75], [160, 0.3, 10], '#e0cc9a', { st: 1 });
+      // the wave pool stepping down, glowing
+      [[95, -1], [125, -2], [155, -3], [190, -4]].forEach(function (b2) {
+        k.box([-10, b2[1] - 0.5, b2[0]], [160, 1, b2[0] === 190 ? 40 : 30], '#3ab8c8', { st: 1 });
+      });
+      k.box([-10, -0.9, 145], [160, 0.8, 130], '#3ac8d8', { a: 0.6 });
+      // the Kraken and its head, the tubes
+      k.box([160, 8, 120], [20, 0.6, 20], '#7a3aa8', { st: 1 });
+      k.box([160, 16, 120], [20, 0.6, 20], '#7a3aa8', { st: 1 });
+      k.box([160, 24, 120], [20, 0.6, 20], '#7a3aa8', { st: 1 });
+      for (var l = 0; l < 4; l++) k.box([150.4 + (l % 2) * 19.2, 12, 110.4 + Math.floor(l / 2) * 19.2], [0.8, 24, 0.8], '#5a2a7a');
+      k.shape('sph', [157, 38, 120], [16, 10, 18], '#8a3ab8');
+      k.shape('sph', [153, 37, 128.6], [3.4, 3.4, 1.6], '#ffd84a', { m: 'neon' });
+      k.shape('sph', [161, 37, 128.6], [3.4, 3.4, 1.6], '#ffd84a', { m: 'neon' });
+      for (var h = 0; h < 14; h++) {
+        var a = Math.PI + h / 14 * 2.2 * Math.PI * 2;
+        k.shape('sph', [184 + Math.cos(a) * 12, 23 - h * 1.6, 112 + Math.sin(a) * 12], [3.4, 3.4, 3.4], '#8a3ab8');
+      }
+      // a cabana, the lifeguard chair, palms
+      k.box([-111, 3.5, 133], [14, 7, 14], '#ff7a5a');
+      k.box([77, 6.2, 120], [4, 0.4, 4], '#ff7a5a');
+      for (var c = 0; c < 4; c++) k.box([75.4 + (c % 2) * 3.2, 3, 118.4 + Math.floor(c / 2) * 3.2], [0.6, 6, 0.6], '#f2f2ee');
+      [[-100, 76], [80, 76], [-100, 205]].forEach(function (p) {
+        k.shape('cyl', [p[0], 5, p[1]], [1.2, 10, 1.2], '#8a6a4a');
+        k.shape('sph', [p[0], 10.4, p[1]], [8, 2, 8], '#2a7a3a');
+      });
+      // them in the pool, the team on the beach
+      k.zombie('common', -30, 110, Math.PI, 2, 'waterpark', 0, -1);
+      k.zombie('common', 0, 124, Math.PI + 0.2, 4, 'waterpark', 2, -2);
+      k.zombie('common', 30, 104, -2.8, 1, 'waterpark', 0, -1);
+      k.zombie('common', 14, 140, Math.PI, 7, 'waterpark', 0, -2);
+      k.survivor(-10, 74, 0, 0, 0.3);
+      k.survivor(2, 72, 0.3, 1, 0.3);
+      k.survivor(-22, 70, -0.3, 2, 0.3);
+    }
+  });
+
+  /* Lumen Caverns: the Cathedral Room in the middle of the light show --
+     the Pillar of Ages in the colours, the beams crossing on it, the bats
+     off the roof; the team at the pillar's foot and the last tour coming
+     out of the stalagmite forest at them. */
+  Thumbs.registerWorld('ll_caverns', {
+    camera: [[-18, 11, 136], [56, 22, 206], 60],
+    sky: { top: '#020304', horizon: '#0a0c10', sun: [0.1, 0.95, 0.2], clouds: 0, tint: '#7a8aa8' },
+    build: function (parts, k) {
+      k.box([50, -0.5, 190], [280, 1, 220], '#6a6256', { st: 1 });
+      k.box([50, 25, 268], [280, 50, 8], '#463f38');
+      k.box([140, 25, 190], [8, 50, 220], '#463f38');
+      k.box([-64, 25, 190], [8, 50, 220], '#463f38');
+      k.box([50, 50.5, 190], [280, 1, 220], '#2a241e');
+      // the flowstone terraces up the north wall
+      for (var tr = 0; tr < 6; tr++) {
+        k.box([70, tr + 1, 257 + tr], [80, 2 * (tr + 1), 14 - tr * 2], tr % 2 ? '#c8b89a' : '#b8a888', { st: 1 });
+      }
+      // the Pillar of Ages on its stepped foot
+      k.box([40, 1, 200], [36, 2, 36], '#c8b89a', { st: 1 });
+      k.box([40, 3, 200], [28, 2, 28], '#c8b89a', { st: 1 });
+      k.shape('cyl', [40, 27, 200], [22, 46, 22], '#d8c8a8');
+      for (var b = 0; b < 6; b++) {
+        var a = b / 6 * Math.PI * 2;
+        k.shape('cyl', [40 + Math.cos(a) * 9, 8, 200 + Math.sin(a) * 9], [6, 8, 6], '#c8b898');
+      }
+      // the show: the colours on the pillar, the beams from the stands
+      k.shape('sph', [40, 18, 200], [30, 40, 30], '#c83aff', { m: 'neon', a: 0.12 });
+      k.shape('sph', [40, 34, 200], [26, 22, 26], '#3a8aff', { m: 'neon', a: 0.1 });
+      // (the fourth stand is behind the camera)
+      var cols = ['#ff3a5a', '#ffd84a', '#3a8aff'];
+      [[126, 2, 110, 34, 186], [124, 2, 246, 30, 214], [-28, 10, 250, 50, 206]].forEach(function (L, i) {
+        var tx = L[3], ty = 30 - i * 4, tz = L[4];
+        var dx = L[0] - tx, dy = L[1] - ty, dz = L[2] - tz, len = Math.hypot(dx, dy, dz);
+        var rx = Math.acos(dy / len), ry = Math.atan2(dx, dz);
+        k.shape('cone', [(L[0] + tx) / 2, (L[1] + ty) / 2, (L[2] + tz) / 2], [12, len, 12], cols[i],
+                { m: 'neon', a: 0.18, r: [rx, ry, 0] });
+        k.box([L[0], L[1] - 1, L[2]], [1.6, 2, 1.6], '#2a2c30', { m: 'metal' });
+        k.shape('sph', [L[0], L[1] + 0.4, L[2]], [1.6, 1.6, 1.6], cols[i], { m: 'neon' });
+      });
+      // the chandelier of stalactites, the forest of stalagmites
+      for (var c = 0; c < 12; c++) {
+        var ca = c / 12 * Math.PI * 2, h = 8 + (c % 3) * 4;
+        k.shape('cone', [20 + Math.cos(ca) * 14, 50 - h / 2, 150 + Math.sin(ca) * 10], [3, h, 3], '#c8b89a', { r: [Math.PI, 0, 0] });
+      }
+      k.shape('cone', [20, 41, 150], [6, 18, 6], '#c8b89a', { r: [Math.PI, 0, 0] });
+      for (var m = 0; m < 14; m++) {
+        var x = 80 + (m % 4) * 11 + Math.floor(m / 4) * 3, z = 120 + Math.floor(m / 4) * 32 + (m % 3) * 4;
+        var mh = 6 + (m * 7 % 6) * 2;
+        k.shape('cone', [x, mh / 2, z], [4 + (m % 3), mh, 4 + (m % 3)], '#c8b89a');
+      }
+      // the bats, off the roof
+      for (var bt = 0; bt < 10; bt++) {
+        var ba = bt * 0.7;
+        k.box([40 + Math.cos(ba) * (20 + bt * 2), 34 + (bt % 3) * 3, 200 + Math.sin(ba) * (20 + bt * 2)], [2.2, 0.2, 0.8], '#1a1416');
+      }
+      // the team at the pillar's foot, the last tour coming at them
+      k.survivor(24, 178, 1.1, 0, 0);
+      k.survivor(34, 175, 1.3, 1, 0);
+      k.survivor(46, 177, 1.6, 2, 0);
+      k.zombie('common', 84, 172, -1.6, 1, 'caverns', 0);
+      k.zombie('common', 96, 186, -1.8, 2, 'caverns', 0);
+      k.zombie('common', 92, 160, -1.3, 6, 'caverns', 0);
+      k.zombie('common', 104, 200, -1.9, 3, 'caverns', 0);
+      k.zombie('common', 110, 174, -1.6, 5, 'caverns', 0);
+      k.zombie('leaper', 72, 196, -2.0, 0, 'caverns', 0);
+      k.horde(6, 62, 150, 78, 204, -1.7, 'caverns', 5);
+    }
+  });
+
   global.LastLightThumbs = true;
 })(window);

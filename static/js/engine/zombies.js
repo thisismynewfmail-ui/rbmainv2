@@ -434,6 +434,143 @@
       { shirt: shirt('#c8b888', '#c8b888', { sleeves: 0.4 }), pants: pants('#8a7a5a', { length: 0.55 }),
         hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.9, 1.2, 1.9], c: '#e8e0c8' },
                   { t: 'cyl', p: [0, 0.04, 0], s: [2.2, 0.12, 2.2], c: '#e8e0c8' }]) }
+    ],
+    fireworks: [
+      CLASSIC,
+      // the shooter: fire-resistant navy coveralls, the hard hat and its face shield
+      { shirt: shirt('#2a3a5a', '#2a3a5a', { weave: 'canvas', decal: 'chevron' }), pants: pants('#2a3a5a', { weave: 'canvas' }),
+        hat: hat([{ t: 'sph', p: [0, 0.3, 0], s: [1.9, 1.2, 1.9], c: '#e8c83a' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.2, 0.12, 2.2], c: '#e8c83a' },
+                  { t: 'box', p: [0, -0.32, 0.98], s: [1.6, 1.0, 0.06], c: '#b8d8e8', a: 0.4 }]) },
+      // off the shell line: a cotton smock and a paper cap
+      { shirt: shirt('#d8ccb0', '#d8ccb0', { weave: 'linen' }), pants: pants('#6a6a66'),
+        hat: hat([{ t: 'cyl', p: [0, 0.18, 0], s: [1.7, 0.36, 1.7], c: '#f2f2ee' }]) },
+      // the outlet's clerk: the red polo and the visor
+      { shirt: shirt('#c8282a', '#c8282a', { sleeves: 0.4, decal: 'logo_block' }), pants: pants('#c8b088'),
+        hat: hat([{ t: 'cyl', p: [0, 0.1, 0], s: [1.72, 0.22, 1.72], c: '#c8282a' },
+                  { t: 'box', p: [0, 0.04, 0.98], s: [1.4, 0.08, 0.7], c: '#c8282a' }]) },
+      // come for the show: the picnic gingham and the striped foam topper
+      { shirt: shirt('#c83a3a', '#c83a3a', { weave: 'jl_gingham' }), pants: pants('#3a4a7a', { weave: 'denim', length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.06, 0], s: [2.2, 0.12, 2.2], c: '#2a3a8a' },
+                  { t: 'cyl', p: [0, 0.32, 0], s: [1.46, 0.4, 1.46], c: '#2a3a8a' },
+                  { t: 'cyl', p: [0, 0.86, 0], s: [1.4, 0.7, 1.4], c: '#f2f2ee' },
+                  { t: 'cyl', p: [0, 1.5, 0], s: [1.4, 0.6, 1.4], c: '#c8282a' }]) },
+      // the works fire brigade: the turnout coat and the red helmet
+      { shirt: shirt('#c8a868', '#c8a868', { weave: 'hivis' }), pants: pants('#3a3a3a'),
+        hat: hat([{ t: 'sph', p: [0, 0.32, 0], s: [1.8, 1.1, 1.9], c: '#c42b20' },
+                  { t: 'cyl', p: [0, 0.06, -0.12], s: [2.4, 0.1, 2.6], c: '#c42b20' },
+                  { t: 'box', p: [0, 0.52, 0.92], s: [0.6, 0.6, 0.08], c: '#e8c83a' }]) },
+      // the night watchman
+      { shirt: shirt('#2a3442', '#2a3442', { decal: 'logo_block' }), pants: pants('#2a3442'),
+        hat: hat([{ t: 'box', p: [0, 0.14, 0], s: [1.66, 0.28, 1.66], c: '#1a2230' },
+                  { t: 'box', p: [0, 0.06, 0.95], s: [1.3, 0.1, 0.5], c: '#1a1a1a' }]) },
+      // Miss Firecracker: the sequins, the sash, the tiara
+      { shirt: shirt('#c82a3a', '#c82a3a', { weave: 'sequins', sleeves: 0.0 }), pants: pants('#c82a3a', { weave: 'sequins' }),
+        hat: hat([{ t: 'box', p: [0, 0.22, 0.56], s: [1.0, 0.24, 0.08], c: '#e8c83a' },
+                  { t: 'box', p: [0, 0.4, 0.56], s: [0.24, 0.24, 0.08], c: '#e8c83a', r: [0, 0, 0.785] }]),
+        hair: hair([{ p: [0, 0.34, -0.1], s: [1.1, 0.5, 1.1], c: '#e8b84a' },
+                    { p: [0, -0.4, -0.5], s: [1.1, 1.2, 0.3], c: '#e8b84a' }]) }
+    ],
+    mount: [
+      CLASSIC,
+      // a brother of the abbey: the brown habit, the cowl up, the rope belt
+      { shirt: shirt('#5a4028', '#5a4028', { hood: true, weave: 'canvas' }), pants: pants('#5a4028', { weave: 'canvas' }),
+        hat: hat([{ t: 'box', p: [0, -1.25, 0], s: [1.9, 0.18, 1.3], c: '#c8b088' }]) },
+      // a sister: black and white
+      { shirt: shirt('#1a1a1e', '#1a1a1e'), pants: pants('#1a1a1e'),
+        hat: hat([{ t: 'box', p: [0, 0.1, -0.1], s: [1.9, 1.0, 1.9], c: '#1a1a1e' },
+                  { t: 'box', p: [0, -0.2, 0.9], s: [1.5, 0.3, 0.1], c: '#f2f2ee' },
+                  { t: 'box', p: [0, -0.9, -0.6], s: [1.9, 1.6, 0.3], c: '#1a1a1e' }]) },
+      // a pilgrim: the cloak, the scallop shell on the hat brim
+      { shirt: shirt('#6a5a48', '#6a5a48', { weave: 'linen' }), pants: pants('#4a4038'),
+        hat: hat([{ t: 'cyl', p: [0, 0.08, 0], s: [2.6, 0.12, 2.6], c: '#3a3028' },
+                  { t: 'cyl', p: [0, 0.34, 0], s: [1.4, 0.4, 1.4], c: '#3a3028' },
+                  { t: 'box', p: [0, 0.16, 1.24], s: [0.5, 0.44, 0.08], c: '#f2e8d8' }]) },
+      // caught by the tide on the causeway: the yellow cagoule
+      { shirt: shirt('#e8c81a', '#e8c81a', { hood: true, weave: 'vinyl' }), pants: pants('#3a4a6a', { weave: 'denim' }) },
+      // Mother Bride's cook: whites and the toque
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { weave: 'canvas' }), pants: pants('#3a3a3a', { weave: 'jl_gingham' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.6, 0], s: [1.5, 1.2, 1.5], c: '#f6f6f2' },
+                  { t: 'sph', p: [0, 1.2, 0], s: [1.8, 0.7, 1.8], c: '#f6f6f2' }]) },
+      // the cockle picker off the flats: oilskins and the sou'wester
+      { shirt: shirt('#e8a81a', '#e8a81a', { weave: 'vinyl' }), pants: pants('#e8a81a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'sph', p: [0, 0.24, 0], s: [1.8, 0.9, 1.8], c: '#e8a81a' },
+                  { t: 'cyl', p: [0, 0.02, -0.25], s: [2.2, 0.1, 2.5], c: '#e8a81a' }]) },
+      // the shepherd off the salt meadow: the fisherman's knit and the flat cap
+      { shirt: shirt('#2a3a5a', '#2a3a5a', { weave: 'knit' }), pants: pants('#5a4a38', { weave: 'sp_tweed' }),
+        hat: hat([{ t: 'box', p: [0, 0.12, 0.1], s: [1.7, 0.24, 1.8], c: '#6a5a44' },
+                  { t: 'box', p: [0, 0.04, 0.98], s: [1.4, 0.08, 0.5], c: '#6a5a44' }]) }
+    ],
+    waterpark: [
+      CLASSIC,
+      // the lifeguard: the red shorts, the white vest, the shades
+      { shirt: shirt('#f2f2ee', '#f2f2ee', { sleeves: 0.0 }), pants: pants('#c82a2a', { length: 0.35 }),
+        hat: hat([{ t: 'box', p: [0.42, -0.1, 0.84], s: [0.6, 0.36, 0.08], c: '#1a1a1a' },
+                  { t: 'box', p: [-0.42, -0.1, 0.84], s: [0.6, 0.36, 0.08], c: '#1a1a1a' }]) },
+      // trunks, a rash vest and the goggles pushed up
+      { shirt: shirt('#2ac8c8', '#2ac8c8', { sleeves: 0.3, weave: 'vinyl' }), pants: pants('#ff7a5a', { length: 0.35 }),
+        hat: hat([{ t: 'box', p: [0, 0.3, 0.86], s: [1.4, 0.3, 0.1], c: '#2a2a2a' },
+                  { t: 'box', p: [0.36, 0.3, 0.9], s: [0.5, 0.36, 0.12], c: '#6ad8ff', a: 0.7 },
+                  { t: 'box', p: [-0.36, 0.3, 0.9], s: [0.5, 0.36, 0.12], c: '#6ad8ff', a: 0.7 }]) },
+      // a day out: the loud shirt and the bucket hat
+      { shirt: shirt('#ff8a3a', '#ff8a3a', { sleeves: 0.4, decal: 'flowers' }), pants: pants('#c8b088', { length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.2, 0], s: [1.8, 0.4, 1.8], c: '#e8e0c8' },
+                  { t: 'cyl', p: [0, 0.02, 0], s: [2.3, 0.08, 2.3], c: '#e8e0c8' }]) },
+      // King Splash himself, the costume anyway: green, the frog head, the crown
+      { shirt: shirt('#4aa83a', '#4aa83a', { weave: 'fur' }), pants: pants('#4aa83a', { weave: 'fur' }),
+        hat: hat([{ t: 'sph', p: [0, 0.2, 0.1], s: [2.2, 1.8, 2.2], c: '#4aa83a' },
+                  { t: 'sph', p: [0.5, 0.9, 0.7], s: [0.7, 0.7, 0.7], c: '#f2f2ee' },
+                  { t: 'sph', p: [-0.5, 0.9, 0.7], s: [0.7, 0.7, 0.7], c: '#f2f2ee' },
+                  { t: 'cyl', p: [0, 1.25, 0], s: [1.2, 0.5, 1.2], c: '#e8c35a' }]) },
+      // a hotel guest in the robe, a towel round the head
+      { shirt: shirt('#f6f6f2', '#f6f6f2', { weave: 'knit' }), pants: pants('#f6f6f2', { weave: 'knit' }),
+        hat: hat([{ t: 'sph', p: [0, 0.4, -0.05], s: [1.8, 1.0, 1.8], c: '#f2f2ee' }]) },
+      // Kraken Bites: the yellow shirt, the paper hat
+      { shirt: shirt('#ffd84a', '#ffd84a', { decal: 'logo_block' }), pants: pants('#c82a2a'),
+        hat: hat([{ t: 'box', p: [0, 0.3, 0], s: [0.6, 0.6, 1.8], c: '#f6f6f2' }]) },
+      // up out of the dive pool: the wetsuit, the mask and snorkel
+      { shirt: shirt('#1a1a1e', '#1a1a1e', { weave: 'vinyl' }), pants: pants('#1a1a1e', { weave: 'vinyl' }),
+        hat: hat([{ t: 'box', p: [0, -0.15, 0.86], s: [1.3, 0.6, 0.14], c: '#8ad8ff', a: 0.6 },
+                  { t: 'cyl', p: [0.75, 0.0, 0.5], s: [0.18, 1.4, 0.18], c: '#ffd84a' }]) }
+    ],
+    caverns: [
+      CLASSIC,
+      // the caver: the muddy orange oversuit, the helmet and its headlamp
+      { shirt: shirt('#d86a2a', '#d86a2a', { weave: 'canvas' }), pants: pants('#a8582a', { weave: 'canvas' }),
+        hat: hat([{ t: 'sph', p: [0, 0.32, 0], s: [1.86, 1.2, 1.9], c: '#f2f2ee' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.0, 0.1, 2.06], c: '#f2f2ee' },
+                  { t: 'box', p: [0, 0.38, 0.94], s: [0.5, 0.4, 0.2], c: '#2a2a2e', m: 'metal' },
+                  { t: 'cyl', p: [0, 0.38, 1.05], s: [0.34, 0.06, 0.34], c: '#fff2c8', m: 'neon', r: [1.5708, 0, 0] }]) },
+      // the tour guide: the khaki shirt with the cave on the pocket, the ranger hat
+      { shirt: shirt('#b8a878', '#b8a878', { sleeves: 0.4, decal: 'logo_block' }), pants: pants('#5a5a3a', { length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.06, 0], s: [2.6, 0.1, 2.6], c: '#8a6a3a' },
+                  { t: 'cyl', p: [0, 0.38, 0], s: [1.5, 0.6, 1.5], c: '#8a6a3a' },
+                  { t: 'cyl', p: [0, 0.18, 0], s: [1.54, 0.12, 1.54], c: '#3a2a1a' }]) },
+      // out of the old workings: the hickory shirt, the soft cap and its candle
+      { shirt: shirt('#3a4a5a', '#3a4a5a', { weave: 'xm_hickory' }), pants: pants('#4a4038', { weave: 'canvas' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.18, 0], s: [1.8, 0.36, 1.8], c: '#3a3028' },
+                  { t: 'cyl', p: [0, 0.02, 0.1], s: [2.0, 0.08, 2.2], c: '#3a3028' },
+                  { t: 'cyl', p: [0, 0.4, 0.92], s: [0.2, 0.5, 0.2], c: '#f2e8c8' },
+                  { t: 'sph', p: [0, 0.74, 0.92], s: [0.18, 0.3, 0.18], c: '#ffb84a', m: 'neon' }]),
+        hair: hair([{ p: [0, -0.62, 0.62], s: [1.2, 0.6, 0.4], c: '#5a4a3a' }]) },
+      // on the tour in the rain poncho they hand out at the top
+      { shirt: shirt('#8ac8e8', '#8ac8e8', { hood: true, weave: 'vinyl' }), pants: pants('#c8b088', { length: 0.55 }) },
+      // the geologist: the field vest, the boonie hat, the hand lens on its cord
+      { shirt: shirt('#7a6a4a', '#d8d0c0', { weave: 'canvas', decal: 'chevron' }), pants: pants('#5a5048', { weave: 'denim' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.22, 0], s: [1.76, 0.44, 1.76], c: '#8a7a5a' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.4, 0.08, 2.4], c: '#8a7a5a' },
+                  { t: 'box', p: [0.3, -0.1, 0.9], s: [0.34, 0.34, 0.08], c: '#c8e8f2', a: 0.7 }]) },
+      // the cave diver: the drysuit, the hood, the mask and the twin lamps
+      { shirt: shirt('#1a2a4a', '#e8c81a', { hood: true, weave: 'vinyl' }), pants: pants('#1a2a4a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'box', p: [0, -0.15, 0.86], s: [1.3, 0.6, 0.14], c: '#8ad8ff', a: 0.6 },
+                  { t: 'cyl', p: [0.66, 0.3, 0.6], s: [0.3, 0.6, 0.3], c: '#2a2a2e', m: 'metal', r: [1.5708, 0, 0] },
+                  { t: 'cyl', p: [-0.66, 0.3, 0.6], s: [0.3, 0.6, 0.3], c: '#2a2a2e', m: 'metal', r: [1.5708, 0, 0] },
+                  { t: 'cyl', p: [0.66, 0.3, 0.92], s: [0.26, 0.04, 0.26], c: '#f2f8ff', m: 'neon', r: [1.5708, 0, 0] },
+                  { t: 'cyl', p: [-0.66, 0.3, 0.92], s: [0.26, 0.04, 0.26], c: '#f2f8ff', m: 'neon', r: [1.5708, 0, 0] }]) },
+      // the gift kiosk: the souvenir fleece and the lanyard, the glow stick still lit
+      { shirt: shirt('#2a6a5a', '#2a6a5a', { weave: 'knit', decal: 'logo_block' }), pants: pants('#2a2a2e'),
+        hat: hat([{ t: 'box', p: [0, -1.5, 0.9], s: [0.1, 0.9, 0.1], c: '#c82a3a' },
+                  { t: 'box', p: [0.3, -0.8, 0.92], s: [0.08, 0.7, 0.08], c: '#6af2c8', m: 'neon', r: [0, 0, 0.5] }]) }
     ]
   };
 
