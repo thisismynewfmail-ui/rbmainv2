@@ -499,11 +499,29 @@ with it, the cart pitched on the grade -- and each brings a twist of its own
   not -- or if the other lot are on it. Anybody on the main line when it
   comes is under it. Hold **E** at a call box -- the telegraph in the depot's
   bay or the telephone by the tower -- to call the next freight down now.
+* **Sidewinder Dunes** -- a borax line across a sea of sand at noon, a
+  haboob walking the horizon and dust on the wind. The land is barchan dunes
+  marching east: long walkable backs, steep slip faces, horns trailing
+  downwind, and the lines cut through them and run on banks across the
+  troughs. The Borax line starts at the borax works (the refinery and its
+  stack, the evaporating vats, the cottonball heaps, the twenty-mule team at
+  the dock), the Oasis line at the oasis halt (the spring under the palms,
+  the caravanserai and its roof walk, the U.S. Camel Corps). Between them:
+  the Sidewinder, the engine lost in the storm of '82, found in a hollow
+  with the vultures over it; Dry Wells, a ghost town the dunes are burying
+  from the west -- walk up the sand into the saloon's and the hotel's upper
+  floors (the last customer is still at his table); the salt pan and its
+  mirage; the Boneyard, a sea serpent's skeleton breaking out of the rock;
+  the Desert Queen, a schooner stranded on the back of the Great Dune; and
+  Furnace Springs, the old mission between the two stations. Sidewinder
+  rattlesnakes loop across the sand. *Sand drifts*, as in Silverpine Pass:
+  the wind lays a drift across the track ahead of a cart and its company
+  digs it out.
 
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
 delivered), Lawman (raiders stopped by your cart), Photo Finish (won with
-theirs nine tenths of the way), Signalman, Snowplow, Bridgekeeper, Canary
+theirs nine tenths of the way), Signalman, Snowplow (snow or sand), Bridgekeeper, Canary
 (out of a venting pocket in time), Spike Driver (rails laid), Claim Jumper
 (their rails pulled up), Train Orders (a freight you called held their
 cart), Beat the Freight (your cart over the crossing with the freight

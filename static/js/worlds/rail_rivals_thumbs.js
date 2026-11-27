@@ -544,4 +544,64 @@
       k.box([-14, 4.8, 21.12], [1.6, 0.8, 0.05], '#c8281e');
     }
   });
+  // ------------------------------------------------ Sidewinder Dunes
+  /* Noon in the dune sea: a red cart stopped at a sand drift with its crew
+     digging, the Bluebird cart cutting through a dune behind, the saloon
+     of Dry Wells half under the sand, the Desert Queen on the Great Dune's
+     back, a palm, and the haboob coming. */
+  function dune(k, x, z, h, r, colour) {
+    // the long back, the crest, the slip face in shadow to the east
+    k.shape('sph', [x - r * 0.2, 0, z], [r * 2.2, h * 2, r * 1.5], colour);
+    k.shape('sph', [x + r * 0.55, -h * 0.15, z], [r * 0.9, h * 1.7, r * 1.3], '#c8a46c');
+  }
+  Thumbs.registerWorld('rr_sidewinder', {
+    sky: { top: '#7a9ec4', horizon: '#f0d6a6', sun: [0.42, 0.62, -0.4], clouds: 0.3, tint: '#ffe8c4' },
+    camera: [[-52, 26, 56], [0, 8, -16], 48],
+    build: function (parts, k) {
+      k.box([0, -0.5, -10], [240, 1, 200], '#e0c48a', { st: 1 });
+      dune(k, 34, -54, 18, 40, '#e0c48a');
+      dune(k, -54, -40, 10, 28, '#d8b878');
+      dune(k, 70, 10, 9, 26, '#e0c48a');
+      // the haboob on the horizon
+      for (var hb = 0; hb < 8; hb++) {
+        k.shape('sph', [-120 + hb * 30, 14 + (hb % 3) * 6, -130], [52, 50 + (hb % 3) * 16, 26], hb % 2 ? '#b8946a' : '#a8845a',
+                { a: 0.55 });
+      }
+      slant(k, -80, 34, 60, -40);
+      slant(k, -80, -40, 60, 34);
+      // the drift on the red line and the crew digging it out
+      k.shape('sph', [-10, 0.6, 14], [12, 5, 9], '#f0d8a4');
+      k.shape('sph', [-8, 1.2, 12], [7, 4, 6], '#ecd2a0');
+      cart(k, -26, 22.6, Math.atan2(140, -74), RED);
+      var dig = [{ x: -16, z: 21, yaw: 1.9 }, { x: -12, z: 6, yaw: 2.6 }];
+      dig.forEach(function (d2, i) {
+        k.player(d2.x, d2.z, d2.yaw, { anim: 'walk', time: 0.3 + i * 0.4, wear: cap(RED) });
+        k.box([d2.x + Math.sin(d2.yaw) * 1.8, 1.6, d2.z + Math.cos(d2.yaw) * 1.8], [0.25, 3.2, 0.25], '#7a5a3a',
+              { r: [0.7, d2.yaw, 0] });
+      });
+      cart(k, 26, -10.6, Math.atan2(140, 74), BLUE);
+      pushers(k, 26, -10.6, Math.atan2(140, 74), BLUE, 2, 0.5);
+      // the saloon, sand banked up its side to the upper windows
+      k.box([-44, 7.5, -8], [16, 15, 22], '#b8a080');
+      k.box([-44, 15.4, -8], [17, 0.8, 23], '#6a5a48');
+      k.box([-35.9, 12, -8], [0.2, 2.2, 12], '#6a5a48');
+      for (var b2 = 0; b2 < 4; b2++) k.box([-56 + b2 * 2.6, 2 + b2 * 2.2, -8], [6, 4 + b2 * 4.4, 22], '#ecd2a0', { st: 1 });
+      k.box([-35.9, 4, -12], [0.2, 3, 3], '#2a2018');
+      // the Desert Queen up on the Great Dune
+      k.box([30, 19, -54], [26, 4, 7], '#5a3e28');
+      k.box([30, 21.4, -54], [27, 0.6, 7.6], '#8a6a44');
+      k.box([22, 30, -54], [0.8, 18, 0.8], '#6a4a30');
+      k.box([36, 32, -54], [0.8, 22, 0.8], '#6a4a30');
+      k.box([36, 38, -51], [0.1, 6, 6], '#d8cfc0');
+      // a palm on the left, a cactus, a skull
+      for (var p2 = 0; p2 < 7; p2++) k.shape('cyl', [-70 + p2 * 0.3, 1 + p2 * 2, 24], [1.1, 2, 1.1], p2 % 2 ? '#8a6a48' : '#7a5a3a');
+      for (var f = 0; f < 6; f++) {
+        var a = f * 1.05;
+        k.box([-68 + Math.cos(a) * 3, 13.4, 24 + Math.sin(a) * 3], [6, 0.15, 1.4], '#4e7a3a', { r: [0, -a, -0.35] });
+      }
+      k.shape('cyl', [8, 3, 34], [1.6, 6, 1.6], '#5a7a3a');
+      k.shape('cyl', [9.6, 4, 34], [1, 3, 1], '#5a7a3a');
+      k.box([-2, 0.5, 40], [1.6, 1, 2], '#ece4d0');
+    }
+  });
 })(window);

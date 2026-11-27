@@ -44,7 +44,7 @@ WORLD: Dict[str, Any] = {
     "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/rail_rivals.js",
                      "/static/js/worlds/rail_rivals_lines.js"],
     "features": ["16 players", "Payload race", "Brake levers", "Coal boosts",
-                 "Depot respawns", "7 rotating railroads", "A twist on every line"],
+                 "Depot respawns", "8 rotating railroads", "A twist on every line"],
     "areas": [
         {"id": "dustbowl", "name": "Dustbowl Gulch",
          "blurb": "A gold town at the mouth of a red canyon. The lines cross "
@@ -82,6 +82,12 @@ WORLD: Dict[str, Any] = {
                   "cart short of the crossing waits. Call the freight down from the depot's "
                   "telegraph or the tower's telephone -- on their cart, if you time it -- and "
                   "keep off the main line when it comes."},
+        {"id": "sidewinder", "name": "Sidewinder Dunes",
+         "blurb": "A borax line across a sea of sand with a sandstorm on the horizon. The "
+                  "lines cut through barchan dunes, past the borax works and its twenty-mule "
+                  "team, the oasis and the Army's camels, a ghost town half under a dune and a "
+                  "schooner stranded on the Great Dune. The wind lays sand drifts across the "
+                  "track: dig your cart out before theirs gets away."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -150,7 +156,7 @@ BADGES: List[Tuple[Any, ...]] = [
      "em_rr_signal", "signals set"),
     ("rr_snowplow", "Snowplow", "rr_dig", [1, 10, 30, 80, 200],
      ["Shovel Hand", "Digger", "Snowplow", "Rotary", "Avalanche Breaker"],
-     "Dug your cart out of a snowdrift on Silverpine Pass.",
+     "Dug your cart out of a snowdrift on Silverpine Pass or a sand drift in Sidewinder Dunes.",
      "em_rr_drift", "drifts dug"),
     ("rr_bridgekeeper", "Bridgekeeper", "rr_winch", [1, 10, 30, 80, 200],
      ["Winch Hand", "Bridge Tender", "Keeper", "Lift Master", "Troll Under the Bridge"],
@@ -279,10 +285,11 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
         return ("The other team took the signal cabin: your cart cannot cross the "
                 "diamond until it clears or you take it back.", "victim")
     if kind == "rr_drift":
+        sand = event.get("style") == "sand"
         if cart:
-            return ("Your cart ran into a snowdrift near %s; dig it out (hold E by the "
-                    "drift)." % (what or "the track"), "victim")
-        return ("The other cart is snowed in.", "ally")
+            return ("Your cart ran into a %s near %s; dig it out (hold E by the "
+                    "drift)." % ("sand drift" if sand else "snowdrift", what or "the track"), "victim")
+        return ("The other cart is %s in." % ("sanded" if sand else "snowed"), "ally")
     if kind == "rr_bridge":
         if me:
             return ("You winched the lift bridge up in front of %s's cart." % company,

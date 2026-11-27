@@ -276,6 +276,112 @@
     };
   });
 
+  /* A haboob: a wall of dust a hundred units high rolling along the
+     horizon from ``p`` toward ``q`` and back, its face billowing. */
+  Rigs.register('rr_haboob', function (spec) {
+    var a = spec.p, b = spec.q || spec.p, h = spec.h || 110, w = spec.w || 900;
+    var len = Math.max(1, flat(a, b));
+    var along = [(b[0] - a[0]) / len, (b[2] - a[2]) / len];
+    var yaw = Math.atan2(along[0], along[1]);
+    return {
+      radius: w / 2 + 200,
+      at: [(a[0] + b[0]) / 2, a[1], (a[2] + b[2]) / 2],
+      draw: function (pen, t) {
+        var u = 0.5 + 0.5 * Math.sin(t * 0.006 + (spec.seed || 0));
+        var cx = a[0] + (b[0] - a[0]) * u, cz = a[2] + (b[2] - a[2]) * u;
+        var f = frame([cx, a[1], cz], yaw + Math.PI / 2, 1);
+        var n = 16;
+        for (var i = 0; i < n; i++) {
+          var x = -w / 2 + (i + 0.5) * w / n;
+          var bill = Math.sin(t * 0.4 + i * 1.3) * 0.12 + 1;
+          var hh = h * (0.75 + 0.25 * Math.sin(i * 2.1)) * bill;
+          pen.part(f, 'sph', [x, hh * 0.4, Math.sin(i * 1.7 + t * 0.2) * 20], [w / n * 1.8, hh, 90],
+                   i % 2 ? '#b89a72' : '#a8885e', { a: 0.82 });
+          pen.part(f, 'sph', [x + w / n * 0.5, hh * 0.85, 30], [w / n * 1.4, hh * 0.5, 70], '#c8aa80', { a: 0.6 });
+        }
+      }
+    };
+  });
+
+  /* A sidewinder rattlesnake looping sideways across the sand from ``p``
+     toward ``q``, the body in S-curves, the tail's rattle a blur. */
+  Rigs.register('rr_sidewinder', function (spec) {
+    var a = spec.p, b = spec.q || spec.p, speed = spec.speed || 2.2, seed = spec.seed || 0;
+    var len = Math.max(1, flat(a, b));
+    var dir = [(b[0] - a[0]) / len, (b[2] - a[2]) / len];
+    return {
+      radius: len / 2 + 10,
+      at: [(a[0] + b[0]) / 2, a[1], (a[2] + b[2]) / 2],
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        var period = len / speed * 2;
+        var ph = ((t + seed * 7) % period) / period;
+        var d = (ph < 0.5 ? ph * 2 : (1 - ph) * 2) * len;
+        var back = ph < 0.5 ? 1 : -1;
+        var hx = a[0] + dir[0] * d, hz = a[2] + dir[1] * d;
+        var y = a[1] + (b[1] - a[1]) * d / len + 0.18;
+        // sidewinding: the body lies across the way it goes
+        var bx = -dir[1], bz = dir[0];
+        for (var k = 0; k < 14; k++) {
+          var u = (k - 6.5) * 0.42;
+          var wave = Math.sin(t * 9 * back + k * 0.8) * 0.45;
+          var sx = hx + bx * u + dir[0] * wave, sz = hz + bz * u + dir[1] * wave;
+          var w = k === 0 ? 0.42 : (k > 11 ? 0.22 : 0.34);
+          pen.part(frame([sx, y + Math.abs(Math.sin(t * 9 + k)) * 0.08, sz], 0), 'sph', [0, 0, 0], [w, 0.24, w],
+                   k % 3 === 0 ? '#8a6a44' : '#c8a878');
+        }
+        // the head's two little horns, the rattle
+        pen.part(frame([hx - bx * 2.9, y + 0.12, hz - bz * 2.9], 0), 'box', [0, 0, 0], [0.12, 0.12, 0.12], '#5a4430');
+        var rx = hx + bx * 2.8, rz = hz + bz * 2.8;
+        pen.part(frame([rx, y + 0.18 + Math.sin(t * 40) * 0.05, rz], 0), 'sph', [0, 0, 0], [0.22, 0.2, 0.22], '#e8d8b8');
+      }
+    };
+  });
+
+  /* Vultures wheeling over something dead (or soon to be): three of them
+     on slow circles, wings tilting into the turn. */
+  Rigs.register('rr_vultures', function (spec) {
+    var R = spec.r || 26, n = spec.n || 3;
+    return {
+      radius: R + 40,
+      draw: function (pen, t) {
+        for (var i = 0; i < n; i++) {
+          var a = t * (0.22 + i * 0.03) + i * TAU / n;
+          var y = spec.p[1] + 6 * i + Math.sin(t * 0.5 + i) * 2;
+          var x = spec.p[0] + Math.cos(a) * (R + i * 5), z = spec.p[2] + Math.sin(a) * (R + i * 5);
+          var f = child(frame([x, y, z], -a, 1.2), [0, 0, 0], 0, 0, -0.35);
+          pen.part(f, 'sph', [0, 0, 0], [0.9, 0.6, 1.8], '#2a2420');
+          pen.part(f, 'sph', [0, 0.2, 0.9], [0.4, 0.4, 0.4], '#b8483a');
+          var flap = Math.sin(t * 1.4 + i) * 0.12;
+          pen.part(child(f, [0.4, 0, 0], 0, 0, -flap), 'box', [2.2, 0, 0], [4.4, 0.12, 1.4], '#2a2420');
+          pen.part(child(f, [-0.4, 0, 0], 0, 0, flap), 'box', [-2.2, 0, 0], [4.4, 0.12, 1.4], '#2a2420');
+          pen.part(f, 'box', [0, 0, -1.2], [1.2, 0.08, 1.0], '#2a2420');
+        }
+      }
+    };
+  });
+
+  /* A mirage: a shimmering lake over the salt pan that is there from a
+     long way off and gone when you get close. */
+  Rigs.register('rr_mirage', function (spec, ctx) {
+    var w = spec.w || 60, d = spec.d || 40;
+    return {
+      radius: Math.max(w, d) + 400,
+      draw: function (pen, t) {
+        var eye = pen.eye || spec.p;
+        var away = flat(eye, spec.p);
+        var k = Math.max(0, Math.min(1, (away - 90) / 120));
+        if (k <= 0.02) return;
+        for (var i = 0; i < 5; i++) {
+          var shimmer = Math.sin(t * 2.4 + i * 1.3) * 0.5 + 0.5;
+          pen.part(frame([spec.p[0], spec.p[1] + 0.3 + i * 0.25, spec.p[2] + (i - 2) * d * 0.12], 0), 'box', [0, 0, 0],
+                   [w * (1 - i * 0.12), 0.05, d * 0.3], i % 2 ? '#a8c8e0' : '#c8e0f0',
+                   { a: (0.18 + 0.1 * shimmer) * k, m: 'glass' });
+        }
+      }
+    };
+  });
+
   // ======================================================== the farm
   /* A windpump on its tower (the tower is the map's): the wheel round and
      round, the tail keeping it into the wind, the rod going up and down. */

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ..kit import build_world
-from . import dustbowl, goldspike, lantern, redrock, silverpine, thunder, union
+from . import dustbowl, goldspike, lantern, redrock, sidewinder, silverpine, thunder, union
 
 AREAS = [
     ("dustbowl", dustbowl, "Dustbowl Gulch"),
@@ -20,6 +20,7 @@ AREAS = [
     ("goldspike", goldspike, "Golden Spike Summit"),
     ("union", union, "Union Terminal"),
     ("thunder", thunder, "Thunder Junction"),
+    ("sidewinder", sidewinder, "Sidewinder Dunes"),
 ]
 
 

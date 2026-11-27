@@ -821,7 +821,8 @@ class RailRivalsWorld(ArenaWorld):
                 continue
             if cart.held == "drift" and not drift["said"]:
                 drift["said"] = True
-                self._event("rr_drift", None, cart.team, what=self._place(drift["p"]))
+                self._event("rr_drift", None, cart.team, what=self._place(drift["p"]),
+                            style=str((self.area.get("extra") or {}).get("drift_style") or "snow"))
             diggers = [p for p in playing if p.team == cart.team and p.extra.get("using")
                        and (p.extra.get("act") or {}).get("k") == "dig"]
             if not diggers:

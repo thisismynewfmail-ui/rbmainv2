@@ -1174,6 +1174,169 @@
     }
   });
 
+  // --------------------------------------------------- Sidewinder Dunes
+  /* Noon on the dune sea.  A sidewinder loops across the sand in front of
+     us, the twenty-mule team crawls along a far crest, the wind gets up and
+     the crests start to smoke, the brown wall of a haboob climbs the
+     horizon -- a drift pours over the rails, and the cart comes bursting
+     through it in a spray of sand.  The name is blown clear of the sand. */
+  Intro.register('rr_sidewinder', {
+    name: 'Sidewinder Dunes',
+    tagline: 'The wind buries the line. Dig your cart out -- faster than they dig theirs.',
+    accent: '#ffb84a',
+    cues: [[0.2, 'rr_wind', 0.4], [1.0, 'rr_wind', 0.8], [1.5, 'rr_whistle', 0.5], [1.9, 'rr_crunch', 0.8],
+           [2.0, 'rr_chug', 0.7], [2.5, 'rr_wind', 0.5]],
+    shakes: [[1.95, 5, 0.35]],
+    tagY: 430, tagAt: 3.0,
+    setup: function (r) {
+      var d = { far: [], mid: [], near: [], grains: [], streams: [], spray: [] };
+      var x = -80;
+      while (x < VW + 100) { var w = between(r, 260, 420); d.far.push({ x: x, w: w, h: between(r, 40, 90) }); x += w * 0.75; }
+      x = -120;
+      while (x < VW + 100) { w = between(r, 320, 520); d.mid.push({ x: x, w: w, h: between(r, 70, 140) }); x += w * 0.8; }
+      for (var i = 0; i < 90; i++) d.grains.push({ x: r() * VW, y: between(r, 660, 860), s: between(r, 0.6, 1.4) });
+      for (i = 0; i < 40; i++) d.streams.push({ x: r() * VW, y: between(r, 420, 560), p: r() * 6 });
+      for (i = 0; i < 46; i++) d.spray.push({ a: between(r, -2.6, -0.5), v: between(r, 180, 520), s: between(r, 4, 12) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var HZ = 470;
+      var sky = ctx.createLinearGradient(0, 0, 0, HZ);
+      sky.addColorStop(0, '#6a98c8');
+      sky.addColorStop(0.7, '#c8d4d8');
+      sky.addColorStop(1, '#f2dcb0');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, VW, HZ + 2);
+      ctx.fillStyle = '#dcc290';
+      ctx.fillRect(0, HZ, VW, VH - HZ);
+      additive(ctx, function () { dot(ctx, '#fff6d8', 1260, 150, 260, 0.55); });
+      ctx.fillStyle = '#fffbe8';
+      ctx.beginPath(); ctx.arc(1260, 150, 44, 0, TAU); ctx.fill();
+      // the haboob climbing the horizon on the left
+      var hab = seg(t, 0.9, 2.6);
+      if (hab > 0) {
+        // a billowing wall: rounded heads of dust, tallest to the west
+        for (var k = 0; k < 12; k++) {
+          var hx = -20 + k * 72, top = (150 + 60 * Math.sin(k * 1.7 + t * 0.8)) * hab * (1 - k / 13);
+          ctx.fillStyle = rgba(k % 2 ? '#a8845a' : '#b8946a', 0.8 * hab);
+          ctx.beginPath(); ctx.ellipse(hx, HZ - top * 0.45, 70, top * 0.6 + 10, 0, 0, TAU); ctx.fill();
+        }
+      }
+      // far dunes, then the mid ones, slip faces in shadow
+      function dunes(list, base, col, shade) {
+        list.forEach(function (m) {
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.moveTo(m.x, base);
+          ctx.quadraticCurveTo(m.x + m.w * 0.45, base - m.h * 1.3, m.x + m.w * 0.7, base - m.h);
+          ctx.lineTo(m.x + m.w, base); ctx.fill();
+          ctx.fillStyle = shade;
+          ctx.beginPath(); ctx.moveTo(m.x + m.w * 0.7, base - m.h); ctx.lineTo(m.x + m.w, base);
+          ctx.lineTo(m.x + m.w * 0.82, base); ctx.fill();
+        });
+      }
+      dunes(d.far, HZ + 6, '#e2c896', '#c8a874');
+      // the twenty-mule team crawling along a far crest
+      var mx = lerp(1500, 1180, t / 3.6);
+      ctx.fillStyle = '#5a4a3a';
+      for (var mu = 0; mu < 10; mu++) {
+        ctx.fillRect(mx + mu * 13, HZ - 48, 9, 5);
+        ctx.fillRect(mx + mu * 13 + 1, HZ - 44, 2, 4); ctx.fillRect(mx + mu * 13 + 6, HZ - 44, 2, 4);
+      }
+      ctx.fillStyle = '#e8dcc0'; ctx.fillRect(mx + 134, HZ - 58, 30, 14); ctx.fillRect(mx + 168, HZ - 58, 30, 14);
+      dunes(d.mid, HZ + 120, '#e8cc94', '#c89c62');
+      // sand smoking off the crests once the wind gets up
+      var wind = seg(t, 0.9, 1.6);
+      d.streams.forEach(function (st) {
+        if (wind <= 0) return;
+        var u = ((t * 0.9 + st.p) % 1);
+        ctx.fillStyle = rgba('#f2e2b8', 0.5 * wind * (1 - u));
+        ctx.beginPath(); ctx.ellipse(st.x + u * 160, st.y - u * 20, 30 + u * 60, 6 + u * 6, -0.1, 0, TAU); ctx.fill();
+      });
+      // the foreground sand and the line across it
+      ctx.fillStyle = '#ecd2a0';
+      ctx.fillRect(0, HZ + 110, VW, VH - HZ - 110);
+      var TY = 700;
+      ctx.fillStyle = '#a89070';
+      ctx.fillRect(0, TY - 6, VW, 18);
+      ctx.fillStyle = '#8a8680';
+      ctx.fillRect(0, TY - 8, VW, 4); ctx.fillRect(0, TY + 8, VW, 4);
+      d.grains.forEach(function (g) {
+        ctx.fillStyle = 'rgba(160,120,70,0.35)';
+        ctx.fillRect((g.x + t * 60 * g.s) % VW, g.y, 3, 2);
+      });
+      // the drift pouring over the rails
+      var drift = seg(t, 1.2, 1.85), burst = seg(t, 1.9, 2.3);
+      var dx0 = 760;
+      if (drift > 0 && burst < 1) {
+        ctx.fillStyle = '#f0d8a4';
+        ctx.beginPath(); ctx.moveTo(dx0 - 220 * drift, TY + 20);
+        ctx.quadraticCurveTo(dx0, TY - 110 * drift * (1 - burst), dx0 + 240 * drift, TY + 20); ctx.fill();
+      }
+      // the cart, bursting through it
+      var cx = lerp(VW + 200, 300, outCubic(seg(t, 1.75, 2.9)));
+      if (t > 1.75) {
+        Art.loco(ctx, cx, TY + 8, 1.0, '#7a2e22', t * 4, '#fff2c0');
+        if (burst > 0 && burst < 1) {
+          d.spray.forEach(function (sp, i) {
+            var age = burst * 0.9;
+            var px = dx0 + Math.cos(sp.a) * sp.v * age, py = TY - 30 + Math.sin(sp.a) * sp.v * age + 300 * age * age;
+            ctx.fillStyle = rgba(i % 2 ? '#f2dcac' : '#d8b880', 1 - burst);
+            ctx.beginPath(); ctx.arc(px, py, sp.s * (1 + burst), 0, TAU); ctx.fill();
+          });
+        }
+      }
+      // the sidewinder looping across the near sand, its tracks behind it
+      var sx = lerp(-160, VW + 80, t / 3.6);
+      for (var tr = 0; tr < 14; tr++) {
+        var tx = sx - 60 - tr * 46;
+        if (tx < -60) break;
+        ctx.strokeStyle = 'rgba(150,110,60,0.45)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(tx, 820); ctx.quadraticCurveTo(tx + 18, 790, tx + 6, 770); ctx.stroke();
+      }
+      ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 11; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (var s2 = 0; s2 <= 16; s2++) {
+        var u2 = s2 / 16;
+        var px2 = sx + Math.sin(u2 * 6 + t * 9) * 14 - u2 * 30, py2 = 770 + u2 * 52;
+        if (s2 === 0) ctx.moveTo(px2, py2); else ctx.lineTo(px2, py2);
+      }
+      ctx.stroke(); ctx.lineCap = 'butt';
+      ctx.fillStyle = '#6a4e30';
+      ctx.beginPath(); ctx.ellipse(sx + Math.sin(t * 9) * 14 + 4, 766, 12, 8, 0.4, 0, TAU); ctx.fill();
+      // heat over everything
+      ctx.fillStyle = rgba('#fff4d8', 0.08 + 0.04 * Math.sin(t * 7));
+      ctx.fillRect(0, HZ - 40, VW, 160);
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Sidewinder Dunes').toUpperCase();
+      var k = seg(t, 1.85, 2.45);
+      if (k <= 0) return;
+      ctx.save();
+      // the letters raised in the sand, the wind sweeping the sand off
+      // them right to left
+      var size = fitSize(ctx, name, 'bold #px ' + HEAVY, 128, 1260, 0.04);
+      ctx.font = 'bold ' + size + 'px ' + HEAVY;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var w = ctx.measureText(name).width;
+      ctx.beginPath(); ctx.rect(800 + w / 2 - (w + 80) * k, 120, (w + 80) * k + 40, 240); ctx.clip();
+      ctx.fillStyle = 'rgba(90,60,30,0.55)';
+      ctx.fillText(name, 808, 236);
+      ctx.fillStyle = '#f2dcac';
+      ctx.fillText(name, 800, 228);
+      ctx.strokeStyle = '#c8a06a'; ctx.lineWidth = 3;
+      ctx.strokeText(name, 800, 228);
+      ctx.restore();
+      // the sand still streaming off the edge of the sweep
+      if (k < 1) {
+        var ex = 800 + w / 2 - (w + 80) * k;
+        for (var i = 0; i < 18; i++) {
+          ctx.fillStyle = rgba('#f2dcac', 0.7 * (1 - k));
+          ctx.fillRect(ex - (i * 37 % 90), 150 + (i * 53 % 160), 6, 4);
+        }
+      }
+    }
+  });
+
   Intro.register('rr_union', {
     name: 'Union Terminal',
     tagline: 'The race ends under the glass. Take the tower -- hold their cart at the diamond.',
