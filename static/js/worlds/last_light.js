@@ -2647,5 +2647,192 @@
     }
   });
 
+  // ===================================================== Lumen Caverns
+  /* Black, but for the glow-worms.  A drip.  Then the tour lights clunk on
+     at the formations' feet, the light show starts up over the Pillar of
+     Ages -- and in the colours, the last tour group shuffling in among the
+     stalagmites.  The bats go.  The cave's old wooden sign swings down on
+     its chains, the light show's board under it. */
+  Intro.register('caverns', {
+    tagline: 'Deep under the hill, the lights went out. The last tour is still coming through.',
+    accent: '#6af2c8',
+    cues: [[0.15, 'll_plop', 0.5], [0.7, 'll_clunk', 0.8], [1.5, 'll_lightshow', 0.7], [2.15, 'll_flutter', 0.7]],
+    shakes: [],
+    tagY: 850, tagAt: 2.6,
+    setup: function (r) {
+      var d = { worms: [], tites: [], mites: [], zeds: [], bats: [], lamps: [] };
+      for (var i = 0; i < 160; i++) {
+        d.worms.push({ x: r() * VW, y: 8 + Math.pow(r(), 1.6) * 330, p: r() * 6, s: between(r, 2, 5) });
+      }
+      for (i = 0; i < 28; i++) d.tites.push({ x: i * 60 + between(r, -18, 18), w: between(r, 14, 44), h: between(r, 50, 210) });
+      for (i = 0; i < 16; i++) {
+        var x = i * 104 + between(r, -30, 30);
+        if (Math.abs(x - 800) < 150) continue;
+        d.mites.push({ x: x, w: between(r, 30, 76), h: between(r, 80, 260), tone: r() });
+      }
+      var looks = [['#d86a2a', '#a8582a', '#6fae55'], ['#b8a878', '#5a5a3a', '#7fb069'], ['#3a4a5a', '#4a4038', '#5f9a4c'],
+                   ['#8ac8e8', '#c8b088', '#86b86a'], ['#7a6a4a', '#5a5048', '#6c9f68'], ['#2a6a5a', '#2a2a2e', '#79a84e']];
+      var xs = [250, 420, 580, 1030, 1190, 1360];
+      for (i = 0; i < 6; i++) {
+        d.zeds.push({ x: xs[i] + between(r, -20, 20), at: 0.95 + i * 0.2, p: r() * 6, look: looks[i], dir: xs[i] < 800 ? 1 : -1 });
+      }
+      for (i = 0; i < 16; i++) d.bats.push({ y: between(r, 340, 520), sp: between(r, 520, 860), p: r() * 6, at: 2.1 + r() * 0.5,
+                                             dir: i % 2 ? 1 : -1, s: between(r, 1.6, 2.6) });
+      d.lamps = [[130, 782], [520, 792], [1080, 792], [1470, 782]];
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      sky(ctx, [[0, '#050607'], [0.5, '#0e0c0a'], [1, '#1a1612']]);
+      var lights = seg(t, 0.7, 0.75) * (t < 0.95 ? (Math.sin(t * 90) > -0.3 ? 1 : 0.2) : 1);
+      var show = seg(t, 1.5, 1.9);
+      var cols = ['#ff3a5a', '#3af2a8', '#3a8aff', '#ffd84a', '#c83aff'];
+      var wash = cols[Math.floor(Math.max(0, t - 1.5) * 1.4) % cols.length];
+      // the glow-worms on the roof, breathing
+      additive(ctx, function () {
+        d.worms.forEach(function (w) {
+          dot(ctx, '#7affd8', w.x, w.y, w.s * 2.2, (0.35 + 0.35 * Math.sin(t * 1.4 + w.p)) * (1 - 0.5 * lights));
+        });
+      });
+      // the far wall: bulges of rock, warm where the tour lights reach
+      ctx.fillStyle = '#16120e';
+      for (var b = 0; b < 7; b++) {
+        ctx.beginPath(); ctx.ellipse(b * 260 + 60, 560 + (b % 2) * 50, 220, 260, 0, 0, TAU); ctx.fill();
+      }
+      // the Pillar of Ages: a column out of the roof to the floor, fluted
+      var px = 800;
+      ctx.fillStyle = '#4a4034';
+      ctx.beginPath();
+      ctx.moveTo(px - 90, 0); ctx.quadraticCurveTo(px - 40, 420, px - 120, 900);
+      ctx.lineTo(px + 120, 900); ctx.quadraticCurveTo(px + 40, 420, px + 90, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,24,18,0.6)'; ctx.lineWidth = 6;
+      for (var fl = -2; fl <= 2; fl++) {
+        ctx.beginPath(); ctx.moveTo(px + fl * 30, 0); ctx.quadraticCurveTo(px + fl * 12, 420, px + fl * 42, 900); ctx.stroke();
+      }
+      // the light on it: the tour lights' amber from below, then the show's colours
+      additive(ctx, function () {
+        dot(ctx, '#ffb86a', px, 820, 220, 0.35 * lights, 320);
+        if (show > 0) {
+          dot(ctx, wash, px, 560, 260, 0.45 * show, 420);
+          for (var k = 0; k < d.lamps.length; k++) {
+            var L = d.lamps[k], c = cols[(k + Math.floor(t * 1.4)) % cols.length];
+            var tx = px + Math.sin(t * 1.3 + k * 1.7) * 160, ty = 420 + Math.sin(t * 0.9 + k) * 150;
+            var g = ctx.createLinearGradient(L[0], L[1], tx, ty);
+            g.addColorStop(0, rgba(c, 0.5 * show)); g.addColorStop(1, rgba(c, 0));
+            ctx.fillStyle = g;
+            var ang = Math.atan2(ty - L[1], tx - L[0]), spread = 70;
+            ctx.beginPath(); ctx.moveTo(L[0], L[1]);
+            ctx.lineTo(tx + Math.sin(ang) * spread, ty - Math.cos(ang) * spread);
+            ctx.lineTo(tx - Math.sin(ang) * spread, ty + Math.cos(ang) * spread); ctx.closePath(); ctx.fill();
+            dot(ctx, c, L[0], L[1] - 6, 30, show);
+          }
+        }
+      });
+      // the stalactites along the roof, one of them dripping
+      ctx.fillStyle = '#231e18';
+      d.tites.forEach(function (s) {
+        ctx.beginPath(); ctx.moveTo(s.x - s.w / 2, 0); ctx.lineTo(s.x, s.h); ctx.lineTo(s.x + s.w / 2, 0); ctx.closePath(); ctx.fill();
+      });
+      var drip = d.tites[9], u = t % 2.2;
+      if (u < 0.5) {
+        ctx.fillStyle = 'rgba(200,232,242,0.8)';
+        ctx.beginPath(); ctx.ellipse(drip.x, Math.min(788, drip.h + u * u * 2700), 3, 5, 0, 0, TAU); ctx.fill();
+      }
+      // the stalagmites in front, rimmed in whatever light there is
+      d.mites.forEach(function (s) {
+        ctx.fillStyle = s.tone > 0.5 ? '#2c251c' : '#221c15';
+        ctx.beginPath(); ctx.moveTo(s.x - s.w / 2, 900); ctx.quadraticCurveTo(s.x - s.w * 0.15, 900 - s.h * 0.6, s.x, 900 - s.h);
+        ctx.quadraticCurveTo(s.x + s.w * 0.15, 900 - s.h * 0.6, s.x + s.w / 2, 900); ctx.closePath(); ctx.fill();
+      });
+      additive(ctx, function () {
+        d.mites.forEach(function (s) {
+          dot(ctx, '#ffb86a', s.x, 900 - s.h * 0.3, s.w * 0.9, 0.32 * lights, s.h * 0.4);
+          if (show > 0) dot(ctx, wash, s.x + (s.x < px ? 8 : -8), 900 - s.h * 0.7, s.w * 0.4, 0.3 * show, s.h * 0.3);
+        });
+        d.lamps.forEach(function (L) { dot(ctx, '#ffd8a0', L[0], L[1], 60, 0.4 * lights); });
+      });
+      // the last tour group, shuffling in
+      d.zeds.forEach(function (z) {
+        var k2 = seg(t, z.at, z.at + 0.5);
+        if (k2 <= 0) return;
+        var x = z.x + z.dir * (t - z.at) * 30;
+        ctx.save(); ctx.globalAlpha = k2 * (0.35 + 0.65 * Math.max(lights * 0.6, show));
+        shambler(ctx, x, 772, 2.4, t, z.look, z.dir, z.p);
+        ctx.restore();
+      });
+      // the bats, off the roof and out over everybody
+      d.bats.forEach(function (bt) {
+        var a = t - bt.at;
+        if (a <= 0) return;
+        var x = px + bt.dir * a * bt.sp, y = bt.y - a * 60 + Math.sin(a * 8 + bt.p) * 14;
+        if (x < -40 || x > VW + 40) return;
+        batK(ctx, x, y, bt.s, t * 24 + bt.p);
+      });
+      // the puddle the drip lands in, the colours in it
+      ctx.fillStyle = 'rgba(8,16,20,0.85)';
+      ctx.beginPath(); ctx.ellipse(drip.x, 790, 120, 14, 0, 0, TAU); ctx.fill();
+      additive(ctx, function () {
+        dot(ctx, show > 0 ? wash : '#7affd8', drip.x, 790, 110, 0.1 + 0.15 * show, 10);
+        var ring = (t % 2.2) - 0.5;
+        if (ring > 0 && ring < 1.2) {
+          ctx.strokeStyle = rgba('#c8e8f2', 0.55 * (1 - ring / 1.2)); ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(drip.x, 790, 8 + ring * 60, 2 + ring * 7, 0, 0, TAU); ctx.stroke();
+        }
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Lumen Caverns').toUpperCase();
+      var k = outBack(seg(t, 0.35, 0.85), 1.15);
+      if (k <= 0) return;
+      var settle = Math.max(0, 1 - (t - 0.85) / 2.4);
+      var swing = Math.sin(t * 3.1) * 0.05 * settle;
+      ctx.save();
+      ctx.translate(800, 196 - (1 - k) * 360);
+      ctx.rotate(swing);
+      // the chains up into the dark
+      ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 4;
+      [-330, 330].forEach(function (cx) {
+        for (var y = -300; y < -96; y += 18) {
+          ctx.beginPath(); ctx.ellipse(cx, y + 9, (y / 18) % 2 ? 3 : 6, 9, 0, 0, TAU); ctx.stroke();
+        }
+      });
+      // the board: varnished planks, a routed border, a bat burned in at each end
+      ctx.fillStyle = '#3a2412'; roundRect(ctx, -440, -104, 880, 208, 16); ctx.fill();
+      ctx.fillStyle = '#6a4424'; roundRect(ctx, -430, -96, 860, 192, 12); ctx.fill();
+      ctx.strokeStyle = 'rgba(40,24,10,0.5)'; ctx.lineWidth = 2;
+      for (var pl = -2; pl <= 2; pl++) {
+        ctx.beginPath(); ctx.moveTo(-430, pl * 38); ctx.lineTo(430, pl * 38 + 2); ctx.stroke();
+      }
+      ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 4; roundRect(ctx, -410, -78, 820, 156, 10); ctx.stroke();
+      ctx.save(); ctx.translate(-360, -2); batK(ctx, 0, 0, 3.0, 1.2); ctx.restore();
+      ctx.save(); ctx.translate(360, -2); batK(ctx, 0, 0, 3.0, 1.2); ctx.restore();
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#e8d8a8';
+      spaced(ctx, 'GUIDED TOURS ON THE HOUR  ·  MIND YOUR HEAD', 0, -54, 4);
+      var size = fitSize(ctx, name, '900 #px ' + HEAVY, 78, 560, 0.08);
+      ctx.font = '900 ' + size + 'px ' + HEAVY;
+      ctx.fillStyle = '#1a0e04'; spaced(ctx, name, 4, 8, size * 0.08);
+      ctx.fillStyle = '#f2e2b0'; spaced(ctx, name, 0, 4, size * 0.08);
+      ctx.font = 'bold 18px ' + HEAVY; ctx.fillStyle = '#e8d8a8';
+      spaced(ctx, 'EST. 1891  ·  280 FEET BELOW THE HILL', 0, 60, 4);
+      // the light show's board, hung under it on its own hooks, swinging late
+      var k3 = outBack(seg(t, 0.75, 1.2), 1.3);
+      if (k3 > 0) {
+        ctx.save();
+        ctx.translate(250, 104);
+        ctx.rotate(Math.sin(t * 3.1 - 0.9) * 0.08 * settle - (1 - k3) * 0.8);
+        ctx.strokeStyle = '#8a7a5a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-70, 0); ctx.lineTo(-70, 16); ctx.moveTo(70, 0); ctx.lineTo(70, 16); ctx.stroke();
+        ctx.fillStyle = '#1a1a22'; roundRect(ctx, -96, 16, 192, 40, 6); ctx.fill();
+        var lit = seg(t, 1.5, 1.6);
+        ctx.font = 'bold 18px ' + HEAVY;
+        ctx.fillStyle = lit > 0 ? cyc(t) : '#4a4a52';
+        spaced(ctx, 'LIGHT SHOW TONIGHT', 0, 37, 2);
+        ctx.restore();
+      }
+      ctx.restore();
+      function cyc(tt) { return ['#ff3a5a', '#3af2a8', '#3a8aff', '#ffd84a', '#c83aff'][Math.floor(tt * 3) % 5]; }
+    }
+  });
+
   global.LastLightScenes = LL;
 })(window);

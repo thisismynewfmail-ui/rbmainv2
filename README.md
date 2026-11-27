@@ -246,7 +246,7 @@ collides with never move.
 
 ### Last Light
 Co-operative zombie survival for up to twenty-four. Everybody is on one team
-against the infected, wave after wave, in one of four places; a round ends
+against the infected, wave after wave, in one of nineteen places; a round ends
 when the last survivor falls, and the next round starts again from wave one.
 Each place gets three tries: the end card shows three lamps and one blows out
 per wipe, the next attempt starts with the lights stuttering back on, and the
@@ -285,6 +285,43 @@ area can be seen from another.
   room), a mess hall with a dinner bell (the lure), two circles of cabins, a
   fire lookout tower, a boathouse and dock, a raft and an island in the lake,
   and a terraced ridge with an old mine running under it.
+
+Fifteen more places join the shuffle (`app/game/maps/lastlight/places.py`,
+one module each), every one with its own arrival sequence, weather, moving
+scenery (`static/js/worlds/last_light_rigs.js`), its infected in their own
+clothes, a world-page picture and a lure that sends the horde somewhere:
+
+* **Starlite Drive-In** -- the snack bar on its mound, the screen's scaffold;
+  crank the movie's sound. They come out of the corn.
+* **Harrow County Zoo** -- the vet hospital, the monorail on its stilts, the
+  penguin gallery; the showtime jingle sends them into the sea lion arena.
+* **Harrow Point Aquarium** -- the shark tunnel, the Great Hall under the
+  whale; the dolphin show pulls them into the cliff-edge pool.
+* **Silver Screen Studios** -- a western street of false fronts, the sound
+  stages, the pirate ship in its tank; fire the war set's effects.
+* **Harrow County Fair** -- the corn maze, the hay pyramid, the grain
+  elevator; the demolition derby sends them into the mud pit.
+* **Redwater Cranberry Bogs** -- flooded bogs red with berries between narrow
+  dikes; open the floodgate.
+* **Kettle Falls Mill** -- a gorge crossed by a dam, a covered bridge and a
+  footbridge; blow the mill whistle.
+* **Launch Complex 9** -- the blockhouse, the service structure, the moon
+  rocket; resume the countdown and light the engines.
+* **The Underneath** -- catwalks among the cistern's pillars, a swallowed
+  subway platform; start the pumps.
+* **Rooftops of Harrow Heights** -- planks across the alleys in the snow, a
+  construction deck; light the billboard.
+* **Glasshouse Gardens** -- the Palm House gallery, the treetop walkway, giant
+  lily pads; open the corpse flower's vents.
+* **Blackpowder Fireworks Co.** -- magazines in their mounds, the giant
+  rocket's gantry; light the finale. Fuel drums everywhere.
+* **St. Bride's Mount** -- a tidal abbey: the village in terraces, the
+  ramparts, channels out on the sands; play the great organ.
+* **Splash Kingdom** -- Fort Splashmore, the Kraken, the lazy river round
+  Volcano Island, the drained dive pool; sound the wave horn.
+* **Lumen Caverns** -- a show cave, all of it inside the rock: the Lost River,
+  the rope bridge over the chasm, the Crystal Chamber's selenite, the lift
+  stuck in its shaft; start the light show in the Cathedral Room.
 
 **Waves.** Each wave is paced to last about four minutes: its infected arrive
 in a steady stream over most of it (a couple at a time, every second or so,

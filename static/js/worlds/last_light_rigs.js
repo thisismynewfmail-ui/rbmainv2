@@ -5183,5 +5183,315 @@
     };
   });
 
+  // ===================================================== Lumen Caverns
+  if (GA) {
+    GA.register('ll_lightshow', function (vol) {
+      // "Symphony of the Earth": a synth swell, a slow arpeggio, the boom
+      [130.8, 196, 261.6, 329.6].forEach(function (f) {
+        this.tone({ type: 'triangle', freq: f, dur: 3.2, gain: 0.03 * vol });
+      }, this);
+      [523.3, 659.3, 784, 1046.5].forEach(function (f, i) {
+        this.later(400 + i * 350, function () { this.tone({ type: 'sine', freq: f, dur: 0.8, gain: 0.03 * vol }); });
+      }, this);
+      this.later(1900, function () {
+        this.tone({ type: 'sine', freq: 55, freqEnd: 40, dur: 1.4, gain: 0.16 * vol });
+        this.noise({ filter: 'lowpass', freq: 400, freqEnd: 120, dur: 1.4, gain: 0.08 * vol });
+      });
+    });
+    GA.register('ll_flutter', function (vol) {
+      for (var i = 0; i < 8; i++) {
+        this.later(i * 60, function () { this.noise({ filter: 'bandpass', freq: 900, dur: 0.05, gain: 0.05 * vol }); });
+      }
+      this.later(200, function () { this.tone({ type: 'sine', freq: 9000, freqEnd: 7000, dur: 0.12, gain: 0.01 * vol }); });
+    });
+    GA.register('ll_cartsqueal', function (vol) {
+      this.tone({ type: 'sawtooth', freq: 1400, freqEnd: 1100, dur: 0.5, gain: 0.025 * vol });
+      this.noise({ filter: 'lowpass', freq: 300, dur: 1.2, gain: 0.05 * vol });
+    });
+  }
+
+  /* The light show in the Cathedral Room: dark until somebody runs it from
+     the balcony (the lure) -- then the projectors sweep their colours over
+     the formations, the Pillar of Ages glows red, green, blue, and the
+     music swells and swells. */
+  Rigs.register('light_show', function (spec) {
+    var lamps = spec.lamps_path || [], lit = -100, played = -100;
+    var cols = ['#ff3a5a', '#3af2a8', '#3a8aff', '#ffd84a', '#c83aff'];
+    var aim = [];
+    for (var i = 0; i < lamps.length; i++) aim.push({ yaw: 0, pitch: 0.3 });
+    function target(i, t, on) {
+      var c = spec.p;
+      if (!on) return [c[0] + (lamps[i][0] - c[0]) * 0.5, 0, c[2] + (lamps[i][2] - c[2]) * 0.5];
+      return [c[0] + Math.sin(t * 0.5 + i * 1.7) * 30, c[1] + Math.sin(t * 0.37 + i) * 14,
+              c[2] + Math.cos(t * 0.43 + i * 2.1) * 30];
+    }
+    return {
+      radius: 220,
+      event: function (kind) { if (kind === 'lure') lit = Rigs.clock(); },
+      update: function (dt, t, ctx) {
+        var on = t - lit >= 0 && t - lit < 30;
+        if (on && t - played > 7 && ctx.sound) { played = t; ctx.sound('ll_lightshow', spec.p, 0.9); }
+        for (var i = 0; i < lamps.length; i++) {
+          var head = [lamps[i][0], lamps[i][1] + 1.3, lamps[i][2]], to = target(i, t, on);
+          var dx = to[0] - head[0], dy = to[1] - head[1], dz = to[2] - head[2];
+          aim[i].yaw = approachAngle(aim[i].yaw, Math.atan2(dx, dz), on ? 6 : 1.5, dt);
+          aim[i].pitch = approach(aim[i].pitch, -Math.atan2(dy, Math.hypot(dx, dz)), on ? 6 : 1.5, dt);
+        }
+      },
+      draw: function (pen, t) {
+        var u = t - lit, on = u >= 0 && u < 30;
+        var fade = on ? Math.min(1, u / 1.5) * Math.min(1, (30 - u) / 2) : 0;
+        for (var i = 0; i < lamps.length; i++) {
+          var c = cols[(i + Math.floor(Math.max(0, u) / 3)) % cols.length];
+          var base = frame(lamps[i], aim[i].yaw);
+          pen.part(base, 'cyl', [0, 0.15, 0], [1.4, 0.3, 1.4], '#2a2c30', { m: 'metal' });
+          pen.part(base, 'box', [-0.95, 0.9, 0], [0.2, 1.5, 0.5], '#2a2c30', { m: 'metal' });
+          pen.part(base, 'box', [0.95, 0.9, 0], [0.2, 1.5, 0.5], '#2a2c30', { m: 'metal' });
+          var head = child(base, [0, 1.3, 0], aim[i].pitch, 0, 0);
+          pen.part(head, 'box', [0, 0, -0.1], [1.6, 1.3, 2.0], '#3a3e48', { m: 'metal' });
+          pen.part(head, 'cyl', [0, 0, 0.92], [1.1, 0.06, 1.1], fade > 0 ? c : '#14161a',
+                   { m: fade > 0 ? 'neon' : 'metal', rx: Math.PI / 2 });
+          if (fade <= 0) continue;
+          var len = 120;
+          pen.part(head, 'cone', [0, 0, 0.95 + len / 2], [12, len, 12], c, { m: 'neon', a: 0.055 * fade, rx: -Math.PI / 2 });
+          pen.part(head, 'cone', [0, 0, 0.95 + len / 4], [5, len / 2, 5], c, { m: 'neon', a: 0.12 * fade, rx: -Math.PI / 2 });
+        }
+        if (!on) return;
+        var wash = cols[Math.floor(u / 2) % cols.length];
+        pen.part(frame([spec.p[0], spec.p[1] - 10, spec.p[2]], 0), 'sph', [0, 0, 0], [30, 44, 30], wash, { m: 'neon', a: 0.1 * fade });
+        for (var g = 0; g < 10; g++) {
+          var a = t * 0.2 + g / 10 * TAU;
+          pen.part(frame([spec.p[0] + Math.cos(a) * 50, 49.4, spec.p[2] + Math.sin(a) * 40], 0), 'sph', [0, 0, 0],
+                   [4, 0.4, 4], cols[g % cols.length], { m: 'neon', a: 0.6 * fade });
+        }
+      }
+    };
+  });
+
+  /* The grotto's glow-worms: the ceiling scattered with blue-green points,
+     breathing brighter and dimmer, and the same points again in the black
+     water of the pool. */
+  Rigs.register('glowworms', function (spec) {
+    var a = spec.area || [spec.p[0] - 40, spec.p[0] + 40, spec.p[2] - 40, spec.p[2] + 40];
+    var pool = spec.pool, water = typeof spec.water === 'number' ? spec.water : 0, n = spec.n || 120;
+    var dots = [];
+    for (var i = 0; i < n; i++) {
+      var x = a[0] + 3 + (a[1] - a[0] - 6) * hash(i * 3 + 1), z = a[2] + 3 + (a[3] - a[2] - 6) * hash(i * 7 + 2);
+      dots.push({ x: x, z: z, p: hash(i * 11) * TAU, s: 0.25 + hash(i * 13) * 0.25,
+                  wet: !!pool && x > pool[0] && x < pool[1] && z > pool[2] && z < pool[3] });
+    }
+    return {
+      radius: Math.max(a[1] - a[0], a[3] - a[2]) / 2 + 20,
+      draw: function (pen, t) {
+        var y = spec.p[1] - 0.12;
+        for (var i = 0; i < dots.length; i++) {
+          var d = dots[i], k = 0.55 + 0.45 * Math.sin(t * 0.8 + d.p);
+          pen.part(frame([d.x, y, d.z], 0), 'sph', [0, 0, 0], [d.s, d.s, d.s], '#7affd8', { m: 'neon', a: k });
+          if (d.wet && pen.near) {
+            pen.part(frame([d.x, water + 0.02, d.z], 0), 'sph', [0, 0, 0], [d.s, 0.05, d.s], '#5ad8b8', { m: 'neon', a: k * 0.45 });
+          }
+        }
+      }
+    };
+  });
+
+  /* The selenite glowing from inside, slowly, beam by beam. */
+  Rigs.register('crystal_glow', function (spec) {
+    var pts = spec.points || [spec.p];
+    return {
+      radius: 140,
+      draw: function (pen, t) {
+        for (var i = 0; i < pts.length; i++) {
+          var k = 0.5 + 0.5 * Math.sin(t * 0.6 + i * 1.3);
+          pen.part(frame(pts[i], 0), 'sph', [0, 0, 0], [7 + k * 3, 9 + k * 3, 7 + k * 3], '#c8f2ff', { m: 'neon', a: 0.12 + k * 0.1 });
+          if (pen.near && Math.sin(t * 3 + i * 5) > 0.92) {
+            pen.part(frame([pts[i][0] + Math.sin(i) * 2, pts[i][1] + 3, pts[i][2]], 0), 'sph', [0, 0, 0], [0.6, 0.6, 0.6],
+                     '#ffffff', { m: 'neon' });
+          }
+        }
+      }
+    };
+  });
+
+  /* The colony on the Cathedral Room's roof: hanging there in a huddle --
+     until a shot or the light show sets them off, round and round under
+     the roof, and back. */
+  Rigs.register('cave_bats', function (spec) {
+    var n = spec.n || 16, flown = -100, c = spec.q || spec.p;
+    function scare(t, ctx) {
+      if (t - flown < 12) return;
+      flown = t;
+      if (ctx && ctx.sound) ctx.sound('ll_flutter', spec.p, 1);
+    }
+    return {
+      radius: 140,
+      event: function (kind, msg, ctx) {
+        var from = msg && msg.from;
+        if (kind === 'lure' || kind === 'blast' || kind === 'roar' ||
+            (kind === 'shot' && from && Math.hypot(from[0] - spec.p[0], from[2] - spec.p[2]) < 90)) {
+          scare(Rigs.clock(), ctx);
+        }
+      },
+      draw: function (pen, t) {
+        var u = t - flown, flying = u >= 0 && u < 12;
+        for (var i = 0; i < n; i++) {
+          var hx = spec.p[0] + (hash(i) - 0.5) * 12, hz = spec.p[2] + (hash(i + 3) - 0.5) * 10;
+          var f, flap = 0;
+          if (flying) {
+            // out from the roost to a ring round the pillar, round it, and home
+            var lift = Math.min(1, u / 1.2) * Math.min(1, (12 - u) / 1.5);
+            var a = u * (0.5 + hash(i) * 0.3) + i * TAU / n, r = 18 + hash(i + 5) * 38;
+            var ox = c[0] + Math.cos(a) * r, oz = c[2] + Math.sin(a) * r;
+            var oy = c[1] + (hash(i + 9) - 0.5) * 16 + Math.sin(u * 3 + i) * 2;
+            f = frame([hx + (ox - hx) * lift, spec.p[1] - 0.6 + (oy - spec.p[1] + 0.6) * lift, hz + (oz - hz) * lift],
+                      a + Math.PI);
+            flap = Math.sin(t * 22 + i) * 0.9;
+          } else {
+            // hanging upside down from the roof, the odd one stirring
+            f = child(frame([hx, spec.p[1], hz], hash(i + 7) * TAU), [0, 0, 0], 0, 0, Math.PI);
+            pen.part(f, 'box', [0, 0.1, 0], [0.12, 0.2, 0.12], '#2a2024');
+            f = child(f, [0, 0.55, 0], Math.sin(t * 0.7 + i) * 0.08, 0, 0);
+          }
+          pen.part(f, 'box', [0, 0, 0], [0.5, 0.7, 0.4], '#1a1416');
+          pen.part(f, 'box', [0, 0.45, 0.05], [0.36, 0.3, 0.34], '#241c1e');
+          pen.part(f, 'box', [-0.12, 0.62, 0.05], [0.08, 0.16, 0.06], '#241c1e');
+          pen.part(f, 'box', [0.12, 0.62, 0.05], [0.08, 0.16, 0.06], '#241c1e');
+          if (flying) {
+            pen.part(child(f, [0.25, 0.1, 0], 0, 0, flap), 'box', [0.8, 0, 0], [1.6, 0.06, 0.8], '#2a2024');
+            pen.part(child(f, [-0.25, 0.1, 0], 0, 0, -flap), 'box', [-0.8, 0, 0], [1.6, 0.06, 0.8], '#2a2024');
+          } else {
+            pen.part(f, 'box', [0, -0.05, -0.2], [0.6, 0.6, 0.06], '#2a2024');
+          }
+        }
+      }
+    };
+  });
+
+  /* A mine cart rolling up and down the main drive on its own, squealing,
+     stopping, rolling back. */
+  Rigs.register('mine_cart', function (spec) {
+    var x0 = typeof spec.x0 === 'number' ? spec.x0 : spec.p[0] - 30, x1 = typeof spec.x1 === 'number' ? spec.x1 : spec.p[0] + 30;
+    var y = spec.p[1], z = spec.p[2], period = 46, squealed = -10;
+    function pos(t) {
+      var u = (t % period) / period;
+      var k = u < 0.4 ? u / 0.4 : (u < 0.5 ? 1 : (u < 0.9 ? 1 - (u - 0.5) / 0.4 : 0));
+      return x0 + (x1 - x0) * (0.5 - 0.5 * Math.cos(k * Math.PI));
+    }
+    return {
+      radius: Math.abs(x1 - x0) / 2 + 30,
+      update: function (dt, t, ctx) {
+        var moving = Math.abs(pos(t + 0.3) - pos(t)) > 0.05;
+        if (moving && t - squealed > 4 && ctx.sound && nearest(ctx.players ? ctx.players() : [], [pos(t), y, z], 50)) {
+          squealed = t;
+          ctx.sound('ll_cartsqueal', [pos(t), y, z], 0.9);
+        }
+      },
+      draw: function (pen, t) {
+        var x = pos(t), f = frame([x, y, z], Math.PI / 2), roll = (x - x0) / 0.6;
+        // the bogie on its four wheels, turning
+        pen.part(f, 'box', [0, 0.8, 0], [3.4, 0.5, 4.4], '#2a2a2e', { m: 'metal' });
+        for (var w = 0; w < 4; w++) {
+          pen.part(child(f, [(w % 2 ? 1 : -1) * 1.9, 0.6, (w < 2 ? 1 : -1) * 1.5], roll, 0, 0), 'cyl', [0, 0, 0],
+                   [1.2, 0.3, 1.2], '#3a3a3e', { m: 'metal', rz: Math.PI / 2 });
+        }
+        // the tub, open, iron-bound, heaped with ore
+        pen.part(f, 'box', [0, 1.35, 0], [4.4, 0.6, 5.4], '#4a3424');
+        pen.part(f, 'box', [2.1, 2.5, 0], [0.3, 2.2, 5.4], '#6a4a3a');
+        pen.part(f, 'box', [-2.1, 2.5, 0], [0.3, 2.2, 5.4], '#6a4a3a');
+        pen.part(f, 'box', [0, 2.5, 2.6], [3.9, 2.2, 0.3], '#6a4a3a');
+        pen.part(f, 'box', [0, 2.5, -2.6], [3.9, 2.2, 0.3], '#6a4a3a');
+        pen.part(f, 'box', [2.15, 3.0, 0], [0.4, 0.25, 5.5], '#2a2a2e', { m: 'metal' });
+        pen.part(f, 'box', [-2.15, 3.0, 0], [0.4, 0.25, 5.5], '#2a2a2e', { m: 'metal' });
+        for (var o = 0; o < 6; o++) {
+          pen.part(f, 'sph', [(o % 3 - 1) * 1.2, 3.3 + (o % 2) * 0.35, (o < 3 ? 1 : -1) * 1.1], [1.7, 1.2, 1.7],
+                   o % 2 ? '#7a7a80' : '#5a5650', o % 2 ? { m: 'metal' } : undefined);
+        }
+      }
+    };
+  });
+
+  /* The lift, stuck in its shaft over the lobby: the cage hanging on its
+     cable, its light going on and off, now and then a jolt and sparks --
+     and somebody inside knocking, when you come close. */
+  Rigs.register('stuck_elevator', function (spec) {
+    var f0 = frame(spec.p, spec.yaw || 0), cable = spec.cable || 22, knocked = -10, jolted = -100;
+    return {
+      radius: 50,
+      update: function (dt, t, ctx) {
+        if (t - knocked > 7 && ctx.sound && nearest(ctx.players ? ctx.players() : [], spec.p, 26)) {
+          knocked = t;
+          ctx.sound('ll_knock', spec.p, 1);
+        }
+        if (Math.floor(t / 23) !== Math.floor((t - dt) / 23)) jolted = t;
+      },
+      draw: function (pen, t) {
+        var drop = t - jolted < 0.4 ? Math.sin((t - jolted) / 0.4 * Math.PI) * 0.4 : 0;
+        var car = child(f0, [0, -drop, 0], 0, 0, Math.sin(t * 0.7) * 0.01);
+        pen.rod(Rigs.point(car, [0, 3.2, 0]), [spec.p[0], cable, spec.p[2]], 0.2, '#2a2a2e');
+        for (var c = 0; c < 4; c++) {
+          pen.part(car, 'box', [(c % 2 ? 1 : -1) * 3.6, 0, (c < 2 ? 1 : -1) * 3.6], [0.4, 6.4, 0.4], '#5a6066');
+        }
+        pen.part(car, 'box', [0, 3.3, 0], [7.6, 0.4, 7.6], '#4a5056');
+        pen.part(car, 'box', [0, -3.3, 0], [7.6, 0.4, 7.6], '#4a5056');
+        pen.part(car, 'box', [0, 0, -3.7], [7.2, 6.0, 0.2], '#6a7076', { a: 0.85 });
+        var on = Math.sin(t * 9) * Math.sin(t * 2.3) > -0.2;
+        pen.part(car, 'box', [0, 3.0, 0], [2.0, 0.2, 2.0], on ? '#fff2d8' : '#3a3a3a', { m: on ? 'neon' : '' });
+        if (on) pen.part(car, 'sph', [0, 0, 0], [6, 6, 6], '#fff2d8', { m: 'neon', a: 0.06 });
+        pen.part(car, 'box', [-1.2, -1.6, -2.0], [1.0, 2.6, 0.6], '#1a1a1e');
+        pen.part(car, 'box', [-1.2, -0.0, -2.0], [0.7, 0.7, 0.6], '#1a1a1e');
+        if (t - jolted < 0.8) {
+          for (var s2 = 0; s2 < 6; s2++) {
+            var q = (t - jolted) / 0.8;
+            pen.part(car, 'box', [Math.sin(s2 * 2) * q * 3, 3.5 - q * 4 + s2 * 0.2, Math.cos(s2 * 3) * q * 3], [0.15, 0.15, 0.15],
+                     '#ffd84a', { m: 'neon' });
+          }
+        }
+      }
+    };
+  });
+
+  /* Drips: a drop from the roof, and the ring it makes in a pool. */
+  Rigs.register('drip_rings', function (spec) {
+    var pts = spec.points || [spec.p];
+    return {
+      radius: 160,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < pts.length; i++) {
+          var u = ((t + i * 0.77) % 2.4) / 2.4, p = pts[i];
+          if (u < 0.3) {
+            pen.part(frame([p[0], p[1] + 10 * (1 - u / 0.3), p[2]], 0), 'sph', [0, 0, 0], [0.18, 0.4, 0.18], '#c8e8f2', { a: 0.8 });
+          } else {
+            var r = (u - 0.3) / 0.7 * 3.4;
+            pen.part(frame([p[0], p[1] + 0.03, p[2]], 0), 'cyl', [0, 0, 0], [r * 2, 0.02, r * 2], '#e8faff',
+                     { a: 0.35 * (1 - (u - 0.3) / 0.7) });
+          }
+        }
+      }
+    };
+  });
+
+  /* The rope bridge's handrails: a rope down each side, sagging with the
+     planks, hangers down to every plank. */
+  Rigs.register('rope_rails', function (spec) {
+    var x0 = spec.x0, x1 = spec.x1, zs = [spec.z0, spec.z1], y = spec.p[1];
+    return {
+      radius: Math.abs(x1 - x0) / 2 + 20,
+      draw: function (pen, t) {
+        var sway = Math.sin(t * 0.8) * 0.15;
+        for (var s = 0; s < 2; s++) {
+          var prev = null;
+          for (var k = 0; k <= 10; k++) {
+            var u = k / 10, x = x0 + (x1 - x0) * u;
+            var p = [x, y + 3.0 - 1.2 * Math.sin(Math.PI * u) + sway * Math.sin(Math.PI * u), zs[s]];
+            if (prev) pen.rod(prev, p, 0.18, '#a8885a');
+            if (k > 0 && k < 10) pen.rod(p, [x, y - 1.2 * Math.sin(Math.PI * u) + 0.1, zs[s]], 0.08, '#8a6a4a');
+            prev = p;
+          }
+        }
+      }
+    };
+  });
+
   global.LastLightRigs = { nearest: nearest, heading: heading };
 })(window);

@@ -532,6 +532,45 @@
       { shirt: shirt('#1a1a1e', '#1a1a1e', { weave: 'vinyl' }), pants: pants('#1a1a1e', { weave: 'vinyl' }),
         hat: hat([{ t: 'box', p: [0, -0.15, 0.86], s: [1.3, 0.6, 0.14], c: '#8ad8ff', a: 0.6 },
                   { t: 'cyl', p: [0.75, 0.0, 0.5], s: [0.18, 1.4, 0.18], c: '#ffd84a' }]) }
+    ],
+    caverns: [
+      CLASSIC,
+      // the caver: the muddy orange oversuit, the helmet and its headlamp
+      { shirt: shirt('#d86a2a', '#d86a2a', { weave: 'canvas' }), pants: pants('#a8582a', { weave: 'canvas' }),
+        hat: hat([{ t: 'sph', p: [0, 0.32, 0], s: [1.86, 1.2, 1.9], c: '#f2f2ee' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.0, 0.1, 2.06], c: '#f2f2ee' },
+                  { t: 'box', p: [0, 0.38, 0.94], s: [0.5, 0.4, 0.2], c: '#2a2a2e', m: 'metal' },
+                  { t: 'cyl', p: [0, 0.38, 1.05], s: [0.34, 0.06, 0.34], c: '#fff2c8', m: 'neon', r: [1.5708, 0, 0] }]) },
+      // the tour guide: the khaki shirt with the cave on the pocket, the ranger hat
+      { shirt: shirt('#b8a878', '#b8a878', { sleeves: 0.4, decal: 'logo_block' }), pants: pants('#5a5a3a', { length: 0.55 }),
+        hat: hat([{ t: 'cyl', p: [0, 0.06, 0], s: [2.6, 0.1, 2.6], c: '#8a6a3a' },
+                  { t: 'cyl', p: [0, 0.38, 0], s: [1.5, 0.6, 1.5], c: '#8a6a3a' },
+                  { t: 'cyl', p: [0, 0.18, 0], s: [1.54, 0.12, 1.54], c: '#3a2a1a' }]) },
+      // out of the old workings: the hickory shirt, the soft cap and its candle
+      { shirt: shirt('#3a4a5a', '#3a4a5a', { weave: 'xm_hickory' }), pants: pants('#4a4038', { weave: 'canvas' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.18, 0], s: [1.8, 0.36, 1.8], c: '#3a3028' },
+                  { t: 'cyl', p: [0, 0.02, 0.1], s: [2.0, 0.08, 2.2], c: '#3a3028' },
+                  { t: 'cyl', p: [0, 0.4, 0.92], s: [0.2, 0.5, 0.2], c: '#f2e8c8' },
+                  { t: 'sph', p: [0, 0.74, 0.92], s: [0.18, 0.3, 0.18], c: '#ffb84a', m: 'neon' }]),
+        hair: hair([{ p: [0, -0.62, 0.62], s: [1.2, 0.6, 0.4], c: '#5a4a3a' }]) },
+      // on the tour in the rain poncho they hand out at the top
+      { shirt: shirt('#8ac8e8', '#8ac8e8', { hood: true, weave: 'vinyl' }), pants: pants('#c8b088', { length: 0.55 }) },
+      // the geologist: the field vest, the boonie hat, the hand lens on its cord
+      { shirt: shirt('#7a6a4a', '#d8d0c0', { weave: 'canvas', decal: 'chevron' }), pants: pants('#5a5048', { weave: 'denim' }),
+        hat: hat([{ t: 'cyl', p: [0, 0.22, 0], s: [1.76, 0.44, 1.76], c: '#8a7a5a' },
+                  { t: 'cyl', p: [0, 0.04, 0], s: [2.4, 0.08, 2.4], c: '#8a7a5a' },
+                  { t: 'box', p: [0.3, -0.1, 0.9], s: [0.34, 0.34, 0.08], c: '#c8e8f2', a: 0.7 }]) },
+      // the cave diver: the drysuit, the hood, the mask and the twin lamps
+      { shirt: shirt('#1a2a4a', '#e8c81a', { hood: true, weave: 'vinyl' }), pants: pants('#1a2a4a', { weave: 'vinyl' }),
+        hat: hat([{ t: 'box', p: [0, -0.15, 0.86], s: [1.3, 0.6, 0.14], c: '#8ad8ff', a: 0.6 },
+                  { t: 'cyl', p: [0.66, 0.3, 0.6], s: [0.3, 0.6, 0.3], c: '#2a2a2e', m: 'metal', r: [1.5708, 0, 0] },
+                  { t: 'cyl', p: [-0.66, 0.3, 0.6], s: [0.3, 0.6, 0.3], c: '#2a2a2e', m: 'metal', r: [1.5708, 0, 0] },
+                  { t: 'cyl', p: [0.66, 0.3, 0.92], s: [0.26, 0.04, 0.26], c: '#f2f8ff', m: 'neon', r: [1.5708, 0, 0] },
+                  { t: 'cyl', p: [-0.66, 0.3, 0.92], s: [0.26, 0.04, 0.26], c: '#f2f8ff', m: 'neon', r: [1.5708, 0, 0] }]) },
+      // the gift kiosk: the souvenir fleece and the lanyard, the glow stick still lit
+      { shirt: shirt('#2a6a5a', '#2a6a5a', { weave: 'knit', decal: 'logo_block' }), pants: pants('#2a2a2e'),
+        hat: hat([{ t: 'box', p: [0, -1.5, 0.9], s: [0.1, 0.9, 0.1], c: '#c82a3a' },
+                  { t: 'box', p: [0.3, -0.8, 0.92], s: [0.08, 0.7, 0.08], c: '#6af2c8', m: 'neon', r: [0, 0, 0.5] }]) }
     ]
   };
 

@@ -217,6 +217,14 @@ AREA_SPOTS: Dict[str, Dict[str, str]] = {
         "the wave machine": "s", "the cabanas": "h", "the lifeguard chair": "pc", "the Kraken": "spc",
         "the splash basin": "r", "the chlorine store": "e", "the staff lot": "e", "the promenade": "h",
     },
+    "caverns": {
+        "the elevator lobby": "sh", "the grand gallery": "he", "the rimstone pools": "er",
+        "the glow-worm grotto": "er", "the lost river": "r", "the river bridge": "s", "the cathedral room": "he",
+        "the pillar of ages": "sp", "the light show balcony": "spc", "the crystal chamber": "ec",
+        "the old mine": "er", "the hoist": "e", "the chasm": "r", "the rope bridge": "e", "the wishing pit": "e",
+        "the explorer's camp": "er", "the fossil wall": "e", "the dig scaffold": "pc", "the gift kiosk": "h",
+        "the boat dock": "h", "the stuck elevator": "e",
+    },
 }
 
 # How a special gets called out, before the "by the diner" goes on the end.

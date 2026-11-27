@@ -239,9 +239,11 @@ WORLDS: List[Dict[str, Any]] = [
         "description": (
             "Harrow County fell in a single night. You and up to twenty-three "
             "others hold out against the infected, wave after wave, in one of "
-            "four places the outbreak reached first -- Harrow's main street, "
-            "St. Agnes Medical, the Blackwater docks or the Cedar Pines "
-            "campground. Every wave is bigger than the last; every fifth "
+            "nineteen places across the county -- from Harrow's main street, "
+            "St. Agnes Medical, the Blackwater docks and the Cedar Pines "
+            "campground to a drive-in, the zoo, a fireworks works, a tidal "
+            "abbey and a show cave deep under the hill, each with its own "
+            "noise to bring the horde. Every wave is bigger than the last; every fifth "
             "brings a Tank. Eleven kinds of special infected hunt the slow, "
             "the careless and the alone: Bloaters, Bombers, Leapers, Brutes, "
             "Spitters, Screamers, Riot infected, the Plague Captain, Hives, "
@@ -257,7 +259,7 @@ WORLDS: List[Dict[str, Any]] = [
         "colors": ["#5d8a4e", "#8a2a1c", "#e0a040"],
         "thumb": "lastlight",
         "features": ["24 players", "Endless waves", "Tank every 5th wave",
-                     "11 special infected", "4 shuffled locations",
+                     "11 special infected", "19 shuffled locations",
                      "Revive your team", "Spectate while dead"],
         # the newer places' moving scenery, weather and arrival scenes, and
         # their pictures on the world page (static/js/worlds/last_light*.js)
@@ -384,6 +386,14 @@ WORLDS: List[Dict[str, Any]] = [
                       "Volcano Island, mind the drained dive pool -- and sound "
                       "the wave horn to send the waves rolling and bring every "
                       "one of the dead down to the beach."},
+            {"id": "caverns", "name": "Lumen Caverns",
+             "blurb": "The show cave, the night the lights went out, deep "
+                      "under the hill. Hold the elevator lobby under "
+                      "the stuck lift, wade the Lost River under its bridges, "
+                      "cross the chasm on the rope bridge, climb the selenite "
+                      "in the Crystal Chamber -- and start the light show from "
+                      "the balcony in the Cathedral Room to bring everything in "
+                      "the dark to see it. Something in the lift is knocking."},
         ],
         # Know your enemy: the world page's bestiary, in the order they
         # turn up.  ``kind`` is the infected kind (engine/zombies.js draws
