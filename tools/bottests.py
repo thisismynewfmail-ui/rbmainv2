@@ -1575,6 +1575,32 @@ def test_profiles() -> None:
     check("profiles: switched off, every bot keeps the site defaults",
           all(p == {} and t == "auto" and m == {} for p, t, m in plain))
     bot_config.reset("profiles")
+    # Shuffle loadouts (Bot Creation): every bot out of a live round, all five slots
+    d.live[world][live_uid] = 7
+    before = {uid: list(avatars.raw_avatar(uid)["hotbar"]) for uid in ids}
+    kept_director = dm._director
+    dm._director = d
+    try:
+        started, _message = factory.start_shuffle(ids)
+        deadline = time.time() + 60.0
+        while factory.job_status()["job"]["running"] and time.time() < deadline:
+            time.sleep(0.05)
+    finally:
+        dm._director = kept_director
+    job = factory.job_status()["job"]
+    after = {uid: list(avatars.raw_avatar(uid)["hotbar"]) for uid in ids}
+    own = {uid: dict(factory.usable_owned(uid)) for uid in ids}
+    moved = [uid for uid in ids if after[uid] != before[uid]]
+    check("shuffle: a bot in a live round keeps its hotbar", after[live_uid] == before[live_uid])
+    check("shuffle: every other bot's hotbar is dealt again",
+          started and job["kind"] == "shuffle" and not job["running"] and len(moved) == len(ids) - 1
+          and job["changed"] == len(moved), (len(moved), len(ids), job.get("log", [])[-1:]))
+    check("shuffle: only ever what the bot owns, never twice, always something to fight with",
+          all(all(inv == 0 or inv in own[uid] for inv in after[uid])
+              and len([i for i in after[uid] if i]) == len({i for i in after[uid] if i})
+              and any(arms.role(own[uid][i]) != "gear" for i in after[uid] if i) for uid in moved))
+    check("shuffle: all five slots move -- slot 1 is not always the pistol",
+          sum(1 for uid in moved if own[uid].get(after[uid][0]) != "use_pistol") > len(moved) // 3)
     db.execute("DELETE FROM users WHERE is_bot=1")
 
 

@@ -1812,6 +1812,15 @@ class Director:
     STATE_KEYS = {"offline": OFFLINE, "waking": WAKING, "online": IDLE,
                   "playing": PLAYING}
 
+    def live_uids(self) -> Set[int]:
+        """Every bot in a live round right now -- a hosted one, with people
+        in it -- which is what an admin's bulk change must leave alone."""
+        with self.lock:
+            out: Set[int] = set()
+            for live in self.live.values():
+                out.update(int(uid) for uid in live)
+            return out
+
     def presence(self, uid: int) -> Dict[str, Any]:
         i = self.index_of(uid)
         if i < 0:
