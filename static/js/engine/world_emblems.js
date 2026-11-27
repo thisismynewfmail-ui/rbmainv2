@@ -154,6 +154,26 @@
     inked(ctx, circlePath(63, 64, 7), RR_GOLD, 4);
   });
 
+  // the newer lines' twists
+  emblem('em_rr_spike', function (ctx) {
+    // the golden spike driven into a tie, a maul resting on it
+    inked(ctx, function (g) { g.rect(14, 82, 100, 20); }, '#8a6040');
+    stroked(ctx, function (g) { g.moveTo(14, 78); g.lineTo(114, 78); }, RR_IRON, 6);
+    inked(ctx, poly([[56, 22], [72, 22], [70, 76], [64, 88], [58, 76]]), RR_GOLD);
+    inked(ctx, function (g) { g.rect(50, 16, 28, 10); }, RR_GOLD, 5);
+    stroked(ctx, function (g) { g.moveTo(84, 30); g.lineTo(112, 62); }, '#c89a6a', 6);
+    inked(ctx, poly([[74, 20], [94, 14], [100, 32], [80, 38]]), RR_IRON, 5);
+  });
+
+  emblem('em_rr_claim', function (ctx) {
+    // a rail carried off over a shoulder, a crowbar crossed behind it
+    stroked(ctx, function (g) { g.moveTo(22, 102); g.lineTo(104, 24); }, '#5a5048', 7);
+    inked(ctx, poly([[14, 78], [100, 30], [108, 42], [22, 90]]), RR_IRON);
+    stroked(ctx, function (g) { g.moveTo(26, 82); g.lineTo(100, 40); }, '#d8dce2', 3);
+    inked(ctx, poly([[96, 92], [112, 84], [118, 96], [102, 106]]), RR_RED, 5);
+    stroked(ctx, function (g) { g.moveTo(40, 26); g.lineTo(52, 40); g.moveTo(52, 26); g.lineTo(40, 40); }, RR_RED, 5);
+  });
+
   // ------------------------------------------------------------- Prop Panic
   var PP_PINK = '#f06a8a', PP_GOLD = '#ffc83a', PP_BLUE = '#5aa0f0', PP_GREEN = '#6ac860';
 

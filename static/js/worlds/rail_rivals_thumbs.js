@@ -285,4 +285,62 @@
       }
     }
   });
+
+  // ------------------------------------------- Golden Spike Summit
+  /* The gulch trestle with its gap: the Crimson cart waiting at the
+     railhead, a hand carrying the next rail in, the Bluebird line's cart
+     beyond; sage, junipers, the terraced hills. */
+  Thumbs.registerWorld('rr_goldspike', {
+    sky: { top: '#3a6ab8', horizon: '#f2e6c8', sun: [0.3, 0.9, -0.25], clouds: 0.35, tint: '#fff2d8' },
+    camera: [[44, 24, 46], [-6, 0, -6], 44],
+    build: function (parts, k) {
+      k.box([-90, -0.5, 0], [132, 1, 260], '#c8b47a', { st: 1 });
+      k.box([90, -0.5, 0], [132, 1, 260], '#c8b47a', { st: 1 });
+      k.box([0, -12.5, 0], [48, 1, 260], '#a08a62', { st: 1 });
+      k.box([-27, -6.5, 0], [6, 11, 260], '#7a5a40');
+      k.box([27, -6.5, 0], [6, 11, 260], '#7a5a40');
+      // the hills behind, terrace on terrace
+      [[-70, -70, 90, 40], [40, -80, 110, 36]].forEach(function (h, i) {
+        for (var t = 0; t < 4; t++) {
+          k.box([h[0], 1 + t * 2, h[1] - t * 3], [h[2] - t * 16, 2, h[3] - t * 6],
+                t % 2 ? '#b8a068' : (i ? '#a07a58' : '#c8b47a'), { st: 1 });
+        }
+      });
+      // the trestle: bents, the deck, the gap where the rails will go
+      for (var x = -22; x <= 22; x += 7.3) {
+        [-6, -2.4, 2.4, 6].forEach(function (w) { k.box([x, -6.2, 4 + w], [0.9, 11.6, 0.9], '#7a5838'); });
+        k.box([x, -0.9, 4], [1.0, 0.8, 14], '#5a4028');
+      }
+      k.box([0, -0.4, 4], [48, 0.8, 14], '#6a4a30', { st: 1 });
+      for (var t2 = -23; t2 < 24; t2 += 2.4) k.box([t2, 0.12, 4], [0.8, 0.24, 6], '#5e4630');
+      straight(k, -150, -24, 4);
+      straight(k, 24, 150, 4);
+      k.box([-12, 0.37, 2.4], [24, 0.14, 0.36], '#8c8a86', { m: 'metal' });
+      k.box([-12, 0.37, 5.6], [24, 0.14, 0.36], '#8c8a86', { m: 'metal' });
+      for (var sk = 3; sk < 22; sk += 6) {
+        k.box([sk, 0.6, 0.6], [0.3, 1.2, 0.3], '#c8a878');
+        k.box([sk, 1.25, 0.6], [0.5, 0.3, 0.06], '#d83a2a');
+      }
+      // the railhead's pole
+      for (var s2 = 0; s2 < 4; s2++) k.box([0, 0.5 + s2 * 0.9, 4], [0.36, 0.9, 0.36], s2 % 2 ? '#f2f2ee' : '#d82a1a');
+      k.box([0.9, 3.6, 4], [1.6, 1.0, 0.06], '#ff8a7a');
+      cart(k, -10, 4, Math.PI / 2, RED);
+      pushers(k, -10, 4, Math.PI / 2, RED, 2, 0.3);
+      // the next rail coming, on a shoulder
+      k.player(12, 16, -2.6, { anim: 'walk', time: 0.4, wear: cap(RED).concat([
+        { t: 'box', p: [-1.1, 5.3, 0], s: [0.36, 0.3, 6.2], c: '#8c8a86', r: [0.12, 0, 0], m: 'metal' }]) });
+      k.player(-36, 20, 2.4, { anim: 'run', time: 0.7, wear: cap(BLUE) });
+      // the rail stack, junipers, sage
+      for (var l = 0; l < 3; l++) k.box([-44, 1.0 + l * 0.5, 26], [14, 0.5, 3.4 - l * 0.6], '#8c8a86', { m: 'metal' });
+      [[-58, -24], [52, -30], [-80, 20]].forEach(function (j) {
+        k.shape('cyl', [j[0], 2.6, j[1]], [1.2, 5.2, 1.2], '#6a4a32');
+        k.shape('sph', [j[0], 6.8, j[1]], [7, 4.6, 6.4], '#4a6a44');
+      });
+      [[-60, 34], [-48, -16], [44, -18], [62, 24], [30, 30], [-20, 30]].forEach(function (p) {
+        k.shape('sph', [p[0], 0.7, p[1]], [2.6, 1.6, 2.4], '#8a9a78');
+      });
+      cart(k, 66, -36, Math.PI / 2, BLUE);
+      straight(k, 36, 150, -36);
+    }
+  });
 })(window);

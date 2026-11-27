@@ -448,12 +448,30 @@ ten seconds, stacking up to twenty-four.
   seconds or so a gas pocket at one of the warning boards hisses for six
   seconds, then goes up -- deadly at its heart, a bad burn at its edge.
 
+The railroads built since run over rolling land -- the lines climb and drop
+with it, the cart pitched on the grade -- and each brings a twist of its own
+(`app/game/worlds/rail_twists.py`, drawn by `static/js/worlds/rail_rivals_lines.js`):
+
+* **Golden Spike Summit** -- high noon on a sage-and-juniper pass, the last
+  day of the race to finish the line: the end-of-track camps and the
+  commissary, Rattlesnake Gulch and its two trestles, the climb to the
+  saddle where the lines cross on the ceremony ground (the grandstand, the
+  two engines nose to nose, the photographer's stand, the golden spike on
+  its table), the Summit Ridge with its two cuts and the surveyors' tower,
+  the termini and the Summit Hotel. *The railhead*: neither line is
+  finished. Each has a gap on its trestle and another in its cut, graded
+  and bare; a cart stops where its rails stop. Hold **E** at a stack for a
+  rail (carried on the shoulder, a little slower) and at your railhead to
+  lay it, six units at a time -- before your cart gets there, if you are
+  smart. The other company can pull the last rail back up while your cart
+  is not on it, and walk off with it.
+
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
 delivered), Lawman (raiders stopped by your cart), Photo Finish (won with
 theirs nine tenths of the way), Signalman, Snowplow, Bridgekeeper, Canary
-(out of a venting pocket in time) and Four Lines (a race won on every
-railroad).
+(out of a venting pocket in time), Spike Driver (rails laid), Claim Jumper
+(their rails pulled up) and Four Lines (a race won on every railroad).
 
 **Bots** take a job for the race by persona and settings -- pusher, raider,
 sniper on the water towers and decks, or a flexible hand who fetches coal

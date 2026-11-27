@@ -39,6 +39,8 @@ WORLD: Dict[str, Any] = {
     "round_label": "Race to the terminus",
     "colors": ["#c4281c", "#2f6aa8", "#e8b23a"],
     "thumb": "rail_rivals",
+    # the newer lines' twists and arrival scenes live in a second script
+    "game_scripts": ["/static/js/worlds/rail_rivals.js", "/static/js/worlds/rail_rivals_lines.js"],
     "features": ["16 players", "Payload race", "Brake levers", "Coal boosts",
                  "Depot respawns", "4 rotating railroads", "A twist on every line"],
     "areas": [
@@ -58,6 +60,13 @@ WORLD: Dict[str, Any] = {
          "blurb": "The lowest level of the mine: crystals, glowing "
                   "mushrooms, a lava chasm under the Devil's Bridge, and "
                   "firedamp that gathers in the hollows and goes up."},
+        {"id": "goldspike", "name": "Golden Spike Summit",
+         "blurb": "The last day of the race to finish the line, high on a "
+                  "sage-and-juniper pass. Neither line is finished: carry "
+                  "rails from the stacks and lay your own across the gulch "
+                  "trestle and through the Summit Cut -- and pull theirs up "
+                  "before their cart gets there. The rails meet at the "
+                  "ceremony ground, golden spike and all."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -136,6 +145,14 @@ BADGES: List[Tuple[Any, ...]] = [
      ["Sniffer", "Canary", "Gas Man", "Firedamp Dodger", "Lungs of Iron"],
      "Got out of a venting firedamp pocket in Lantern Deep before it went up.",
      "em_rr_canary", "close escapes"),
+    ("rr_spike_driver", "Spike Driver", "rr_rails", [1, 10, 40, 100, 250],
+     ["Tie Layer", "Rail Hand", "Track Boss", "Spike Driver", "Golden Spike"],
+     "Carried rails to your own railhead on Golden Spike Summit and laid them.",
+     "em_rr_spike", "rails laid"),
+    ("rr_claim_jumper", "Claim Jumper", "rr_rails_pulled", [1, 10, 30, 80, 200],
+     ["Pilferer", "Rail Thief", "Claim Jumper", "Track Bandit", "Iron Highwayman"],
+     "Pulled the other company's rails back up before their cart got there.",
+     "em_rr_claim", "rails pulled"),
     ("rr_four_lines", "Four Lines", "rr_areas", [1, 2, 3, 4],
      ["Day Tripper", "Two-Line Man", "Three-Line Hand", "Master of the Four Lines"],
      "Won a race on each of Rail Rivals' four railroads.", "em_rr_map", "railroads"),
@@ -165,6 +182,10 @@ SPEECH: List[Tuple[str, str, int, str]] = [
      "Redrock Mesa: a lift bridge goes up in front of a cart."),
     ("rr_gas", "Firedamp!", 40,
      "Lantern Deep: a firedamp pocket starts venting near the bot."),
+    ("rr_railhead", "Line through", 35,
+     "Golden Spike Summit: a team lays the last rail across one of its gaps."),
+    ("rr_rail_pulled", "Rails pulled", 35,
+     "Golden Spike Summit: somebody pulls a rail back up off a railhead."),
 ]
 
 
@@ -246,6 +267,25 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
     if kind == "rr_gas":
         return ("Firedamp is venting near %s and about to go up -- get clear!"
                 % (what or "you"), "victim")
+    if kind == "rr_railhead":
+        if me:
+            return ("You laid the last rail across the gap near %s: your line is "
+                    "through." % (what or "the railhead"), "actor")
+        if cart:
+            return ("%s laid the last rail near %s: your cart can roll on through."
+                    % (by, what or "the railhead"), "ally")
+        return ("%s's line is through the gap near %s now." % (company, what or "the railhead"),
+                "victim")
+    if kind == "rr_rail_pulled":
+        if me:
+            return ("You pulled a rail up off %s's railhead and walked off with it."
+                    % company, "actor")
+        if cart:
+            return ("%s pulled a rail up off YOUR railhead -- somebody lay it again."
+                    % by, "victim")
+        if mine:
+            return ("Your teammate %s pulled up one of the other line's rails." % by, "ally")
+        return ("%s pulled up a rail." % by, "neutral")
     if kind == "round_end" and event.get("world") == WORLD["id"]:
         return None
     return None
@@ -275,6 +315,13 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("rr_bridge", "victim"): ["BRIDGE", "they raised the bridge", "lower it!!"],
     ("rr_bridge", "ally"): ["nice bridge", "lol", "theyre stuck"],
     ("rr_gas", "victim"): ["GAS", "get out", "run", "its gonna blow", "move"],
+    ("rr_railhead", "actor"): ["line is through", "rails done", "go go go"],
+    ("rr_railhead", "ally"): ["nice rails", "push now", "were through"],
+    ("rr_railhead", "victim"): ["theyre through", "contest the cart", "hurry"],
+    ("rr_rail_pulled", "actor"): ["stole a rail lol", "no rails for you", "got one"],
+    ("rr_rail_pulled", "victim"): ["they took our rail", "more rails!!", "relay it"],
+    ("rr_rail_pulled", "ally"): ["nice steal", "lol their rails"],
+    ("rr_rail_pulled", "neutral"): ["rails"],
 }
 
 # ----------------------------------------------------------------- the bots

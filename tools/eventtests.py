@@ -316,7 +316,11 @@ def main(argv: List[str]) -> int:
     parser.add_argument("--seconds", type=float, default=420.0)
     parser.add_argument("--fast", action="store_true", help="skip the route walk")
     parser.add_argument("--only", default="catalogue,client,map,play,sleep")
+    parser.add_argument("--area", default="",
+                        help="start the play test in this area (a railroad, an island...)")
     args = parser.parse_args(argv[1:])
+    if args.area:
+        os.environ["BLOCKHAVEN_FIRST_AREA"] = args.area
     isolate()
     from app.models import event_worlds
     # a hidden world is left out unless it is asked for by name
