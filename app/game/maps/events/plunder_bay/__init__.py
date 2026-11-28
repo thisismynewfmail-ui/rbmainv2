@@ -14,8 +14,8 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ..kit import build_world
-from . import (doubloon, frostfang, ghostfleet, glowtide, reef, royale, skullcove, sulphur, thunderhead,
-               whalebone)
+from . import (doubloon, frostfang, ghostfleet, glowtide, monsoon, reef, royale, skullcove, sulphur,
+               thunderhead, whalebone)
 
 AREAS = [
     ("skullcove", skullcove, "Skull Cove"),
@@ -28,6 +28,7 @@ AREAS = [
     ("ghostfleet", ghostfleet, "Ghost Fleet Cove"),
     ("glowtide", glowtide, "Glowtide Lagoon"),
     ("frostfang", frostfang, "Frostfang Floe"),
+    ("monsoon", monsoon, "Monsoon Bazaar"),
 ]
 
 

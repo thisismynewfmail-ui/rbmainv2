@@ -3317,4 +3317,300 @@
       ctx.restore();
     }
   });
+  // ------------------------------------------------ Monsoon Bazaar
+  /* a marine of the Company -- white breeches, red coat and white
+     cross-belts, a tall black shako -- side on, facing left (``face`` -1
+     faces right); the musket goes from shouldered to levelled at ``aim``
+     radians as ``k`` goes 0..1.  (x, y) is the feet. */
+  function msMarine(ctx, x, y, s, step, k, aim, face) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(-s * (face || 1), s);
+    ctx.fillStyle = '#f0ece0';
+    ctx.save(); ctx.translate(-7, -40); ctx.rotate(step); ctx.fillRect(-6, 0, 12, 40); ctx.restore();
+    ctx.save(); ctx.translate(7, -40); ctx.rotate(-step); ctx.fillRect(-6, 0, 12, 40); ctx.restore();
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-14, -4, 13, 5); ctx.fillRect(1, -4, 13, 5);
+    ctx.fillStyle = '#c81e1e'; ctx.fillRect(-16, -84, 32, 46);
+    ctx.strokeStyle = '#f4f0e0'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-14, -82); ctx.lineTo(14, -42); ctx.moveTo(14, -82); ctx.lineTo(-14, -42); ctx.stroke();
+    ctx.fillStyle = SKIN; ctx.fillRect(-11, -108, 22, 24);
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(2, -100, 3, 5);
+    ctx.fillStyle = '#1a1a22'; ctx.fillRect(-12, -136, 24, 30);
+    ctx.fillStyle = '#e8b830'; ctx.fillRect(-12, -112, 24, 4);
+    ctx.beginPath(); ctx.arc(0, -124, 4, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#f4f0e0'; ctx.fillRect(-2, -146, 4, 11);
+    ctx.save(); ctx.translate(14, -76); ctx.rotate(lerp(-1.4, aim, k));
+    ctx.fillStyle = '#5a3a22'; ctx.fillRect(0, -3, 70, 6);
+    ctx.fillStyle = '#8a8e96'; ctx.fillRect(60, -2, 22, 4);
+    ctx.restore();
+    ctx.restore();
+  }
+
+  Intro.register('pb_monsoon', {
+    name: 'Monsoon Bazaar',
+    tagline: 'Rob the spice port in the rain. When the customs gong sounds, the marines march.',
+    accent: '#f0a830',
+    cues: [[0.1, 'pb_hiss', 0.5], [0.9, 'pb_twist_redcoats', 0.8], [1.4, 'pb_drum', 0.7], [2.9, 'pb_cock', 0.8],
+           [3.2, 'pb_musket', 1], [3.4, 'pb_waves', 0.5], [4.4, 'pb_coins', 0.6]],
+    shakes: [[3.2, 4, 0.3]],
+    tagY: 640, tagAt: 3.7,
+    setup: function (r) {
+      var d = { rain: [], lanterns: [], rings: [] };
+      for (var i = 0; i < 170; i++) d.rain.push([r() * VW, r() * VH, between(r, 0.7, 1.3)]);
+      for (var l = 0; l < 9; l++) d.lanterns.push([between(r, -0.38, 0.38), between(r, 0.08, 0.95), r() * 6,
+                                                   ['#ff6a4a', '#ffb84a', '#ff8ad8', '#ffe07a'][l % 4]]);
+      for (var g = 0; g < 16; g++) d.rings.push([between(r, -0.45, 0.45), r(), r()]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var FAR = 420, NEAR = 900;
+      function half(y) { return 60 + (y - FAR) / (NEAR - FAR) * 400; }     // the canal's half-width at a depth
+      // the sky: monsoon cloud, the sun breaking through over the left
+      var sky = ctx.createLinearGradient(0, 0, 0, 440);
+      sky.addColorStop(0, '#56667c'); sky.addColorStop(1, '#d4d6ca');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      var sun = seg(t, 2.0, 4.6);
+      additive(ctx, function () { dot(ctx, '#fff0c0', 260, 40, 460, 0.18 + 0.4 * sun); });
+      if (sun > 0) {
+        ['#ff4a4a', '#ff9a3a', '#ffe04a', '#5ad85a', '#4aa8ff', '#5a5ae0', '#a05ad8'].forEach(function (c, i) {
+          ctx.strokeStyle = c; ctx.globalAlpha = 0.38 * sun; ctx.lineWidth = 15;
+          ctx.beginPath(); ctx.arc(800, 600, 660 - i * 15, Math.PI, TAU); ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+      }
+      // the cliffs at the head of the canal, the torrent falling off them
+      ctx.fillStyle = '#4e5a40';
+      ctx.beginPath(); ctx.moveTo(0, 440);
+      [[0, 230], [160, 200], [300, 226], [460, 190], [640, 214], [800, 186], [960, 210], [1130, 184], [1300, 216],
+       [1460, 196], [1600, 222], [1600, 440]].forEach(function (q) { ctx.lineTo(q[0], q[1]); });
+      ctx.fill();
+      ctx.fillStyle = '#3a6a32';
+      [[0, 230, 160], [300, 226, 160], [640, 214, 160], [960, 210, 170], [1300, 216, 160]].forEach(function (q) {
+        ctx.fillRect(q[0], q[1] - 6, q[2], 10);
+      });
+      ctx.fillStyle = 'rgba(40,70,30,0.6)';
+      for (var v = 40; v < VW; v += 90) ctx.fillRect(v, 236 + (v * 7 % 30), 8, 110 + (v * 3 % 50));
+      var fx = 800, ftop = 188;
+      ctx.fillStyle = 'rgba(214,238,248,0.9)'; ctx.fillRect(fx - 26, ftop, 52, FAR - ftop);
+      ctx.fillStyle = '#ffffff';
+      for (var st = 0; st < 7; st++) {
+        var u = (t * 1.3 + st / 7) % 1;
+        ctx.fillRect(fx - 22 + st * 7, ftop + u * (FAR - ftop) - 14, 3, 26);
+      }
+      additive(ctx, function () { dot(ctx, '#ffffff', fx, FAR, 70, 0.5); });
+      // the customs house's clock tower over the roofs on the left, the
+      // stupa's dome and spire on the right
+      ctx.fillStyle = '#f0e8d8'; ctx.fillRect(330, 150, 64, 280);
+      ctx.fillStyle = '#c84a3a'; ctx.beginPath(); ctx.moveTo(322, 152); ctx.lineTo(362, 96); ctx.lineTo(402, 152); ctx.fill();
+      ctx.fillStyle = '#fbf6ea'; ctx.beginPath(); ctx.arc(362, 200, 22, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(362, 200); ctx.lineTo(362 + Math.sin(t * 0.8) * 16, 200 - Math.cos(t * 0.8) * 16);
+      ctx.moveTo(362, 200); ctx.lineTo(362 + Math.sin(t * 0.07 + 2) * 10, 200 - Math.cos(t * 0.07 + 2) * 10); ctx.stroke();
+      ctx.fillStyle = '#f4ecdc'; ctx.beginPath(); ctx.arc(250, 330, 70, Math.PI, TAU); ctx.fill();
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(250, 262, 8, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f8f4ec'; ctx.beginPath(); ctx.arc(1310, 330, 58, Math.PI, TAU); ctx.fill();
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(1294, 248, 32, 26);
+      ctx.beginPath(); ctx.moveTo(1298, 248); ctx.lineTo(1310, 170); ctx.lineTo(1322, 248); ctx.fill();
+      ctx.fillStyle = '#2a3a8a'; ctx.fillRect(1299, 256, 8, 5); ctx.fillRect(1313, 256, 8, 5);
+      ['#3a6ac8', '#f4f0e8', '#c8302a', '#3a9a4a', '#f0c830'].forEach(function (c, i) {
+        for (var side = -1; side <= 1; side += 2) {
+          var px = 1310 + side * (22 + i * 22), py = 196 + i * 22;
+          ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(px - 8, py); ctx.lineTo(px + 8, py); ctx.lineTo(px, py + 18 + Math.sin(t * 4 + i) * 3); ctx.fill();
+        }
+      });
+      // the gong sounding in the customs house
+      if (t > 0.9 && t < 2.4) {
+        for (var ring = 0; ring < 3; ring++) {
+          var age = t - 0.9 - ring * 0.25;
+          if (age <= 0) continue;
+          ctx.strokeStyle = 'rgba(240,200,80,' + Math.max(0, 0.8 - age * 0.6) + ')'; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.arc(362, 300, 30 + age * 160, 0, TAU); ctx.stroke();
+        }
+      }
+      // the ground either side, and the canal running up to the falls
+      ctx.fillStyle = '#9a9080'; ctx.fillRect(0, FAR, VW, NEAR - FAR);
+      ctx.fillStyle = '#3a7a6a';
+      ctx.beginPath(); ctx.moveTo(800 - half(FAR), FAR); ctx.lineTo(800 + half(FAR), FAR);
+      ctx.lineTo(800 + half(NEAR), NEAR); ctx.lineTo(800 - half(NEAR), NEAR); ctx.fill();
+      ctx.strokeStyle = '#c8bca8'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(800 - half(FAR), FAR); ctx.lineTo(800 - half(NEAR), NEAR);
+      ctx.moveTo(800 + half(FAR), FAR); ctx.lineTo(800 + half(NEAR), NEAR); ctx.stroke();
+      additive(ctx, function () { dot(ctx, '#ffffff', 800, FAR + 6, 50, 0.3); });
+      d.rings.forEach(function (rg) {
+        var y = lerp(FAR + 10, NEAR, rg[1]), u = (t * 1.4 + rg[2]) % 1, w = half(y);
+        ctx.strokeStyle = 'rgba(230,246,250,' + (0.6 * (1 - u)) + ')'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(800 + rg[0] * w * 2, y, (4 + u * 24) * w / 300, (2 + u * 8) * w / 300, 0, 0, TAU); ctx.stroke();
+      });
+      // the shophouses along both banks, far to near: striped awnings, lanterns
+      var walls = ['#f0a830', '#d83a8a', '#2aa8a0', '#8ac83a', '#3a4aa8', '#f0e8d8'];
+      var awn = ['#2aa8a0', '#f0a830', '#d83a8a', '#3a4aa8', '#f0a830', '#d83a8a'];
+      for (var row = 5; row >= 0; row--) {
+        var yb = lerp(FAR + 20, NEAR + 60, Math.pow(row / 5, 1.6));
+        var kk = half(yb) / 300, w2 = 300 * kk, h2 = 320 * kk, q = 40 * kk;
+        [-1, 1].forEach(function (side) {
+          var edge = 800 + side * half(yb), x0 = side < 0 ? edge - q - w2 : edge + q, c = (row * 2 + (side > 0 ? 1 : 0)) % 6;
+          ctx.fillStyle = walls[c]; ctx.fillRect(x0, yb - h2, w2, h2);
+          ctx.fillStyle = '#c84a3a';
+          ctx.beginPath(); ctx.moveTo(x0 - 10 * kk, yb - h2); ctx.lineTo(x0 + w2 / 2, yb - h2 - 60 * kk); ctx.lineTo(x0 + w2 + 10 * kk, yb - h2); ctx.fill();
+          ctx.fillStyle = '#2a5a8a';
+          ctx.fillRect(x0 + w2 * 0.15, yb - h2 + 30 * kk, w2 * 0.22, 50 * kk); ctx.fillRect(x0 + w2 * 0.63, yb - h2 + 30 * kk, w2 * 0.22, 50 * kk);
+          ctx.fillStyle = '#3a2a1a'; ctx.fillRect(x0 + w2 * 0.2, yb - 110 * kk, w2 * 0.6, 110 * kk);
+          for (var a2 = 0; a2 < 6; a2++) {
+            ctx.fillStyle = a2 % 2 ? '#f4ece0' : awn[c];
+            var ax = x0 + a2 * w2 / 6;
+            ctx.beginPath(); ctx.moveTo(ax, yb - 140 * kk); ctx.lineTo(ax + w2 / 6, yb - 140 * kk);
+            ctx.lineTo(ax + w2 / 6 + side * 10 * kk, yb - 104 * kk); ctx.lineTo(ax + side * 10 * kk, yb - 104 * kk); ctx.fill();
+          }
+          additive(ctx, function () {
+            dot(ctx, '#ffb05a', x0 + w2 * 0.12, yb - 96 * kk, 26 * kk, 0.8);
+            dot(ctx, '#ffb05a', x0 + w2 * 0.88, yb - 96 * kk, 26 * kk, 0.8);
+          });
+        });
+      }
+      // bunting strung over the canal
+      [[0, 70, 1600, 70, 90, 0], [0, 150, 1600, 150, 70, 2]].forEach(function (bt, j) {
+        ctx.strokeStyle = '#efe6d6'; ctx.lineWidth = 2; ctx.beginPath();
+        for (var i2 = 0; i2 <= 24; i2++) {
+          var uu = i2 / 24, bx = lerp(bt[0], bt[2], uu), by = lerp(bt[1], bt[3], uu) + Math.sin(uu * Math.PI) * bt[4];
+          if (i2) ctx.lineTo(bx, by); else ctx.moveTo(bx, by);
+        }
+        ctx.stroke();
+        for (var pn = 0; pn < 30; pn++) {
+          var uv = (pn + 0.5) / 30, px2 = lerp(bt[0], bt[2], uv), py2 = lerp(bt[1], bt[3], uv) + Math.sin(uv * Math.PI) * bt[4];
+          ctx.fillStyle = walls[(pn + j) % 6];
+          ctx.beginPath(); ctx.moveTo(px2 - 13, py2); ctx.lineTo(px2 + 13, py2); ctx.lineTo(px2 + Math.sin(t * 4 + pn + bt[5]) * 5, py2 + 32); ctx.fill();
+        }
+      });
+      // the sampan coming down the canal, our Corsair in it with a jewel
+      var p = seg(t, 0.0, 4.6), by0 = lerp(FAR + 10, NEAR - 70, p * p * p), bk = half(by0) / 300;
+      var duck = t > 2.9 && t < 3.55 ? 1 : 0;
+      function lanterns(front) {
+        d.lanterns.forEach(function (ln) {
+          var y = lerp(FAR + 10, NEAR, ln[1]);
+          if ((y > by0) !== front) return;
+          var w = half(y), lk = w / 300, x = 800 + ln[0] * w * 2 + Math.sin(t * 0.6 + ln[2]) * 10 * lk;
+          var bob = Math.sin(t * 2 + ln[2]) * 3 * lk;
+          ctx.fillStyle = '#6a4a2a'; ctx.fillRect(x - 16 * lk, y - 4 * lk + bob, 32 * lk, 6 * lk);
+          ctx.fillStyle = ln[3]; ctx.fillRect(x - 11 * lk, y - 30 * lk + bob, 22 * lk, 26 * lk);
+          additive(ctx, function () { dot(ctx, ln[3], x, y - 17 * lk + bob, 34 * lk, 0.7); });
+        });
+      }
+      function boat() {
+        var x = 800 + Math.sin(t * 0.8) * 30 * bk, y = by0 + Math.sin(t * 2.2) * 3 * bk;
+        ctx.save(); ctx.translate(x, y); ctx.scale(bk, bk);
+        ctx.fillStyle = '#c8a060';
+        ctx.beginPath(); ctx.moveTo(-120, -40); ctx.quadraticCurveTo(-60, -110, 10, -40); ctx.fill();
+        ctx.fillStyle = '#4a3a2a'; ctx.fillRect(110, -120, 5, 90);
+        additive(ctx, function () { dot(ctx, '#ff7a4a', 112, -124, 26, 0.9); });
+        ctx.fillStyle = '#ff7a4a'; ctx.beginPath(); ctx.arc(112, -124, 9, 0, TAU); ctx.fill();
+        ctx.save(); ctx.beginPath(); ctx.rect(-220, -400, 440, 356); ctx.clip();
+        pirate(ctx, 40, -20 + duck * 64, 0.95, t, 0, t > 3.55 ? 1 : 0, -1);
+        ctx.restore();
+        if (!duck) {
+          ctx.fillStyle = '#3ad0ff';
+          ctx.beginPath(); ctx.moveTo(4, -148); ctx.lineTo(18, -134); ctx.lineTo(4, -120); ctx.lineTo(-10, -134); ctx.fill();
+          additive(ctx, function () { dot(ctx, '#9af0ff', 4, -134, 30, 0.6); });
+        }
+        ctx.fillStyle = '#8a4a2a';
+        ctx.beginPath(); ctx.moveTo(-150, -46); ctx.lineTo(150, -46); ctx.quadraticCurveTo(130, 0, 90, 4); ctx.lineTo(-90, 4); ctx.quadraticCurveTo(-130, 0, -150, -46); ctx.fill();
+        ctx.fillStyle = '#6a3a1a'; ctx.fillRect(-146, -48, 292, 8);
+        ctx.strokeStyle = 'rgba(230,246,250,0.7)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.ellipse(0, 4, 170, 14, 0, 0, Math.PI); ctx.stroke();
+        ctx.restore();
+      }
+      // the humped bridge over the canal, the marines out on its crest
+      var BY = 560, bh = half(BY);
+      function bridge() {
+        ctx.fillStyle = '#b8aa94';
+        ctx.beginPath(); ctx.moveTo(800 - bh - 70, BY); ctx.quadraticCurveTo(800, BY - 120, 800 + bh + 70, BY);
+        ctx.lineTo(800 + bh + 70, BY + 40); ctx.lineTo(800 + bh - 10, BY + 40);
+        ctx.quadraticCurveTo(800, BY - 70, 800 - bh + 10, BY + 40); ctx.lineTo(800 - bh - 70, BY + 40); ctx.fill();
+        ctx.strokeStyle = '#8a7a64'; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(800 - bh - 70, BY - 6); ctx.quadraticCurveTo(800, BY - 128, 800 + bh + 70, BY - 6); ctx.stroke();
+        ctx.fillStyle = '#a8987e';
+        for (var pst = -3; pst <= 3; pst++) {
+          var ux = 800 + pst * (bh + 50) / 3, uy = BY - 6 - (1 - Math.pow(pst / 3.6, 2)) * 60;
+          ctx.fillRect(ux - 6, uy - 26, 12, 26);
+        }
+      }
+      if (by0 < BY + 20) { lanterns(false); boat(); lanterns(true); bridge(); }
+      else { lanterns(false); bridge(); }
+      var march = seg(t, 1.3, 2.7), level = seg(t, 2.6, 2.95);
+      for (var m = 0; m < 4; m++) {
+        var mx = lerp(1260 + m * 60, 690 + m * 74, outCubic(march));
+        var crest = 1 - Math.pow((mx - 800) / (bh + 120), 2);
+        var my = BY - 8 - Math.max(0, crest) * 58;
+        msMarine(ctx, mx, my, 0.5, march < 1 ? Math.sin(t * 9 + m) * 0.4 : 0, level, 0.55, m % 2 ? -1 : 1);
+        if (t > 3.2) {
+          var a3 = t - 3.2, dir = m % 2 ? 1 : -1;
+          ctx.fillStyle = 'rgba(245,245,245,' + Math.max(0, 0.9 - a3 * 0.5) + ')';
+          ctx.beginPath(); ctx.arc(mx + dir * (36 + a3 * 20), my - 28 + a3 * 6 - a3 * 30, 10 + a3 * 22, 0, TAU); ctx.fill();
+          if (a3 < 0.12) additive(ctx, function () { dot(ctx, '#fff0a0', mx + dir * 38, my - 22, 22, 1); });
+        }
+      }
+      if (by0 >= BY + 20) { boat(); lanterns(true); }
+      // the musket balls splashing round the boat
+      if (t > 3.25 && t < 4.1) {
+        for (var sp = 0; sp < 4; sp++) {
+          var a4 = t - 3.25 - sp * 0.07;
+          if (a4 <= 0) continue;
+          var sx2 = 800 + (sp - 1.5) * 120 * bk, sy2 = by0 + (sp % 2 ? 20 : -14) * bk;
+          var hgt = Math.sin(Math.min(1, a4 / 0.6) * Math.PI) * 90 * bk;
+          ctx.fillStyle = 'rgba(235,248,252,0.85)';
+          ctx.beginPath(); ctx.moveTo(sx2 - 10 * bk, sy2); ctx.lineTo(sx2, sy2 - hgt); ctx.lineTo(sx2 + 10 * bk, sy2); ctx.fill();
+        }
+      }
+      // the rain over everything
+      ctx.strokeStyle = 'rgba(220,232,240,0.55)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      d.rain.forEach(function (rn) {
+        var x = (rn[0] + t * 160 * rn[2]) % VW, y = (rn[1] + t * 900 * rn[2]) % VH;
+        ctx.moveTo(x, y); ctx.lineTo(x + 6, y + 26);
+      });
+      ctx.stroke();
+    },
+    title: function (ctx, t, d, run) {
+      // a silk banner unrolling from its rod: magenta silk, a gold border,
+      // the name in gold, tassels swinging; then the customs house's red
+      // chop stamped in its corner
+      var at = 1.0;
+      if (t < at) return;
+      var k = outCubic(seg(t, at, at + 0.6));
+      ctx.save();
+      ctx.translate(800, 70);
+      ctx.rotate(wobble(t, at + 0.6, 0.015, 8, 4));
+      var H = 236 * k;
+      var g = ctx.createLinearGradient(0, 0, 0, Math.max(1, H));
+      g.addColorStop(0, '#c82a7a'); g.addColorStop(1, '#9a1a56');
+      ctx.fillStyle = 'rgba(40,10,30,0.3)'; ctx.fillRect(-470, 14, 960, H);
+      ctx.fillStyle = g; ctx.fillRect(-480, 0, 960, H);
+      if (H > 40) { ctx.strokeStyle = '#f0c040'; ctx.lineWidth = 5; ctx.strokeRect(-462, 14, 924, H - 28); }
+      ctx.fillStyle = '#9a1a56';
+      for (var sc = -480; sc < 480; sc += 40) { ctx.beginPath(); ctx.arc(sc + 20, H, 20, 0, Math.PI); ctx.fill(); }
+      ctx.fillStyle = '#6a3a1a'; ctx.fillRect(-520, -12, 1040, 18);
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.arc(-524, -3, 15, 0, TAU); ctx.arc(524, -3, 15, 0, TAU); ctx.fill();
+      [-500, 500].forEach(function (tx, i) {
+        ctx.save(); ctx.translate(tx, 6); ctx.rotate(Math.sin(t * 3 + i) * 0.2);
+        ctx.strokeStyle = '#f0c040'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 60); ctx.stroke();
+        ctx.fillStyle = '#f0c040'; ctx.beginPath(); ctx.moveTo(-8, 60); ctx.lineTo(8, 60); ctx.lineTo(12, 100); ctx.lineTo(-12, 100); ctx.fill();
+        ctx.restore();
+      });
+      var show = seg(t, at + 0.45, at + 0.8);
+      if (show > 0) {
+        ctx.globalAlpha = run.alpha * show;
+        ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd86a';
+        ctx.fillText('PLUNDER BAY', 0, 54);
+        titleText(ctx, (run.info.name || 'Monsoon Bazaar').toUpperCase(), 0, 132, 840, 96, '#ffd040', '#5a0a2a', 9);
+        ctx.globalAlpha = run.alpha;
+        var stamp = outBack(seg(t, at + 0.95, at + 1.15), 2.2);
+        if (stamp > 0) {
+          ctx.save(); ctx.translate(420, 196); ctx.rotate(-0.12); ctx.scale(stamp, stamp);
+          ctx.fillStyle = '#d82a1a'; roundRect(ctx, -38, -38, 76, 76, 8); ctx.fill();
+          ctx.strokeStyle = '#ffe8d0'; ctx.lineWidth = 4; roundRect(ctx, -30, -30, 60, 60, 6); ctx.stroke();
+          ctx.fillStyle = '#ffe8d0';
+          ctx.fillRect(-18, -20, 36, 6); ctx.fillRect(-3, -20, 6, 42); ctx.fillRect(-18, 2, 36, 6); ctx.fillRect(-18, 16, 36, 6);
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+  });
 })(window);

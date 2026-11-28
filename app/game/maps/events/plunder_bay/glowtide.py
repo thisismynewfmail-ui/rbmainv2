@@ -417,7 +417,7 @@ def _bay(isle: Isle, sgn: float) -> None:
         x0, x1 = sorted((X(hx0), X(hx1)))
         cxd = (x0 + x1) / 2.0
         building(b, rect(x0, x1, hz0, hz1), HUT_Y, 6.8, ("#a8845a", "#b8946a", "#987450")[k], t=0.6,
-                 roof_colour=THATCH, roof_t=0.6, floor_colour=PLANK, doors={door: [(cxd - 1.6, cxd + 1.6, HUT_Y + 5.0)]},
+                 roof_colour=THATCH, roof_t=0.6, floor_colour=PLANK, doors={door: [(cxd - 1.8, cxd + 1.8, HUT_Y + 6.4)]},
                  lights=LANTERN, studs_roof=False)
         gable(b, rect(x0, x1, hz0, hz1), HUT_Y + 7.4, THATCH, "x", tiers=3, rise=1.0, overhang=0.6)
         for px in (x0 + 0.5, x1 - 0.5, cxd):
@@ -425,7 +425,7 @@ def _bay(isle: Isle, sgn: float) -> None:
                 b.cyl([px, (WET_FLOOR + HUT_Y) / 2.0, pz], [0.7, HUT_Y - WET_FLOOR, 0.7], TIMBER)
         dz = hz1 + 0.3 if door == "z+" else hz0 - 0.3
         for e in (-1.0, 1.0):
-            b.box([cxd + e * 2.6, HUT_Y + 4.2, dz], [0.6, 0.8, 0.6], LANTERN, material="neon", collide=False)
+            b.box([cxd + e * 2.8, HUT_Y + 4.2, dz], [0.6, 0.8, 0.6], LANTERN, material="neon", collide=False)
         isle.loot(cxd, HUT_Y + 0.4, (hz0 + hz1) / 2.0, "gem" if k == 2 else "any", "a stilt hut")
     # the boardwalks: across the bay, and out to each hut's door
     legs = [(64.0, 100.0, -17.0, -13.0), (73.0, 77.0, -28.0, -17.0), (87.0, 91.0, -28.0, -17.0),

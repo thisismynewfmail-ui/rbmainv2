@@ -931,4 +931,147 @@
       });
     }
   });
+  // ------------------------------------------------- Monsoon Bazaar
+  /* The grand bazaar's tiered red roof on its columns, bunting round the
+     eaves, the idol inside among the spice stalls; the great canal in
+     front crossed by a humped bridge with the Company's marines on its
+     crest, paper lanterns floating, a sampan carrying a Corsair off with
+     a jewel; shophouses under striped awnings, the white customs house
+     and its clock tower, a torrent off the cliffs, a rainbow. */
+  function lerp(a, b, u) { return a + (b - a) * u; }
+  function palmPair(k) {
+    palm(k, -46, 0, 8, 14, 2.4);
+    palm(k, 48, 0, 10, 13, -2.0);
+    palm(k, -54, 0, -30, 15, 1.6);
+  }
+  Thumbs.registerWorld('pb_monsoon', {
+    sky: { top: '#5a6a80', horizon: '#dcdccc', sun: [0.3, 0.6, 0.4], clouds: 0.9, tint: '#f4f0e4' },
+    camera: [[34, 26, 56], [0, 6, -6], 50],
+    build: function (parts, k) {
+      var WALLS = ['#f0a830', '#d83a8a', '#2aa8a0', '#8ac83a', '#3a4aa8'];
+      k.box([0, -0.5, -52], [220, 1, 135.2], '#5a8a44');
+      k.box([0, -0.5, 54.2], [220, 1, 51.6], '#5a8a44');
+      k.box([0, 0.06, 4], [80, 0.12, 8], '#a89a88');
+      k.box([0, 0.06, -28], [80, 0.12, 8], '#a89a88');
+      // the great canal across the front
+      k.box([0, -1.2, 22], [220, 1.6, 12], '#3a7a6a', { m: 'glass', a: 0.78 });
+      k.box([0, -2.2, 22], [220, 0.4, 12], '#2a4a40');
+      [15.6, 28.4].forEach(function (z) { k.box([0, 0.25, z], [220, 0.5, 0.8], '#8a8478'); });
+      // the humped bridge, the marines on its crest levelling their muskets
+      [[0.5, 16], [1.0, 12], [1.6, 8]].forEach(function (h, i) {
+        k.box([0, h[0] / 2 + (i ? 0.25 : 0), 22], [9, h[0] + (i ? 0.5 : 0), h[1]], i % 2 ? '#c8baa4' : '#b8aa94');
+      });
+      k.box([-4.25, 2.4, 22], [0.5, 1.0, 9], '#a8987e');
+      k.box([4.25, 2.4, 22], [0.5, 1.0, 9], '#a8987e');
+      redcoat(k, -1.8, 1.9, 21, 2.6, true);
+      redcoat(k, 1.8, 1.9, 23, 2.2, true);
+      k.shape('sph', [4.6, 5.4, 25.2], [1.6, 1.4, 1.6], '#f4f4f4', { a: 0.75 });
+      k.shape('sph', [2.2, 5.2, 27.0], [1.4, 1.2, 1.4], '#f4f4f4', { a: 0.6 });
+      // a sampan carrying a Corsair off down the canal with a jewel
+      var sx = 16, sz = 22.5;
+      k.box([sx, -0.6, sz], [9, 1.0, 3.2], '#8a4a2a');
+      k.box([sx, -0.05, sz], [8.4, 0.1, 2.6], '#a8805a');
+      k.box([sx - 2.4, 1.6, sz], [3.2, 0.3, 3.0], '#c8a060');
+      k.box([sx - 2.4, 0.8, sz - 1.4], [3.0, 1.6, 0.2], '#c8a060');
+      k.shape('cyl', [sx + 3.6, 1.4, sz + 1.0], [0.16, 3.0, 0.16], '#4a3a2a');
+      k.shape('sph', [sx + 3.6, 3.0, sz + 1.0], [0.8, 0.9, 0.8], '#ff7a4a', { m: 'neon' });
+      pirate(k, sx + 0.8, sz, 1.2, 'red', { y: 0.0, anim: 'idle', time: 0.2,
+        holding: { data: { parts: [{ t: 'gem', p: [-0.75, 0.6, 0.9], s: [1.6, 1.6, 1.6], c: '#3ad0ff', m: 'glass' }] } } });
+      [[-30, 20, '#ff6a4a'], [-18, 25, '#ffb84a'], [-8, 19, '#ff8ad8'], [26, 25, '#ffe07a'], [36, 19, '#ff6a4a']].forEach(function (l) {
+        k.box([l[0], -0.25, l[1]], [1.6, 0.2, 1.6], '#6a4a2a');
+        k.box([l[0], 0.55, l[1]], [1.3, 1.4, 1.3], l[2], { m: 'neon', a: 0.9 });
+      });
+      // the grand bazaar: columns, the roof in four tiers, bunting, stalls, the idol
+      k.box([0, 0.3, -12], [32, 0.6, 24], '#c8b8a0');
+      [[-15, -23], [-5, -23], [5, -23], [15, -23], [-15, -1], [-5, -1], [5, -1], [15, -1], [-15, -12], [15, -12]].forEach(function (c) {
+        k.shape('cyl', [c[0], 5, c[1]], [1.2, 9, 1.2], '#8a3a2a');
+        k.box([c[0], 9.2, c[1]], [1.8, 0.8, 1.8], '#f0a830');
+      });
+      [[36, 28, 1.0, 10.1, '#c84a3a'], [28, 20, 1.4, 11.3, '#b83a2a'], [19, 13, 1.4, 12.7, '#c84a3a'], [10, 6, 1.2, 14.0, '#b83a2a']].forEach(function (r) {
+        k.box([0, r[3], -12], [r[0], r[2], r[1]], r[4]);
+      });
+      k.shape('cone', [0, 16.0, -12], [2.4, 2.8, 2.4], '#e8b830', { m: 'metal' });
+      [-23, -1].forEach(function (z, i) {
+        k.box([0, 8.75, z], [30, 0.12, 0.12], '#efe6d6');
+        for (var p = 0; p < 12; p++) {
+          k.shape('tri', [-14.4 + p * 2.6, 7.95, z], [1.6, 1.6, 1.0], WALLS[(p + i) % 5], { r: [0, 0, Math.PI] });
+        }
+      });
+      [-15, 15].forEach(function (x, i) {
+        k.box([x, 8.75, -12], [0.12, 0.12, 22], '#efe6d6');
+        for (var q = 0; q < 8; q++) {
+          k.shape('tri', [x, 7.95, -21 + q * 2.6], [1.6, 1.6, 1.0], WALLS[(q + 2 * i) % 5], { r: [0, Math.PI / 2, Math.PI] });
+        }
+      });
+      [[-9, -6, '#f0a830', 'cone'], [9, -6, '#d83a8a', 'sph'], [-9, -18, '#8ac83a', 'sph'], [9, -18, '#c8402a', 'cone']].forEach(function (st) {
+        k.box([st[0], 1.2, st[1]], [6, 1.2, 2.2], '#7a5a3a');
+        for (var j = 0; j < 3; j++) k.shape(st[3], [st[0] - 2 + j * 2, 2.3, st[1]], [1.5, 1.1, 1.5], st[2]);
+      });
+      idol(k, 0, 0.6, -12);
+      // shophouses either side under their awnings
+      [[-34, -4, 0], [-34, -22, 1], [34, -4, 2], [34, -22, 3], [-20, -40, 4], [20, -40, 1]].forEach(function (h) {
+        var c = WALLS[h[2]];
+        k.box([h[0], 5, h[1]], [12, 10, 12], c);
+        k.box([h[0], 10.6, h[1]], [13.4, 1.2, 13.4], '#c84a3a');
+        k.box([h[0], 11.8, h[1]], [9, 1.2, 9], '#b83a2a');
+        var face = h[1] > -30 ? 1 : 0;
+        var out = h[0] < 0 ? 1 : -1;
+        if (face) {
+          for (var a = 0; a < 4; a++) k.box([h[0] + out * 7.5, 7.2, h[1] - 4.5 + a * 3], [3, 0.3, 3], a % 2 ? '#f4ece0' : WALLS[(h[2] + 2) % 5]);
+          k.box([h[0] + out * 6.05, 3.2, h[1]], [0.1, 6.0, 5.0], '#3a2a1a');
+          k.box([h[0] + out * 8.6, 6.6, h[1] - 4], [0.7, 0.8, 0.7], '#ffb05a', { m: 'neon' });
+          k.box([h[0] + out * 8.6, 6.6, h[1] + 4], [0.7, 0.8, 0.7], '#ffb05a', { m: 'neon' });
+        }
+      });
+      // the customs house behind: white walls, the dome, the clock tower
+      k.box([0, 4, -58], [46, 8, 2], '#f0e8d8');
+      k.box([0, 6.5, -66], [36, 13, 12], '#f0e8d8');
+      k.box([0, 13.4, -66], [37, 0.8, 13], '#c84a3a');
+      k.shape('sph', [0, 16.6, -66], [8, 7, 8], '#f4ecdc');
+      k.box([10, 13, -58], [6, 26, 6], '#f0e8d8');
+      k.shape('cone', [10, 28.5, -58], [7.6, 5, 7.6], '#c84a3a');
+      k.shape('cyl', [10, 21, -54.9], [4, 0.2, 4], '#fbf6ea', { r: [Math.PI / 2, 0, 0] });
+      k.box([10, 21.6, -54.7], [0.25, 1.6, 0.1], '#1a1a1a');
+      // the cliffs, the torrents falling off them, a rainbow over all
+      for (var cl = 0; cl < 11; cl++) {
+        var cx = -100 + cl * 20, ch = 26 + (cl * 7 % 5) * 2.4;
+        k.box([cx, ch / 2, -84], [20, ch, 14], ['#6a5a4a', '#5a4c40', '#7a6a58'][cl % 3]);
+        k.box([cx, ch + 2, -88], [17, 4, 8], '#7a6a58');
+        k.box([cx, ch + 4.5, -89], [15, 1, 7], '#3a7a32');
+        k.box([cx - 5, ch - 6, -76.85], [1, 10, 0.3], '#3a7a32');
+        k.box([cx + 4, ch - 8, -76.85], [1, 13, 0.3], '#3a7a32');
+      }
+      [-48, 48].forEach(function (fx) {
+        k.box([fx, 14, -76.3], [6, 28, 0.6], '#cfe8f2', { m: 'glass', a: 0.88 });
+        for (var st = 0; st < 5; st++) k.box([fx - 2.4 + st * 1.2, 6 + st * 4.4, -75.9], [0.3, 3.2, 0.1], '#ffffff');
+        k.shape('sph', [fx, 0.6, -74], [11, 3, 6], '#f4fafc', { a: 0.75 });
+      });
+      palmPair(k);
+      // a white stupa behind the west shophouses, prayer flags off its spire
+      k.box([-44, 0.6, -44], [12, 1.2, 12], '#e8e0d0');
+      k.box([-44, 1.8, -44], [8.4, 1.2, 8.4], '#f0e8d8');
+      k.shape('sph', [-44, 5.4, -44], [7, 6, 7], '#f8f4ec');
+      k.box([-44, 9.0, -44], [2.4, 1.6, 2.4], '#e8b830', { m: 'metal' });
+      k.box([-44.5, 9.1, -42.78], [0.6, 0.3, 0.06], '#2a3a8a');
+      k.box([-43.5, 9.1, -42.78], [0.6, 0.3, 0.06], '#2a3a8a');
+      k.shape('cone', [-44, 12.4, -44], [1.8, 5, 1.8], '#e8b830', { m: 'metal' });
+      [[-38.6, -38.6], [-49.4, -38.6]].forEach(function (c, i) {
+        k.shape('cyl', [c[0], 3.6, c[1]], [0.3, 5, 0.3], '#6a4a2a');
+        for (var f = 0; f < 5; f++) {
+          var u = (f + 0.5) / 5;
+          k.shape('tri', [lerp(-44, c[0], u), lerp(13.4, 6, u) - 0.6, lerp(-44, c[1], u)], [1.2, 1.2, 0.8],
+                  ['#3a6ac8', '#f4f0e8', '#c8302a', '#3a9a4a', '#f0c830'][f], { r: [0, Math.PI / 4 * (i ? -1 : 1), Math.PI] });
+        }
+      });
+      var bands = ['#ff4a4a', '#ff9a3a', '#ffe04a', '#5ad85a', '#4aa8ff', '#5a5ae0', '#a05ad8'];
+      for (var b = 0; b < bands.length; b++) {
+        var R = 120 - b * 2.2;
+        for (var sg = 0; sg < 24; sg++) {
+          var am = Math.PI * (sg + 0.5) / 24;
+          k.box([-30 + Math.cos(am) * R, -30 + Math.sin(am) * R, -150], [2.2, R * Math.PI / 24 + 0.4, 0.4], bands[b],
+                { m: 'neon', a: 0.4, r: [0, 0, am] });
+        }
+      }
+    }
+  });
 })(window);

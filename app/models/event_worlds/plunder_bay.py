@@ -91,6 +91,10 @@ WORLD: Dict[str, Any] = {
          "blurb": "A blinding white island at the top of the world: a galleon frozen into the pack "
                   "ice with the idol on her quarterdeck, a glacier in three steps with a grotto in its "
                   "foot, whalers' camps and ice floes. The frost kraken comes up through the ice."},
+        {"id": "monsoon", "name": "Monsoon Bazaar",
+         "blurb": "A canal port in the warm rain: the Company's white customs house and its clock "
+                  "tower, an avenue of shophouses down to a grand bazaar with the idol on its dais, "
+                  "humped bridges, dyers' yards and a pagoda lighthouse. The marines march out."},
     ],
     "areas_note": "One haul on each island, then the crews sail on to another one.",
     "howto": [
