@@ -251,6 +251,25 @@ def shuffle_all(owned: Sequence[Tuple[int, str]], rng: random.Random,
     return current
 
 
+def open_loadout(pool: Sequence[str], rng: random.Random, size: Optional[int] = None) -> List[str]:
+    """A hotbar's worth of weapons picked at random from ``pool`` (the
+    marketplace's weapons, for the Bots Zone's "Open shuffle"): as many
+    different ones as there are slots, dealt in a random order.  Not all of
+    them melee when the pool has anything else, so the bot can always hit
+    something it can't reach."""
+    size = catalog.HOTBAR_SIZE if size is None else int(size)
+    pool = list(dict.fromkeys(i for i in pool if catalog.get(i) is not None))
+    if not pool or size <= 0:
+        return []
+    picked = rng.sample(pool, min(size, len(pool)))
+    if all(role(i) == "melee" for i in picked):
+        reach = [i for i in pool if role(i) != "melee" and i not in picked]
+        if reach:
+            picked[rng.randrange(len(picked))] = rng.choice(reach)
+    rng.shuffle(picked)
+    return picked
+
+
 # ----------------------------------------------------------- between games
 def plan(owned: Sequence[Tuple[int, str]], traits: Dict[str, float],
          rng: random.Random, current: Sequence[int], unsettled: bool = False) -> List[int]:

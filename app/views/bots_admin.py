@@ -393,6 +393,28 @@ def shuffle(req: Request):
     return api_ok(message=message, job=factory.job_status())
 
 
+@router.post("/api/admin/bots/open-shuffle")
+@admin_required
+def open_shuffle(req: Request):
+    """Open shuffle: every bot that isn't in a live round is dealt a fresh
+    hotbar of weapons picked at random from the marketplace, the ones it
+    doesn't own yet added to its inventory."""
+    if not factory.market_weapons():
+        return api_error("The marketplace has no weapons for sale right now.")
+    live = _director().live_uids()
+    uids = [int(r["id"]) for r in db.query("SELECT id FROM users WHERE is_bot=1")
+            if int(r["id"]) not in live]
+    if not uids:
+        return api_error("There are no bots out of a live round to shuffle.")
+    ok, message = factory.start_open_shuffle(uids)
+    if not ok:
+        return api_error(message)
+    db.audit(int(req.user["id"]), "bots.open_shuffle.start", "", {"count": len(uids), "live": len(live)})
+    if live:
+        message += " %d in live rounds are left alone." % len(live)
+    return api_ok(message=message, job=factory.job_status())
+
+
 @router.post("/api/admin/bots/cancel")
 @admin_required
 def cancel(req: Request):

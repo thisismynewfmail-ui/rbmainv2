@@ -1063,7 +1063,12 @@
       'round right now — offline, on the site, or asleep in a round — has all five of its hotbar slots chosen again ' +
       'from the weapons and tools in its own inventory, in a new order (always with something to fight with). ' +
       'Nothing is bought or given; bots in rounds with people keep what they are holding.</p>' +
-      '<button class="btn small primary" type="button" data-bz="shuffle">Shuffle all bots’ hotbars</button></div>' +
+      '<button class="btn small primary" type="button" data-bz="shuffle">Shuffle all bots’ hotbars</button>' +
+      '<p class="tiny muted" style="margin-top:10px"><b>Open shuffle</b> goes further: every bot not in a live round is ' +
+      'dealt five different weapons picked at random from everything the marketplace sells (the everyday shelf and ' +
+      'the Event Armory). The ones it doesn’t own yet are added to its inventory, and all five go on its hotbar in a ' +
+      'random order. Bots keep a shuffled hotbar for a day.</p>' +
+      '<button class="btn small" type="button" data-bz="open-shuffle">Open shuffle</button></div>' +
       '</div>' +
       '<div><b>Preview the built-in name generator</b><p class="tiny muted">What the fallback produces when the model ' +
       'is unavailable (or chosen as the only source).</p>' +
@@ -1081,13 +1086,16 @@
     var html = '';
     if (job) {
       var pct = job.total ? Math.min(100, job.done / job.total * 100) : 0;
-      var verb = job.kind === 'delete' ? 'Deleting' : job.kind === 'shuffle' ? 'Shuffling the hotbars of' : 'Creating';
+      var verb = job.kind === 'delete' ? 'Deleting' : job.kind === 'shuffle' ? 'Shuffling the hotbars of' :
+        job.kind === 'open_shuffle' ? 'Dealing market weapons to' : 'Creating';
       html += '<div class="bz-job"><b>' + verb + ' ' + num(job.total) +
         ' bot' + (job.total === 1 ? '' : 's') + '</b> ' + (job.running ? '<span class="loading"></span>' : '<span class="pill green">done</span>') +
         '<div class="progress"><i style="width:' + pct + '%"></i></div><div class="tiny">' + num(job.done) + ' done' +
         (job.failed ? ', ' + num(job.failed) + ' failed' : '') +
         (job.kind === 'shuffle' ? ' • ' + num(job.changed || 0) + ' shuffled, ' + num(job.skipped || 0) +
           ' left as they were (nothing else to carry, or now in a live round)' : '') +
+        (job.kind === 'open_shuffle' ? ' • ' + num(job.changed || 0) + ' dealt new hotbars, ' + num(job.given || 0) +
+          ' weapons added to inventories, ' + num(job.skipped || 0) + ' left as they were (now in a live round)' : '') +
         (job.kind === 'create' ? ' • names: ' + num(job.names_llm || 0) + ' from the model, ' + num(job.names_generated || 0) +
           ' generated, ' + num(job.duplicates || 0) + ' duplicates refused • profiles from the model: ' + num(job.profiles_llm || 0) : '') +
         '</div><div class="bz-joblog">' + (job.log || []).slice().reverse().map(function (l) {
@@ -1098,6 +1106,7 @@
     if (history.length) {
       html += '<div class="tiny muted" style="margin-top:6px">Recent jobs: ' + history.slice(0, 5).map(function (h) {
         if (h.kind === 'shuffle') return 'shuffled ' + num(h.changed || 0) + ' hotbars ' + ago(h.finished);
+        if (h.kind === 'open_shuffle') return 'dealt market weapons to ' + num(h.changed || 0) + ' bots ' + ago(h.finished);
         return (h.kind === 'delete' ? 'deleted ' : 'created ') + num(h.done) + (h.origin === 'auto' ? ' (auto)' : '') +
           ' ' + ago(h.finished);
       }).join(' • ') + '</div>';
@@ -1601,6 +1610,18 @@
                      'chosen again from its own inventory.', { confirm: 'Shuffle' }).then(function (ok) {
           if (!ok) return;
           Site.post('/api/admin/bots/shuffle', {}).then(function (res) {
+            if (!res.ok) { Site.toast(res.error, 'bad'); return; }
+            Site.toast(res.message);
+            if (BZ.overview) BZ.overview.job = res.job;
+            drawJob();
+          });
+        });
+      } else if (action === 'open-shuffle') {
+        Site.confirm('Open shuffle every bot’s hotbar?', 'Every bot that is not in a live round gets five random ' +
+                     'weapons from the marketplace on its hotbar; the ones it doesn’t own are added to its ' +
+                     'inventory.', { confirm: 'Open shuffle' }).then(function (ok) {
+          if (!ok) return;
+          Site.post('/api/admin/bots/open-shuffle', {}).then(function (res) {
             if (!res.ok) { Site.toast(res.error, 'bad'); return; }
             Site.toast(res.message);
             if (BZ.overview) BZ.overview.job = res.job;

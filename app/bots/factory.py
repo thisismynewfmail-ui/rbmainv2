@@ -135,6 +135,41 @@ def start_shuffle(uids: Sequence[int]) -> Tuple[bool, str]:
     return True, "Shuffling the hotbars of %d bot%s." % (len(uids), "" if len(uids) == 1 else "s")
 
 
+def market_weapons(now: Optional[int] = None) -> List[str]:
+    """Every weapon the marketplace sells right now -- the everyday shelf and
+    the Event Armory, by the same rule the shelf is drawn from
+    (``crates.for_sale``) -- bar the free three and the held items (gear)."""
+    from ..models import crates
+    now = int(now if now is not None else time.time())
+    out = []
+    for item in catalog.by_slot("usable"):
+        if item.get("pet") or arms.free(item["id"]) or arms.role(item) == "gear":
+            continue
+        if not crates.for_sale(item, now) or int(crates.price_of(item, now)) <= 0:
+            continue
+        out.append(item["id"])
+    return sorted(out)
+
+
+def start_open_shuffle(uids: Sequence[int]) -> Tuple[bool, str]:
+    """The Bots Zone's "Open shuffle": every bot in ``uids`` is dealt a
+    fresh hotbar of weapons picked at random from the marketplace
+    (``market_weapons``) -- the ones it does not own yet are added to its
+    inventory -- as a background job like the plain shuffle."""
+    global _job
+    uids = [int(u) for u in uids]
+    with _lock:
+        if _job and _job.get("running"):
+            return False, "A job is already running."
+        _job = {"id": _now(), "kind": "open_shuffle", "total": len(uids), "done": 0,
+                "failed": 0, "skipped": 0, "changed": 0, "given": 0, "running": True,
+                "cancel": False, "started": _now(), "log": []}
+        job = _job
+    threading.Thread(target=_run_open_shuffle, args=(job, uids), daemon=True,
+                     name="bots-open-shuffle").start()
+    return True, "Dealing market weapons to %d bot%s." % (len(uids), "" if len(uids) == 1 else "s")
+
+
 def cancel() -> bool:
     with _lock:
         if _job and _job.get("running"):
@@ -148,7 +183,7 @@ def _finish(job: Dict[str, Any]) -> None:
         job["running"] = False
         job["finished"] = _now()
         _finished.append({k: job.get(k) for k in (
-            "id", "kind", "origin", "total", "done", "failed", "skipped", "changed",
+            "id", "kind", "origin", "total", "done", "failed", "skipped", "changed", "given",
             "started", "finished", "names_llm", "names_generated", "duplicates")})
         del _finished[:-30]
 
@@ -311,6 +346,91 @@ def _run_shuffle(job: Dict[str, Any], uids: List[int]) -> None:
         _log(job, "finished: %d hotbars shuffled, %d left as they were"
              % (job["changed"], job["skipped"]))
         db.audit(None, "bots.shuffle", "", {"changed": job["changed"], "skipped": job["skipped"]})
+    except Exception as exc:
+        traceback.print_exc()
+        _log(job, "stopped: %s" % exc)
+    finally:
+        _finish(job)
+
+
+def _run_open_shuffle(job: Dict[str, Any], uids: List[int]) -> None:
+    """The open shuffle, two hundred bots at a time.  Each bot not in a live
+    round is dealt up to five different marketplace weapons at random
+    (``arms.open_loadout``); any it does not own yet is added to its
+    inventory -- a plain copy, no Unusual, marked as the shuffle's -- and
+    the five are laid on its hotbar in their random order.  A weapon it
+    already owns is not given twice: its first copy goes on the hotbar.
+    The new items and hotbars of a batch are written in one transaction, so
+    a bot never ends up with a hotbar naming items it does not have, and
+    the bots dealt keep their hotbars for a day like a plain shuffle's."""
+    from . import director as director_module
+    rng = random.Random()
+    try:
+        pool = market_weapons()
+        if not pool:
+            job["skipped"] = len(uids)
+            job["done"] = len(uids)
+            _log(job, "finished: the marketplace has no weapons for sale right now")
+            return
+        director = director_module.running() or director_module.get()
+        for start in range(0, len(uids), 200):
+            if job["cancel"]:
+                break
+            chunk = uids[start:start + 200]
+            live = director.live_uids()
+            marks = ",".join("?" * len(chunk))
+            have: Dict[int, Dict[str, int]] = {uid: {} for uid in chunk}
+            for row in db.query("SELECT id, user_id, item_id FROM inventory WHERE user_id IN (%s)"
+                                " ORDER BY id" % marks, chunk):
+                have[int(row["user_id"])].setdefault(row["item_id"], int(row["id"]))
+            bars = {int(row["user_id"]): _hotbar_ids(row["hotbar"]) for row in db.query(
+                "SELECT user_id, hotbar FROM avatars WHERE user_id IN (%s)" % marks, chunk)}
+            plans: List[Tuple[int, List[str]]] = []
+            for uid in chunk:
+                if uid in live or uid not in bars:
+                    job["skipped"] += 1
+                    continue
+                picks = arms.open_loadout(pool, rng)
+                if not picks:
+                    job["skipped"] += 1
+                    continue
+                plans.append((uid, picks))
+            if plans:
+                now = _now()
+                writes = []
+                given = 0
+                with db.transaction() as conn:
+                    serial: Dict[str, int] = {}
+                    for uid, picks in plans:
+                        bar: List[int] = []
+                        for item_id in picks:
+                            inv = have[uid].get(item_id)
+                            if inv is None:
+                                if item_id not in serial:
+                                    serial[item_id] = int(conn.execute(
+                                        "SELECT COALESCE(MAX(serial),0) FROM inventory WHERE item_id=?",
+                                        (item_id,)).fetchone()[0])
+                                serial[item_id] += 1
+                                cur = conn.execute(
+                                    "INSERT INTO inventory(user_id,item_id,tier,effect,serial,"
+                                    "acquired_at,source) VALUES(?,?,'normal','',?,?,'shuffle')",
+                                    (uid, item_id, serial[item_id], now))
+                                inv = int(cur.lastrowid)
+                                have[uid][item_id] = inv
+                                given += 1
+                            bar.append(inv)
+                        bar += [0] * (catalog.HOTBAR_SIZE - len(bar))
+                        writes.append((json.dumps(bar[:catalog.HOTBAR_SIZE], separators=(",", ":")), now, uid))
+                    conn.executemany("UPDATE avatars SET hotbar=?, updated_at=? WHERE user_id=?", writes)
+                # these keep what they were dealt (see HOLD_SECONDS)
+                _hold([w[2] for w in writes], now)
+                job["changed"] += len(writes)
+                job["given"] += given
+            job["done"] += len(chunk)
+        _log(job, "finished: %d bots dealt market weapons (%d new items in their inventories), "
+             "%d left as they were" % (job["changed"], job["given"], job["skipped"]))
+        db.audit(None, "bots.open_shuffle", "", {"changed": job["changed"], "given": job["given"],
+                                                 "skipped": job["skipped"]})
     except Exception as exc:
         traceback.print_exc()
         _log(job, "stopped: %s" % exc)
