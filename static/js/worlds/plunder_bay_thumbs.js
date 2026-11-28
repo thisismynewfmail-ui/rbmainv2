@@ -488,4 +488,590 @@
       coins(k, 18, 0, 34, 7, 3);
     }
   });
+
+  // ------------------------------------------------ Whalebone Atoll
+  function whaleRib(k, z, reach, peak, side, colour) {
+    var p0 = [3.6, 4.6], p1 = [reach * 0.42, peak * 1.6], p2 = [reach, 3.2];
+    var prev = p0;
+    for (var i = 1; i <= 10; i++) {
+      var u = i / 10;
+      var x = (1 - u) * (1 - u) * p0[0] + 2 * (1 - u) * u * p1[0] + u * u * p2[0];
+      var y = (1 - u) * (1 - u) * p0[1] + 2 * (1 - u) * u * p1[1] + u * u * p2[1];
+      var ang = Math.atan2(y - prev[1], x - prev[0]);
+      k.box([side * (prev[0] + x) / 2, (prev[1] + y) / 2, z], [Math.hypot(x - prev[0], y - prev[1]) + 0.4, 1.6 - 0.5 * u, 1.9],
+            i % 3 ? colour : '#d8cfb4', { r: [0, 0, side > 0 ? ang : Math.PI - ang] });
+      prev = [x, y];
+    }
+    k.box([side * reach, -0.4, z], [1.6, 7.2, 1.9], '#d8cfb4');
+  }
+  Thumbs.registerWorld('pb_whalebone', {
+    sky: { top: '#1468c8', horizon: '#d8f4ff', sun: [0.45, 0.6, 0.35], clouds: 0.45, tint: '#fff8ec' },
+    camera: [[30, 21, 46], [0, 6, -8], 54],
+    build: function (parts, k) {
+      var BONE = '#f0e8d4';
+      // the white strand, the turquoise lagoon sunk in it
+      k.box([0, -0.5, -52], [260, 1, 36], '#f0e2b4');
+      k.box([-72, -0.5, 6], [64, 1, 80], '#f0e2b4');
+      k.box([72, -0.5, 6], [64, 1, 80], '#f0e2b4');
+      k.box([0, -0.5, 58], [260, 1, 24], '#f0e2b4');
+      k.box([0, -4.5, 6], [80, 1, 80], '#e8dcae');
+      k.box([0, -2.4, 6], [80, 3.0, 80], '#3ad0d8', { m: 'glass', a: 0.72 });
+      [[-30, 12], [26, -18], [14, 30], [-18, -24]].forEach(function (c, i) {
+        k.shape('sph', [c[0], -3.2, c[1]], [4, 3, 4], ['#ff7a8a', '#c86aff', '#ffd04a', '#ff9a5a'][i]);
+      });
+      // the maelstrom turning round the middle of the spine
+      [[16, 0.8, '#e8ffff', 0.85], [11, 0.7, '#b8f4f8', 0.8], [7, 0.6, '#ffffff', 0.9], [3.6, 0.5, '#8ae8f0', 0.9]].forEach(function (ring, i) {
+        k.shape('torus', [i * 0.6, -0.8, 2 + i * 0.4], [ring[0], ring[1], ring[0] * 0.9], ring[2], { a: ring[3] });
+      });
+      k.shape('cyl', [1.4, -0.85, 3.2], [3.4, 0.1, 3.0], '#0e4a5a', { a: 0.9 });
+      // the spine across it: vertebrae, the discs between, their processes
+      for (var v = 0; v < 12; v++) {
+        var z = 32 - v * 6;
+        k.box([0, 1.0, z], [4.4, 9.6, 4.8], v % 2 ? BONE : '#e4dcc4');
+        k.box([0, 6.1, z], [1.0, 0.6, 1.8], '#d8cfb4');
+        k.box([0, 0.6, z - 2.9], [3.8, 8.8, 1.0], '#b8ad92');
+        k.box([3.8, 5.0, z], [3.2, 0.6, 1.6], '#d8cfb4');
+        k.box([-3.8, 5.0, z], [3.2, 0.6, 1.6], '#d8cfb4');
+      }
+      // the ribs arching over it
+      [26, 14, 2, -10, -22].forEach(function (z, i) {
+        var sw = Math.sin((i + 0.5) / 5 * Math.PI);
+        whaleRib(k, z, 24 + 6 * sw, 14 + 5 * sw, 1, BONE);
+        whaleRib(k, z, 24 + 6 * sw, 14 + 5 * sw, -1, BONE);
+      });
+      // the skull at the far end, its jaw standing up behind it
+      k.box([0, 6, -44], [26, 12, 14], BONE);
+      k.box([0, 13, -45], [21, 2.4, 11], '#e4dcc4');
+      k.box([0, 15, -45.6], [14, 2.0, 7], BONE);
+      k.box([-7.5, 8.4, -36.9], [4.4, 2.8, 0.3], '#3a3430');
+      k.box([7.5, 8.4, -36.9], [4.4, 2.8, 0.3], '#3a3430');
+      k.box([-7.5, 8.4, -36.7], [1.8, 1.2, 0.1], '#ffb84a', { m: 'neon' });
+      k.box([7.5, 8.4, -36.7], [1.8, 1.2, 0.1], '#ffb84a', { m: 'neon' });
+      k.box([0, 3.2, -36.9], [7, 6.4, 0.3], '#2a2420');
+      for (var tooth = 0; tooth < 4; tooth++) {
+        k.shape('cone', [-2.4 + tooth * 1.6, 5.6, -36.4], [1.0, 1.6, 1.0], '#fffaf0', { r: [Math.PI, 0, 0] });
+      }
+      [-1, 1].forEach(function (s) {
+        for (var j = 0; j < 9; j++) {
+          var u = j / 8;
+          k.box([s * (5 - 3.5 * u), 4 + u * 30, -52 - u * 5], [2.4 - u, 4.4, 2.2 - u], j % 2 ? BONE : '#e4dcc4',
+                { r: [-0.25 - u * 0.3, 0, s * (0.15 - u * 0.3)] });
+          if (j > 1 && j < 8) k.shape('cone', [s * (4 - 3.5 * u), 4 + u * 30, -50.4 - u * 5], [0.8, 1.6, 0.8], '#fffaf0', { r: [Math.PI / 2, 0, 0] });
+        }
+      });
+      // palms on the strand
+      [[-48, -40], [44, -42], [-52, 30], [56, 22], [40, 50]].forEach(function (p, i) {
+        palm(k, p[0], 0, p[1], 12 + (i % 3) * 2, i % 2 ? 2 : -2, '#2a8a3a');
+      });
+      // a Corsair running the spine with a jewel, a Buccaneer behind him,
+      // treasure thrown out of the whirlpool onto the beach
+      pirate(k, 0, 18, 0.15, 'red', { y: 6.4, anim: 'run', time: 0.4,
+                                      holding: { data: { parts: [{ t: 'gem', p: [0, 1.2, 0.8], s: [1.6, 1.6, 1.6], c: '#ff3a6a', m: 'glass' }] } } });
+      pirate(k, 0, 4, 0.0, 'blue', { y: 6.4, anim: 'run', time: 0.9, face: 'face_angry' });
+      [[10, 6, 10, 0], [18, 9, 12, 1], [26, 7, 14, 2], [33, 1.6, 15, 3]].forEach(function (c) {
+        k.shape('doubloon', [c[0], c[1], c[2]], [2.0, 2.0, 2.0], '#ffd040', { m: 'metal', r: [c[3] * 0.8, c[3], 0] });
+      });
+      coins(k, 40, 0, 18, 6, 2.6);
+    }
+  });
+
+  // ------------------------------------------------ Thunderhead Rock
+  Thumbs.registerWorld('pb_thunderhead', {
+    sky: { top: '#28243e', horizon: '#8e88a8', sun: [0.25, 0.45, -0.5], clouds: 0.95, tint: '#ccc6ea' },
+    camera: [[36, 20, 46], [0, 12, -12], 54],
+    build: function (parts, k) {
+      var BASALT = ['#3c3c48', '#50505e', '#2c2c36', '#444452'];
+      // the turf, the dark sea round it
+      k.box([0, -4, 10], [400, 6, 400], '#2a5a6e', { m: 'glass', a: 0.85 });
+      k.box([0, -1, 14], [150, 2, 120], '#4a7a44');
+      k.box([-40, 0.06, 30], [16, 0.12, 12], '#9a62a8');
+      k.box([44, 0.06, 26], [14, 0.12, 10], '#e8b832');
+      // the mesa, ribbed in columns, its turfed summit
+      k.box([0, 9, -46], [64, 18, 40], '#3c3c48');
+      for (var r = 0; r < 14; r++) k.box([-30 + r * 4.6, 8.8, -25.85], [1.0, 17.6, 0.3], r % 2 ? '#50505e' : '#45454f');
+      k.box([0, 18.2, -46], [64, 0.4, 40], '#5a8a4e');
+      for (var c = 0; c < 9; c++) {
+        k.shape('hexprism', [-28 + c * 7, 22 + (c % 3) * 2, -64], [4.4, 8 + (c % 3) * 4, 3.8], BASALT[c % 4]);
+      }
+      // the lighthouse: white and red, the lamp lit, its beam out over the sea
+      k.shape('cyl', [0, 32.4, -50], [8, 28, 8], '#f4f0e8');
+      [24, 31, 38].forEach(function (y) { k.shape('cyl', [0, y, -50], [8.3, 3, 8.3], '#c8302a'); });
+      k.shape('cyl', [0, 46.6, -50], [11, 0.5, 11], '#3a3a40', { m: 'metal' });
+      k.shape('cyl', [0, 49, -50], [5.6, 4.2, 5.6], '#fff4c0', { m: 'neon' });
+      k.shape('cone', [0, 52.8, -50], [6.6, 3.4, 6.6], '#c8302a');
+      k.shape('cyl', [0, 57.4, -50], [0.3, 6, 0.3], '#3a3a40', { m: 'metal' });
+      k.box([30, 49, -36], [80, 5, 1], '#fff2b0', { m: 'neon', a: 0.16, r: [0, -0.5, 0] });
+      // the giant's causeway stepping down towards us
+      for (var i = -7; i <= 7; i++) {
+        for (var j = 0; j < 9; j++) {
+          var z = -24.4 + 3.0 * (j + 0.5 * (Math.abs(i) % 2)), x = i * 2.6;
+          var h = Math.max(0.6, 16.6 - j * 1.75 - Math.abs(i) * 0.35 + ((i * 7 + j * 3) % 5) * 0.12);
+          k.shape('hexprism', [x, h / 2, z], [3.4, h, 2.94], BASALT[(i * 7 + j * 3 + 40) % 4]);
+          if ((i + j) % 4 === 0) k.shape('hexprism', [x, h + 0.05, z], [2.8, 0.1, 2.4], '#6a9a4a');
+        }
+      }
+      // a Corsair running down it with a gold bar; the bolt coming down
+      // just behind him, its ring on the stones; a Buccaneer giving chase
+      var bar = { data: { parts: [{ t: 'box', p: [-0.75, 0.0, 0.9], s: [1.6, 0.7, 0.9], c: '#ffc830', m: 'metal' }] } };
+      pirate(k, 3, 5.2, 0.3, 'red', { y: 9.4, anim: 'run', time: 0.5, holding: bar });
+      pirate(k, -6, -6, 0.2, 'blue', { y: 13.2, anim: 'run', time: 1.0, face: 'face_angry' });
+      var pts = [[10, 70, -10], [6, 58, -6], [11, 46, -7], [5, 34, -3], [8, 24, -1], [4, 14.2, -1]];
+      for (var b = 1; b < pts.length; b++) {
+        var p0 = pts[b - 1], p1 = pts[b];
+        var dx = p1[0] - p0[0], dy = p1[1] - p0[1], dz = p1[2] - p0[2];
+        var len = Math.hypot(dx, dy, dz);
+        // a box's long (y) axis turned onto the segment: rx leans it towards
+        // +z, rz towards -x (the engine's Ry*Rx*Rz)
+        var tilt = [Math.atan2(dz, dy), 0, -Math.asin(dx / len)];
+        k.box([(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2], [0.5, len + 0.4, 0.5], '#e8f2ff',
+              { m: 'neon', r: tilt });
+        k.box([(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2], [1.6, len + 0.4, 1.6], '#7ab8ff',
+              { m: 'neon', a: 0.3, r: tilt });
+      }
+      k.shape('torus', [4, 14.3, -1], [8, 0.5, 8], '#7ab8ff', { m: 'neon', a: 0.9 });
+      k.shape('sph', [4, 14.6, -1], [4, 1.6, 4], '#e8f2ff', { m: 'neon', a: 0.5 });
+      // a cottage with its turf roof, its lamps lit
+      k.box([-44, 3.5, 6], [16, 7, 12], '#9a948a');
+      k.box([-44, 7.6, 6], [17, 1.2, 13], '#5a8a4e');
+      k.box([-44, 8.8, 6], [12, 1.2, 9], '#5a8a4e');
+      k.box([-36.2, 3.4, 6], [0.4, 5.8, 3.6], '#3a2a20');
+      k.box([-36.0, 5.6, 9], [0.4, 0.8, 0.6], '#ffb84a', { m: 'neon' });
+      // the rain
+      for (var rn = 0; rn < 60; rn++) {
+        var rx = ((rn * 37) % 120) - 60, rz = ((rn * 53) % 100) - 50, ry = 6 + ((rn * 29) % 50);
+        k.box([rx, ry, rz], [0.08, 3.2, 0.08], '#c0d0e2', { a: 0.4, r: [0, 0, 0.25] });
+      }
+    }
+  });
+
+  // ------------------------------------------------ Sulphur Springs
+  Thumbs.registerWorld('pb_sulphur', {
+    sky: { top: '#3a8ad0', horizon: '#f4e8c8', sun: [0.5, 0.62, 0.3], clouds: 0.45, tint: '#fff4e0' },
+    camera: [[30, 22, 50], [0, 8, -10], 54],
+    build: function (parts, k) {
+      k.box([0, -4, 10], [400, 6, 400], '#2a9ab8', { m: 'glass', a: 0.8 });
+      k.box([0, -1, 14], [160, 2, 130], '#7aa040');
+      // the terraces stepping up behind, each with its brimming pools
+      [[70, -20, 3], [56, -34, 6], [42, -46, 9], [28, -58, 12]].forEach(function (tr, i) {
+        var hw = tr[0] / 2;
+        k.box([0, tr[2] / 2, (tr[1] - 80) / 2], [tr[0], tr[2], tr[1] + 80], i % 2 ? '#e4d8bc' : '#f2ead8');
+        for (var f = 0; f < tr[0] / 3; f++) {
+          k.box([-hw + 1.5 + f * 3, tr[2] - 0.9, tr[1] + 0.15], [1.4, 1.8 - (f % 3) * 0.4, 0.3], f % 2 ? '#cdbd9c' : '#e8c8a0');
+        }
+        if (i < 3) {
+          [-1, 1].forEach(function (s) {
+            k.box([s * hw * 0.55, tr[2] + 0.3, tr[1] - 6], [10, 0.6, 7], '#e4d8bc');
+            k.box([s * hw * 0.55, tr[2] + 0.45, tr[1] - 6], [8.6, 0.4, 5.6], '#4ad8e8', { m: 'glass', a: 0.85 });
+          });
+        }
+      });
+      // the bathhouse on top: columns, the gilt governor
+      for (var c = 0; c < 6; c++) {
+        var h = c % 3 === 1 ? 3 : 8;
+        k.shape('cyl', [-10 + c * 4, 12 + h / 2, -70], [1.4, h, 1.4], '#f4f0e4');
+        k.box([-10 + c * 4, 12 + h + 0.3, -70], [2.0, 0.6, 2.0], '#e0d4b8');
+      }
+      k.box([0, 14.5, -74], [1.6, 5, 1.4], '#e8b830', { m: 'metal' });
+      k.box([0, 17.6, -74], [1.2, 1.2, 1.2], '#e8b830', { m: 'metal' });
+      // the volcano far off
+      k.shape('cone', [-70, 20, -150], [120, 60, 90], '#6a5a4a');
+      [[0, 54, 12], [4, 62, 16], [-2, 70, 20]].forEach(function (pl) {
+        k.shape('sph', [-70 + pl[0], pl[1], -150], [pl[2], pl[2] * 0.7, pl[2]], '#d8d0c8', { a: 0.85 });
+      });
+      // the grand spring in its rings, Old Faithless blowing out of it
+      k.box([0, 0.15, 22], [44, 0.3, 44], '#f2ead8');
+      ['#c8402a', '#e8702a', '#f0a030', '#e8d040', '#7ac85a', '#3ab8b0', '#1a6ab8'].forEach(function (col, i) {
+        k.shape('cyl', [0, 0.32 + i * 0.03, 22], [40 - i * 5.4, 0.03, 40 - i * 5.4], col);
+      });
+      for (var s = 0; s < 8; s++) {
+        var f = (s + 0.5) / 8;
+        k.shape('cyl', [Math.sin(s * 1.7) * 0.4, 0.5 + 26 * f, 22], [3.6 - f * 1.2, 26 / 8 + 0.4, 3.6 - f * 1.2],
+                s % 2 ? '#e8fcff' : '#9ae8f8', { a: 0.8 });
+      }
+      k.shape('sph', [0, 28, 22], [8, 4, 8], '#f4feff', { a: 0.75 });
+      k.shape('torus', [0, 0.5, 22], [10, 0.5, 10], '#ffffff', { a: 0.8 });
+      // a Buccaneer flung high on it, treasure flying out
+      pirate(k, 2, 22, 2.4, 'blue', { y: 20, anim: 'jump', time: 0.3, face: 'face_angry' });
+      [[8, 24, 20, 0], [-7, 22, 25, 1], [12, 16, 26, 2], [-12, 14, 18, 3], [16, 6, 30, 4]].forEach(function (c) {
+        k.shape('doubloon', [c[0], c[1], c[2]], [1.8, 1.8, 1.8], '#ffd040', { m: 'metal', r: [c[3], c[3] * 0.7, 0] });
+      });
+      // the boardwalk, a Corsair running it with a chest
+      k.box([0, 1.05, 34], [90, 0.3, 4], '#a8805a');
+      for (var bp = 0; bp < 12; bp++) k.shape('cyl', [-40 + bp * 7.5, 0.45, 34], [0.5, 0.9, 0.5], '#6a4a2e');
+      pirate(k, -14, 34, 1.4, 'red', { y: 1.2, anim: 'run', time: 0.5, holding: CHEST });
+      // sulphur heaps, steaming cones
+      k.box([-44, 1, 10], [12, 2, 10], '#f2d230');
+      k.box([-44, 2.4, 10], [7, 1.2, 6], '#d0a820');
+      k.shape('cyl', [30, 0.4, 6], [6, 0.8, 6], '#e4d8bc');
+      k.shape('cyl', [30, 1.0, 6], [4, 0.6, 4], '#f2ead8');
+    }
+  });
+
+  // ------------------------------------------------ Ghost Fleet Cove
+  /* a skeleton of the ghost crews: bones, a rag of a coat, a tricorn, eyes
+     lit green, a pistol levelled; ``sunk`` how deep in the water */
+  function skeleton(k, x, y, z, yaw) {
+    var B = '#e8e4d4';
+    k.attach(x, y, z, yaw, [
+      { t: 'box', p: [-0.5, 1.0, 0], s: [0.36, 2.0, 0.36], c: B },
+      { t: 'box', p: [0.5, 1.0, 0], s: [0.36, 2.0, 0.36], c: B },
+      { t: 'box', p: [0, 2.2, 0], s: [1.6, 0.4, 0.6], c: B },
+      { t: 'box', p: [0, 3.2, 0], s: [0.36, 2.2, 0.36], c: B },
+      { t: 'box', p: [0, 3.0, 0], s: [1.8, 0.24, 0.9], c: B },
+      { t: 'box', p: [0, 3.5, 0], s: [1.9, 0.24, 1.0], c: B },
+      { t: 'box', p: [0, 4.0, 0], s: [1.8, 0.24, 0.9], c: B },
+      { t: 'box', p: [0, 3.5, -0.1], s: [2.2, 2.0, 0.9], c: '#4a3a2a', a: 0.55 },
+      { t: 'box', p: [0.95, 3.6, 1.0], s: [0.3, 0.3, 2.0], c: B },
+      { t: 'box', p: [0.95, 3.7, 2.3], s: [0.24, 0.3, 1.0], c: '#4a4e56', m: 'metal' },
+      { t: 'box', p: [-1.1, 3.2, 0], s: [0.3, 1.8, 0.3], c: B, r: [0, 0, -0.2] },
+      { t: 'sph', p: [0, 5.0, 0], s: [1.3, 1.3, 1.3], c: B },
+      { t: 'box', p: [-0.3, 5.05, 0.6], s: [0.3, 0.26, 0.1], c: '#7aff9a', m: 'neon' },
+      { t: 'box', p: [0.3, 5.05, 0.6], s: [0.3, 0.26, 0.1], c: '#7aff9a', m: 'neon' },
+      { t: 'tricorn', p: [0, 5.75, 0], s: [2.4, 1.4, 2.4], c: '#1a1a22' }
+    ]);
+  }
+  Thumbs.registerWorld('pb_ghostfleet', {
+    sky: { top: '#081028', horizon: '#34486e', sun: [-0.35, 0.55, -0.55], clouds: 0.4, tint: '#a8c0f0' },
+    camera: [[28, 16, 40], [0, 6, -12], 54],
+    build: function (parts, k) {
+      var ROT = '#3a3428';
+      k.box([0, -4, 0], [400, 6, 400], '#16303e', { m: 'glass', a: 0.88 });
+      // the graveyard hill and the crypt behind, its ghost-light up the sky
+      k.box([0, 2, -70], [140, 4, 50], '#3e5a48');
+      k.box([0, 5, -80], [90, 2, 30], '#33503e');
+      k.box([0, 10, -86], [18, 8, 12], '#7a7a86');
+      k.shape('wedge', [0, 15.5, -83], [19, 3, 6], '#5a5a68');
+      k.shape('wedge', [0, 15.5, -89], [19, 3, 6], '#5a5a68', { r: [0, Math.PI, 0] });
+      k.shape('cyl', [0, 40, -86], [5, 48, 5], '#7aff9a', { m: 'neon', a: 0.16 });
+      for (var g = 0; g < 9; g++) k.box([-32 + g * 8, 5.2, -50 - (g % 2) * 4], [1.4, 2.4, 0.5], '#8a8a94');
+      // the flagship, sunk to her gunwales, her stern windows lit
+      k.box([0, 1.6, -18], [14, 6, 34], ROT);
+      k.box([0, 6.0, -2], [14, 3, 8], '#54463a');
+      k.box([0, 5.4, -32], [12, 2, 7], '#54463a');
+      for (var w = 0; w < 4; w++) k.box([-4.5 + w * 3, 4.6, 2.05], [1.8, 1.6, 0.1], '#7aff9a', { m: 'neon' });
+      [[-30, 16], [-17, 22], [-4, 15]].forEach(function (m, i) {
+        k.shape('cyl', [0, 4 + m[1] / 2, m[0]], [1.0, m[1], 1.0], ROT);
+        k.box([0, 3 + m[1] - 2, m[0]], [12, 0.4, 0.4], ROT);
+        k.box([-3, 3 + m[1] - 5.2, m[0] + 0.3], [4, 5.6, 0.1], '#a8c8a8', { a: 0.4 });
+        k.box([3.5, 3 + m[1] - 4.4, m[0] + 0.3], [3, 4, 0.1], '#a8c8a8', { a: 0.4 });
+      });
+      idol(k, 0, 7.5, -2);
+      // masts of the drowned fleet
+      [[-24, -30, 12], [22, -20, 10], [30, 6, 14]].forEach(function (m) {
+        k.shape('cyl', [m[0], m[2] / 2 - 2, m[1]], [0.9, m[2] + 4, 0.9], ROT);
+        k.box([m[0], m[2] - 2, m[1]], [7, 0.4, 0.4], ROT);
+      });
+      // the pier, a Corsair on it with the idol; the dead climbing out of
+      // the water to stop her
+      k.box([4, 1.2, 14], [40, 0.4, 5], '#7a5a3a');
+      for (var p2 = 0; p2 < 6; p2++) k.shape('cyl', [-14 + p2 * 7, -0.4, 16], [0.7, 3.2, 0.7], '#5a3a22');
+      pirate(k, 8, 14, -1.9, 'red', { y: 1.4, anim: 'run', time: 0.5, holding: { data: { parts: [
+        { t: 'box', p: [-0.75, 0.2, 0.9], s: [1.0, 1.6, 0.8], c: '#e8b830', m: 'metal' },
+        { t: 'box', p: [-0.75, 1.3, 0.9], s: [1.1, 0.8, 0.9], c: '#e8b830', m: 'metal' }] } } });
+      skeleton(k, 18, -2.6, 8, -2.2);
+      skeleton(k, 22, -1.6, 18, -1.6);
+      skeleton(k, -4, -3.4, 22, 2.6);
+      [[14, 4.6, 7.4], [17, 5.6, 17]].forEach(function (f) {
+        k.shape('sph', [f[0], f[1], f[2]], [1.4, 1.4, 1.4], '#aaffcc', { m: 'neon', a: 0.8 });
+      });
+      // wisps, the moon
+      [[-10, 8, 4], [12, 10, -8], [-20, 6, -12], [26, 7, 0], [4, 12, 8]].forEach(function (w2) {
+        k.shape('sph', w2, [0.7, 0.7, 0.7], '#e8ffe8', { m: 'neon' });
+        k.shape('sph', w2, [2.4, 2.4, 2.4], '#7aff9a', { m: 'neon', a: 0.25 });
+      });
+      k.shape('sph', [-60, 70, -220], [40, 40, 40], '#eef2e4', { m: 'neon' });
+    }
+  });
+
+  // ------------------------------------------------ Glowtide Lagoon
+  Thumbs.registerWorld('pb_glowtide', {
+    sky: { top: '#121848', horizon: '#e08a8a', sun: [0.2, 0.42, 0.72], clouds: 0.5, tint: '#c8c0f0' },
+    camera: [[30, 18, 44], [0, 3, -8], 54],
+    build: function (parts, k) {
+      // the lagoon at low tide: its floor showing through a skin of deep
+      // blue water, coral and clams on it; sandy shores, mangroves behind
+      k.box([0, -6.5, 0], [400, 1, 400], '#5a5878');
+      k.box([0, -5.4, 0], [400, 1.2, 400], '#0a2a6a', { m: 'glass', a: 0.72 });
+      [[-60, 8], [60, 8]].forEach(function (b) { k.box([b[0], -3, b[1]], [30, 6, 120], '#d8c8a8'); });
+      k.box([0, -3, -64], [150, 6, 30], '#3e6a4a');
+      [[-30, -58], [-14, -62], [8, -60], [26, -58], [-44, -50], [44, -52]].forEach(function (m, i) {
+        k.shape('cyl', [m[0], 3, m[1]], [1.2, 6, 1.2], '#5a4a3a');
+        k.shape('sph', [m[0], 7, m[1]], [9, 3, 8], i % 2 ? '#2e5a3e' : '#386a48');
+      });
+      [[-24, 14, '#ff6a9a'], [20, 20, '#c86aff'], [-30, -16, '#ffd04a'], [28, -12, '#5af0c8'], [-10, 36, '#ff9a5a']].forEach(function (c) {
+        k.shape('sph', [c[0], -5.2, c[1]], [3, 2.2, 3], c[2]);
+        k.shape('cyl', [c[0], -3.9, c[1]], [0.5, 0.6, 0.5], '#ff8ad8', { m: 'neon' });
+      });
+      // the moon temple, stepped, the idol on its crown, crescents lit
+      [[40, -4], [32, -2], [25, 1], [18, 4], [12, 7]].forEach(function (tr, i) {
+        var prev = i ? [-4, -2, 1, 4][i - 1] : -6;
+        k.box([0, (prev + tr[1]) / 2, -12], [tr[0], tr[1] - prev, tr[0]], i % 2 ? '#6a7894' : '#8a9ab4');
+      });
+      for (var st = 0; st < 3; st++) k.box([0, -1.5 + st * 1.0, 4.6 - st * 1.2], [5, 1.0, 1.2], '#6a7894');
+      [[-7, 0.6], [7, 0.6]].forEach(function (c) {
+        k.shape('crescent', [c[0], -0.5, c[1]], [2.2, 2.4, 0.2], '#7ad8ff', { m: 'neon' });
+      });
+      [[-10.9, -22.9], [10.9, -22.9], [-10.9, -1.1], [10.9, -1.1]].forEach(function (o) {
+        k.box([o[0], 4, o[1]], [1.4, 6, 1.4], '#8a9ab4');
+        k.shape('sph', [o[0], 7.6, o[1]], [1.2, 1.2, 1.2], '#f4f8ff', { m: 'neon' });
+      });
+      idol(k, 0, 7, -12);
+      // the causeway out to it, its moon-lamps
+      k.box([0, -4.3, 26], [6, 3.4, 30], '#8a9ab4');
+      for (var p = 0; p < 3; p++) {
+        [-2.6, 2.6].forEach(function (dx) {
+          k.box([dx, -1.6, 16 + p * 9], [0.8, 2, 0.8], '#6a7894');
+          k.box([dx, -0.3, 16 + p * 9], [0.7, 0.6, 0.7], '#7ad8ff', { m: 'neon' });
+        });
+      }
+      // the giant clams open on the floor, pearls lit
+      [[-14, 18], [16, 12], [-20, -2], [22, 30]].forEach(function (c) {
+        k.shape('sph', [c[0], -5.6, c[1]], [3.4, 1.2, 2.6], '#b8a8c8');
+        k.shape('sph', [c[0], -4.6, c[1] - 1.0], [3.2, 0.8, 2.4], '#c8b8d8', { r: [0.7, 0, 0] });
+        k.shape('sph', [c[0], -5.0, c[1]], [1.0, 1.0, 1.0], '#f4f8ff', { m: 'neon' });
+      });
+      // a Corsair on the causeway with a pearl the size of a fist, wading
+      // light round a Buccaneer still in the water
+      pirate(k, 1, 24, 0.4, 'red', { y: -2.6, anim: 'run', time: 0.5, holding: { data: { parts: [
+        { t: 'sph', p: [-0.75, 0.4, 0.9], s: [1.4, 1.4, 1.4], c: '#f4f8ff', m: 'neon' }] } } });
+      pirate(k, -12, 8, 0.6, 'blue', { y: -6, anim: 'run', time: 1.0, face: 'face_angry' });
+      [3, 5.4, 7.8].forEach(function (r, i) {
+        k.shape('torus', [-12, -4.75, 8], [r, 0.3, r], '#5af0ff', { m: 'neon', a: 0.8 - i * 0.22 });
+      });
+      // a stilt hut, its lanterns; lanterns floating; sky lanterns going up
+      k.box([40, 4.6, -6], [10, 5.4, 8], '#a8845a');
+      k.shape('wedge', [40, 8.6, -4], [11, 2.6, 4.6], '#c8a85a');
+      k.shape('wedge', [40, 8.6, -8], [11, 2.6, 4.6], '#c8a85a', { r: [0, Math.PI, 0] });
+      k.box([35, 6, -1.7], [0.6, 0.8, 0.6], '#ffb05a', { m: 'neon' });
+      [[36, -10], [44, -10], [36, -2], [44, -2]].forEach(function (s2) { k.shape('cyl', [s2[0], -2.2, s2[1]], [0.6, 7.6, 0.6], '#6a4a2e'); });
+      [[-10, 30], [12, 22], [-18, 10], [20, 4], [8, 34], [-26, 24], [-4, 14], [26, 16], [-30, 4]].forEach(function (l, i) {
+        var c = ['#ff6a4a', '#ffb84a', '#ff8ad8', '#ffe07a'][i % 4];
+        k.box([l[0], -4.5, l[1]], [1.4, 1.4, 1.4], c, { m: 'neon', a: 0.9 });
+        k.shape('sph', [l[0], -4.5, l[1]], [3.2, 2.0, 3.2], c, { m: 'neon', a: 0.18 });
+      });
+      [[30, 30, -40], [38, 42, -50], [22, 52, -60], [46, 36, -30], [16, 40, -44]].forEach(function (l, i) {
+        k.box(l, [1.6, 2.0, 1.6], ['#ffb84a', '#ff8a4a', '#ffd86a'][i % 3], { m: 'neon' });
+      });
+      for (var g = 0; g < 22; g++) {
+        k.shape('sph', [((g * 37) % 90) - 45, -4.7, ((g * 53) % 80) - 30], [0.5, 0.2, 0.5], g % 2 ? '#5af0ff' : '#b8fff0', { m: 'neon' });
+      }
+    }
+  });
+
+  // ------------------------------------------------ Frostfang Floe
+  /* a frosted tentacle, pale and crusted with ice */
+  function frostTentacle(k, x, y, z, h, lean, turn) {
+    var n = 9;
+    for (var s = 0; s < n; s++) {
+      var f = (s + 0.5) / n, bend = lean * f * f;
+      var px = x + Math.sin(turn) * bend * h * 0.6, pz = z + Math.cos(turn) * bend * h * 0.6;
+      var rad = 2.4 * (1 - f) + 0.5;
+      k.shape('sph', [px, y + h * f * (1 - 0.3 * f * Math.abs(lean)), pz], [rad, h / n * 1.5, rad], s % 2 ? '#6a9ab8' : '#8ab8d0');
+      if (s % 2 === 0 && s < n - 2) {
+        k.shape('sph', [px + Math.cos(turn) * rad * 0.42, y + h * f * (1 - 0.3 * f * Math.abs(lean)), pz - Math.sin(turn) * rad * 0.42],
+                [rad * 0.34, rad * 0.34, rad * 0.34], '#f0faff');
+      }
+    }
+  }
+  Thumbs.registerWorld('pb_frostfang', {
+    sky: { top: '#3a8ae0', horizon: '#e8f4ff', sun: [0.5, 0.42, -0.35], clouds: 0.3, tint: '#f4faff' },
+    camera: [[32, 18, 44], [0, 6, -8], 54],
+    build: function (parts, k) {
+      k.box([0, -4, 10], [400, 6, 400], '#2a7aa8', { m: 'glass', a: 0.8 });
+      k.box([0, -0.5, 0], [150, 1, 130], '#f2f6fa');
+      k.box([0, 0.06, 2], [70, 0.12, 60], '#bfe4f4', { m: 'glass' });
+      // the glacier behind, in steps
+      [[100, -40, 7], [76, -52, 13], [52, -64, 19]].forEach(function (g, i) {
+        k.box([0, g[2] / 2, g[1] - 10], [g[0], g[2], 24], i % 2 ? '#d4eef8' : '#bfe4f4');
+        k.box([0, g[2] + 0.15, g[1] - 10], [g[0], 0.3, 24], '#f2f6fa');
+        for (var ic = 0; ic < g[0] / 4; ic++) {
+          k.shape('cone', [-g[0] / 2 + 2 + ic * 4, g[2] - 1, g[1] + 2.3], [0.8, 2, 0.8], '#e8f8ff', { r: [Math.PI, 0, 0] });
+        }
+      });
+      // the frozen galleon held fast in the ice, sails stiff with frost
+      k.box([0, 2.5, -6], [12, 5, 34], '#6a4a2e');
+      k.box([0, 6.5, -20], [12, 3, 8], '#7a5a3a');
+      k.box([0, 6.5, 8], [12, 3, 6], '#7a5a3a');
+      k.box([0, 5.15, -6], [11, 0.3, 20], '#f4f8fc');
+      [[-18, 22], [-6, 28], [6, 20]].forEach(function (m) {
+        k.shape('cyl', [0, 5 + m[1] / 2, m[0]], [1.0, m[1], 1.0], '#4a3020');
+        k.box([0, 5 + m[1] - 4, m[0]], [11, 0.5, 0.5], '#4a3020');
+        k.box([0, 5 + m[1] - 7, m[0] + 0.3], [10, 5.4, 0.2], '#f4f8fc');
+        for (var c = 0; c < 5; c++) k.shape('cone', [-4 + c * 2, 5 + m[1] - 10.3, m[0] + 0.3], [0.5, 1.4, 0.5], '#e8f8ff', { r: [Math.PI, 0, 0] });
+      });
+      idol(k, 0, 8, -20);
+      // the breathing holes, the frost kraken coming up through them
+      [[-18, 10], [18, 10], [0, 24], [-20, -16]].forEach(function (h, i) {
+        k.box([h[0], 0.08, h[1]], [7, 0.16, 7], '#123a5a');
+        for (var e = 0; e < 6; e++) {
+          var a = e * Math.PI / 3;
+          k.box([h[0] + Math.cos(a) * 4, 0.3, h[1] + Math.sin(a) * 4], [1.6, 0.6, 1.2], '#e8f8ff', { r: [0, -a, 0] });
+        }
+        frostTentacle(k, h[0], -1, h[1], 14 + (i % 2) * 4, i === 2 ? 1.2 : 0.4 * (i % 2 ? 1 : -1), i * 1.7);
+      });
+      k.shape('torus', [8, 0.3, 28], [12, 0.6, 12], '#9ae8ff', { m: 'neon', a: 0.85 });
+      // a Corsair running over the ice with a jewel, a Buccaneer behind
+      pirate(k, 10, 30, 0.9, 'red', { y: 0.12, anim: 'run', time: 0.5,
+        holding: { data: { parts: [{ t: 'gem', p: [-0.75, 0.6, 0.9], s: [1.6, 1.6, 1.6], c: '#3ad0ff', m: 'glass' }] } } });
+      pirate(k, 0, 37, 1.2, 'blue', { y: 0.12, anim: 'run', time: 1.0, face: 'face_angry' });
+      // a whalers' hut, spruces, penguins
+      k.box([-40, 3.5, 10], [12, 7, 10], '#c8302a');
+      k.box([-40, 7.6, 10], [13, 1.2, 11], '#f2f6fa');
+      k.box([-40, 8.8, 10], [9, 1.2, 7], '#f2f6fa');
+      [[-46, -10], [40, -14], [44, 18]].forEach(function (p) {
+        for (var tier = 0; tier < 3; tier++) {
+          k.shape('cone', [p[0], 3 + tier * 2.6, p[1]], [6 - tier * 1.6, 4, 6 - tier * 1.6], '#2e5a3e');
+          k.shape('cone', [p[0], 4.4 + tier * 2.6, p[1]], [3.4 - tier, 1.2, 3.4 - tier], '#f2f6fa');
+        }
+      });
+      [[30, 40], [33, 42], [28, 44]].forEach(function (p, i) {
+        k.shape('sph', [p[0], 1.4, p[1]], [1.6, 2.6, 1.5], '#1e2228');
+        k.shape('sph', [p[0] + 0.2, 1.3, p[1] + 0.35], [1.2, 2.2, 1.0], '#f4f4f0');
+        k.box([p[0], 2.9, p[1] + 0.8], [0.3, 0.25, 0.6], '#ff9a2a');
+      });
+    }
+  });
+  // ------------------------------------------------- Monsoon Bazaar
+  /* The grand bazaar's tiered red roof on its columns, bunting round the
+     eaves, the idol inside among the spice stalls; the great canal in
+     front crossed by a humped bridge with the Company's marines on its
+     crest, paper lanterns floating, a sampan carrying a Corsair off with
+     a jewel; shophouses under striped awnings, the white customs house
+     and its clock tower, a torrent off the cliffs, a rainbow. */
+  function lerp(a, b, u) { return a + (b - a) * u; }
+  function palmPair(k) {
+    palm(k, -46, 0, 8, 14, 2.4);
+    palm(k, 48, 0, 10, 13, -2.0);
+    palm(k, -54, 0, -30, 15, 1.6);
+  }
+  Thumbs.registerWorld('pb_monsoon', {
+    sky: { top: '#5a6a80', horizon: '#dcdccc', sun: [0.3, 0.6, 0.4], clouds: 0.9, tint: '#f4f0e4' },
+    camera: [[34, 26, 56], [0, 6, -6], 50],
+    build: function (parts, k) {
+      var WALLS = ['#f0a830', '#d83a8a', '#2aa8a0', '#8ac83a', '#3a4aa8'];
+      k.box([0, -0.5, -52], [220, 1, 135.2], '#5a8a44');
+      k.box([0, -0.5, 54.2], [220, 1, 51.6], '#5a8a44');
+      k.box([0, 0.06, 4], [80, 0.12, 8], '#a89a88');
+      k.box([0, 0.06, -28], [80, 0.12, 8], '#a89a88');
+      // the great canal across the front
+      k.box([0, -1.2, 22], [220, 1.6, 12], '#3a7a6a', { m: 'glass', a: 0.78 });
+      k.box([0, -2.2, 22], [220, 0.4, 12], '#2a4a40');
+      [15.6, 28.4].forEach(function (z) { k.box([0, 0.25, z], [220, 0.5, 0.8], '#8a8478'); });
+      // the humped bridge, the marines on its crest levelling their muskets
+      [[0.5, 16], [1.0, 12], [1.6, 8]].forEach(function (h, i) {
+        k.box([0, h[0] / 2 + (i ? 0.25 : 0), 22], [9, h[0] + (i ? 0.5 : 0), h[1]], i % 2 ? '#c8baa4' : '#b8aa94');
+      });
+      k.box([-4.25, 2.4, 22], [0.5, 1.0, 9], '#a8987e');
+      k.box([4.25, 2.4, 22], [0.5, 1.0, 9], '#a8987e');
+      redcoat(k, -1.8, 1.9, 21, 2.6, true);
+      redcoat(k, 1.8, 1.9, 23, 2.2, true);
+      k.shape('sph', [4.6, 5.4, 25.2], [1.6, 1.4, 1.6], '#f4f4f4', { a: 0.75 });
+      k.shape('sph', [2.2, 5.2, 27.0], [1.4, 1.2, 1.4], '#f4f4f4', { a: 0.6 });
+      // a sampan carrying a Corsair off down the canal with a jewel
+      var sx = 16, sz = 22.5;
+      k.box([sx, -0.6, sz], [9, 1.0, 3.2], '#8a4a2a');
+      k.box([sx, -0.05, sz], [8.4, 0.1, 2.6], '#a8805a');
+      k.box([sx - 2.4, 1.6, sz], [3.2, 0.3, 3.0], '#c8a060');
+      k.box([sx - 2.4, 0.8, sz - 1.4], [3.0, 1.6, 0.2], '#c8a060');
+      k.shape('cyl', [sx + 3.6, 1.4, sz + 1.0], [0.16, 3.0, 0.16], '#4a3a2a');
+      k.shape('sph', [sx + 3.6, 3.0, sz + 1.0], [0.8, 0.9, 0.8], '#ff7a4a', { m: 'neon' });
+      pirate(k, sx + 0.8, sz, 1.2, 'red', { y: 0.0, anim: 'idle', time: 0.2,
+        holding: { data: { parts: [{ t: 'gem', p: [-0.75, 0.6, 0.9], s: [1.6, 1.6, 1.6], c: '#3ad0ff', m: 'glass' }] } } });
+      [[-30, 20, '#ff6a4a'], [-18, 25, '#ffb84a'], [-8, 19, '#ff8ad8'], [26, 25, '#ffe07a'], [36, 19, '#ff6a4a']].forEach(function (l) {
+        k.box([l[0], -0.25, l[1]], [1.6, 0.2, 1.6], '#6a4a2a');
+        k.box([l[0], 0.55, l[1]], [1.3, 1.4, 1.3], l[2], { m: 'neon', a: 0.9 });
+      });
+      // the grand bazaar: columns, the roof in four tiers, bunting, stalls, the idol
+      k.box([0, 0.3, -12], [32, 0.6, 24], '#c8b8a0');
+      [[-15, -23], [-5, -23], [5, -23], [15, -23], [-15, -1], [-5, -1], [5, -1], [15, -1], [-15, -12], [15, -12]].forEach(function (c) {
+        k.shape('cyl', [c[0], 5, c[1]], [1.2, 9, 1.2], '#8a3a2a');
+        k.box([c[0], 9.2, c[1]], [1.8, 0.8, 1.8], '#f0a830');
+      });
+      [[36, 28, 1.0, 10.1, '#c84a3a'], [28, 20, 1.4, 11.3, '#b83a2a'], [19, 13, 1.4, 12.7, '#c84a3a'], [10, 6, 1.2, 14.0, '#b83a2a']].forEach(function (r) {
+        k.box([0, r[3], -12], [r[0], r[2], r[1]], r[4]);
+      });
+      k.shape('cone', [0, 16.0, -12], [2.4, 2.8, 2.4], '#e8b830', { m: 'metal' });
+      [-23, -1].forEach(function (z, i) {
+        k.box([0, 8.75, z], [30, 0.12, 0.12], '#efe6d6');
+        for (var p = 0; p < 12; p++) {
+          k.shape('tri', [-14.4 + p * 2.6, 7.95, z], [1.6, 1.6, 1.0], WALLS[(p + i) % 5], { r: [0, 0, Math.PI] });
+        }
+      });
+      [-15, 15].forEach(function (x, i) {
+        k.box([x, 8.75, -12], [0.12, 0.12, 22], '#efe6d6');
+        for (var q = 0; q < 8; q++) {
+          k.shape('tri', [x, 7.95, -21 + q * 2.6], [1.6, 1.6, 1.0], WALLS[(q + 2 * i) % 5], { r: [0, Math.PI / 2, Math.PI] });
+        }
+      });
+      [[-9, -6, '#f0a830', 'cone'], [9, -6, '#d83a8a', 'sph'], [-9, -18, '#8ac83a', 'sph'], [9, -18, '#c8402a', 'cone']].forEach(function (st) {
+        k.box([st[0], 1.2, st[1]], [6, 1.2, 2.2], '#7a5a3a');
+        for (var j = 0; j < 3; j++) k.shape(st[3], [st[0] - 2 + j * 2, 2.3, st[1]], [1.5, 1.1, 1.5], st[2]);
+      });
+      idol(k, 0, 0.6, -12);
+      // shophouses either side under their awnings
+      [[-34, -4, 0], [-34, -22, 1], [34, -4, 2], [34, -22, 3], [-20, -40, 4], [20, -40, 1]].forEach(function (h) {
+        var c = WALLS[h[2]];
+        k.box([h[0], 5, h[1]], [12, 10, 12], c);
+        k.box([h[0], 10.6, h[1]], [13.4, 1.2, 13.4], '#c84a3a');
+        k.box([h[0], 11.8, h[1]], [9, 1.2, 9], '#b83a2a');
+        var face = h[1] > -30 ? 1 : 0;
+        var out = h[0] < 0 ? 1 : -1;
+        if (face) {
+          for (var a = 0; a < 4; a++) k.box([h[0] + out * 7.5, 7.2, h[1] - 4.5 + a * 3], [3, 0.3, 3], a % 2 ? '#f4ece0' : WALLS[(h[2] + 2) % 5]);
+          k.box([h[0] + out * 6.05, 3.2, h[1]], [0.1, 6.0, 5.0], '#3a2a1a');
+          k.box([h[0] + out * 8.6, 6.6, h[1] - 4], [0.7, 0.8, 0.7], '#ffb05a', { m: 'neon' });
+          k.box([h[0] + out * 8.6, 6.6, h[1] + 4], [0.7, 0.8, 0.7], '#ffb05a', { m: 'neon' });
+        }
+      });
+      // the customs house behind: white walls, the dome, the clock tower
+      k.box([0, 4, -58], [46, 8, 2], '#f0e8d8');
+      k.box([0, 6.5, -66], [36, 13, 12], '#f0e8d8');
+      k.box([0, 13.4, -66], [37, 0.8, 13], '#c84a3a');
+      k.shape('sph', [0, 16.6, -66], [8, 7, 8], '#f4ecdc');
+      k.box([10, 13, -58], [6, 26, 6], '#f0e8d8');
+      k.shape('cone', [10, 28.5, -58], [7.6, 5, 7.6], '#c84a3a');
+      k.shape('cyl', [10, 21, -54.9], [4, 0.2, 4], '#fbf6ea', { r: [Math.PI / 2, 0, 0] });
+      k.box([10, 21.6, -54.7], [0.25, 1.6, 0.1], '#1a1a1a');
+      // the cliffs, the torrents falling off them, a rainbow over all
+      for (var cl = 0; cl < 11; cl++) {
+        var cx = -100 + cl * 20, ch = 26 + (cl * 7 % 5) * 2.4;
+        k.box([cx, ch / 2, -84], [20, ch, 14], ['#6a5a4a', '#5a4c40', '#7a6a58'][cl % 3]);
+        k.box([cx, ch + 2, -88], [17, 4, 8], '#7a6a58');
+        k.box([cx, ch + 4.5, -89], [15, 1, 7], '#3a7a32');
+        k.box([cx - 5, ch - 6, -76.85], [1, 10, 0.3], '#3a7a32');
+        k.box([cx + 4, ch - 8, -76.85], [1, 13, 0.3], '#3a7a32');
+      }
+      [-48, 48].forEach(function (fx) {
+        k.box([fx, 14, -76.3], [6, 28, 0.6], '#cfe8f2', { m: 'glass', a: 0.88 });
+        for (var st = 0; st < 5; st++) k.box([fx - 2.4 + st * 1.2, 6 + st * 4.4, -75.9], [0.3, 3.2, 0.1], '#ffffff');
+        k.shape('sph', [fx, 0.6, -74], [11, 3, 6], '#f4fafc', { a: 0.75 });
+      });
+      palmPair(k);
+      // a white stupa behind the west shophouses, prayer flags off its spire
+      k.box([-44, 0.6, -44], [12, 1.2, 12], '#e8e0d0');
+      k.box([-44, 1.8, -44], [8.4, 1.2, 8.4], '#f0e8d8');
+      k.shape('sph', [-44, 5.4, -44], [7, 6, 7], '#f8f4ec');
+      k.box([-44, 9.0, -44], [2.4, 1.6, 2.4], '#e8b830', { m: 'metal' });
+      k.box([-44.5, 9.1, -42.78], [0.6, 0.3, 0.06], '#2a3a8a');
+      k.box([-43.5, 9.1, -42.78], [0.6, 0.3, 0.06], '#2a3a8a');
+      k.shape('cone', [-44, 12.4, -44], [1.8, 5, 1.8], '#e8b830', { m: 'metal' });
+      [[-38.6, -38.6], [-49.4, -38.6]].forEach(function (c, i) {
+        k.shape('cyl', [c[0], 3.6, c[1]], [0.3, 5, 0.3], '#6a4a2a');
+        for (var f = 0; f < 5; f++) {
+          var u = (f + 0.5) / 5;
+          k.shape('tri', [lerp(-44, c[0], u), lerp(13.4, 6, u) - 0.6, lerp(-44, c[1], u)], [1.2, 1.2, 0.8],
+                  ['#3a6ac8', '#f4f0e8', '#c8302a', '#3a9a4a', '#f0c830'][f], { r: [0, Math.PI / 4 * (i ? -1 : 1), Math.PI] });
+        }
+      });
+      var bands = ['#ff4a4a', '#ff9a3a', '#ffe04a', '#5ad85a', '#4aa8ff', '#5a5ae0', '#a05ad8'];
+      for (var b = 0; b < bands.length; b++) {
+        var R = 120 - b * 2.2;
+        for (var sg = 0; sg < 24; sg++) {
+          var am = Math.PI * (sg + 0.5) / 24;
+          k.box([-30 + Math.cos(am) * R, -30 + Math.sin(am) * R, -150], [2.2, R * Math.PI / 24 + 0.4, 0.4], bands[b],
+                { m: 'neon', a: 0.4, r: [0, 0, am] });
+        }
+      }
+    }
+  });
 })(window);

@@ -201,6 +201,40 @@
     stroked(ctx, function (g) { g.moveTo(14, 100); g.lineTo(24, 100); g.moveTo(16, 88); g.lineTo(24, 92); g.moveTo(16, 112); g.lineTo(24, 108); }, RR_RED, 4);
   });
 
+  emblem('em_rr_longhorn', function (ctx) {
+    // a longhorn's head, horns spread wide, dust kicking up under it
+    stroked(ctx, function (g) {
+      g.moveTo(56, 44); g.quadraticCurveTo(30, 40, 10, 22); g.moveTo(72, 44); g.quadraticCurveTo(98, 40, 118, 22);
+    }, '#f2e6c8', 8);
+    stroked(ctx, function (g) { g.moveTo(16, 26); g.lineTo(8, 18); g.moveTo(112, 26); g.lineTo(120, 18); }, INK, 5);
+    inked(ctx, poly([[46, 40], [82, 40], [86, 62], [76, 100], [64, 110], [52, 100], [42, 62]]), '#8a5a3a', 5);
+    inked(ctx, poly([[56, 84], [72, 84], [70, 104], [58, 104]]), '#c8906a', 3);
+    inked(ctx, circlePath(54, 60, 5), INK, 2);
+    inked(ctx, circlePath(74, 60, 5), INK, 2);
+    inked(ctx, poly([[46, 40], [64, 34], [82, 40], [64, 52]]), '#f2f2ee', 3);
+    stroked(ctx, function (g) {
+      g.moveTo(20, 118); g.quadraticCurveTo(34, 106, 44, 118); g.moveTo(84, 118); g.quadraticCurveTo(96, 106, 110, 118);
+    }, '#c8a070', 5);
+  });
+
+  emblem('em_rr_hoof', function (ctx) {
+    // a horseshoe, nails and all, with speed lines off it
+    stroked(ctx, function (g) {
+      g.moveTo(38, 108); g.lineTo(34, 64); g.quadraticCurveTo(34, 22, 72, 22);
+      g.quadraticCurveTo(110, 22, 110, 64); g.lineTo(106, 108);
+    }, '#8a8a92', 16);
+    stroked(ctx, function (g) {
+      g.moveTo(38, 108); g.lineTo(34, 64); g.quadraticCurveTo(34, 22, 72, 22);
+      g.quadraticCurveTo(110, 22, 110, 64); g.lineTo(106, 108);
+    }, '#c8c8d0', 8);
+    [[40, 90], [38, 66], [50, 38], [94, 38], [106, 66], [104, 90]].forEach(function (n) {
+      inked(ctx, circlePath(n[0], n[1], 3), INK, 1);
+    });
+    stroked(ctx, function (g) {
+      g.moveTo(4, 50); g.lineTo(20, 50); g.moveTo(2, 70); g.lineTo(18, 70); g.moveTo(6, 90); g.lineTo(22, 90);
+    }, RR_GOLD, 5);
+  });
+
   emblem('em_rr_gusher', function (ctx) {
     // a derrick with its well come in: the black plume, fire at its foot
     stroked(ctx, function (g) {

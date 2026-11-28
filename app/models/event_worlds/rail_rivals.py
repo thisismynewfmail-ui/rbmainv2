@@ -44,7 +44,7 @@ WORLD: Dict[str, Any] = {
     "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/rail_rivals.js",
                      "/static/js/worlds/rail_rivals_lines.js"],
     "features": ["16 players", "Payload race", "Brake levers", "Coal boosts",
-                 "Depot respawns", "9 rotating railroads", "A twist on every line"],
+                 "Depot respawns", "11 rotating railroads", "A twist on every line"],
     "areas": [
         {"id": "dustbowl", "name": "Dustbowl Gulch",
          "blurb": "A gold town at the mouth of a red canyon. The lines cross "
@@ -94,6 +94,20 @@ WORLD: Dict[str, Any] = {
                   "and a pipeline catwalk over both lines. The wells beside the tracks blow out "
                   "-- open a valve beside their line to set their track on fire in front of their "
                   "cart, and shut the one hissing beside yours."},
+        {"id": "pelican", "name": "Pelican Wharf",
+         "blurb": "A bright fishing town on a bay: the harbour gardens and their floral clock, "
+                  "the pleasure pier and its carousel, Cannery Row, pastel cottages climbing "
+                  "Chapel Hill and a lighthouse on the point. Both lines cross the Cut on swing "
+                  "bridges right out of the yards, worked from the clock-towered control house "
+                  "between them -- swing theirs open in their faces while a tug steams through. "
+                  "Fall in and the harbour has you."},
+        {"id": "longhorn", "name": "Longhorn Stockyards",
+         "blurb": "A cow town at the end of the cattle trail at sundown: the stockyard pens "
+                  "under the Longhorn Arch and the catwalk over them, the auction barn, Main "
+                  "Street's saloon and bank, the rodeo, Boot Hill. Every minute or so the herd "
+                  "breaks and stampedes down the trail across both lines -- the stock gates "
+                  "swing shut and your cart waits. Open a corral gate to turn the herd loose on "
+                  "their cart, and keep off the trail when it comes."},
     ],
     "areas_note": "Two races on each line -- the teams swap tracks for the second -- "
                   "then the server moves on to another railroad.",
@@ -166,7 +180,8 @@ BADGES: List[Tuple[Any, ...]] = [
      "em_rr_drift", "drifts dug"),
     ("rr_bridgekeeper", "Bridgekeeper", "rr_winch", [1, 10, 30, 80, 200],
      ["Winch Hand", "Bridge Tender", "Keeper", "Lift Master", "Troll Under the Bridge"],
-     "Raised a lift bridge in the other team's path, or lowered one for your own.",
+     "Opened a bridge in the other team's path -- Redrock's lift bridges, Pelican Wharf's swing "
+     "bridges -- or closed one for your own.",
      "em_rr_bridge", "bridges worked"),
     ("rr_canary", "Canary", "rr_canary", [1, 5, 15, 40, 100],
      ["Sniffer", "Canary", "Gas Man", "Firedamp Dodger", "Lungs of Iron"],
@@ -188,6 +203,14 @@ BADGES: List[Tuple[Any, ...]] = [
      ["Close Shave", "Daredevil", "Hair Trigger", "Thunder Runner", "Faster Than Freight"],
      "Pushed your company's cart over the crossing with the bells ringing and the freight coming.",
      "em_rr_bells", "crossings beaten"),
+    ("rr_trail_boss", "Trail Boss", "rr_stampede_calls", [1, 5, 15, 40, 100],
+     ["Greenhorn", "Drover", "Trail Boss", "Cattle Baron", "Stampede King"],
+     "Turned the herd loose at Longhorn Stockyards -- and the stampede held the other company's "
+     "cart short of the cattle trail.", "em_rr_longhorn", "stampedes turned loose"),
+    ("rr_outrun_the_herd", "Outrun the Herd", "rr_beat_stampede", [1, 5, 15, 40, 100],
+     ["Quick Step", "Fleet Foot", "Rodeo Clown", "Bronc Buster", "Faster Than Cattle"],
+     "Pushed your company's cart over the cattle trail with the herd thundering down on it.",
+     "em_rr_hoof", "trails beaten"),
     ("rr_wildcatter", "Wildcatter", "rr_gushers", [1, 5, 15, 40, 100],
      ["Roustabout", "Driller", "Wildcatter", "Oil Baron", "King of the Gushers"],
      "Opened a well's valve at Gusher Flats and set the other company's line on fire in "
@@ -232,6 +255,10 @@ SPEECH: List[Tuple[str, str, int, str]] = [
      "Thunder Junction: somebody calls the through freight down to shut the crossings."),
     ("rr_beat_freight", "Beat the freight", 35,
      "Thunder Junction: a cart is pushed over the crossing with the freight coming."),
+    ("rr_stampede_called", "Stampede!", 40,
+     "Longhorn Stockyards: somebody turns the herd loose down the cattle trail."),
+    ("rr_beat_stampede", "Outran the herd", 35,
+     "Longhorn Stockyards: a cart is pushed over the cattle trail with the herd coming."),
     ("rr_gusher_opened", "Well opened", 40,
      "Gusher Flats: somebody opens a well's valve and it starts hissing beside a line."),
     ("rr_gusher_capped", "Well capped", 35,
@@ -309,12 +336,12 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
         return ("The other cart is %s in." % ("sanded" if sand else "snowed"), "ally")
     if kind == "rr_bridge":
         if me:
-            return ("You winched the lift bridge up in front of %s's cart." % company,
+            return ("You opened the bridge in front of %s's cart." % company,
                     "actor")
         if cart:
-            return ("%s raised the lift bridge on your line; your cart cannot cross until "
-                    "it comes down." % by, "victim")
-        return ("Your team raised the bridge on the other line.", "ally")
+            return ("%s opened the bridge on your line; your cart cannot cross until "
+                    "it closes again." % by, "victim")
+        return ("Your team opened the bridge on the other line.", "ally")
     if kind == "rr_gas":
         return ("Firedamp is venting near %s and about to go up -- get clear!"
                 % (what or "you"), "victim")
@@ -352,6 +379,23 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
             return ("Your company's cart just got over the crossing with the freight coming -- "
                     "it is clear of the main line.", "ally")
         return ("%s pushed their cart over the crossing just ahead of the freight." % company,
+                "victim")
+    if kind == "rr_stampede_called":
+        if me:
+            return ("You turned the herd loose: it is stampeding down the cattle trail, both "
+                    "crossings are shut until it has gone by, and %s's cart is short of theirs."
+                    % company, "actor")
+        if cart:
+            return ("%s turned the herd loose: YOUR cart is held short of the cattle trail until "
+                    "the stampede has gone by. Keep off the trail." % by, "victim")
+        if mine:
+            return ("Your teammate %s turned the herd loose on the other cart." % by, "ally")
+        return ("%s turned the herd loose. Keep off the cattle trail." % by, "neutral")
+    if kind == "rr_beat_stampede":
+        if cart:
+            return ("Your company's cart just got over the cattle trail with the herd coming -- "
+                    "it is clear of the stampede.", "ally")
+        return ("%s pushed their cart over the cattle trail just ahead of the herd." % company,
                 "victim")
     if kind == "rr_gusher_opened":
         if me:
@@ -411,6 +455,12 @@ CANNED: Dict[Tuple[str, str], List[str]] = {
     ("rr_freight_called", "neutral"): ["train!!", "off the main line"],
     ("rr_beat_freight", "ally"): ["made it", "beat the train", "close one", "go go"],
     ("rr_beat_freight", "victim"): ["they beat the train", "how", "contest it"],
+    ("rr_stampede_called", "actor"): ["yeehaw", "stampede on them lol", "herd's loose"],
+    ("rr_stampede_called", "victim"): ["STAMPEDE", "get off the trail", "they let the cows out", "ugh cows"],
+    ("rr_stampede_called", "ally"): ["nice", "theyre stuck behind the herd", "push now"],
+    ("rr_stampede_called", "neutral"): ["stampede!!", "off the trail"],
+    ("rr_beat_stampede", "ally"): ["made it", "outran the herd", "close one", "go go"],
+    ("rr_beat_stampede", "victim"): ["they beat the herd", "how", "contest it"],
     ("rr_gusher_opened", "actor"): ["gusher incoming lol", "opened it", "light em up"],
     ("rr_gusher_opened", "victim"): ["WELL", "shut the valve!!", "its gonna blow", "get away from the derrick"],
     ("rr_gusher_opened", "ally"): ["nice", "burn their track", "push now"],
@@ -522,6 +572,8 @@ def history_badges(history: Dict[str, Any], traits: Dict[str, float], rng
            ("rr_rails_pulled", int(rounds / 6.0 * rng.uniform(0.0, 0.8) * (0.4 + chaos)), "add"),
            ("rr_freight_calls", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + chaos)), "add"),
            ("rr_beat_freight", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add"),
+           ("rr_stampede_calls", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + chaos)), "add"),
+           ("rr_beat_stampede", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + skill)), "add"),
            ("rr_gushers", int(rounds / 6.0 * rng.uniform(0.0, 0.6) * (0.4 + chaos)), "add"),
            ("rr_capped", int(rounds / 6.0 * rng.uniform(0.0, 0.5) * (0.4 + support)), "add")]
     areas = [a["id"] for a in WORLD["areas"]]

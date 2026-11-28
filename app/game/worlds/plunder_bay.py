@@ -47,6 +47,26 @@ ring shows, knocks everybody about and the treasure out of their hands.
   again) and the volcano spews gold all over it.  The lava in the trenches
   is death at any time.
 
+The islands added since each have a twist too -- four of their own and
+the four above dressed for a new place:
+
+* **The maelstrom** -- a whirlpool opens in the middle of the lagoon
+  (``extra["vortex"]``): the current drags anybody in the water round and
+  in, its eye drowns them, and it throws the deep's treasure up onto the
+  beaches round it (``rim`` marks).
+* **The storm** -- lightning strikes over and over, and it seeks out metal:
+  whoever is carrying gold is struck first (rings again).
+* **The geysers** -- the hot springs blow in turn (``geyser`` marks): a
+  column of boiling water throws everybody on it into the air, knocks the
+  treasure out of their hands, and throws up treasure of its own.
+* **The ghosts** -- the dead crews rise out of the wrecks (``barracks``)
+  and march their ``patrol`` routes like redcoats, pistols cocked; a
+  skeleton cut down drops its purse.
+
+A place can reword its twist's warnings (``extra["twist_text"]``) and say
+how its creatures and bombs look (``extra["style"]``) -- a frosted kraken,
+fireworks for lava bombs -- without the rules changing.
+
 The tentacles and the redcoats are the world's own creatures (:class:`Npc`):
 ``hostiles_for`` lists them and ``entity`` resolves them, so the bots see,
 chase and shoot them like anybody else.
@@ -131,10 +151,29 @@ BOMB_RADIUS = 6.5
 BOMB_DAMAGE = 38.0
 BOMB_KNOCK = 24.0
 GOLD_EVERY = (1.2, 2.0)
+BOLT_EVERY = (0.6, 1.1)                # the storm's lightning
+BOLT_WARN = 1.15
+BOLT_RADIUS = 5.0
+BOLT_DAMAGE = 34.0
+BOLT_KNOCK = 16.0
+GEYSER_EVERY = (0.9, 1.6)              # the geysers
+GEYSER_WARN = 1.7
+GEYSER_RADIUS = 5.5
+GEYSER_DAMAGE = 8.0
+GEYSER_UP = 46.0
+VORTEX_R = 26.0                        # the maelstrom's reach, its eye, its pull
+VORTEX_EYE = 5.0
+VORTEX_PULL = 7.5
+VORTEX_SPIN = 9.0
+VORTEX_DROWN = 40.0                    # a second in its eye
+VORTEX_EVERY = (1.1, 1.8)              # how often it throws treasure up
+SKELETON_HP = 55.0
 NPC_BASE = 900000
 SHIP_NAMES = {"red": "Scarlet Queen", "blue": "Blue Marlin"}
 TWIST_NAMES = {"tide": "low tide", "kraken": "the kraken", "redcoats": "the redcoats",
-               "eruption": "the eruption"}
+               "eruption": "the eruption", "maelstrom": "the maelstrom", "storm": "the storm",
+               "geysers": "the geysers", "ghosts": "the ghost crews"}
+NPC_CODE = {"tentacle": 0, "redcoat": 1, "skeleton": 2}
 DEFAULTS: Dict[str, Any] = {}
 
 
@@ -300,7 +339,9 @@ class PlunderBayWorld(ArenaWorld):
             "picks", "banks", "banked", "digs", "chests", "tosses", "catches", "raids",
             "melee_kills", "ranged_kills", "cannons", "cannon_hits", "drops", "twists",
             "npc_hits", "npc_kills", "slams", "volleys", "bombs", "spews", "sunken", "washed",
-            "idols", "lava", "stops")}
+            "idols", "lava", "stops", "bolts", "geysers", "pulled", "drowned", "throws",
+            "skeletons", "uncovered")}
+        self.twist_runs: Dict[str, int] = {}
         self.events_said: Dict[str, float] = {}
         self.landmarks: List[Tuple[List[float], str]] = []
         self.items_dirty = True
@@ -329,6 +370,12 @@ class PlunderBayWorld(ArenaWorld):
         self.routes = {r: [list(m["p"]) for m in sorted(ms, key=lambda m: m["i"])]
                        for r, ms in routes.items()}
         self.rain = [list(m["p"]) for m in pts.get("rain") or []]
+        self.geysers = [list(m["p"]) for m in pts.get("geyser") or []]
+        self.rims = [list(m["p"]) for m in pts.get("rim") or []]
+        vortex = extra.get("vortex")
+        self.vortex = [vortex[0] + cx, vortex[1], vortex[2] + cz] if vortex else None
+        self.vortex_r = float(extra.get("vortex_r", VORTEX_R))
+        self.last_geyser = -1
         vent = extra.get("vent") or [0.0, 40.0, 0.0]
         self.vent = [vent[0] + cx, vent[1], vent[2] + cz]
         self.landmarks = [(list(m["p"]), m["name"]) for m in area.get("landmarks") or []]
@@ -449,6 +496,9 @@ class PlunderBayWorld(ArenaWorld):
 
     def round_tick(self, dt: float, moment: float) -> None:
         self._twist_tick(moment)
+        if self.twist["on"] and self.twist["kind"] == "maelstrom" and self.vortex is not None:
+            for player in list(self.playing()):
+                self._vortex_pull(player, dt, moment)
         self._spots_tick(moment)
         self._fly_tick(moment)
         self._npc_tick(dt, moment)
@@ -1146,7 +1196,9 @@ class PlunderBayWorld(ArenaWorld):
         by = self.players.get(h.get("by", 0)) if h.get("by") else None
         if by is not None and not self.in_play(by):
             by = None
-        weapon = {"shell": "Cannon", "slam": "the kraken", "bomb": "a lava bomb"}.get(h["k"], "")
+        weapon = {"shell": "Cannon", "slam": "the kraken", "bomb": "a lava bomb", "bolt": "lightning",
+                  "geyser": "a geyser"}.get(h["k"], "")
+        up = float(h.get("up", SHELL_UP))
         self.broadcast({"t": "pbx", "k": "blast", "w": h["k"], "p": _r(at), "r": radius})
         hits = 0
         for p in list(self.playing()):
@@ -1164,13 +1216,15 @@ class PlunderBayWorld(ArenaWorld):
                            fling=[dx / dl * 9.0, 10.0, dz / dl * 9.0])
             self.apply_damage(p, by, h["dmg"] * (1.0 - 0.55 * f), weapon)
             if p.alive:
-                self._knock(p, dx / dl * push, SHELL_UP * (1.0 - 0.4 * f), dz / dl * push)
+                self._knock(p, dx / dl * push, up * (1.0 - 0.4 * f), dz / dl * push)
             hits += 1
             if h["k"] == "shell":
                 self.counts["cannon_hits"] += 1
             if by is not None and h["k"] == "shell":
                 self._stat(by, "cannon_hits")
                 self.badge(by, "pb_cannon")
+        if h["k"] == "geyser":
+            self._geyser_throw(h, moment)
         if h["k"] == "shell":
             for npc in list(self.npcs.values()):
                 if npc.alive and _flat(npc.pos, at) < radius + 1.6:
@@ -1206,26 +1260,35 @@ class PlunderBayWorld(ArenaWorld):
         tw["next_bomb"] = moment + 1.0
         tw["next_gold"] = moment + 0.6
         self.counts["twists"] += 1
+        self.twist_runs[kind] = self.twist_runs.get(kind, 0) + 1
+        tw["next_bolt"] = moment + 0.8
+        tw["next_geyser"] = moment + 0.6
+        tw["next_throw"] = moment + 1.4
         if kind == "kraken":
+            # (a place where the tentacles come up in the thick of things can
+            # make them tougher: extra["kraken_hp"])
+            tent_hp = float(self.extra.get("kraken_hp", TENT_HP))
             for k, base in enumerate(self.tentacle_marks):
-                npc = self._new_npc("tentacle", [base[0], self.water_y - 1.0, base[2]], TENT_HP)
+                npc = self._new_npc("tentacle", [base[0], self.water_y - 1.0, base[2]], tent_hp)
                 npc.data.update({"base": list(base), "next": moment + 1.6 + self.rng.uniform(*SLAM_EVERY),
                                  "hit_by": set()})
                 npc.state = "rise"
                 npc.data["ready"] = moment + 1.5
-        elif kind == "redcoats":
+        elif kind in ("redcoats", "ghosts"):
             routes = sorted(self.routes)
             for k, spot in enumerate(self.barracks):
                 if not routes:
                     break
-                npc = self._new_npc("redcoat", spot, COAT_HP)
+                ghost = kind == "ghosts"
+                npc = self._new_npc("skeleton" if ghost else "redcoat", spot,
+                                    SKELETON_HP if ghost else COAT_HP)
                 route = self.routes[routes[k % len(routes)]]
                 npc.data.update({"route": route, "leg": 0, "next_shot": moment + 3.0,
                                  "wait": moment + 0.6 + (k // len(routes)) * 3.0})
                 npc.state = "walk"
         self.broadcast({"t": "pbx", "k": "twist", "twist": kind, "on": True,
                         "left": round(tw["until"] - moment, 1)})
-        self._event("pb_twist", None, "", twist=kind)
+        self._event("pb_twist", None, "", twist=kind, line=str(self.extra.get("twist_line") or ""))
         self._broadcast_state()
 
     def _twist_run(self, moment: float) -> None:
@@ -1248,6 +1311,18 @@ class PlunderBayWorld(ArenaWorld):
                 self._tide(1)
                 tw["stage"] = 3
                 self._wash(moment)
+        elif kind == "storm":
+            if moment >= tw.get("next_bolt", 0.0):
+                tw["next_bolt"] = moment + self.rng.uniform(*BOLT_EVERY)
+                self._bolt(moment)
+        elif kind == "geysers":
+            if moment >= tw.get("next_geyser", 0.0):
+                tw["next_geyser"] = moment + self.rng.uniform(*GEYSER_EVERY)
+                self._geyser(moment)
+        elif kind == "maelstrom":
+            if moment >= tw.get("next_throw", 0.0):
+                tw["next_throw"] = moment + self.rng.uniform(*VORTEX_EVERY)
+                self._vortex_throw(moment)
         elif kind == "eruption":
             if moment >= tw.get("next_bomb", 0.0):
                 tw["next_bomb"] = moment + self.rng.uniform(*BOMB_EVERY)
@@ -1289,6 +1364,7 @@ class PlunderBayWorld(ArenaWorld):
         for k, spot in enumerate(self.sunken_marks):
             item = self._new_item(kinds[k % len(kinds)], spot, "sunken")
             item["feat"] = True
+            self.counts["uncovered"] += 1
         self.broadcast({"t": "pbx", "k": "uncover", "n": len(self.sunken_marks)})
 
     def _wash(self, moment: float) -> None:
@@ -1334,6 +1410,105 @@ class PlunderBayWorld(ArenaWorld):
         seconds = self.rng.uniform(2.6, 3.4)
         self.counts["spews"] += 1
         self._launch(item, self.vent, _ballistic(self.vent, to, seconds), moment)
+
+    # ---- the storm
+    def _bolt(self, moment: float) -> None:
+        """A bolt of lightning on its way down: it seeks out metal -- a
+        carrier of gold first, then anybody out in the open, then a
+        ``rain`` mark."""
+        players = [p for p in self.playing() if p.alive]
+        carriers = [p for p in players if (self._carried(p) or {}).get("kind") in ("bar", "gem", "chest", "idol")]
+        roll = self.rng.random()
+        if carriers and roll < 0.55:
+            who = self.rng.choice(carriers)
+            x, z = who.pos[0] + self.rng.uniform(-2.5, 2.5), who.pos[2] + self.rng.uniform(-2.5, 2.5)
+        elif players and roll < 0.8:
+            who = self.rng.choice(players)
+            x, z = who.pos[0] + self.rng.uniform(-6.0, 6.0), who.pos[2] + self.rng.uniform(-6.0, 6.0)
+        elif self.rain:
+            spot = self.rng.choice(self.rain)
+            x, z = spot[0] + self.rng.uniform(-4.0, 4.0), spot[2] + self.rng.uniform(-4.0, 4.0)
+        else:
+            return
+        at = [x, self._ground_at(x, z), z]
+        self.hazards.append({"k": "bolt", "at": at, "when": moment + BOLT_WARN, "r": BOLT_RADIUS,
+                             "dmg": BOLT_DAMAGE, "knock": BOLT_KNOCK, "team": "", "by": 0})
+        self.counts["bolts"] += 1
+        self.broadcast({"t": "pbx", "k": "bolt", "at": _r(at), "in": BOLT_WARN, "r": BOLT_RADIUS})
+
+    # ---- the geysers
+    def _geyser(self, moment: float) -> None:
+        """One of the springs about to blow: a ring round it, then a column
+        of boiling water that throws everybody on it into the air."""
+        if not self.geysers:
+            return
+        k = self.rng.randrange(len(self.geysers))
+        if k == self.last_geyser and len(self.geysers) > 1:
+            k = (k + 1 + self.rng.randrange(len(self.geysers) - 1)) % len(self.geysers)
+        self.last_geyser = k
+        at = list(self.geysers[k])
+        self.hazards.append({"k": "geyser", "at": at, "when": moment + GEYSER_WARN, "r": GEYSER_RADIUS,
+                             "dmg": GEYSER_DAMAGE, "knock": 6.0, "up": GEYSER_UP, "team": "", "by": 0,
+                             "i": k})
+        self.counts["geysers"] += 1
+        self.broadcast({"t": "pbx", "k": "geyser", "i": k, "at": _r(at), "in": GEYSER_WARN,
+                        "r": GEYSER_RADIUS})
+
+    def _geyser_throw(self, h: Dict[str, Any], moment: float) -> None:
+        """What the geyser brings up with it: now and then a piece of the
+        old wrecks' treasure, thrown out onto the ground round it."""
+        if self._loose() >= LOOSE_CAP + 8 or self.rng.random() > 0.7:
+            return
+        a = self.rng.uniform(0.0, 2.0 * math.pi)
+        dist = self.rng.uniform(9.0, 16.0)
+        x, z = h["at"][0] + math.sin(a) * dist, h["at"][2] + math.cos(a) * dist
+        to = [x, self._ground_at(x, z), z]
+        roll = self.rng.random()
+        kind = "pouch" if roll < 0.55 else ("bar" if roll < 0.85 else "gem")
+        origin = [h["at"][0], h["at"][1] + 2.0, h["at"][2]]
+        item = self._new_item(kind, origin, "spew")
+        item["feat"] = True
+        self.counts["throws"] += 1
+        self._launch(item, origin, _ballistic(origin, to, self.rng.uniform(1.8, 2.4)), moment)
+
+    # ---- the maelstrom
+    def _vortex_pull(self, p: Player, dt: float, moment: float) -> None:
+        """The whirlpool's current on one body in the water: round and in,
+        faster near the eye -- and the eye itself drowns."""
+        if self.vortex is None or not p.alive:
+            return
+        dx, dz = p.pos[0] - self.vortex[0], p.pos[2] - self.vortex[2]
+        d = math.hypot(dx, dz)
+        if d > self.vortex_r or p.pos[1] > self.water_y + 0.5:
+            return
+        if d < VORTEX_EYE:
+            self.apply_damage(p, None, VORTEX_DROWN * dt, "the maelstrom")
+            if not p.alive:
+                self.counts["drowned"] += 1
+                return
+        if p.brain is not None:
+            k = 1.0 - d / self.vortex_r
+            ux, uz = (-dx / d, -dz / d) if d > 0.5 else (0.0, 0.0)
+            vx = ux * VORTEX_PULL * (0.4 + k) - uz * VORTEX_SPIN * (0.3 + k)
+            vz = uz * VORTEX_PULL * (0.4 + k) + ux * VORTEX_SPIN * (0.3 + k)
+            p.extra["pb_push"] = (vx, vz, moment + 0.3)
+        self.counts["pulled"] += 1
+
+    def _vortex_throw(self, moment: float) -> None:
+        """The maelstrom throws up what the deep has kept: a piece of
+        treasure out of its eye onto one of the beaches round it."""
+        if self.vortex is None or not self.rims or self._loose() >= LOOSE_CAP + 8:
+            return
+        spot = self.rng.choice(self.rims)
+        x, z = spot[0] + self.rng.uniform(-3.0, 3.0), spot[2] + self.rng.uniform(-3.0, 3.0)
+        to = [x, self._ground_at(x, z), z]
+        roll = self.rng.random()
+        kind = "pouch" if roll < 0.5 else ("bar" if roll < 0.82 else "gem")
+        origin = [self.vortex[0], self.water_y + 1.0, self.vortex[2]]
+        item = self._new_item(kind, origin, "sunken")
+        item["feat"] = True
+        self.counts["throws"] += 1
+        self._launch(item, origin, _ballistic(origin, to, self.rng.uniform(2.2, 2.8)), moment)
 
     # ================================================================= npcs
     def _new_npc(self, kind: str, pos: Sequence[float], hp: float) -> Npc:
@@ -1474,7 +1649,8 @@ class PlunderBayWorld(ArenaWorld):
         dl = math.hypot(dx, dz) or 1.0
         if self._carried(target) is not None:
             self._drop(target, moment, "shot", fling=[dx / dl * 7.0, 9.0, dz / dl * 7.0])
-        self.apply_damage(target, None, COAT_DAMAGE, "a redcoat's musket")
+        self.apply_damage(target, None, COAT_DAMAGE,
+                          "a skeleton's pistol" if npc.kind == "skeleton" else "a redcoat's musket")
         if target.brain is not None and target.alive:
             target.brain.hurt_by(npc)
 
@@ -1512,6 +1688,8 @@ class PlunderBayWorld(ArenaWorld):
             floor = self._floor_under(npc.pos[0], npc.pos[1] + 1.0, npc.pos[2])
             self._new_item("pouch", [npc.pos[0], floor if floor is not None else npc.pos[1],
                                      npc.pos[2]], "coat")
+            if npc.kind == "skeleton":
+                self.counts["skeletons"] += 1
             if attacker is not None:
                 self._feat(attacker)
         if attacker is not None:
@@ -1587,6 +1765,8 @@ class PlunderBayWorld(ArenaWorld):
             return
         if self.lava:
             self._bot_rims(moment)
+        if self.twist["on"] and self.twist["kind"] == "maelstrom" and self.vortex is not None:
+            self._bot_vortex(moment)
         # a ring about to come down: the quick step out of it
         if self.hazards:
             for brain in self.bots.brains.values():
@@ -1615,6 +1795,29 @@ class PlunderBayWorld(ArenaWorld):
                     brain.dest_key = "pb_dodge"
                     mind["dodge_until"] = h["when"] + 0.2
                     break
+
+    def _bot_vortex(self, moment: float) -> None:
+        """While the maelstrom turns a bot in its water swims for the
+        nearest beach (``rim``), and one heading for treasure in the water
+        near it thinks again."""
+        reach = self.vortex_r + 4.0
+        for brain in self.bots.brains.values():
+            p = brain.p
+            if not self.in_play(p) or p.pos[1] > self.water_y + 0.5:
+                continue
+            dx, dz = p.pos[0] - self.vortex[0], p.pos[2] - self.vortex[2]
+            d = math.hypot(dx, dz)
+            if d > reach:
+                continue
+            if self.rims:
+                spot = min(self.rims, key=lambda r: math.hypot(r[0] - p.pos[0], r[2] - p.pos[2]))
+            else:
+                dl = d or 1.0
+                spot = [self.vortex[0] + dx / dl * (reach + 4.0), p.pos[1], self.vortex[2] + dz / dl * (reach + 4.0)]
+            brain.waypoints = [[spot[0], spot[1], spot[2]]]
+            brain.dest_key = "pb_vortex"
+            brain.repath_at = moment + 1.0
+            self._mind(p)["dodge_until"] = moment + 0.6
 
     def _bot_rims(self, moment: float) -> None:
         """Bots keep out of the lava the way a careful person does.  One on
@@ -2114,7 +2317,7 @@ class PlunderBayWorld(ArenaWorld):
         if acts:
             out["ac"] = acts
         if self.npcs:
-            out["np"] = [[n.pid, 0 if n.kind == "tentacle" else 1, round(n.pos[0], 2),
+            out["np"] = [[n.pid, NPC_CODE.get(n.kind, 1), round(n.pos[0], 2),
                           round(n.pos[1], 2), round(n.pos[2], 2), round(n.yaw, 2), n.state,
                           round(max(0.0, n.health) / n.max_health, 2)]
                          for n in self.npcs.values()]
@@ -2220,7 +2423,20 @@ class PlunderBayWorld(ArenaWorld):
             ("the cannons fire", c["cannons"] >= 1, c["cannons"]),
             ("the twist comes round", c["twists"] >= 1, c["twists"]),
             ("carriers drop what they carry", c["drops"] >= 1, c["drops"]),
-        ]
+        ] + [(name, ok, detail) for kind, name, ok, detail in (
+            ("tide", "the low tide uncovers treasure", c["uncovered"] >= 1, c["uncovered"]),
+            ("kraken", "the kraken's tentacles come up and fight", c["slams"] + c["npc_hits"] >= 1,
+             "%d slams, %d hits on it" % (c["slams"], c["npc_hits"])),
+            ("redcoats", "the patrols march and shoot", c["volleys"] + c["npc_hits"] >= 1,
+             "%d volleys, %d hits on them" % (c["volleys"], c["npc_hits"])),
+            ("eruption", "the eruption throws bombs and gold", c["bombs"] + c["spews"] >= 1,
+             "%d bombs, %d spews" % (c["bombs"], c["spews"])),
+            ("storm", "the storm's lightning strikes", c["bolts"] >= 3, c["bolts"]),
+            ("geysers", "the geysers blow", c["geysers"] >= 3, c["geysers"]),
+            ("maelstrom", "the maelstrom throws up treasure", c["throws"] >= 2, c["throws"]),
+            ("ghosts", "the ghost crews walk", c["volleys"] + c["skeletons"] >= 1,
+             "%d volleys, %d skeletons down" % (c["volleys"], c["skeletons"])))
+            if self.twist_runs.get(kind)]
 
 
 WORLD_CLASS = PlunderBayWorld

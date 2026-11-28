@@ -365,6 +365,8 @@ class RailRivalsWorld(ArenaWorld):
                  "bridges": "Hold E in a bridge cabin to winch their lift bridge up. Mind the river.",
                  "firedamp": "When a firedamp board hisses, get clear before it goes up. "
                              "Mind the lava."}.get(self.twist)
+        if twist and self.twist == "bridges" and (self.area.get("extra") or {}).get("bridge_style") == "swing":
+            twist = "Hold E at their bridge's wheel in the control house to swing it open. Mind the water."
         if twist:
             lines.append(twist)
         elif self.tw is not None and self.tw.welcome:
@@ -1218,8 +1220,8 @@ class RailRivalsWorld(ArenaWorld):
         rx, rz = math.cos(yaw), -math.sin(yaw)
         return [x + rx * side * off, cart.path.height(d), z + rz * side * off]
 
-    def _go(self, brain, point: Sequence[float], key: str) -> None:
-        brain.go(list(point), key)
+    def _go(self, brain, point: Sequence[float], key: str, precise: bool = False) -> None:
+        brain.go(list(point), key, precise=precise)
 
     def _bot_job(self, brain) -> bool:
         """What this bot does about the race right now; True to hold E.
@@ -1444,7 +1446,10 @@ class RailRivalsWorld(ArenaWorld):
                 abs(point[1] - p.pos[1]) < 3.5:
             brain.waypoints = []
             return hold
-        self._go(brain, point, key)
+        # the last few units straight to the spot: the nav grid's nearest
+        # node to a lever or a call box can be a step further off than an
+        # arm's reach
+        self._go(brain, point, key, precise=True)
         return False
 
     def _nearest_of_team(self, team: str, point: Sequence[float]) -> Optional[Player]:
@@ -1538,9 +1543,13 @@ class RailRivalsWorld(ArenaWorld):
         out = [("the bots push their carts down the line", moved > 60.0, "%.0f units" % moved),
                ("somebody pulls a brake lever", levers > 0, levers),
                ("somebody fetches coal", coal > 0, coal)]
-        # each newer line's twist, if the run raced on it
+        # each newer line's twist, if the run raced on it long enough for
+        # the twist to have come round (a line visited for the last minute
+        # of a run has not had its trains, its wells, its drifts yet)
         for area_id in sorted({o.get("area") for o in obs if o.get("phase") == "active"}):
             seen = [o for o in obs if o.get("area") == area_id and o.get("phase") == "active"]
+            if len(seen) * 10 * engine.TICK_DT < 150.0:
+                continue
             kind = str(((self.areas.get(area_id) or {}).get("extra") or {}).get("twist") or "")
             twist = rail_twists.make(self, kind)
             if twist is not None:

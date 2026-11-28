@@ -1618,6 +1618,52 @@ def test_profiles() -> None:
           and planned == 0 and changed_up == 0, (planned, changed_up))
     check("shuffle: the hold ends after a day",
           not factory.shuffle_held(moved[0], factory._now() + factory.HOLD_SECONDS + 60))
+    # Open shuffle: five random marketplace weapons, the new ones given
+    pool = set(factory.market_weapons())
+
+    def owned_rows(uid):
+        return {int(r["id"]): (r["item_id"], r["source"], r["tier"]) for r in db.query(
+            "SELECT id, item_id, source, tier FROM inventory WHERE user_id=?", (uid,))}
+
+    inv_before = {uid: owned_rows(uid) for uid in ids}
+    bars_before = {uid: list(avatars.raw_avatar(uid)["hotbar"]) for uid in ids}
+    dm._director = d
+    try:
+        started, _message = factory.start_open_shuffle(ids)
+        deadline = time.time() + 60.0
+        while factory.job_status()["job"]["running"] and time.time() < deadline:
+            time.sleep(0.05)
+    finally:
+        dm._director = kept_director
+    job = factory.job_status()["job"]
+    bars_after = {uid: list(avatars.raw_avatar(uid)["hotbar"]) for uid in ids}
+    inv_after = {uid: owned_rows(uid) for uid in ids}
+    dealt = [uid for uid in ids if uid != live_uid]
+    new_rows = {uid: {k: v for k, v in inv_after[uid].items() if k not in inv_before[uid]} for uid in ids}
+    check("open shuffle: the marketplace has weapons to deal", len(pool) >= catalog.HOTBAR_SIZE, len(pool))
+    check("open shuffle: a bot in a live round keeps its hotbar and its inventory",
+          bars_after[live_uid] == bars_before[live_uid] and inv_after[live_uid] == inv_before[live_uid])
+    check("open shuffle: every other bot is dealt five different marketplace weapons it now owns",
+          started and job["kind"] == "open_shuffle" and not job["running"] and job["changed"] == len(dealt)
+          and all(len(bars_after[uid]) == catalog.HOTBAR_SIZE and all(bars_after[uid])
+                  and len(set(bars_after[uid])) == catalog.HOTBAR_SIZE
+                  and all(inv in inv_after[uid] and inv_after[uid][inv][0] in pool for inv in bars_after[uid])
+                  for uid in dealt), (job.get("changed"), len(dealt), job.get("log", [])[-1:]))
+    check("open shuffle: the weapons a bot lacked are added to its inventory, plain copies, once",
+          job["given"] == sum(len(new_rows[uid]) for uid in ids)
+          and all(src == "shuffle" and tier == "normal" for uid in ids for _item, src, tier in new_rows[uid].values())
+          and all(len({item for item, _s, _t in new_rows[uid].values()}) == len(new_rows[uid]) for uid in ids)
+          and all(item not in {i for i, _s, _t in inv_before[uid].values()}
+                  for uid in ids for item, _s, _t in new_rows[uid].values()),
+          (job.get("given"), sum(len(new_rows[uid]) for uid in ids)))
+    check("open shuffle: nothing the bots had is taken away",
+          all(set(inv_before[uid]) <= set(inv_after[uid]) for uid in ids))
+    check("open shuffle: something to shoot at range on every hotbar",
+          all(any(arms.role(inv_after[uid][inv][0]) != "melee" for inv in bars_after[uid]) for uid in dealt))
+    factory.backfill_arms()
+    check("open shuffle: the dealt hotbars are held like a plain shuffle's",
+          all(factory.shuffle_held(uid) for uid in dealt)
+          and all(list(avatars.raw_avatar(uid)["hotbar"]) == bars_after[uid] for uid in dealt))
     db.execute("DELETE FROM users WHERE is_bot=1")
 
 

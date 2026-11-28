@@ -535,6 +535,63 @@ with it, the cart pitched on the grade -- and each brings a twist of its own
   throws burns across its line for a while, holding any cart short of the
   flames. Hold **E** at a quiet well's valve to set it blowing (beside the
   other line, just ahead of their cart), or at a hissing one to shut it.
+* **Pelican Wharf** -- a bright fishing town on a bay. The Shore line and
+  the Cannery line leave their yards on the west bank of the Cut, a ship
+  channel from the bay to the boatyard basin, and cross it at once on two
+  red swing bridges; two tall footbridges carry people over when the
+  bridges are open. The west bank is the harbour front: the Cut control
+  house on the quay (cream and navy, a clock tower with a face to every
+  quarter telling the real time, a cockerel on top), narrowboats moored
+  along the promenade with flowers on their roofs and their stoves
+  smoking, the harbour gardens climbing a knoll behind (the bandstand on
+  top under strings of lights, rings of bedding plants, a floral clock and
+  a pelican clipped out of box hedge), crazy golf with a turning windmill,
+  a boating pond of swan pedalos, a row of tall painted harbour houses,
+  the lifeboat station with its slipway and the coastguard's lookout,
+  upturned boats as fishermen's sheds, a whelk stall, the cannery stores,
+  nets drying and the kipper smokehouse. Over the Cut: the beach, the
+  pleasure pier with a carousel turning on its end, the fishing piers, the
+  fish market and the net lofts, Pelican Square round the pelican fountain,
+  Cannery Row (the Pelican Brand Sardines works and the boatyard schooner),
+  Chapel Hill's pastel cottages climbing to the chapel, a tower mill
+  turning, washing lines and sheep, the Grand Pelican Hotel above Bayside,
+  and a red-and-white lighthouse on the point sweeping its beam over the
+  bay. Gulls wheel, pelicans sit on the pilings, sailboats tack across the
+  bay. *Swing bridges*, as Redrock Mesa's lift bridges: both are worked
+  from the control house, halfway between the lines -- hold **E** at the
+  other company's wheel and their bridge swings open across the Cut (a
+  bell, two seconds to get off it) while a tug steams through; their cart
+  waits at the bank until it closes, by itself or when their own side gets
+  to their wheel. Fall in and the harbour has you.
+* **Longhorn Stockyards** -- a cow town at the end of the cattle trail,
+  the sun going down gold over the red mesas. The Chisholm line and the
+  Goodnight line leave their yards (the railroad's water tank on its legs,
+  the cowhands' log bunkhouse) past the rodeo grounds -- a white-railed
+  arena under two striped grandstands, the bucking chutes, the announcer's
+  booth on stilts, a bronc bucking round with a cowboy hanging on -- and
+  the trail crew's camp (chuckwagon, fire, tents, the remuda in its
+  corral), cross at the diamond and run on over the cattle trail, a worn
+  swathe of dirt from the gap in the north mesas to the gap in the south.
+  Beside it: the stockyards, rows of pens full of milling longhorns under
+  the Longhorn Arch (a pair of horns twenty units wide), a buyers' catwalk
+  down the alley, chutes up into the stock cars on the siding and the
+  Livestock Exchange with its clock; the auction barn and its sale ring;
+  Boot Hill with its crosses, a dead tree and the vultures over it, the
+  white church below; Main Street -- which is the trail -- with the Golden
+  Steer saloon, the bank, the sheriff's office and jail, the general store,
+  the barber's pole turning, the Drovers' Cottage, the livery and the
+  smithy's forge, lanterns strung across the street; the emigrants' wagons
+  drawn up in a ring; the branding pen; the cattle baron's teal mansion on
+  its knoll; Cottonwood Creek with its mill wheel turning and the hide
+  yard. *The stampede*, Thunder Junction's freight as a herd: every
+  minute or so the herd breaks out of one gap and thunders down the trail
+  and out of the other -- longhorns of every colour packed across the
+  trail, drovers galloping at the flanks, dust boiling up behind -- and
+  while it runs the stock gates swing across both lines and a cart short
+  of the trail waits; anybody on the trail is trampled. Hold **E** at a
+  corral gate -- the holding corral beside either crossing, the stockyard
+  gate by the arch, the drovers' corral on Main Street -- to turn the herd
+  loose now, on their cart if you time it.
 
 **Badges** (struck on a horseshoe): Gold Rush (races won), Conductor (units
 pushed), Saboteur (brakes pulled), Brakeman (brakes released), Stoker (coal
@@ -543,7 +600,8 @@ theirs nine tenths of the way), Signalman, Snowplow (snow or sand), Bridgekeeper
 (out of a venting pocket in time), Spike Driver (rails laid), Claim Jumper
 (their rails pulled up), Train Orders (a freight you called held their
 cart), Beat the Freight (your cart over the crossing with the freight
-coming), Wildcatter (a well you opened set their line alight), Roughneck
+coming), Trail Boss (a stampede you turned loose held their cart), Outrun
+the Herd (your cart over the cattle trail with the herd coming), Wildcatter (a well you opened set their line alight), Roughneck
 (a hissing well shut in time) and Four Lines (a race won on every
 railroad).
 

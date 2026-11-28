@@ -40,6 +40,10 @@ WORLD: Dict[str, Any] = {
     "round_label": "One haul",
     "colors": ["#c8302a", "#2a6ab8", "#e8b830"],
     "thumb": "plunder_bay",
+    # the islands' moving scenery: Plunder Bay's own rigs, and the gulls,
+    # flags, smoke, surf, sails, lamps and weather it shares with Rail Rivals
+    "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/plunder_bay_rigs.js",
+                     "/static/js/worlds/plunder_bay.js"],
     "features": ["16 players", "Treasure haul", "Pirate crews", "Dig for chests", "Your own weapons",
                  "Ship cannons", "Raids", "4 twists", "4 rotating islands"],
     # an enemy is just a name on the tag: you read your own crew's health at a
@@ -62,6 +66,35 @@ WORLD: Dict[str, Any] = {
          "blurb": "A volcanic island of black sand and jungle: a lava river with stone "
                   "bridges, the old gold mine, a stepped temple with the idol on top, and "
                   "the volcano. It erupts gold."},
+        {"id": "whalebone", "name": "Whalebone Atoll",
+         "blurb": "A ring of white sand round a turquoise lagoon, and across it the bones of a "
+                  "whale bigger than any ship: the skull with the idol inside, the spine a "
+                  "bridge over the water, ribs arching overhead. The lagoon turns into a "
+                  "maelstrom."},
+        {"id": "thunderhead", "name": "Thunderhead Rock",
+         "blurb": "A storm-lashed basalt island: a lighthouse on a sheer mesa, a giant's causeway of "
+                  "six-sided columns stepping down from it, a sea cave right through its foot and a "
+                  "wreck broken in two. The storm breaks, and the lightning hunts for gold."},
+        {"id": "sulphur", "name": "Sulphur Springs",
+         "blurb": "White travertine terraces brimming with turquoise pools, climbing to a ruined "
+                  "bathhouse with the idol in its plunge pool; a rainbow spring with a boardwalk "
+                  "across it; the crews' sulphur mines and powder works. The geysers blow."},
+        {"id": "ghostfleet", "name": "Ghost Fleet Cove",
+         "blurb": "A moonlit cove full of wrecks, the drowned flagship in the middle of it with the "
+                  "idol on her quarterdeck, a graveyard climbing to a crypt, beached hulks and a "
+                  "drowned chapel. The fog rises, and the dead crews walk."},
+        {"id": "glowtide", "name": "Glowtide Lagoon",
+         "blurb": "A lagoon at the blue hour that lights up wherever it is stirred: a stepped moon "
+                  "temple with the idol on its crown, causeways out to it, a mangrove swamp, stilt "
+                  "villages in tidal bays and a lantern festival. The tide goes out."},
+        {"id": "frostfang", "name": "Frostfang Floe",
+         "blurb": "A blinding white island at the top of the world: a galleon frozen into the pack "
+                  "ice with the idol on her quarterdeck, a glacier in three steps with a grotto in its "
+                  "foot, whalers' camps and ice floes. The frost kraken comes up through the ice."},
+        {"id": "monsoon", "name": "Monsoon Bazaar",
+         "blurb": "A canal port in the warm rain: the Company's white customs house and its clock "
+                  "tower, an avenue of shophouses down to a grand bazaar with the idol on its dais, "
+                  "humped bridges, dyers' yards and a pagoda lighthouse. The marines march out."},
     ],
     "areas_note": "One haul on each island, then the crews sail on to another one.",
     "howto": [
@@ -144,7 +177,8 @@ SPEECH: List[Tuple[str, str, int, str]] = [
     ("pb_raid", "A raid", 45,
      "A pirate stole gold out of the other crew's hold."),
     ("pb_twist", "The twist", 40,
-     "The place's twist started: low tide, the kraken, the redcoats, the eruption."),
+     "The place's twist started: low tide, the kraken, the redcoats, the eruption, the maelstrom, "
+     "the storm, the geysers, the ghost crews."),
     ("pb_lead", "The lead changes", 30,
      "One crew's hold overtook the other's."),
 ]
@@ -152,7 +186,11 @@ SPEECH: List[Tuple[str, str, int, str]] = [
 _TWISTS = {"tide": "The tide is going out -- there's treasure on the lagoon floor!",
            "kraken": "The kraken! It's coming up by the wreck!",
            "redcoats": "The redcoats are marching out of the fort!",
-           "eruption": "The volcano's erupting -- and it's raining gold!"}
+           "eruption": "The volcano's erupting -- and it's raining gold!",
+           "maelstrom": "A maelstrom's opening in the lagoon -- get out of the water!",
+           "storm": "The storm's breaking -- lightning goes for whoever's carrying gold!",
+           "geysers": "The springs are blowing -- mind the geysers!",
+           "ghosts": "The dead crews are climbing out of the wrecks!"}
 
 
 def describe(kind: str, event: Dict[str, Any], name: str, team: str
@@ -181,7 +219,8 @@ def describe(kind: str, event: Dict[str, Any], name: str, team: str
             return ("%s raided their hold." % by, "ally")
         return ("%s is raiding our hold!" % by, "enemy")
     if kind == "pb_twist":
-        return (_TWISTS.get(str(event.get("twist") or ""), "Something is happening!"), "neutral")
+        line = str(event.get("line") or "")
+        return (line or _TWISTS.get(str(event.get("twist") or ""), "Something is happening!"), "neutral")
     if kind == "pb_lead":
         if ours:
             return ("We're in the lead now.", "ally")
