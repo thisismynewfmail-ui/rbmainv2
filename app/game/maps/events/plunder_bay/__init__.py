@@ -14,13 +14,16 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ..kit import build_world
-from . import doubloon, reef, royale, skullcove
+from . import doubloon, reef, royale, skullcove, sulphur, thunderhead, whalebone
 
 AREAS = [
     ("skullcove", skullcove, "Skull Cove"),
     ("reef", reef, "Coral Reef"),
     ("royale", royale, "Port Royale"),
     ("doubloon", doubloon, "Doubloon Isle"),
+    ("whalebone", whalebone, "Whalebone Atoll"),
+    ("thunderhead", thunderhead, "Thunderhead Rock"),
+    ("sulphur", sulphur, "Sulphur Springs"),
 ]
 
 

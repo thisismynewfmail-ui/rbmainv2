@@ -46,7 +46,19 @@
                 off: 'The redcoats march back to the fort', colour: '#ff5a4a', chip: 'REDCOATS' },
     eruption: { warn: 'THE VOLCANO IS RUMBLING', warnSub: 'Get clear of the open ground...',
                 on: 'ERUPTION!', onSub: 'Lava bombs -- and gold raining all over the island',
-                off: 'The volcano settles', colour: '#ff8a2a', chip: 'ERUPTION' }
+                off: 'The volcano settles', colour: '#ff8a2a', chip: 'ERUPTION' },
+    maelstrom: { warn: 'THE SEA IS TURNING', warnSub: 'The lagoon is starting to spin...',
+                 on: 'THE MAELSTROM!', onSub: 'Get out of the water -- it is throwing up the deep\'s treasure',
+                 off: 'The maelstrom closes', colour: '#3ad8e8', chip: 'MAELSTROM' },
+    storm: { warn: 'THE SKY IS CRACKLING', warnSub: 'Lightning seeks out gold...',
+             on: 'THE STORM!', onSub: 'Lightning strikes whoever carries gold first -- watch the rings',
+             off: 'The storm rolls on', colour: '#bfe8ff', chip: 'STORM' },
+    geysers: { warn: 'THE GROUND IS HISSING', warnSub: 'The springs are about to blow...',
+               on: 'THE GEYSERS!', onSub: 'Stay off the rings -- or ride one into the air',
+               off: 'The springs go quiet', colour: '#7af0ff', chip: 'GEYSERS' },
+    ghosts: { warn: 'THE FOG IS RISING OFF THE WRECKS', warnSub: 'Something is climbing out of them...',
+              on: 'THE GHOST CREWS!', onSub: 'Skeletons with pistols -- carriers first. Shatter one for its purse',
+              off: 'The dead lie down again', colour: '#7aff9a', chip: 'GHOSTS' }
   };
   // keep these in step with app/game/worlds/plunder_bay.py
   var GRAVITY = 62, DIG_REACH = 3.6, CANNON_REACH = 5.4;
@@ -139,6 +151,53 @@
     var cannonReady = {}, shakeUntil = 0, shakeK = 0;
     var act = { k: '', start: 0 };
     var lastRole = '', lastSide = '', sideAt = 0, digDust = 0, splashAt = 0;
+    var bolts = [];               // lightning: {at, t0, seed}
+    var columns = [];             // geysers blowing: {at, t0}
+    var style = {}, vortex = null, vortexR = 26;
+    // the island's moving scenery (plunder_bay_rigs.js and rail_rivals_rigs.js)
+    var rigs = [];
+    var rigCtx = {
+      players: function () {
+        var out = [];
+        if (client.myId && client.local && client.local.alive !== false) {
+          out.push({ id: client.myId, pos: client.local.pos, team: client.myTeam, me: true });
+        }
+        Object.keys(client.players || {}).forEach(function (id) {
+          var pl = client.players[id];
+          if (pl && pl.pos && pl.alive !== false && String(id) !== String(client.myId)) {
+            out.push({ id: id, pos: pl.pos, team: pl.team });
+          }
+        });
+        return out;
+      },
+      viewer: function () {
+        var cam = client.cameraPosition ? client.cameraPosition() : null;
+        var at = cam && cam.eye ? cam.eye : client.local.pos;
+        var yaw = client.local.yaw || 0, pitch = client.local.pitch || 0, cp = Math.cos(pitch);
+        return { eye: at, dir: [Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp] };
+      },
+      sound: function (name, at, volume) {
+        if (!client.audio || !at) return;
+        var v = client.volumeAt ? client.volumeAt(at) : 1;
+        client.audio.play(name, { volume: (volume || 1) * v });
+      },
+      sound2d: function (name, volume) {
+        if (client.audio) client.audio.play(name, { volume: volume === undefined ? 1 : volume });
+      },
+      physics: function () { return client.physics || null; },
+      twist: function () { return twist; }
+    };
+    function eye() {
+      var cam = client.cameraPosition ? client.cameraPosition() : null;
+      return cam && cam.eye ? cam.eye : client.local.pos;
+    }
+    /* A twist's words, as this island tells it (extra.twist_text). */
+    function twistInfo(kind) {
+      var base = TWISTS[kind] || {}, own = (ex.twist === kind && ex.twist_text) || {}, out = {};
+      Object.keys(base).forEach(function (k) { out[k] = base[k]; });
+      Object.keys(own).forEach(function (k) { out[k] = own[k]; });
+      return out;
+    }
 
     function myPos() { return client.local.pos; }
     function inPlay() { return arena.phase === 'active' && !arena.me.out && client.local.alive; }
@@ -206,12 +265,17 @@
       idolMark = (pts.idol || [])[0] || null;
       var centre = mk.centre || [0, 0, 0];
       vent = ex.vent ? [ex.vent[0] + centre[0], ex.vent[1], ex.vent[2] + centre[2]] : null;
+      vortex = ex.vortex ? [ex.vortex[0] + centre[0], ex.vortex[1], ex.vortex[2] + centre[2]] : null;
+      vortexR = ex.vortex_r || 26;
+      style = ex.style || {};
       reset();
+      rigs = global.Rigs ? global.Rigs.build(map, rigCtx) : [];
     }
 
     function reset() {
       ax = {};
       items = {}; liveX = []; flights = {}; shells = []; rings = []; npcs = {}; slams = {}; aims = {};
+      bolts = []; columns = [];
       twist = { kind: ex.twist || '', on: false, until: 0 };
       cannonReady = {}; shakeUntil = 0;
       act = { k: '', start: 0 };
@@ -251,6 +315,14 @@
     }
 
     function afterStep(local, result, dt) {
+      if (vortex && twist.on && twist.kind === 'maelstrom' && local.alive !== false && local.pos[1] < waterLevel() + 0.5) {
+        var vx = local.pos[0] - vortex[0], vz = local.pos[2] - vortex[2], vd = Math.hypot(vx, vz);
+        if (vd < vortexR && vd > 0.5) {
+          var vk = 1 - vd / vortexR, ux = -vx / vd, uz = -vz / vd;
+          local.pos[0] += (ux * 7.5 * (0.4 + vk) - uz * 9 * (0.3 + vk)) * dt;
+          local.pos[2] += (uz * 7.5 * (0.4 + vk) + ux * 9 * (0.3 + vk)) * dt;
+        }
+      }
       // a splash at your feet as you wade
       var t = now(), depth = waterLevel() - local.pos[1];
       if (depth > WADE && depth < 6 && Math.hypot(local.vel[0], local.vel[2]) > 3 && t - splashAt > 0.35 && client.particles) {
@@ -343,7 +415,17 @@
       shells = shells.filter(function (s) { return t - s.t0 < s.T; });
       shells.forEach(function (s, n) {
         var p = arcAt(s, t - s.t0);
-        if (s.kind === 'bomb') {
+        if (s.kind === 'bomb' && style.bomb === 'rocket') {
+          var hue = ['#ff5ad8', '#5ae8ff', '#ffe05a', '#7aff7a', '#ff7a3a'][n % 5];
+          put(r, 'box', p[0], p[1], p[2], 0, time * 6, 0, 0.8, 2.6, 0.8, '#c8302a');
+          put(r, 'cone', p[0], p[1] + 1.8, p[2], 0, 0, 0, 1.0, 1.2, 1.0, '#e8e0d0');
+          put(r, 'sph', p[0], p[1], p[2], 0, 0, 0, 2.6, 2.6, 2.6, hue, 0.5, 2, 1);
+          if (client.particles) {
+            client.particles.spawn({ p: p.slice(), v: [(Math.random() - 0.5) * 4, -2, (Math.random() - 0.5) * 4],
+              life: 0.6, size: 0.7, grow: -0.4, gravity: -6, spin: 3, blend: 'add', shape: 'spark', colors: ['#ffffff', hue, '#ffd04a'] });
+          }
+          return;
+        } else if (s.kind === 'bomb') {
           put(r, 'sph', p[0], p[1], p[2], time * 4, time * 3, 0, 2.2, 2.0, 2.2, '#3a1a10');
           put(r, 'sph', p[0], p[1], p[2], 0, 0, 0, 2.8, 2.8, 2.8, '#ff6a1a', 0.45, 2, 1);
         } else {
@@ -364,7 +446,9 @@
       rings.forEach(function (g) {
         var left = Math.max(0, g.until - t), span = Math.max(0.1, g.until - g.t0);
         var k = 1 - left / span;
-        var colour = g.kind === 'slam' ? '#c05aff' : (g.kind === 'bomb' ? '#ff6a1a' : (TEAM_LIGHT[g.team] || '#ffffff'));
+        var colour = g.kind === 'slam' ? (style.kraken === 'frost' ? '#9ae8ff' : '#c05aff') :
+          g.kind === 'bomb' ? (style.bomb === 'rocket' ? '#ff5ad8' : '#ff6a1a') : g.kind === 'bolt' ? '#bfe8ff' :
+          g.kind === 'geyser' ? '#7af0ff' : (TEAM_LIGHT[g.team] || '#ffffff');
         var pulse = 0.55 + 0.45 * Math.sin(time * (8 + k * 14));
         var d = g.r * 2;
         put(r, 'torus', g.at[0], g.at[1] + 0.25, g.at[2], 0, time, 0, d, 1.4, d, colour, 0.75 * pulse, 2, 1);
@@ -379,7 +463,7 @@
         var id = e[0];
         seen[id] = 1;
         var n = npcs[id];
-        if (!n) n = npcs[id] = { kind: e[1] ? 'redcoat' : 'tentacle', p: [e[2], e[3], e[4]], yaw: e[5], born: t };
+        if (!n) n = npcs[id] = { kind: ['tentacle', 'redcoat', 'skeleton'][e[1]] || 'redcoat', p: [e[2], e[3], e[4]], yaw: e[5], born: t };
         n.tp = [e[2], e[3], e[4]];
         n.tyaw = e[5];
         n.state = e[6];
@@ -395,6 +479,7 @@
         if (n.tp) for (var i = 0; i < 3; i++) n.p[i] += (n.tp[i] - n.p[i]) * k;
         if (n.tyaw !== undefined) n.yaw += wrap(n.tyaw - n.yaw) * k;
         if (n.kind === 'tentacle') drawTentacle(r, n, id, time, t, w);
+        else if (n.kind === 'skeleton') drawSkeleton(r, n, id, time, t);
         else drawRedcoat(r, n, id, time, t);
       });
     }
@@ -431,13 +516,17 @@
         var z = base[2] + bendZ * curve * 9 + (reach ? (slam.at[2] - base[2]) / (Math.hypot(slam.at[0] - base[0], slam.at[2] - base[2]) || 1) * reach * curve : 0);
         var y = base[1] - 1 + height * f2 * (1 - (reach ? 0.75 * curve : 0));
         var rad = (2.6 - 2.0 * f) * (0.6 + 0.4 * rise);
-        var colour = s % 2 ? '#7a3a9a' : '#8a4aaa';
-        if (hurt > 0.5 && s % 3 === 0) colour = '#a85ab8';
+        var frost = style.kraken === 'frost';
+        var colour = frost ? (s % 2 ? '#6a9ab8' : '#8ab8d0') : (s % 2 ? '#7a3a9a' : '#8a4aaa');
+        if (hurt > 0.5 && s % 3 === 0) colour = frost ? '#c8e8f8' : '#a85ab8';
         put(r, 'sph', x, y, z, 0, 0, 0, rad, height / segs * 1.6 + 0.2, rad, colour);
         if (s % 2 === 0 && s < segs - 2) {
           // suckers along the inside of the curl
           put(r, 'sph', x - Math.sin(time + id) * rad * 0.45, y, z - Math.cos(time + id) * rad * 0.45,
-              0, 0, 0, rad * 0.32, rad * 0.32, rad * 0.32, '#f0a8c8');
+              0, 0, 0, rad * 0.32, rad * 0.32, rad * 0.32, frost ? '#f0faff' : '#f0a8c8');
+          if (frost && s % 4 === 0) {
+            put(r, 'cone', x + rad * 0.5, y + 0.4, z, 0, 0, -0.6, rad * 0.4, rad * 0.9, rad * 0.4, '#e8f8ff', 0.85);
+          }
         }
       }
       // the water churning round it
@@ -591,6 +680,17 @@
 
     function drawVent(r, time) {
       if (!vent || !(twist.on && twist.kind === 'eruption')) return;
+      if (style.bomb === 'rocket') {
+        // the fireworks barge going up: its mortars glowing, sparks off it
+        var g2 = 0.5 + 0.5 * Math.sin(time * 9);
+        put(r, 'sph', vent[0], vent[1] + 1, vent[2], 0, 0, 0, 14, 6, 14, ['#ff5ad8', '#5ae8ff', '#ffe05a'][Math.floor(time * 3) % 3], 0.3 * g2, 2, 1);
+        if (client.particles && Math.random() < 0.7) {
+          client.particles.spawn({ p: [vent[0] + (Math.random() - 0.5) * 6, vent[1] + 1, vent[2] + (Math.random() - 0.5) * 6],
+            v: [(Math.random() - 0.5) * 8, 18 + Math.random() * 12, (Math.random() - 0.5) * 8], life: 1.2, size: 0.9, grow: -0.5,
+            gravity: -20, spin: 3, blend: 'add', shape: 'spark', colors: ['#ffffff', '#ffd04a', '#ff5ad8', '#5ae8ff'] });
+        }
+        return;
+      }
       var glow = 0.6 + 0.4 * Math.sin(time * 6);
       put(r, 'sph', vent[0], vent[1] + 2, vent[2], 0, 0, 0, 16, 10, 16, '#ff6a1a', 0.35 * glow, 2, 1);
       if (client.particles && Math.random() < 0.6) {
@@ -599,6 +699,142 @@
           grow: 3, gravity: 2, spin: 1, blend: 'normal', shape: 'smoke', colors: ['#5a4a44', '#3a302c', '#2a2422'] });
         client.particles.spawn({ p: [vent[0], vent[1] + 3, vent[2]], v: [(Math.random() - 0.5) * 14, 20 + Math.random() * 14, (Math.random() - 0.5) * 14],
           life: 1.4, size: 1.2, grow: -0.5, gravity: -24, spin: 3, blend: 'add', shape: 'flame', colors: ['#fff0a0', '#ff8a2a', '#c8301a'] });
+      }
+    }
+
+    /* A skeleton of the ghost crews: bare bones under a rag of a coat, a
+       tricorn gone green, a pistol, and eyes burning green. */
+    function drawSkeleton(r, n, id, time, t) {
+      var p = n.p, yaw = n.yaw || 0;
+      var fade = n.gone ? Math.max(0, 1 - (t - n.gone) / 1.2) : 1;
+      if (fade <= 0) return;
+      var rise = Math.min(1, (t - n.born) / 1.2);
+      var c = Math.cos(yaw), s = Math.sin(yaw);
+      var lift = (1 - rise) * -4;
+      function at(dx, dy, dz) { return [p[0] + dx * c + dz * s, p[1] + dy + lift, p[2] - dx * s + dz * c]; }
+      function box(dx, dy, dz, sx, sy, sz, colour, rx, mat, a, em) {
+        var q = at(dx, dy, dz);
+        put(r, 'box', q[0], q[1], q[2], rx || 0, yaw, 0, sx, sy, sz, colour, (a === undefined ? 1 : a) * fade, mat || 0, em || 0);
+      }
+      var bone = '#e8e2cc', rag = '#3a4a3a';
+      if (n.state === 'down' || n.state === 'gone') {
+        // a heap of bones and the hat on top
+        for (var k = 0; k < 6; k++) {
+          var q0 = at((k % 3 - 1) * 0.9, 0.3, (Math.floor(k / 3) - 0.5) * 1.2);
+          put(r, 'box', q0[0], q0[1], q0[2], k, yaw + k, 0, 0.4, 0.4, 1.8, bone, fade);
+        }
+        var sk = at(0.2, 0.7, 0.4);
+        put(r, 'sph', sk[0], sk[1], sk[2], 0, 0, 0, 1.2, 1.1, 1.2, bone, fade);
+        return;
+      }
+      var walking = n.state === 'walk';
+      var swing = walking ? Math.sin(time * 8 + id) * 0.55 : 0;
+      var rattle = Math.sin(time * 23 + id) * 0.05;
+      box(-0.5, 1.0, 0, 0.35, 2.0, 0.35, bone, swing);
+      box(0.5, 1.0, 0, 0.35, 2.0, 0.35, bone, -swing);
+      box(0, 2.2, 0, 1.6, 0.4, 0.6, bone);
+      for (var rb = 0; rb < 4; rb++) box(0, 2.8 + rb * 0.42, 0.05, 1.7 - rb * 0.1, 0.18, 0.9, bone);
+      box(0, 3.3, -0.3, 0.3, 2.2, 0.3, bone);
+      box(0, 3.4, -0.2, 2.5, 2.4, 0.9, rag, 0, 0, 0.85);
+      box(0, 3.2, 0.32, 1.0, 2.0, 0.1, '#2a3a2a', 0, 0, 0.9);
+      var head = at(0, 4.9 + rattle, 0.05);
+      put(r, 'sph', head[0], head[1], head[2], 0, yaw, 0, 1.3, 1.35, 1.35, bone, fade);
+      box(0, 4.55 + rattle, 0.5, 0.9, 0.35, 0.3, bone);
+      box(-0.3, 5.0 + rattle, 0.62, 0.28, 0.28, 0.1, '#7aff9a', 0, 0, 1, 1);
+      box(0.3, 5.0 + rattle, 0.62, 0.28, 0.28, 0.1, '#7aff9a', 0, 0, 1, 1);
+      var hat = at(0, 5.6 + rattle, 0);
+      put(r, 'tricorn', hat[0], hat[1], hat[2], 0, yaw, 0, 2.4, 1.4, 2.4, '#2a3a30', fade);
+      var aim = aims[id];
+      var level = n.state === 'aim' || (aim && aim.until > t);
+      if (level) {
+        box(0.9, 3.8, 0.8, 0.3, 0.3, 1.8, bone);
+        var tip = at(0.9, 3.85, 2.0);
+        put(r, 'box', tip[0], tip[1], tip[2], 0, yaw, 0, 0.3, 0.45, 1.0, '#4a4a50', fade, 1);
+        if (Math.sin(time * 18) > 0.3) put(r, 'sph', tip[0], tip[1] + 0.1, tip[2] + 0.4, 0, 0, 0, 0.6, 0.6, 0.6, '#7aff9a', 0.85, 2, 1);
+      } else {
+        box(-1.3, 3.4, 0, 0.3, 2.0, 0.3, bone, -swing * 0.6);
+        box(1.3, 3.4, 0, 0.3, 2.0, 0.3, bone, swing * 0.6);
+        box(1.35, 2.2, 0.4, 0.2, 0.2, 2.4, '#8a8e96', 0.3, 1);
+      }
+      // the green glow about it
+      var g = at(0, 3, 0);
+      put(r, 'sph', g[0], g[1], g[2], 0, 0, 0, 5, 7, 5, '#5aff8a', 0.08 * fade, 2, 0.6);
+      if (n.hp !== undefined && n.hp < 1) hpBar(r, [p[0], p[1] + 7.2, p[2]], n.hp, '#7aff9a');
+    }
+
+    /* The storm's lightning: a jagged bolt from the cloud base to where it
+       struck, gone in a moment, and the ground round it glowing. */
+    function drawBolts(r, time) {
+      var t = now();
+      bolts = bolts.filter(function (b) { return t - b.t0 < 0.45; });
+      bolts.forEach(function (b) {
+        var life = 1 - (t - b.t0) / 0.45;
+        var x = b.at[0], y = b.at[1], z = b.at[2];
+        var top = y + 70, n = 14, px = x + (hash(b.seed) - 0.5) * 16, pz = z + (hash(b.seed + 1) - 0.5) * 16;
+        var prev = [px, top, pz];
+        for (var i = 1; i <= n; i++) {
+          var f = i / n;
+          var jx = i === n ? 0 : (hash(b.seed + i * 3) - 0.5) * 7 * (1 - f * 0.6);
+          var jz = i === n ? 0 : (hash(b.seed + i * 5) - 0.5) * 7 * (1 - f * 0.6);
+          var cur = [px + (x - px) * f + jx, top + (y - top) * f, pz + (z - pz) * f + jz];
+          var steps = 5;
+          for (var k = 0; k < steps; k++) {
+            var g = (k + 0.5) / steps;
+            put(r, 'box', prev[0] + (cur[0] - prev[0]) * g, prev[1] + (cur[1] - prev[1]) * g, prev[2] + (cur[2] - prev[2]) * g,
+                0, 0, 0, 0.55, 1.2, 0.55, '#ffffff', life, 2, 1);
+          }
+          put(r, 'sph', cur[0], cur[1], cur[2], 0, 0, 0, 2.4, 2.4, 2.4, '#bfe8ff', 0.25 * life, 2, 1);
+          prev = cur;
+        }
+        put(r, 'cyl', x, y + 0.1, z, 0, 0, 0, 9 * life + 2, 0.06, 9 * life + 2, '#bfe8ff', 0.5 * life, 2, 1);
+      });
+    }
+
+    /* A geyser blowing: a column of boiling water shooting up out of its
+       ring, spray at the top, steam all round, then falling back. */
+    function drawColumns(r, time) {
+      var t = now();
+      columns = columns.filter(function (c) { return t - c.t0 < 2.6; });
+      columns.forEach(function (c) {
+        var a = t - c.t0;
+        var h = a < 0.25 ? 30 * (a / 0.25) : (a < 1.6 ? 30 : 30 * Math.max(0, 1 - (a - 1.6) / 1.0));
+        var x = c.at[0], y = c.at[1], z = c.at[2];
+        for (var k = 0; k < 8; k++) {
+          var f = (k + 0.5) / 8, wob = Math.sin(time * 14 + k * 1.7) * 0.4;
+          put(r, 'cyl', x + wob, y + h * f, z - wob, 0, time * 2, 0, 3.6 - f * 1.4, h / 8 + 0.3, 3.6 - f * 1.4,
+              k % 2 ? '#e8fcff' : '#9ae8f8', 0.65, 0, 0.3);
+        }
+        if (h > 2) {
+          put(r, 'sph', x, y + h + 1, z, 0, time * 3, 0, 7, 3.6, 7, '#f4feff', 0.55, 0, 0.3);
+          if (client.particles && Math.random() < 0.8) {
+            client.particles.spawn({ p: [x, y + h, z], v: [(Math.random() - 0.5) * 14, 6 + Math.random() * 6, (Math.random() - 0.5) * 14],
+              life: 1.2, size: 1.2, grow: 0.6, gravity: -26, spin: 2, blend: 'normal', shape: 'smoke', colors: ['#ffffff', '#d8f4ff'] });
+          }
+        }
+      });
+    }
+
+    /* The maelstrom: rings of foam turning round the eye, faster the nearer
+       they are, the water sloping down into a dark funnel, spray. */
+    function drawMaelstrom(r, time) {
+      if (!vortex || !(twist.on && twist.kind === 'maelstrom')) return;
+      var w = waterLevel(), R = vortexR;
+      for (var k = 0; k < 7; k++) {
+        var f = (k + 1) / 7, rad = R * f;
+        var spin = time * (2.4 / (0.35 + f)), y = w + 0.12 - (1 - f) * 2.2;
+        put(r, 'torus', vortex[0], y, vortex[2], 0, spin, 0, rad * 2, 0.7, rad * 2, k % 2 ? '#e8fcff' : '#7ad8e8', 0.55, 0, 0.4);
+        for (var a = 0; a < 6; a++) {
+          var ang = spin + a * Math.PI / 3 + k;
+          put(r, 'box', vortex[0] + Math.cos(ang) * rad, y + 0.15, vortex[2] + Math.sin(ang) * rad, 0, -ang, 0,
+              0.6, 0.3, rad * 0.5, '#ffffff', 0.7);
+        }
+      }
+      put(r, 'cone', vortex[0], w - 4.5, vortex[2], Math.PI, time * 3, 0, 9, 9, 9, '#0a3a4a', 0.85);
+      if (client.particles && Math.random() < 0.7) {
+        var ang2 = Math.random() * Math.PI * 2, rr = R * (0.3 + Math.random() * 0.7);
+        client.particles.spawn({ p: [vortex[0] + Math.cos(ang2) * rr, w + 0.4, vortex[2] + Math.sin(ang2) * rr],
+          v: [-Math.sin(ang2) * 8, 3 + Math.random() * 3, Math.cos(ang2) * 8], life: 0.9, size: 0.9, grow: 0.4, gravity: -12,
+          spin: 2, blend: 'normal', shape: 'smoke', colors: ['#ffffff', '#c8f4ff'] });
       }
     }
 
@@ -617,7 +853,7 @@
       var bits = [];
       var kind = carrying();
       if (kind && LOOT[kind]) bits.push('<b style="color:' + LOOT[kind].colour + '">CARRYING ' + LOOT[kind].short + '</b>');
-      if (twist.on && TWISTS[twist.kind]) bits.push('<b style="color:' + TWISTS[twist.kind].colour + '">' + TWISTS[twist.kind].chip + '</b>');
+      if (twist.on && TWISTS[twist.kind]) bits.push('<b style="color:' + twistInfo(twist.kind).colour + '">' + twistInfo(twist.kind).chip + '</b>');
       var html = '<b style="color:' + TEAM_LIGHT[team] + '">' + esc(arena.teamName(team).toUpperCase()) + '</b>' +
         (bits.length ? ' &bull; ' + bits.join(' &bull; ') : '');
       if (html !== lastRole) { arena.setRole(html, team); lastRole = html; }
@@ -682,7 +918,7 @@
       });
       if (twist.on && TWISTS[twist.kind]) {
         var left = Math.max(0, twist.until - now());
-        out.bars.push({ label: TWISTS[twist.kind].chip, value: Math.min(1, left / 30), colour: TWISTS[twist.kind].colour,
+        out.bars.push({ label: twistInfo(twist.kind).chip, value: Math.min(1, left / 30), colour: twistInfo(twist.kind).colour,
                         text: Math.ceil(left) + 's' });
       }
       return out;
@@ -710,6 +946,21 @@
     // -------------------------------------------------------- messages
     function blast(msg) {
       var p = msg.p, t = now();
+      if (msg.w === 'bolt') {
+        bolts.push({ at: p, t0: t, seed: Math.floor(t * 1000) % 997 });
+        rings = rings.filter(function (g) { return Math.hypot(g.at[0] - p[0], g.at[2] - p[2]) > 0.5; });
+        var me6 = myPos(), d6 = Math.hypot(me6[0] - p[0], me6[2] - p[2]);
+        playAt('pb_thunder', p, 1);
+        if (d6 < 60) arena.flashScreen('rgba(220,240,255,' + (0.5 * (1 - d6 / 60)).toFixed(2) + ')', 160);
+        if (client.particles) client.particles.burst('explosion', [p[0], p[1] + 0.5, p[2]], { radius: 3 });
+        return;
+      }
+      if (msg.w === 'geyser') {
+        columns.push({ at: p, t0: t });
+        rings = rings.filter(function (g) { return Math.hypot(g.at[0] - p[0], g.at[2] - p[2]) > 0.5; });
+        playAt('pb_geyser', p, 1);
+        return;
+      }
       rings = rings.filter(function (g) { return Math.hypot(g.at[0] - p[0], g.at[2] - p[2]) > 0.5; });
       var me = myPos(), d = Math.hypot(me[0] - p[0], me[1] - p[1], me[2] - p[2]);
       if (d < 50) { shakeUntil = t + 0.5; shakeK = Math.max(0.2, 1 - d / 50); }
@@ -850,11 +1101,11 @@
         } else if (k === 'blast') {
           blast(msg);
         } else if (k === 'warn') {
-          info = TWISTS[msg.twist] || {};
+          info = twistInfo(msg.twist);
           arena.banner(info.warn || 'SOMETHING IS COMING', info.warnSub || '', 'bad', 2800);
           client.audio.play('pb_warn', { volume: 0.8 });
         } else if (k === 'twist') {
-          info = TWISTS[msg.twist] || {};
+          info = twistInfo(msg.twist);
           twist.kind = msg.twist || twist.kind;
           twist.on = !!msg.on;
           if (msg.on && msg.left) twist.until = t + msg.left;
@@ -862,7 +1113,9 @@
             arena.banner(info.on || 'THE TWIST!', info.onSub || '', 'bad', 3400);
             client.audio.play('pb_twist_' + msg.twist, { volume: 0.9 });
             arena.flashScreen((info.colour || '#ffffff') + '55', 400);
-            if (msg.twist === 'eruption' || msg.twist === 'kraken') { shakeUntil = t + 1.2; shakeK = 0.6; }
+            if (msg.twist === 'eruption' || msg.twist === 'kraken' || msg.twist === 'geysers' || msg.twist === 'maelstrom') {
+              shakeUntil = t + 1.2; shakeK = 0.6;
+            }
           } else {
             client.hud.toast(info.off || 'The island settles down');
           }
@@ -874,6 +1127,13 @@
         } else if (k === 'wash') {
           (msg.ids || []).forEach(function (id) { delete items[id]; });
           client.hud.toast('The tide came in and washed the rest away');
+        } else if (k === 'bolt') {
+          rings.push({ at: msg.at, r: msg.r || 5, t0: t, until: t + (msg['in'] || 1.15), kind: 'bolt' });
+          var me5 = myPos();
+          if (Math.hypot(me5[0] - msg.at[0], me5[2] - msg.at[2]) < 40) playAt('pb_crackle', msg.at, 0.6);
+        } else if (k === 'geyser') {
+          rings.push({ at: msg.at, r: msg.r || 5.5, t0: t, until: t + (msg['in'] || 1.7), kind: 'geyser' });
+          playAt('pb_hiss', msg.at, 0.7);
         } else if (k === 'bomb') {
           var T = msg['in'] || 1.6;
           shells.push({ kind: 'bomb', a: msg.a, v: [(msg.at[0] - msg.a[0]) / T, (msg.at[1] - msg.a[1] + 0.5 * GRAVITY * T * T) / T,
@@ -907,10 +1167,11 @@
           var nd = npcs[msg.id];
           if (nd) { nd.state = msg.kind === 'tentacle' ? 'sink' : 'down'; nd.gone = t; }
           if (msg.by === me) {
-            arena.banner(msg.kind === 'tentacle' ? 'TENTACLE SEVERED!' : 'REDCOAT DOWN!',
-                         msg.kind === 'tentacle' ? 'It left a jewel behind' : 'He dropped his purse', 'good', 2200);
+            arena.banner(msg.kind === 'tentacle' ? 'TENTACLE SEVERED!' : msg.kind === 'skeleton' ? 'SKELETON SHATTERED!' : 'REDCOAT DOWN!',
+                         msg.kind === 'tentacle' ? 'It left a jewel behind' : msg.kind === 'skeleton' ? 'It dropped its purse' :
+                           'He dropped his purse', 'good', 2200);
           }
-          if (nd) playAt(msg.kind === 'tentacle' ? 'pb_kraken' : 'pb_clang', nd.p, 0.8);
+          if (nd) playAt(msg.kind === 'tentacle' ? 'pb_kraken' : msg.kind === 'skeleton' ? 'pb_bones' : 'pb_clang', nd.p, 0.8);
         } else if (k === 'burn') {
           playAt('pb_lost', msg.p, 1);
           if (msg.id === me) arena.flashScreen('rgba(255,110,30,0.6)', 600);
@@ -1003,6 +1264,12 @@
         drawHolds(renderer, time);
         drawActors(renderer, time);
         drawVent(renderer, time);
+        drawBolts(renderer, time);
+        drawColumns(renderer, time);
+        drawMaelstrom(renderer, time);
+        if (rigs.length && global.Rigs) {
+          global.Rigs.draw(rigs, renderer, dt, eye(), rigCtx, (client.map && client.map.fog) || 900);
+        }
         stepHold();
       },
       nameTag: function (player) {
@@ -1198,6 +1465,50 @@
       this.later(500, function () { this.noise({ filter: 'lowpass', freq: 1400, freqEnd: 200, dur: 1.4, gain: 0.4 * vol }); });
     });
     // for the arrival scenes
+    GA.register('pb_twist_maelstrom', function (vol) {
+      this.noise({ freq: 300, freqEnd: 900, dur: 2.2, gain: 0.3 * vol });
+      this.tone({ type: 'sawtooth', freq: 60, freqEnd: 40, dur: 2.0, gain: 0.08 * vol });
+    });
+    GA.register('pb_twist_storm', function (vol) {
+      this.noise({ freq: 160, freqEnd: 60, dur: 2.6, gain: 0.5 * vol });
+      this.later(80, function () { this.noise({ filter: 'highpass', freq: 3000, freqEnd: 800, dur: 0.3, gain: 0.3 * vol }); });
+    });
+    GA.register('pb_twist_geysers', function (vol) {
+      this.noise({ filter: 'highpass', freq: 1800, freqEnd: 600, dur: 1.6, gain: 0.3 * vol });
+      this.tone({ type: 'sine', freq: 80, freqEnd: 50, dur: 1.4, gain: 0.12 * vol });
+    });
+    GA.register('pb_twist_ghosts', function (vol) {
+      this.tone({ type: 'sine', freq: 220, freqEnd: 180, dur: 2.0, gain: 0.08 * vol });
+      this.tone({ type: 'sine', freq: 233, freqEnd: 190, dur: 2.0, gain: 0.07 * vol });
+      this.tone({ type: 'triangle', freq: 440, freqEnd: 330, dur: 1.6, gain: 0.04 * vol });
+    });
+    GA.register('pb_thunder', function (vol) {
+      this.noise({ filter: 'highpass', freq: 2600, freqEnd: 700, dur: 0.18, gain: 0.4 * vol });
+      this.noise({ freq: 220, freqEnd: 50, dur: 1.8, gain: 0.5 * vol });
+      this.tone({ type: 'sawtooth', freq: 48, freqEnd: 30, dur: 1.2, gain: 0.1 * vol });
+    });
+    GA.register('pb_crackle', function (vol) {
+      for (var i = 0; i < 6; i++) {
+        this.later(i * 60 + (i * 37 % 40), function () {
+          this.noise({ filter: 'highpass', freq: 4200, freqEnd: 2000, dur: 0.04, gain: 0.08 * vol });
+        });
+      }
+    });
+    GA.register('pb_hiss', function (vol) {
+      this.noise({ filter: 'highpass', freq: 2400, freqEnd: 1200, dur: 1.4, gain: 0.14 * vol });
+    });
+    GA.register('pb_geyser', function (vol) {
+      this.noise({ freq: 500, freqEnd: 1600, dur: 0.4, gain: 0.4 * vol });
+      this.noise({ filter: 'highpass', freq: 1400, freqEnd: 500, dur: 2.0, gain: 0.25 * vol });
+    });
+    GA.register('pb_bones', function (vol) {
+      for (var i = 0; i < 7; i++) {
+        this.later(i * 45, function () {
+          this.tone({ type: 'square', freq: 900 + i * 60, freqEnd: 600, dur: 0.05, gain: 0.04 * vol });
+          this.noise({ filter: 'bandpass', freq: 2400, freqEnd: 1600, dur: 0.04, gain: 0.08 * vol });
+        });
+      }
+    });
     GA.register('pb_waves', function (vol) {
       this.noise({ filter: 'lowpass', freq: 500, freqEnd: 900, dur: 1.4, gain: 0.2 * vol });
       this.later(1400, function () { this.noise({ filter: 'lowpass', freq: 900, freqEnd: 300, dur: 1.6, gain: 0.18 * vol }); });
@@ -1871,6 +2182,655 @@
           sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,220,0.5)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
           ctx.fillStyle = sg; ctx.fillRect(sx - 80, -125, 160, 250);
         });
+      }
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------ Whalebone Atoll
+  /* Looking down the whale's spine from its tail: the ribs arching
+     overhead rank on rank, the lagoon either side, the skull at the far
+     end with its jaw standing up behind it -- and the lagoon starting to
+     turn.  The world is drawn in perspective from a camera 16 up over the
+     spine's south end (Z runs away from it, X across, Y up). */
+  function wbAt(X, Y, Z) {
+    var f = 700 / Math.max(1, Z);
+    return [800 + X * f, 330 + (16 - Y) * f, f];
+  }
+  function wbPoly(ctx, pts, fill) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    pts.forEach(function (p, i) { var q = wbAt(p[0], p[1], p[2]); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
+    ctx.closePath(); ctx.fill();
+  }
+  function wbRib(ctx, Z, reach, peak, side) {
+    // the same curve the island's ribs follow, on down to the water
+    var p0 = [6, 5], p1 = [reach * 0.42, peak * 1.6], p2 = [reach, 5.2];
+    var pts = [];
+    for (var i = 0; i <= 18; i++) {
+      var u = i / 18;
+      pts.push([side * ((1 - u) * (1 - u) * p0[0] + 2 * (1 - u) * u * p1[0] + u * u * p2[0]),
+                (1 - u) * (1 - u) * p0[1] + 2 * (1 - u) * u * p1[1] + u * u * p2[1]]);
+    }
+    pts.push([side * reach, -1]);
+    var f = 700 / Z;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    [['#a89c80', 3.0], ['#f4ecd8', 2.2], ['#fffaf0', 0.8]].forEach(function (pass, k) {
+      ctx.strokeStyle = pass[0]; ctx.lineWidth = Math.max(1, pass[1] * f);
+      ctx.beginPath();
+      pts.forEach(function (p, j) {
+        var q = wbAt(p[0] + (k === 2 ? -side * 0.5 : 0), p[1] + (k === 2 ? 0.5 : 0), Z);
+        if (j) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]);
+      });
+      ctx.stroke();
+    });
+  }
+
+  Intro.register('pb_whalebone', {
+    name: 'Whalebone Atoll',
+    tagline: 'A whale bigger than any ship, a lagoon in its ribs. Mind the water when it starts to turn.',
+    accent: '#3ad0d8',
+    cues: [[0.2, 'pb_waves', 0.7], [0.8, 'pb_gull', 0.6], [1.5, 'pb_twist_maelstrom', 0.8], [2.3, 'pb_coins', 0.6],
+           [3.3, 'pb_coins', 0.5], [4.4, 'pb_go', 0.6]],
+    shakes: [[1.5, 4, 0.6]],
+    tagY: 610, tagAt: 3.3,
+    setup: function (r) {
+      var d = { gulls: [], glints: [], coins: [], foam: [], clouds: [] };
+      for (var i = 0; i < 7; i++) d.gulls.push([between(r, 0, VW), between(r, 90, 250), between(r, 30, 70), r() * 6]);
+      for (var g = 0; g < 50; g++) d.glints.push([between(r, -60, 60), between(r, 14, 118), r() * 6]);
+      for (var c = 0; c < 16; c++) {
+        var side = c % 2 ? 1 : -1;
+        d.coins.push([side * between(r, 64, 78), between(r, 30, 90), c * 0.14 + r() * 0.1, r() * 6]);
+      }
+      for (var f = 0; f < 40; f++) d.foam.push([r() * TAU, between(r, 3, 26), r() * 6]);
+      for (var k = 0; k < 6; k++) d.clouds.push([between(r, 0, VW), between(r, 60, 230), between(r, 90, 200), r()]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 340);
+      sky.addColorStop(0, '#1468c8'); sky.addColorStop(0.6, '#58b4ee'); sky.addColorStop(1, '#d8f4ff');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, 340);
+      additive(ctx, function () { dot(ctx, '#fff4c0', 1290, 110, 200, 0.55); });
+      ctx.fillStyle = '#fffbe8'; ctx.beginPath(); ctx.arc(1290, 110, 46, 0, TAU); ctx.fill();
+      d.clouds.forEach(function (c) {
+        var x = (c[0] + t * 14) % (VW + 300) - 150;
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.ellipse(x, c[1], c[2], c[2] * 0.3, 0, 0, TAU); ctx.ellipse(x + c[2] * 0.4, c[1] - c[2] * 0.15, c[2] * 0.5, c[2] * 0.3, 0, 0, TAU); ctx.fill();
+      });
+      // the open sea to the horizon, a whale blowing far out
+      var seaG = ctx.createLinearGradient(0, 330, 0, 440);
+      seaG.addColorStop(0, '#2a8ac8'); seaG.addColorStop(1, '#1a6aa8');
+      ctx.fillStyle = seaG; ctx.fillRect(0, 330, VW, 120);
+      var blow = seg(t, 0.7, 2.2);
+      if (blow > 0 && blow < 1) {
+        ctx.fillStyle = '#2a3a4a'; ctx.beginPath(); ctx.ellipse(1460, 338, 26, 6, 0, Math.PI, 0); ctx.fill();
+        additive(ctx, function () {
+          for (var s = 0; s < 5; s++) dot(ctx, '#ffffff', 1460 + (s - 2) * 4 * blow, 330 - blow * 50 - s * 6, 8 + s * 2, 0.6 * (1 - blow));
+        });
+      }
+      // the two crews' galleons coming round the atoll, far off
+      galleon(ctx, lerp(-120, 170, outCubic(seg(t, 0, 3))), 338, 0.16, '#b8282a', '#c8302a', t, 1);
+      galleon(ctx, lerp(VW + 120, 1430, outCubic(seg(t, 0.3, 3.3))), 338, 0.16, '#2a5aa8', '#2a6ab8', t, -1);
+      // hills behind the north shore, the black rocks either side of the skull
+      ctx.fillStyle = '#2e7a52';
+      ctx.beginPath(); ctx.moveTo(0, 400); ctx.quadraticCurveTo(300, 250, 640, 330); ctx.quadraticCurveTo(900, 220, 1200, 320); ctx.quadraticCurveTo(1420, 260, VW, 330); ctx.lineTo(VW, 420); ctx.lineTo(0, 420); ctx.fill();
+      [-1, 1].forEach(function (s) {
+        wbPoly(ctx, [[s * 20, 0, 140], [s * 20, 17, 140], [s * 60, 15, 140], [s * 112, 18, 140], [s * 112, 0, 140]], '#4a4a52');
+        wbPoly(ctx, [[s * 20, 17, 140], [s * 60, 15, 140], [s * 112, 18, 140], [s * 112, 19.4, 140], [s * 60, 16.6, 140], [s * 20, 18.4, 140]], '#5a9a4a');
+      });
+      // the white strand all round, the lagoon in the middle of it
+      wbPoly(ctx, [[-140, 0, 140], [140, 0, 140], [140, 0, 8], [-140, 0, 8]], '#f4e8c0');
+      var lag = ctx.createLinearGradient(0, 430, 0, VH);
+      lag.addColorStop(0, '#5ae0e0'); lag.addColorStop(1, '#2ab8c8');
+      wbPoly(ctx, [[-66, -1, 118], [66, -1, 118], [66, -1, 8], [-66, -1, 8]], lag);
+      d.glints.forEach(function (g) {
+        var q = wbAt(g[0], -0.9, g[1]);
+        additive(ctx, function () { dot(ctx, '#ffffff', q[0], q[1], 2 + q[2] * 0.15, 0.3 + 0.4 * Math.sin(t * 4 + g[2])); });
+      });
+      // palms along the strand
+      [[-80, 92], [80, 96], [-84, 112], [86, 110], [-74, 120], [72, 122]].forEach(function (p, i) {
+        var q = wbAt(p[0], 0, p[1]);
+        palm(ctx, q[0], q[1], 15 * q[2], (i % 2 ? -1 : 1) * 4 * q[2], t);
+      });
+      // the maelstrom, under the middle of the spine
+      var spin = seg(t, 1.5, 2.6);
+      if (spin > 0) {
+        var eye = 52;
+        wbPoly(ctx, (function () { var ring = []; for (var a = 0; a < 24; a++) ring.push([Math.cos(a * TAU / 24) * 26 * spin, -0.95, eye + Math.sin(a * TAU / 24) * 26 * spin]); return ring; })(),
+               'rgba(20,110,140,' + (0.45 * spin) + ')');
+        ctx.lineCap = 'round';
+        for (var arm = 0; arm < 5; arm++) {
+          ctx.strokeStyle = 'rgba(240,255,255,' + (0.75 * spin) + ')';
+          ctx.beginPath();
+          for (var rr = 3; rr <= 26; rr += 1.5) {
+            var th = arm * TAU / 5 - t * 2.6 + rr * 0.22;
+            var q = wbAt(Math.cos(th) * rr * spin, -0.9, eye + Math.sin(th) * rr * spin);
+            ctx.lineWidth = Math.max(1, q[2] * 0.5);
+            if (rr === 3) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+          }
+          ctx.stroke();
+        }
+        d.foam.forEach(function (f) {
+          var th = f[0] - t * (3.2 - f[1] * 0.06), q = wbAt(Math.cos(th) * f[1] * spin, -0.8, eye + Math.sin(th) * f[1] * spin);
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.8 * spin) + ')';
+          ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(1.5, q[2] * 0.35), 0, TAU); ctx.fill();
+        });
+        var c0 = wbAt(0, -0.9, eye);
+        ctx.fillStyle = 'rgba(10,40,60,' + (0.8 * spin) + ')';
+        ctx.beginPath(); ctx.ellipse(c0[0], c0[1], 5 * c0[2], 1.6 * c0[2], 0, 0, TAU); ctx.fill();
+      }
+      // the lower jaw standing up behind the skull, toothed
+      [-1, 1].forEach(function (s) {
+        ctx.strokeStyle = '#e8dcc0'; ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (var i = 0; i <= 14; i++) {
+          var u = i / 14;
+          var X = (1 - u) * (1 - u) * 6 * s + 2 * (1 - u) * u * 7 * s + u * u * s;
+          var Y = 2 * (1 - u) * u * 30 + u * u * 50, Z = 146 + 2 * (1 - u) * u * 4 + u * u * 11;
+          var q = wbAt(X, Y, Z);
+          ctx.lineWidth = Math.max(2, (3.2 - 1.6 * u) * q[2]);
+          if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#fffaf0';
+        for (var tooth = 3; tooth < 12; tooth++) {
+          var v = tooth / 14;
+          var q2 = wbAt(((1 - v) * (1 - v) * 6 + 2 * (1 - v) * v * 7 + v * v) * s - s * 2, 2 * (1 - v) * v * 30 + v * v * 50, 150);
+          ctx.beginPath(); ctx.moveTo(q2[0], q2[1] - 4); ctx.lineTo(q2[0] - s * 12, q2[1]); ctx.lineTo(q2[0], q2[1] + 4); ctx.fill();
+        }
+      });
+      // the skull: its front, its stepped dome, the sockets, the toothed door
+      wbPoly(ctx, [[-18.6, 14, 118], [18.6, 14, 118], [15.4, 19.6, 121], [-15.4, 19.6, 121]], '#e0d6bc');
+      wbPoly(ctx, [[-18, 0, 118], [18, 0, 118], [18, 14, 118], [-18, 14, 118]], '#efe8d6');
+      wbPoly(ctx, [[-9, 14, 118.5], [9, 14, 118.5], [9, 12, 117], [-9, 12, 117]], '#d8cfb4');
+      var glare = 0.6 + 0.4 * Math.sin(t * 3);
+      [-1, 1].forEach(function (s) {
+        wbPoly(ctx, [[s * 7.7, 7.8, 118], [s * 13.3, 7.8, 118], [s * 13.3, 11.4, 118], [s * 7.7, 11.4, 118]], '#3a3430');
+        var e = wbAt(s * 10.5, 9.6, 118);
+        additive(ctx, function () { dot(ctx, '#ffb84a', e[0], e[1], 4 * e[2], 0.5 * glare); });
+      });
+      wbPoly(ctx, [[-5, 0, 118], [5, 0, 118], [5, 9, 118], [-5, 9, 118]], '#2a2420');
+      var idolAt = wbAt(0, 4, 120);
+      additive(ctx, function () { dot(ctx, '#ffd040', idolAt[0], idolAt[1], 3 * idolAt[2], 0.7); });
+      ctx.fillStyle = '#fffaf0';
+      for (var ft = 0; ft < 5; ft++) {
+        var a1 = wbAt(-4.6 + ft * 2.3, 9, 118), a2 = wbAt(-3.4 + ft * 2.3, 9, 118), a3 = wbAt(-4.0 + ft * 2.3, 7, 118);
+        ctx.beginPath(); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a2[0], a2[1]); ctx.lineTo(a3[0], a3[1]); ctx.fill();
+      }
+      // the spine, far to near, each vertebra's top and its face; the ribs
+      // in among them (and our pirate on the deck)
+      var ribs = [[92, 0], [79, 1], [66, 2], [53, 3], [40, 4], [27, 5], [14, 6]];
+      var run = seg(t, 0.3, 4.4), pz = lerp(100, 24, run);
+      function runner() {
+        var q = wbAt(0, 6.6, pz), s = q[2] / 21.7;
+        pirate(ctx, q[0], q[1], s, t, 0, 0, 1);
+        // the jewel held up over the head
+        var gy = q[1] - 132 * s;
+        ctx.fillStyle = '#ff3a6a';
+        ctx.beginPath(); ctx.moveTo(q[0] + 24 * s, gy - 14 * s); ctx.lineTo(q[0] + 38 * s, gy); ctx.lineTo(q[0] + 24 * s, gy + 14 * s); ctx.lineTo(q[0] + 10 * s, gy); ctx.fill();
+        additive(ctx, function () { dot(ctx, '#ff8ab0', q[0] + 24 * s, gy, 40 * s, 0.6); });
+      }
+      // painted far to near: a vertebra by its far end (whoever stands on
+      // it is drawn after it), a rib by its own plane
+      var paint = [[pz, runner]];
+      for (var v = 16; v >= 0; v--) {
+        (function (v) {
+          var z0 = 6 + v * 6.1, z1 = z0 + 5.3;
+          paint.push([z1, function () {
+            wbPoly(ctx, [[-3, 6, z1], [3, 6, z1], [3, 6, z0], [-3, 6, z0]], v % 2 ? '#efe8d6' : '#e4dcc4');
+            wbPoly(ctx, [[-3, 6, z0], [3, 6, z0], [3, -1, z0], [-3, -1, z0]], v % 2 ? '#d8cfb4' : '#cfc5a8');
+            [-1, 1].forEach(function (s) {
+              wbPoly(ctx, [[s * 3, 5.8, z0 + 1.6], [s * 7.4, 5.8, z0 + 1.6], [s * 7.4, 5.0, z0 + 1.6], [s * 3, 5.0, z0 + 1.6]],
+                     '#c8bea2');
+            });
+          }]);
+        })(v);
+      }
+      ribs.forEach(function (rb) {
+        var sw = Math.sin(rb[1] / 6 * Math.PI);
+        paint.push([rb[0], function () {
+          wbRib(ctx, rb[0], 40 + 8 * sw, 24 + 8 * sw, -1);
+          wbRib(ctx, rb[0], 40 + 8 * sw, 24 + 8 * sw, 1);
+        }]);
+      });
+      paint.sort(function (a, b) { return b[0] - a[0]; });
+      paint.forEach(function (p) { p[1](); });
+      // coins thrown up out of the eye onto the beaches
+      if (t > 2.2) {
+        d.coins.forEach(function (c) {
+          var u = (t - 2.2 - c[2]) / 1.1;
+          if (u < 0) return;
+          u = Math.min(1, u);
+          var X = c[0] * u, Z = 52 + (c[1] - 52) * u, Y = -1 + 30 * u * (1 - u) * 2 + u * 1;
+          var q = wbAt(X, Y, Z);
+          coin(ctx, q[0], q[1], Math.max(4, 0.9 * q[2]), t * 9 + c[3]);
+          if (u >= 1) additive(ctx, function () { dot(ctx, '#ffe080', q[0], q[1], 3 * q[2], 0.4 + 0.3 * Math.sin(t * 6 + c[3])); });
+        });
+      }
+      d.gulls.forEach(function (g) {
+        var gx = (g[0] + t * g[2]) % (VW + 100) - 50, gy = g[1] + Math.sin(t * 2 + g[3]) * 10;
+        var flap = Math.sin(t * 8 + g[3]) * 8;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(gx - 16, gy - flap); ctx.quadraticCurveTo(gx - 6, gy - 8, gx, gy); ctx.quadraticCurveTo(gx + 6, gy - 8, gx + 16, gy - flap); ctx.stroke();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      // a plaque of polished whalebone, scrimshawed: a rope border, a
+      // whale and a ship engraved at the ends, the name inked in the middle
+      var at = 1.1;
+      if (t < at) return;
+      var k = outBack(seg(t, at, at + 0.55), 1.3);
+      ctx.save();
+      ctx.translate(800, 196 - (1 - k) * 380);
+      ctx.rotate(0.015 + wobble(t, at + 0.55, 0.025, 10, 5));
+      var g = ctx.createLinearGradient(0, -120, 0, 120);
+      g.addColorStop(0, '#fffaf0'); g.addColorStop(0.55, '#f0e6cc'); g.addColorStop(1, '#d8c8a0');
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(10, 14, 548, 132, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 548, 132, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(150,120,80,0.3)'; ctx.lineWidth = 2;
+      for (var gr = 0; gr < 6; gr++) {
+        ctx.beginPath(); ctx.ellipse(0, 6, 520 - gr * 30, 112 - gr * 8, 0, 0.3, Math.PI - 0.3); ctx.stroke();
+      }
+      ctx.strokeStyle = '#1a2a4a'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(0, 0, 518, 112, 0, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, 492, 94, 0, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 2;
+      for (var r2 = 0; r2 < 64; r2++) {
+        var a = r2 * TAU / 64;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * 494, Math.sin(a) * 95); ctx.lineTo(Math.cos(a + 0.06) * 516, Math.sin(a + 0.06) * 111); ctx.stroke();
+      }
+      // the engravings: a sperm whale on the left, a galleon on the right
+      ctx.save(); ctx.translate(-370, 8);
+      ctx.beginPath(); ctx.moveTo(-60, -6); ctx.quadraticCurveTo(-58, -30, -20, -30); ctx.lineTo(30, -26);
+      ctx.quadraticCurveTo(52, -20, 60, -6); ctx.lineTo(74, -20); ctx.lineTo(70, 0); ctx.lineTo(82, 12); ctx.lineTo(58, 4);
+      ctx.quadraticCurveTo(20, 16, -40, 12); ctx.quadraticCurveTo(-62, 10, -60, -6); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-44, -14, 2.5, 0, TAU); ctx.fill();
+      for (var sp = 0; sp < 3; sp++) { ctx.beginPath(); ctx.moveTo(-46, -32); ctx.quadraticCurveTo(-50 + sp * 6, -52, -58 + sp * 12, -58); ctx.stroke(); }
+      for (var h2 = 0; h2 < 5; h2++) { ctx.beginPath(); ctx.moveTo(-40 + h2 * 16, 6); ctx.lineTo(-34 + h2 * 16, 12); ctx.stroke(); }
+      ctx.restore();
+      ctx.save(); ctx.translate(370, 14);
+      ctx.beginPath(); ctx.moveTo(-50, 0); ctx.lineTo(50, 0); ctx.lineTo(40, 16); ctx.lineTo(-40, 16); ctx.closePath(); ctx.stroke();
+      [[-24, 50], [6, 62], [32, 44]].forEach(function (m) {
+        ctx.beginPath(); ctx.moveTo(m[0], 0); ctx.lineTo(m[0], -m[1]); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(m[0] - 14, -m[1] + 8); ctx.quadraticCurveTo(m[0] + 4, -m[1] + 18, m[0] - 14, -m[1] + 30); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(m[0] + 14, -m[1] + 8); ctx.quadraticCurveTo(m[0] - 4, -m[1] + 18, m[0] + 14, -m[1] + 30); ctx.stroke();
+      });
+      ctx.beginPath(); ctx.moveTo(-70, 24); ctx.quadraticCurveTo(-35, 18, 0, 24); ctx.quadraticCurveTo(35, 30, 70, 24); ctx.stroke();
+      ctx.restore();
+      ctx.globalAlpha = run.alpha;
+      ctx.font = 'bold 24px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#8a2a1a';
+      ctx.fillText('PLUNDER BAY', 0, -48);
+      titleText(ctx, (run.info.name || 'Whalebone Atoll').toUpperCase(), 0, 18, 620, 90, '#1a2a4a', null);
+      var ink = seg(t, at + 0.5, at + 1.5);
+      if (ink > 0 && ink < 1) {
+        additive(ctx, function () {
+          var sx = lerp(-520, 520, ink);
+          var sg = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0);
+          sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,240,0.45)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = sg; ctx.fillRect(sx - 90, -130, 180, 260);
+        });
+      }
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------ Thunderhead Rock
+  /* A jagged bolt from (x0, y0) down to (x1, y1), forked, fixed by its
+     seed for the moment it lives. */
+  function thBolt(ctx, x0, y0, x1, y1, seed, power) {
+    var pts = [[x0, y0]];
+    for (var i = 1; i < 12; i++) {
+      var f = i / 12;
+      pts.push([lerp(x0, x1, f) + (hash(seed + i) - 0.5) * 70 * (1 - f * 0.5), lerp(y0, y1, f)]);
+    }
+    pts.push([x1, y1]);
+    additive(ctx, function () {
+      [[18, 'rgba(140,170,255,' + (0.25 * power) + ')'], [7, 'rgba(200,220,255,' + (0.7 * power) + ')'],
+       [3, 'rgba(255,255,255,' + power + ')']].forEach(function (pass) {
+        ctx.strokeStyle = pass[1]; ctx.lineWidth = pass[0]; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.beginPath();
+        pts.forEach(function (p, j) { if (j) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+        var k = 4 + Math.floor(hash(seed * 3) * 4);
+        ctx.moveTo(pts[k][0], pts[k][1]);
+        ctx.lineTo(pts[k][0] + 90 * (hash(seed * 5) - 0.3), pts[k][1] + 80);
+        ctx.lineTo(pts[k][0] + 130 * (hash(seed * 5) - 0.3), pts[k][1] + 150);
+        ctx.stroke();
+      });
+      dot(ctx, '#c8d8ff', x1, y1, 90, 0.7 * power);
+    });
+  }
+
+  Intro.register('pb_thunderhead', {
+    name: 'Thunderhead Rock',
+    tagline: 'A lighthouse on a rock in a storm. The lightning goes for whoever is carrying gold.',
+    accent: '#8ab8ff',
+    cues: [[0.1, 'pb_waves', 0.8], [1.0, 'pb_twist_storm', 0.6], [1.3, 'pb_thunder', 0.9], [2.4, 'pb_crackle', 0.7],
+           [3.0, 'pb_thunder', 1.0], [4.4, 'pb_go', 0.6]],
+    shakes: [[1.3, 6, 0.4], [3.0, 10, 0.5]],
+    tagY: 612, tagAt: 3.4,
+    setup: function (r) {
+      var d = { rain: [], clouds: [], spray: [] };
+      for (var i = 0; i < 160; i++) d.rain.push([r() * VW, r() * VH, between(r, 0.6, 1.2)]);
+      for (var c = 0; c < 9; c++) d.clouds.push([between(r, -200, VW), between(r, 40, 260), between(r, 160, 340), r()]);
+      for (var s = 0; s < 30; s++) d.spray.push([between(r, -1, 1), between(r, 0.4, 1), r()]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 560);
+      sky.addColorStop(0, '#16122a'); sky.addColorStop(0.55, '#40345e'); sky.addColorStop(1, '#8a7aa2');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      d.clouds.forEach(function (c, i) {
+        var x = (c[0] + t * (12 + i * 3)) % (VW + 400) - 200;
+        ctx.fillStyle = i % 2 ? 'rgba(30,24,50,0.75)' : 'rgba(50,40,76,0.7)';
+        ctx.beginPath(); ctx.ellipse(x, c[1], c[2], c[2] * 0.26, 0, 0, TAU);
+        ctx.ellipse(x + c[2] * 0.5, c[1] + 18, c[2] * 0.6, c[2] * 0.2, 0, 0, TAU); ctx.fill();
+      });
+      // the lighthouse's beam sweeping round over the sea
+      var beam = Math.sin(t * 1.3) * 1.1;
+      additive(ctx, function () {
+        var g = ctx.createLinearGradient(800, 288, 800 + Math.cos(beam) * 900, 288 + Math.sin(beam) * 120);
+        g.addColorStop(0, 'rgba(255,240,180,0.45)'); g.addColorStop(1, 'rgba(255,240,180,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(800, 288);
+        ctx.lineTo(800 + Math.cos(beam - 0.08) * 1000, 288 + Math.sin(beam - 0.08) * 300);
+        ctx.lineTo(800 + Math.cos(beam + 0.08) * 1000, 288 + Math.sin(beam + 0.08) * 300); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(800, 288);
+        ctx.lineTo(800 - Math.cos(beam - 0.08) * 1000, 288 - Math.sin(beam - 0.08) * 300);
+        ctx.lineTo(800 - Math.cos(beam + 0.08) * 1000, 288 - Math.sin(beam + 0.08) * 300); ctx.fill();
+      });
+      // the sea, heaving, and the mesa standing out of it, ribbed in columns
+      waves(ctx, 520, '#2a3e58', t, 12, 1.6, 1);
+      ctx.fillStyle = '#2c2a3a';
+      ctx.fillRect(520, 372, 560, 220);
+      for (var col = 0; col < 28; col++) {
+        ctx.fillStyle = col % 2 ? '#34324a' : '#262434';
+        ctx.fillRect(522 + col * 20, 380 + (col % 3) * 4, 12, 210);
+      }
+      ctx.fillStyle = '#4a6a44'; ctx.fillRect(516, 364, 568, 12);
+      [[470, 400, 70], [1130, 410, 60], [430, 450, 50], [1180, 455, 54]].forEach(function (s) {
+        ctx.fillStyle = '#2a2836'; ctx.fillRect(s[0] - s[2] / 2, s[1], s[2], 600 - s[1]);
+        ctx.fillStyle = '#3a3850'; ctx.fillRect(s[0] - s[2] / 2, s[1], s[2], 8);
+      });
+      // the lighthouse: white and red, the lamp lit, the rod on its cap
+      ctx.fillStyle = '#f4f0e8'; ctx.beginPath(); ctx.moveTo(778, 366); ctx.lineTo(788, 300); ctx.lineTo(812, 300); ctx.lineTo(822, 366); ctx.fill();
+      ctx.fillStyle = '#c8302a';
+      [[312, 322], [334, 344], [356, 366]].forEach(function (b2) {
+        var w0 = lerp(12, 22, (b2[0] - 300) / 66), w1 = lerp(12, 22, (b2[1] - 300) / 66);
+        ctx.beginPath(); ctx.moveTo(800 - w0, b2[0]); ctx.lineTo(800 + w0, b2[0]); ctx.lineTo(800 + w1, b2[1]); ctx.lineTo(800 - w1, b2[1]); ctx.fill();
+      });
+      ctx.fillStyle = '#3a3a40'; ctx.fillRect(782, 296, 36, 5);
+      ctx.fillStyle = '#fff4c0'; ctx.fillRect(790, 280, 20, 16);
+      additive(ctx, function () { dot(ctx, '#fff0a0', 800, 288, 50, 0.8); });
+      ctx.fillStyle = '#c8302a'; ctx.beginPath(); ctx.moveTo(786, 281); ctx.lineTo(800, 266); ctx.lineTo(814, 281); ctx.fill();
+      ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(800, 266); ctx.lineTo(800, 248); ctx.stroke();
+      // spray bursting over the rocks either side
+      d.spray.forEach(function (s, i) {
+        var age = (t * 0.9 + s[2]) % 1, side = i % 2 ? 1 : -1;
+        var x = 800 + side * (360 + s[0] * 60) + side * age * 60 * s[1], y = 520 - Math.sin(age * Math.PI) * 140 * s[1];
+        ctx.fillStyle = 'rgba(230,240,255,' + (0.7 * (1 - age)) + ')';
+        ctx.beginPath(); ctx.arc(x, y, 6 + age * 14, 0, TAU); ctx.fill();
+      });
+      // the causeway: columns stepping down towards us, row on row
+      var run = seg(t, 0.4, 4.4);
+      var px = lerp(820, 740, run), py = lerp(600, 812, outCubic(run)), ps = lerp(0.42, 1.05, run);
+      var drawnRunner = false;
+      for (var row = 0; row < 7; row++) {
+        var y = 590 + row * 46 + row * row * 3.4, rx = 34 + row * 13, ry = rx * 0.4;
+        var nextY = 590 + (row + 1) * 46 + (row + 1) * (row + 1) * 3.4;
+        var n = Math.ceil(VW / (rx * 1.5)) + 2;
+        for (var k = -1; k < n; k++) {
+          var x = 800 + (k - n / 2) * rx * 1.5 + (row % 2) * rx * 0.75;
+          var yy = y + (hash(row * 31 + k) - 0.5) * 10;
+          ctx.fillStyle = (row + k) % 3 === 0 ? '#2a2834' : '#323040';
+          ctx.fillRect(x - rx, yy, rx * 2, 260);
+          ctx.fillStyle = (row * 7 + k) % 5 === 0 ? '#5a8a4a' : ((row + k) % 2 ? '#4a4a5c' : '#55556a');
+          ctx.beginPath();
+          for (var e = 0; e < 6; e++) {
+            var a = e * Math.PI / 3;
+            var hx = x + Math.cos(a) * rx, hy = yy + Math.sin(a) * ry;
+            if (e) ctx.lineTo(hx, hy); else ctx.moveTo(hx, hy);
+          }
+          ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = 'rgba(20,18,30,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+        }
+        // the warning ring, then the strike, on the column the pirate has just left
+        if (row === 3 && t > 2.4 && t < 3.6) {
+          var ringA = t < 3.0 ? 0.5 + 0.5 * Math.sin(t * 20) : Math.max(0, 1 - (t - 3.0) * 2);
+          ctx.strokeStyle = 'rgba(140,190,255,' + ringA + ')'; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.ellipse(800, y, 70, 26, 0, 0, TAU); ctx.stroke();
+        }
+        // he stands on this row's columns: drawn over them, under the nearer rows
+        if (!drawnRunner && py < nextY) { pirate(ctx, px, py, ps, t, 0, 0, -1); drawnRunner = true; }
+      }
+      // a gold bar in his arms: the lightning's favourite
+      // (drawn with the pirate, above his head)
+      ctx.fillStyle = '#ffc830';
+      ctx.fillRect(px - 26 * ps, py - 140 * ps, 52 * ps, 18 * ps);
+      additive(ctx, function () { dot(ctx, '#ffe080', px, py - 131 * ps, 36 * ps, 0.5); });
+      // the strikes: the lighthouse's rod, then the causeway behind him
+      if (t > 1.3 && t < 1.75) thBolt(ctx, 690, -20, 800, 248, 11, 1 - (t - 1.3) / 0.45);
+      if (t > 3.0 && t < 3.5) thBolt(ctx, 980, -20, 800, 724, 29, 1 - (t - 3.0) / 0.5);
+      var flash = Math.max(t > 1.3 ? Math.max(0, 1 - (t - 1.3) * 3) : 0, t > 3.0 ? Math.max(0, 1 - (t - 3.0) * 2.5) : 0);
+      if (flash > 0) { ctx.fillStyle = 'rgba(220,225,255,' + (0.55 * flash) + ')'; ctx.fillRect(0, 0, VW, VH); }
+      // the rain over everything
+      ctx.strokeStyle = 'rgba(200,210,240,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      d.rain.forEach(function (r2) {
+        var x = (r2[0] + t * 260 * r2[2]) % VW, y = (r2[1] + t * 1300 * r2[2]) % VH;
+        ctx.moveTo(x, y); ctx.lineTo(x - 10, y - 34);
+      });
+      ctx.stroke();
+    },
+    title: function (ctx, t, d, run) {
+      // a slab of slate, brass-riveted, the name burning in it in storm-light
+      // -- it flickers on with the first strike
+      var at = 1.0;
+      if (t < at) return;
+      var k = outBack(seg(t, at, at + 0.45), 1.4);
+      ctx.save();
+      ctx.translate(800, 168 - (1 - k) * 320);
+      ctx.rotate(-0.012 + wobble(t, at + 0.45, 0.02, 12, 6));
+      var g = ctx.createLinearGradient(0, -95, 0, 95);
+      g.addColorStop(0, '#4a4858'); g.addColorStop(1, '#2a2834');
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(ctx, -490, -84, 1000, 190, 14); ctx.fill();
+      ctx.fillStyle = g; roundRect(ctx, -500, -95, 1000, 190, 14); ctx.fill();
+      ctx.strokeStyle = '#6a6878'; ctx.lineWidth = 3; roundRect(ctx, -480, -78, 960, 156, 8); ctx.stroke();
+      ctx.fillStyle = '#c88a3a';
+      [[-474, -72], [474, -72], [-474, 72], [474, 72]].forEach(function (p) {
+        ctx.beginPath(); ctx.arc(p[0], p[1], 8, 0, TAU); ctx.fill();
+      });
+      ctx.globalAlpha = run.alpha;
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#c88a3a';
+      ctx.fillText('PLUNDER BAY', 0, -44);
+      var lit = t < 1.3 ? 0.15 : (t < 1.6 ? (Math.sin(t * 90) > 0 ? 1 : 0.25) : 0.85 + 0.15 * Math.sin(t * 7));
+      var name = (run.info.name || 'Thunderhead Rock').toUpperCase();
+      titleText(ctx, name, 0, 18, 820, 84, lit > 0.5 ? '#e8f2ff' : '#6a7a98', '#1a1830', 8);
+      if (lit > 0.5) {
+        additive(ctx, function () {
+          ctx.globalAlpha = 0.55 * lit * run.alpha;
+          titleText(ctx, name, 0, 18, 820, 84, '#7ab8ff', null);
+          ctx.globalAlpha = run.alpha;
+        });
+      }
+      // sparks running round the border
+      if (t > 1.3) {
+        var per = 2 * (960 + 156);
+        for (var sp = 0; sp < 3; sp++) {
+          var u = ((t - 1.3) * 900 + sp * per / 3) % per, sx, sy;
+          if (u < 960) { sx = -480 + u; sy = -78; } else if (u < 1116) { sx = 480; sy = -78 + (u - 960); }
+          else if (u < 2076) { sx = 480 - (u - 1116); sy = 78; } else { sx = -480; sy = 78 - (u - 2076); }
+          additive(ctx, function () { dot(ctx, '#9ad8ff', sx, sy, 22, 0.9); dot(ctx, '#ffffff', sx, sy, 6, 1); });
+        }
+      }
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------ Sulphur Springs
+  Intro.register('pb_sulphur', {
+    name: 'Sulphur Springs',
+    tagline: 'White terraces, steaming pools, a spring in every colour. Do not stand on the geysers.',
+    accent: '#3ad0e0',
+    cues: [[0.2, 'pb_hiss', 0.6], [0.9, 'pb_gull', 0.5], [1.5, 'pb_twist_geysers', 0.7], [1.7, 'pb_geyser', 0.9],
+           [2.4, 'pb_coins', 0.6], [3.4, 'pb_hiss', 0.5], [4.4, 'pb_go', 0.6]],
+    shakes: [[1.7, 6, 0.5]],
+    tagY: 612, tagAt: 3.3,
+    setup: function (r) {
+      var d = { steam: [], coins: [], drops: [], clouds: [] };
+      for (var i = 0; i < 26; i++) d.steam.push([between(r, 140, 1460), between(r, 300, 520), r() * 6, between(r, 0.6, 1.3)]);
+      for (var c = 0; c < 14; c++) d.coins.push([between(r, -1, 1), between(r, 0.6, 1.2), c * 0.08 + r() * 0.08, r() * 6]);
+      for (var k = 0; k < 40; k++) d.drops.push([between(r, -1, 1), between(r, 0.3, 1), r()]);
+      for (var q = 0; q < 5; q++) d.clouds.push([between(r, 0, VW), between(r, 60, 180), between(r, 120, 220)]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 420);
+      sky.addColorStop(0, '#2a7ac8'); sky.addColorStop(1, '#f4e8c8');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      d.clouds.forEach(function (c) {
+        var x = (c[0] + t * 10) % (VW + 300) - 150;
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.beginPath(); ctx.ellipse(x, c[1], c[2], c[2] * 0.28, 0, 0, TAU); ctx.fill();
+      });
+      // the volcano far off, smoking; green hills
+      ctx.fillStyle = '#6a5a4a';
+      ctx.beginPath(); ctx.moveTo(140, 400); ctx.lineTo(330, 170); ctx.lineTo(380, 170); ctx.lineTo(600, 400); ctx.fill();
+      for (var p = 0; p < 7; p++) {
+        ctx.fillStyle = 'rgba(220,214,206,' + (0.7 - p * 0.08) + ')';
+        ctx.beginPath(); ctx.arc(355 + Math.sin(t + p) * 8 + p * 12, 150 - p * 26 - (t * 10 % 26), 20 + p * 7, 0, TAU); ctx.fill();
+      }
+      ctx.fillStyle = '#4a8a3a';
+      ctx.beginPath(); ctx.moveTo(0, 420); ctx.quadraticCurveTo(400, 300, 800, 360); ctx.quadraticCurveTo(1200, 280, VW, 380); ctx.lineTo(VW, 460); ctx.lineTo(0, 460); ctx.fill();
+      // the terraces, four white steps, pools brimming on each; the
+      // bathhouse's columns on top, the gilt governor among them
+      var tiers = [[1300, 240, 470], [1120, 210, 430], [920, 180, 392], [700, 150, 356]];
+      tiers.forEach(function (tr, i) {
+        var w = tr[0], top = tr[2], x0 = 800 - w / 2;
+        ctx.fillStyle = i % 2 ? '#e4d8bc' : '#f2ead8';
+        ctx.fillRect(x0, top, w, 500 - top);
+        ctx.fillStyle = '#cdbd9c';
+        for (var f = 0; f < w / 30; f++) ctx.fillRect(x0 + f * 30 + 6, top + 6, 14, 10 + (f * 7 % 5) * 5);
+        for (var pl = 0; pl < 3 + i % 2; pl++) {
+          var px = x0 + 60 + pl * (w - 120) / (2 + i % 2);
+          ctx.fillStyle = '#e4d8bc'; ctx.fillRect(px - 44, top - 8, 88, 10);
+          ctx.fillStyle = '#5ae0ec'; ctx.fillRect(px - 38, top - 6, 76, 6);
+        }
+      });
+      for (var cl = 0; cl < 8; cl++) {
+        var cx2 = 590 + cl * 60, h = cl % 3 === 1 ? 36 : 86;
+        ctx.fillStyle = '#f4f0e4'; ctx.fillRect(cx2 - 8, 356 - h, 16, h);
+        ctx.fillStyle = '#e0d4b8'; ctx.fillRect(cx2 - 12, 356 - h - 8, 24, 8);
+      }
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(792, 290, 16, 46); ctx.fillRect(788, 278, 24, 14);
+      // the steam off the pools, drifting
+      d.steam.forEach(function (s) {
+        var age = (t * 0.3 * s[3] + s[2] / 6) % 1;
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * (1 - age)) + ')';
+        ctx.beginPath(); ctx.arc(s[0] + age * 30, s[1] - age * 120, 14 + age * 30, 0, TAU); ctx.fill();
+      });
+      // the green below, and the grand spring: rings from red to deep blue
+      ctx.fillStyle = '#7aa040'; ctx.fillRect(0, 500, VW, 400);
+      ctx.fillStyle = '#f2ead8';
+      ctx.beginPath(); ctx.ellipse(800, 720, 620, 170, 0, 0, TAU); ctx.fill();
+      ['#c8402a', '#e8702a', '#f0a030', '#e8d040', '#7ac85a', '#3ab8b0', '#1a6ab8'].forEach(function (c, i) {
+        var k = 1 - i * 0.13;
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.ellipse(800, 720, 580 * k, 150 * k, 0, 0, TAU); ctx.fill();
+      });
+      additive(ctx, function () { dot(ctx, '#ffffff', 800, 720, 300, 0.12, 80); });
+      // the boardwalk across it
+      ctx.fillStyle = '#a8805a'; ctx.fillRect(0, 770, VW, 20);
+      ctx.fillStyle = '#6a4a2e';
+      for (var bp = 0; bp < 20; bp++) ctx.fillRect(bp * 84 + 10, 790, 8, 40);
+      // Old Faithless blows: a column of boiling water, a Buccaneer thrown
+      // up on it, treasure flying out of it
+      var blow = seg(t, 1.6, 1.9), fall = seg(t, 3.4, 4.2);
+      var colH = 520 * blow * (1 - fall);
+      if (t > 1.2 && t < 1.6) {
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 + 0.5 * Math.sin(t * 30)) + ')'; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.ellipse(800, 720, 90, 26, 0, 0, TAU); ctx.stroke();
+      }
+      if (colH > 4) {
+        var g = ctx.createLinearGradient(0, 720 - colH, 0, 720);
+        g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(160,230,245,0.85)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(740, 720);
+        for (var yy = 0; yy <= 10; yy++) {
+          var ff = yy / 10;
+          ctx.lineTo(760 - ff * 30 + Math.sin(t * 20 + yy) * 8, 720 - colH * ff);
+        }
+        ctx.quadraticCurveTo(800, 720 - colH - 70, 870, 720 - colH);
+        for (yy = 10; yy >= 0; yy--) {
+          var f2 = yy / 10;
+          ctx.lineTo(840 + f2 * 30 + Math.sin(t * 18 + yy) * 8, 720 - colH * f2);
+        }
+        ctx.closePath(); ctx.fill();
+        d.drops.forEach(function (dr) {
+          var age = (t * 1.6 + dr[2]) % 1;
+          var x = 800 + dr[0] * 260 * age, y = 720 - colH - 30 + 420 * age * age - 200 * dr[1] * age;
+          ctx.fillStyle = 'rgba(230,250,255,' + (1 - age) + ')';
+          ctx.beginPath(); ctx.arc(x, y, 6, 0, TAU); ctx.fill();
+        });
+      }
+      // the Buccaneer tossed into the air, tumbling
+      var up = seg(t, 1.7, 2.6), down = seg(t, 2.6, 3.6);
+      var by = 700 - 420 * Math.sin(up * Math.PI / 2) + 420 * down * down;
+      var bx = 820 + down * 300;
+      if (t > 1.7 && by < 800) {
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(t * 5);
+        pirate(ctx, 0, 60, 0.7, t, 0, 0, -1);
+        ctx.restore();
+      }
+      if (t <= 1.7) pirate(ctx, 820, 768, 0.75, t, 0, 0, -1);
+      // treasure out of the geyser
+      if (t > 2.0) {
+        d.coins.forEach(function (c) {
+          var u = (t - 2.0 - c[2]) / 1.2;
+          if (u < 0 || u > 1.4) return;
+          var x = 800 + c[0] * 520 * Math.min(u, 1), y = 300 - c[1] * 120 * u + 330 * u * u;
+          if (y > 760) y = 760;
+          coin(ctx, x, y, 12, t * 9 + c[3]);
+        });
+      }
+      // our Corsair running the boardwalk with a chest
+      var run2 = seg(t, 0.3, 4.4);
+      var cx3 = lerp(120, 560, run2);
+      pirate(ctx, cx3, 768, 1.0, t, 0, 0);
+      ctx.fillStyle = '#7a4a26'; ctx.fillRect(cx3 - 34, 640, 68, 40);
+      ctx.fillStyle = '#d8b040'; ctx.fillRect(cx3 - 34, 640, 68, 8); ctx.fillRect(cx3 - 6, 640, 12, 40);
+    },
+    title: function (ctx, t, d, run) {
+      // a marble plaque from the bathhouse wall: a mosaic border of blue
+      // and gold, the name in deep blue picked out in gold
+      var at = 1.0;
+      if (t < at) return;
+      var k = outBack(seg(t, at, at + 0.5), 1.3);
+      ctx.save();
+      ctx.translate(800, 176 - (1 - k) * 340);
+      ctx.rotate(0.01 + wobble(t, at + 0.5, 0.02, 10, 5));
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; roundRect(ctx, -490, -82, 1000, 184, 10); ctx.fill();
+      var g = ctx.createLinearGradient(0, -92, 0, 92);
+      g.addColorStop(0, '#fffaf0'); g.addColorStop(1, '#e8dcc4');
+      ctx.fillStyle = g; roundRect(ctx, -500, -92, 1000, 184, 10); ctx.fill();
+      for (var tx = 0; tx < 62; tx++) {
+        var c2 = tx % 4 === 0 ? '#e8b830' : (tx % 2 ? '#2a6ab8' : '#1a4a8a');
+        ctx.fillStyle = c2;
+        ctx.fillRect(-488 + tx * 15.8, -84, 12, 12); ctx.fillRect(-488 + tx * 15.8, 72, 12, 12);
+      }
+      for (var ty = 0; ty < 9; ty++) {
+        var c3 = ty % 4 === 0 ? '#e8b830' : (ty % 2 ? '#2a6ab8' : '#1a4a8a');
+        ctx.fillStyle = c3;
+        ctx.fillRect(-488, -66 + ty * 15.6, 12, 12); ctx.fillRect(476, -66 + ty * 15.6, 12, 12);
+      }
+      ctx.globalAlpha = run.alpha;
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#c8302a';
+      ctx.fillText('PLUNDER BAY', 0, -40);
+      titleText(ctx, (run.info.name || 'Sulphur Springs').toUpperCase(), 0, 20, 820, 86, '#1a4a8a', '#e8b830', 6);
+      // steam drifting across it
+      for (var s2 = 0; s2 < 5; s2++) {
+        var sx = -560 + ((t - at) * 140 + s2 * 260) % 1160;
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath(); ctx.ellipse(sx, 60 - s2 * 22, 90, 26, 0, 0, TAU); ctx.fill();
       }
       ctx.restore();
     }

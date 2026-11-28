@@ -650,6 +650,10 @@
   add('gem', lathe([[0.0, 0.0], [0.5, 0.42, 1], [0.5, 0.48, 1], [0.32, 0.72, 1],
                     [0.0, 0.72]], { segs: 8, facets: true }));
 
+  // A hexagonal prism: basalt columns, honeycomb cells, a pencil's barrel.
+  // Its corners point along X; drawn at [2r, h, 1.732r] it is regular.
+  add('hexprism', lathe([[0.0, 0.0], [0.5, 0.0, 1], [0.5, 1.0, 1], [0.0, 1.0]], { segs: 6, facets: true }));
+
   // A teardrop: flames, drips, candy, candle flames, a wizard's bauble.
   add('teardrop', lathe([[0.0, 0.0], [0.30, 0.06], [0.48, 0.22], [0.50, 0.34],
                          [0.40, 0.55], [0.18, 0.82], [0.0, 1.0]], { segs: 24 }));
