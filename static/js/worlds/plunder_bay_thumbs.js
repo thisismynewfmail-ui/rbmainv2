@@ -1074,4 +1074,125 @@
       }
     }
   });
+  // ------------------------------------------------- Jolly Roger Fair
+  /* The fair at dusk: the big top striped red and white with its bunting,
+     the Ferris wheel lit behind it, the roller coaster along the cliffs and
+     the Jolly Roger flying; a carousel, the boardwalk's lamps; overhead the
+     fireworks barge's rockets bursting, one coming down by a Corsair
+     running with a chest, the prize gold scattering. */
+  Thumbs.registerWorld('pb_jollyroger', {
+    sky: { top: '#2a2a6a', horizon: '#ff9a6a', sun: [0.6, 0.2, 0.7], clouds: 0.4, tint: '#ffe0c8' },
+    camera: [[30, 18, 52], [0, 9, -10], 54],
+    build: function (parts, k) {
+      var BULB = '#fff0a0', REDC = '#d83a32', WHITEC = '#f4f0e8';
+      k.box([0, -0.5, -30], [240, 1, 200], '#5a9a44');
+      k.box([0, 0.06, 6], [80, 0.12, 10], '#c8a878');
+      // the boardwalk in front, lamps along it
+      k.box([0, 0.8, 34], [120, 1.6, 8], '#a87a4a');
+      k.box([0, -2, 46], [240, 2, 16], '#2a5a8a', { m: 'glass', a: 0.85 });
+      for (var lx = -40; lx <= 40; lx += 16) {
+        k.shape('cyl', [lx, 4.6, 31], [0.4, 6, 0.4], '#2a2a32');
+        k.shape('sph', [lx, 7.9, 31], [1.2, 1.2, 1.2], BULB, { m: 'neon' });
+      }
+      // the big top: poles, the cone, white stripes, the scalloped valance
+      for (var p = 0; p < 12; p++) {
+        var a = p * Math.PI * 2 / 12;
+        k.shape('cyl', [Math.sin(a) * 15, 3.5, -8 + Math.cos(a) * 15], [0.7, 7, 0.7], p % 2 ? WHITEC : REDC);
+      }
+      k.shape('cone', [0, 12, -8], [34, 10, 34], REDC);
+      for (var st = 0; st < 6; st++) {
+        var as = st * Math.PI / 3;
+        k.shape('tri', [Math.sin(as) * 9.5, 11.6, -8 + Math.cos(as) * 9.5], [7, 21, 1.4], WHITEC,
+                { r: [-(Math.PI / 2 - Math.atan2(10, 17)), as, 0] });
+      }
+      for (var v = 0; v < 20; v++) {
+        var av = (v + 0.5) * Math.PI * 2 / 20;
+        k.shape('tri', [Math.sin(av) * 17.1, 6.6, -8 + Math.cos(av) * 17.1], [5.2, 1.6, 1], v % 2 ? '#e8b830' : REDC,
+                { r: [0, av, Math.PI] });
+      }
+      k.shape('cyl', [0, 18.6, -8], [0.3, 3.2, 0.3], '#4a3020');
+      k.box([1.3, 19.6, -8], [2.4, 1.4, 0.1], '#e8b830');
+      k.box([0, 0.6, -8], [9, 1.2, 9], REDC);
+      idol(k, 0, 1.2, -8);
+      // the Ferris wheel behind, its spokes and its cars
+      var fx = -22, fy = 21, fz = -40, R = 12;
+      for (var s2 = 0; s2 < 12; s2++) {
+        var a2 = s2 * Math.PI / 6;
+        k.box([fx + Math.cos(a2) * R / 2, fy + Math.sin(a2) * R / 2, fz], [0.3, R, 0.3], WHITEC, { r: [0, 0, a2 - Math.PI / 2] });
+        k.box([fx + Math.cos(a2) * R, fy + Math.sin(a2) * R, fz], [0.4, R * 0.55, 0.4], WHITEC, { r: [0, 0, a2] });
+        k.shape('sph', [fx + Math.cos(a2) * (R + 0.4), fy + Math.sin(a2) * (R + 0.4), fz + 0.6], [0.7, 0.7, 0.7], s2 % 2 ? BULB : '#ff8a5a', { m: 'neon' });
+        k.box([fx + Math.cos(a2 + 0.26) * R, fy + Math.sin(a2 + 0.26) * R - 1.6, fz], [2.4, 2, 2],
+              ['#ff5a5a', '#5ab8ff', '#ffd84a', '#7aff7a', '#ff8ad8', '#c8a0ff'][s2 % 6]);
+      }
+      [[-6, -1], [6, -1]].forEach(function (lg) {
+        var len = Math.hypot(lg[0], fy);
+        k.box([fx + lg[0] / 2, fy / 2, fz + lg[1] * 2], [0.7, len, 0.7], WHITEC, { r: [0, 0, -Math.atan2(-lg[0], fy)] });
+      });
+      // the cliffs, the coaster along them, the Jolly Roger
+      for (var cl = 0; cl < 12; cl++) {
+        var ch = 13 + (cl * 7 % 5) * 0.8;
+        k.box([-110 + cl * 20, ch / 2, -78], [20, ch, 20], ['#6a4a3e', '#5a3e3a', '#7a5a4a'][cl % 3]);
+        k.box([-110 + cl * 20, ch + 0.6, -79], [18, 1.2, 18], '#3a7a3a');
+        k.box([-114 + cl * 20, ch - 4, -67.85], [1, 7, 0.3], '#3a7a3a');
+      }
+      var prev = null;
+      for (var cx = -100; cx <= 100; cx += 8) {
+        var cy = 24 + 6 * Math.sin(cx * 0.05) + 3 * Math.sin(cx * 0.13);
+        k.shape('cyl', [cx, (15 + cy) / 2, -76], [0.5, cy - 15, 0.5], WHITEC);
+        if (prev) {
+          var dx = cx - prev[0], dy = cy - prev[1];
+          k.box([(cx + prev[0]) / 2, (cy + prev[1]) / 2 + 0.3, -76], [Math.hypot(dx, dy) + 0.2, 0.4, 1.6], REDC,
+                { r: [0, 0, Math.atan2(dy, dx)] });
+        }
+        prev = [cx, cy];
+      }
+      [['#e8302a', 18], ['#ffd84a', 21], ['#2a8ae8', 24]].forEach(function (car) {
+        var x = car[1], y = 24 + 6 * Math.sin(x * 0.05) + 3 * Math.sin(x * 0.13);
+        k.box([x, y + 1.3, -76], [2.8, 1.2, 2], car[0]);
+      });
+      k.shape('cyl', [8, 30, -84], [0.6, 30, 0.6], '#4a3020');
+      k.box([14, 41, -84], [12, 8, 0.2], '#141418');
+      k.shape('sph', [14, 42, -83.8], [2.6, 2.6, 0.3], '#f4f0e0');
+      k.box([14, 39.4, -83.8], [5, 0.6, 0.3], '#f4f0e0', { r: [0, 0, 0.6] });
+      k.box([14, 39.4, -83.8], [5, 0.6, 0.3], '#f4f0e0', { r: [0, 0, -0.6] });
+      // a carousel on the right, a helter-skelter
+      k.shape('cyl', [34, 0.5, -18], [12, 1, 12], '#e8b830', { m: 'metal' });
+      k.shape('cyl', [34, 4.5, -18], [1, 8, 1], '#e8c060');
+      k.shape('cone', [34, 9.6, -18], [13, 3, 13], '#f4f0e8');
+      for (var h = 0; h < 6; h++) {
+        var ah = h * Math.PI / 3;
+        k.shape('cyl', [34 + Math.sin(ah) * 4.6, 4.5, -18 + Math.cos(ah) * 4.6], [0.2, 8, 0.2], '#e8c060');
+        k.box([34 + Math.sin(ah) * 4.6, 2.6 + (h % 2) * 0.8, -18 + Math.cos(ah) * 4.6], [0.8, 1.4, 2.2],
+              ['#f2ece0', '#c8281e', '#2f6aa8'][h % 3], { r: [0, ah + Math.PI / 2, 0] });
+      }
+      for (var b = 0; b < 4; b++) k.shape('cyl', [-46, 2 + b * 4, -24], [6, 4, 6], b % 2 ? WHITEC : REDC);
+      k.shape('cone', [-46, 18.5, -24], [7, 5, 7], REDC);
+      // the rockets: a burst overhead, one coming down by the Corsair
+      [[14, 34, -20, '#ff5ad8'], [-30, 38, -30, '#5ae8ff'], [36, 30, -40, '#ffe05a']].forEach(function (fw, i) {
+        k.shape('sph', [fw[0], fw[1], fw[2]], [8, 8, 8], fw[3], { m: 'neon', a: 0.18 });
+        for (var r = 0; r < 14; r++) {
+          var ar = r * Math.PI * 2 / 14;
+          k.box([fw[0] + Math.cos(ar) * 4, fw[1] + Math.sin(ar) * 4, fw[2]], [0.3, 4.4, 0.3], r % 2 ? fw[3] : '#ffffff',
+                { m: 'neon', r: [0, 0, ar - Math.PI / 2] });
+        }
+      });
+      k.box([16, 9, 18], [0.8, 2.2, 0.8], REDC, { r: [0, 0, 0.5] });
+      k.shape('sph', [15.2, 7.4, 18], [1.6, 1.6, 1.6], '#ffd86a', { m: 'neon', a: 0.7 });
+      k.shape('torus', [18, 0.3, 22], [12, 0.6, 12], '#ff5ad8', { m: 'neon', a: 0.85 });
+      pirate(k, 8, 22, 1.5, 'red', { anim: 'run', time: 0.5, holding: CHEST });
+      pirate(k, -6, 16, 0.6, 'blue', { anim: 'run', time: 1.0, face: 'face_angry' });
+      coins(k, 14, 0.2, 24, 10, 3);
+      // bunting from the big top down to the fair
+      [[-1, 1], [1, 1]].forEach(function (d2) {
+        var ex = d2[0] * 26, ey = 4, ez = -8 + d2[1] * 16, ln = Math.hypot(ex - d2[0] * 4, ey - 16, ez + 6);
+        k.box([(d2[0] * 4 + ex) / 2, (16 + ey) / 2 - 0.8, (-6 + ez) / 2], [0.08, ln, 0.08], '#efe6d6',
+              { r: [Math.atan2(ez + 6, 16 - ey), 0, Math.asin((ex - d2[0] * 4) / ln)] });
+        for (var q = 0; q < 8; q++) {
+          var u = (q + 0.5) / 8;
+          k.shape('tri', [d2[0] * (4 + u * 22), 16 - u * 12 - Math.sin(u * Math.PI) * 1.5, -8 + d2[1] * (2 + u * 14)], [1.2, 1.3, 0.6],
+                  ['#ffd84a', '#ff5ad8', '#5ae8ff', '#7aff7a'][q % 4], { r: [0, d2[0] * 0.8, Math.PI] });
+        }
+      });
+    }
+  });
 })(window);

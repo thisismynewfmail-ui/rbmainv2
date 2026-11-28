@@ -30,6 +30,14 @@
      pb_rainbow     a rainbow arching over the sky, brightening and fading
      pb_petals      blossom petals drifting down from a tree
      pb_fishnet     a cantilevered fishing net dipping into the sea and rising
+     pb_coaster     a roller coaster's train racing round its track
+     pb_jollyroger  a great Jolly Roger flying, skull and bones riding the cloth
+     pb_swingship   the swinging-galleon ride, swinging higher and higher
+     pb_trapeze     a trapeze artist swinging under the big top
+     pb_striker     the high striker: mallet, puck up the pole, the bell
+     pb_ducks       a shooting gallery's ducks gliding along their rail
+     pb_chairs      the chair-o-planes: the crown turning, chairs flying out
+     pb_notes       music notes rising off a bandstand
 
    A rig that floats (pb_glow, pb_lanterns, pb_sampan; rr_surf too) and is
    given ``tide: true`` rides the sea's height (ctx.water()) instead of its
@@ -814,6 +822,286 @@
     };
   });
 
+  // ========================================================= the funfair
+  /* A roller coaster's train running its circuit (``path``: the track's
+     points in order, as offsets from ``p``; the last joins the first):
+     slow over the crests, flying through the dips, the riders' arms up on
+     the drops, a rush of air as it goes by. */
+  Rigs.register('pb_coaster', function (spec, ctx) {
+    var pts = (spec.path || []).map(function (o) { return [spec.p[0] + o[0], spec.p[1] + o[1], spec.p[2] + o[2]]; });
+    var n = pts.length;
+    if (n < 3) return { radius: 1, draw: function () {} };
+    var cum = [0], top = -1e9, cx = 0, cz = 0, span = 0;
+    for (var i = 0; i < n; i++) {
+      cum.push(cum[i] + dist(pts[i], pts[(i + 1) % n]));
+      top = Math.max(top, pts[i][1]); cx += pts[i][0] / n; cz += pts[i][2] / n;
+    }
+    pts.forEach(function (q) { span = Math.max(span, Math.hypot(q[0] - cx, q[2] - cz)); });
+    var L = cum[n], s = 0, cars = spec.cars || 4, gap = 3.3, lastRush = -10;
+    function at(d) {
+      d = ((d % L) + L) % L;
+      var a0 = 0, a1 = n;
+      while (a1 - a0 > 1) { var mid = (a0 + a1) >> 1; if (cum[mid] <= d) a0 = mid; else a1 = mid; }
+      var a = pts[a0], b = pts[(a0 + 1) % n], u = (d - cum[a0]) / Math.max(1e-6, cum[a0 + 1] - cum[a0]);
+      return { p: [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u],
+               dir: [b[0] - a[0], b[1] - a[1], b[2] - a[2]] };
+    }
+    return {
+      radius: span + 140,
+      update: function (dt, t) {
+        var h = at(s).p[1];
+        var v = Math.max(spec.min || 6, Math.sqrt(2 * 9.8 * Math.max(0, top - h)));
+        s = (s + v * dt) % L;
+        if (v > 15 && t - lastRush > 7 && ctx && ctx.sound && near(ctx, at(s).p, 90)) {
+          lastRush = t; ctx.sound('pb_whoosh', at(s).p, 1);
+        }
+      },
+      draw: function (pen, t) {
+        var cols = spec.colours || ['#e8302a', '#ffd84a', '#2a8ae8', '#3ac85a'];
+        for (var c = 0; c < cars; c++) {
+          var q = at(s - c * gap), d = q.dir, hl = Math.hypot(d[0], d[2]);
+          var f = child(frame([q.p[0], q.p[1] + 0.8, q.p[2]], Math.atan2(d[0], d[2])), [0, 0, 0], -Math.atan2(d[1], hl), 0, 0);
+          pen.part(f, 'box', [0, 0, 0], [2.2, 0.9, 2.8], cols[c % cols.length]);
+          pen.part(f, 'box', [0, 0.55, -1.0], [2.0, 0.6, 0.3], '#1a1a22');
+          pen.part(f, 'box', [0, -0.55, 0], [1.6, 0.2, 2.2], '#3a3a42', { m: 'metal' });
+          var down = d[1] < -0.35 * hl;
+          for (var k = -1; k <= 1; k += 2) {
+            pen.part(f, 'box', [k * 0.5, 0.85, 0.1], [0.7, 0.8, 0.6], k > 0 ? '#c4281c' : '#2a6ab8');
+            pen.part(f, 'box', [k * 0.5, 1.5, 0.1], [0.55, 0.55, 0.55], '#f5cd30');
+            pen.part(f, 'box', [k * 0.5, 1.82, 0.1], [0.6, 0.12, 0.6], k > 0 ? '#1a1a22' : '#c8302a');
+            if (down) pen.part(f, 'box', [k * 0.88, 1.9, 0.1], [0.2, 0.9, 0.2], '#f5cd30', { rz: -k * 0.2 });
+          }
+          if (c === 0) {
+            pen.part(f, 'sph', [0, 0.35, 1.5], [1.0, 0.9, 0.6], '#f4f0e0');
+            pen.part(f, 'box', [-0.2, 0.45, 1.8], [0.2, 0.2, 0.06], '#1a1a1a');
+            pen.part(f, 'box', [0.2, 0.45, 1.8], [0.2, 0.2, 0.06], '#1a1a1a');
+          }
+        }
+      }
+    };
+  });
+
+  /* The Jolly Roger: a great black flag flying from the top of its mast
+     (``p`` the head of the hoist; the fly streams along local +x), the
+     skull and crossbones riding the waves of the cloth.  ``w`` by ``h``. */
+  Rigs.register('pb_jollyroger', function (spec) {
+    var W = spec.w || 20, H = spec.h || 13, n = 12, white = '#f4f0e0', black = '#141418';
+    return {
+      radius: W + 400,
+      draw: function (pen, t) {
+        var f = frame(spec.p, (spec.yaw || 0) + Math.sin(t * 0.25) * 0.1, 1);
+        function wave(x) { var u = x / W; return Math.sin(t * 3.0 - u * 5.0) * 1.2 * u; }
+        for (var i = 0; i < n; i++) {
+          var x0 = i * W / n, x1 = (i + 1) * W / n, z0 = wave(x0), z1 = wave(x1);
+          pen.part(f, 'box', [(x0 + x1) / 2, -H / 2, (z0 + z1) / 2], [Math.hypot(x1 - x0, z1 - z0) + 0.06, H, 0.16], black,
+                   { ry: -Math.atan2(z1 - z0, x1 - x0) });
+        }
+        var sx = W * 0.5;
+        var g = child(f, [sx, -H * 0.45, wave(sx)], 0, -Math.atan2(wave(sx + 0.5) - wave(sx - 0.5), 1), 0);
+        var by = -H * 0.2, bx = W * 0.25 * Math.cos(0.6), bz = W * 0.25 * Math.sin(0.6);
+        [-1, 1].forEach(function (side) {
+          pen.part(g, 'box', [0, by, 0.12], [W * 0.5, H * 0.07, 0.1], white, { rz: side * 0.6 });
+          pen.part(g, 'sph', [side * bx, by + bz, 0.13], [H * 0.1, H * 0.1, 0.1], white);
+          pen.part(g, 'sph', [side * bx, by - bz, 0.13], [H * 0.1, H * 0.1, 0.1], white);
+        });
+        pen.part(g, 'sph', [0, H * 0.08, 0.17], [H * 0.36, H * 0.34, 0.12], white);
+        pen.part(g, 'box', [0, -H * 0.08, 0.17], [H * 0.2, H * 0.12, 0.12], white);
+        pen.part(g, 'sph', [-H * 0.075, H * 0.09, 0.25], [H * 0.1, H * 0.11, 0.08], black);
+        pen.part(g, 'sph', [H * 0.075, H * 0.09, 0.25], [H * 0.1, H * 0.11, 0.08], black);
+        pen.part(g, 'box', [0, -H * 0.005, 0.25], [H * 0.04, H * 0.06, 0.08], black);
+        for (var k = -2; k <= 2; k++) pen.part(g, 'box', [k * H * 0.035, -H * 0.11, 0.25], [H * 0.012, H * 0.05, 0.08], black);
+      }
+    };
+  });
+
+  /* The swinging galleon: a pirate-ship ride hung from its axle (``p``,
+     the axle along local x, the boat ``arm`` below it), swinging higher
+     and higher, riders' arms up at the top of each swing, then easing back
+     down to let them off. */
+  Rigs.register('pb_swingship', function (spec, ctx) {
+    var arm = spec.arm || 10, cycle = spec.cycle || 40, seed = spec.seed || 0;
+    var hull = spec.colour || '#8a4a2a', sail = spec.sail || '#c8302a', lastSqueal = -10;
+    function amp(t) {
+      var ph = ((t + seed * 7) % cycle) / cycle;
+      return ph < 0.12 ? 0.15 : ph < 0.4 ? 0.15 + (ph - 0.12) / 0.28 * 1.05 : ph < 0.75 ? 1.2 :
+             ph < 0.95 ? 1.2 * (1 - (ph - 0.75) / 0.2) : 0;
+    }
+    return {
+      radius: arm + 80,
+      update: function (dt, t) {
+        if (amp(t) > 1.1 && t - lastSqueal > 5.2 && ctx && ctx.sound && near(ctx, spec.p, 70)) {
+          lastSqueal = t; ctx.sound('pb_whoosh', spec.p, 0.5);
+        }
+      },
+      draw: function (pen, t) {
+        var A = amp(t), ang = A * Math.sin(t * 2 * Math.PI / 5.2);
+        var f = child(frame(spec.p, spec.yaw || 0), [0, 0, 0], ang, 0, 0);
+        [-1.7, 1.7].forEach(function (x) { pen.part(f, 'box', [x, -arm / 2, 0], [0.4, arm, 0.4], '#c8a040', { m: 'metal' }); });
+        pen.part(f, 'cyl', [0, 0, 0], [0.8, 4.2, 0.8], '#8a8a92', { rz: Math.PI / 2, m: 'metal' });
+        pen.part(f, 'box', [0, -arm - 0.6, 0], [3.6, 1.8, 12], hull);
+        pen.part(f, 'box', [0, -arm + 0.25, 0], [3.2, 0.2, 11.2], '#a8805a');
+        pen.part(f, 'box', [0, -arm - 0.1, 6.7], [2.4, 1.6, 1.8], hull, { rx: -0.5 });
+        pen.part(f, 'box', [0, -arm - 0.1, -6.7], [2.4, 1.6, 1.8], hull, { rx: 0.5 });
+        pen.part(f, 'box', [0, -arm - 0.9, 0], [3.7, 0.3, 11.6], '#e8b830');
+        pen.part(f, 'sph', [0, -arm + 0.4, 7.6], [1.0, 1.0, 0.8], '#f4f0e0');
+        for (var r = -2; r <= 2; r++) {
+          for (var sd = -1; sd <= 1; sd += 2) {
+            var z = r * 2.1 + (sd > 0 ? 0 : 1.0);
+            pen.part(f, 'box', [sd * 0.85, -arm + 0.8, z], [0.6, 0.9, 0.6], (r + sd) % 2 ? '#c4281c' : '#2a6ab8');
+            pen.part(f, 'box', [sd * 0.85, -arm + 1.5, z], [0.5, 0.5, 0.5], '#f5cd30');
+            if (Math.abs(ang) > 0.75) pen.part(f, 'box', [sd * 1.15, -arm + 2.0, z], [0.15, 0.8, 0.15], '#f5cd30', { rz: -sd * 0.2 });
+          }
+        }
+        pen.part(f, 'box', [0, -arm + 2.9, 0], [0.3, 5.0, 0.3], '#4a3020');
+        pen.part(f, 'box', [0, -arm + 3.8, 0.25], [3.0, 2.6, 0.12], sail);
+        pen.part(f, 'box', [0, -arm + 5.6, 0.25], [1.4, 0.9, 0.12], '#141418');
+      }
+    };
+  });
+
+  /* A trapeze artist under the big top: the bar on its ropes swinging,
+     the flyer hanging from it by the knees, now and then turning a
+     somersault.  ``p`` where the ropes hang from; ``len`` how long. */
+  Rigs.register('pb_trapeze', function (spec) {
+    var L = spec.len || 7, seed = spec.seed || 0;
+    return {
+      radius: 60,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        var f = child(frame(spec.p, spec.yaw || 0), [0, 0, 0], 0, 0, Math.sin(t * 1.5 + seed) * 0.85);
+        pen.part(f, 'box', [-1.2, -L / 2, 0], [0.08, L, 0.08], '#e8e0c8');
+        pen.part(f, 'box', [1.2, -L / 2, 0], [0.08, L, 0.08], '#e8e0c8');
+        pen.part(f, 'cyl', [0, -L, 0], [0.2, 2.6, 0.2], '#c8a040', { rz: Math.PI / 2, m: 'metal' });
+        var flip = (t * 0.3 + seed) % 1;
+        var g = child(f, [0, -L, 0], 0, 0, flip > 0.85 ? (flip - 0.85) / 0.15 * TAU : 0);
+        pen.part(g, 'box', [0, -0.6, 0], [0.9, 1.2, 0.6], '#2aa8a0');
+        pen.part(g, 'box', [0, -1.8, 0], [1.1, 1.4, 0.7], '#ffd84a', { m: 'metal' });
+        pen.part(g, 'box', [0, -2.9, 0], [0.7, 0.7, 0.7], '#f5cd30');
+        pen.part(g, 'box', [-0.7, -3.1, 0], [0.25, 1.4, 0.25], '#f5cd30', { rz: 0.3 });
+        pen.part(g, 'box', [0.7, -3.1, 0], [0.25, 1.4, 0.25], '#f5cd30', { rz: -0.3 });
+      }
+    };
+  });
+
+  /* The high striker: the mallet comes down, the puck shoots up the pole
+     -- and every so often rings the bell at the top, which flashes.
+     ``h`` the pole's height; the face looks along local +z. */
+  Rigs.register('pb_striker', function (spec, ctx) {
+    var H = spec.h || 8, every = spec.every || 4.2, seed = spec.seed || 0, rung = -1;
+    function state(t) {
+      var slot = Math.floor((t + seed) / every), ph = ((t + seed) % every) / every;
+      return { slot: slot, ph: ph, strong: hash(slot * 3.1 + seed) > 0.5 };
+    }
+    return {
+      radius: 40,
+      update: function (dt, t) {
+        var st = state(t);
+        if (st.strong && st.ph > 0.32 && rung !== st.slot) {
+          rung = st.slot;
+          if (ctx && ctx.sound && near(ctx, spec.p, 60)) ctx.sound('pb_ding', [spec.p[0], spec.p[1] + H, spec.p[2]], 0.8);
+        }
+      },
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        var st = state(t), ph = st.ph, peak = st.strong ? H - 1.2 : H * (0.25 + hash(st.slot) * 0.45);
+        var y = ph < 0.08 ? 0 : ph < 0.32 ? Math.sin((ph - 0.08) / 0.24 * Math.PI / 2) * peak :
+                ph < 0.62 ? peak * (1 - (ph - 0.32) / 0.3) : 0;
+        var f = frame(spec.p, spec.yaw || 0);
+        pen.part(f, 'box', [0, 0.9 + y, 0.32], [0.5, 0.45, 0.26], '#ff3a2a', { m: 'neon' });
+        var ding = st.strong && ph > 0.3 && ph < 0.52;
+        pen.part(f, 'sph', [0, H + 0.6, 0.2], [1.3, 1.1, 1.3], ding ? '#fff6a0' : '#e8b830', { m: ding ? 'neon' : 'metal' });
+        if (ding) pen.part(f, 'sph', [0, H + 0.6, 0.2], [4.0, 4.0, 4.0], '#fff6a0', { m: 'neon', a: 0.25 });
+        var sw = ph < 0.08 ? -1.4 + ph / 0.08 * 1.9 : ph < 0.9 ? 0.5 - Math.min(1, (ph - 0.08) / 0.5) * 1.9 : -1.4;
+        var m = child(f, [0, 2.6, 2.4], sw, 0, 0);
+        pen.part(m, 'box', [0, -0.2, -1.0], [0.18, 0.18, 2.2], '#8a5a2a');
+        pen.part(m, 'box', [0, -0.2, -2.2], [0.7, 0.6, 0.9], '#6a3a1a');
+      }
+    };
+  });
+
+  /* A shooting gallery's ducks gliding along their rail (``w`` long, along
+     local x), bobbing; now and then one is knocked flat and springs up. */
+  Rigs.register('pb_ducks', function (spec) {
+    var W = spec.w || 8, n = spec.n || 6;
+    return {
+      radius: 30,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        var f = frame(spec.p, spec.yaw || 0);
+        for (var i = 0; i < n; i++) {
+          var u = (t * 0.12 + i / n) % 1, x = -W / 2 + u * W;
+          var down = hash(Math.floor(t * 0.5) * 7 + i) > 0.85 ? 1.3 : 0;
+          var d = child(f, [x, Math.sin(t * 4 + i) * 0.05, 0], down, 0, 0);
+          pen.part(d, 'sph', [0, 0.4, 0], [0.9, 0.7, 0.6], i % 3 ? '#ffd84a' : '#f4f0e8');
+          pen.part(d, 'sph', [0.35, 0.92, 0], [0.5, 0.5, 0.45], i % 3 ? '#ffd84a' : '#f4f0e8');
+          pen.part(d, 'box', [0.68, 0.86, 0], [0.32, 0.12, 0.2], '#ff8a2a');
+          pen.part(d, 'box', [0.46, 1.02, 0.2], [0.08, 0.08, 0.06], '#1a1a1a');
+        }
+      }
+    };
+  });
+
+  /* The chair-o-planes: the crown on its tower turning faster and faster,
+     the chairs on their chains flying out and up, riders' legs dangling;
+     then it slows and they hang straight again.  ``p`` the tower's foot,
+     ``h`` the crown's height. */
+  Rigs.register('pb_chairs', function (spec) {
+    var n = spec.n || 12, R = spec.r || 3.6, L = spec.len || 4.4, H = spec.h || 10.4, cycle = spec.cycle || 30;
+    var seed = spec.seed || 0, ang = 0;
+    function speed(t) {
+      var ph = ((t + seed * 5) % cycle) / cycle;
+      return ph < 0.15 ? ph / 0.15 : ph < 0.75 ? 1 : ph < 0.9 ? 1 - (ph - 0.75) / 0.15 : 0;
+    }
+    return {
+      radius: R + L + 60,
+      update: function (dt, t) { ang += dt * speed(t) * 1.3; },
+      draw: function (pen, t) {
+        var sp = speed(t), tilt = sp * 0.9;
+        var crown = frame([spec.p[0], spec.p[1] + H, spec.p[2]], ang);
+        pen.part(crown, 'cone', [0, 1.3, 0], [2 * R + 1.8, 2.6, 2 * R + 1.8], spec.colour || '#d83a32');
+        pen.part(crown, 'cyl', [0, 0, 0], [2 * R + 1.4, 0.5, 2 * R + 1.4], '#e8b830', { m: 'metal' });
+        for (var i = 0; i < n; i++) {
+          var a = i * TAU / n;
+          var lit = (Math.floor(t * 5) + i) % 3 === 0;
+          pen.part(crown, 'sph', [Math.sin(a) * (R + 0.75), 0, Math.cos(a) * (R + 0.75)], [0.35, 0.35, 0.35],
+                   lit ? '#fff0a0' : '#ff8ad8', { m: 'neon' });
+          var sw = child(crown, [Math.sin(a) * R, -0.2, Math.cos(a) * R], -tilt, a, 0);
+          pen.part(sw, 'box', [-0.35, -L / 2, 0], [0.05, L, 0.05], '#c8c8d0', { m: 'metal' });
+          pen.part(sw, 'box', [0.35, -L / 2, 0], [0.05, L, 0.05], '#c8c8d0', { m: 'metal' });
+          pen.part(sw, 'box', [0, -L, 0], [0.9, 0.2, 0.9], ['#d83a32', '#2aa8a0', '#e8b830', '#8a3ac8'][i % 4]);
+          pen.part(sw, 'box', [0, -L + 0.45, -0.4], [0.9, 0.8, 0.1], ['#d83a32', '#2aa8a0', '#e8b830', '#8a3ac8'][i % 4]);
+          if (i % 3 !== 2) {
+            pen.part(sw, 'box', [0, -L + 0.5, 0], [0.6, 0.7, 0.45], i % 2 ? '#c4281c' : '#2a6ab8');
+            pen.part(sw, 'box', [0, -L + 1.15, 0], [0.45, 0.45, 0.45], '#f5cd30');
+            pen.part(child(sw, [0, -L, 0.3], 0.3 + Math.sin(t * 5 + i) * 0.3 * sp, 0, 0), 'box', [0, -0.35, 0],
+                     [0.5, 0.7, 0.25], '#0d69ac');
+          }
+        }
+      }
+    };
+  });
+
+  /* Music notes rising off a bandstand, drifting, fading out. */
+  Rigs.register('pb_notes', function (spec) {
+    var n = spec.n || 8, seed = spec.seed || 0, cols = ['#ffd84a', '#ff8ad8', '#7af0ff', '#ffffff'];
+    return {
+      radius: 40,
+      draw: function (pen, t) {
+        if (!pen.near) return;
+        for (var i = 0; i < n; i++) {
+          var life = 4 + hash(seed + i) * 2, cyc = t / life + hash(seed + i * 3.1), slot = Math.floor(cyc), u = cyc - slot;
+          var x = spec.p[0] + (hash(seed + i * 5.3 + slot) - 0.5) * 7 + Math.sin(t * 2 + i) * 0.6;
+          var z = spec.p[2] + (hash(seed + i * 7.9 + slot) - 0.5) * 7;
+          var a = u < 0.15 ? u / 0.15 : 1 - Math.max(0, (u - 0.6) / 0.4), c = cols[i % cols.length];
+          var f = frame([x, spec.p[1] + u * 8, z], t * 0.6 + i);
+          pen.part(f, 'sph', [0, 0, 0], [0.55, 0.42, 0.22], c, { m: 'neon', a: a });
+          pen.part(f, 'box', [0.24, 0.55, 0], [0.08, 1.1, 0.08], c, { m: 'neon', a: a });
+          if (i % 2) pen.part(f, 'box', [0.42, 1.0, 0], [0.42, 0.12, 0.08], c, { m: 'neon', a: a, rz: -0.4 });
+        }
+      }
+    };
+  });
+
   // ============================================================ sounds
   var GA = global.GameAudio;
   if (GA && GA.register) {
@@ -825,6 +1113,18 @@
       // a waterfall: a low roar and the hiss of the spray over it
       this.noise({ filter: 'lowpass', freq: 600, dur: 2.8, gain: 0.08 * vol });
       this.noise({ filter: 'bandpass', freq: 2200, dur: 2.8, gain: 0.025 * vol });
+    });
+    GA.register('pb_whoosh', function (vol) {
+      // a coaster train (or the swinging galleon) going by: a rush of air and a rattle
+      this.noise({ filter: 'bandpass', freq: 600, freqEnd: 2400, dur: 0.9, gain: 0.12 * vol });
+      for (var i = 0; i < 8; i++) {
+        this.later(i * 70, function () { this.noise({ filter: 'highpass', freq: 3000, dur: 0.03, gain: 0.03 * vol }); });
+      }
+    });
+    GA.register('pb_ding', function (vol) {
+      // the high striker's bell
+      this.tone({ type: 'triangle', freq: 1320, dur: 1.2, gain: 0.08 * vol });
+      this.tone({ type: 'sine', freq: 2640, dur: 0.8, gain: 0.03 * vol });
     });
     GA.register('pb_pop', function (vol) {
       this.noise({ freq: 1200, freqEnd: 200, dur: 0.3, gain: 0.25 * vol });
