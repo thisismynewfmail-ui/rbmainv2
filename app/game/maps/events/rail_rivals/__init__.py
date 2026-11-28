@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ..kit import build_world
-from . import dustbowl, goldspike, gusher, lantern, pelican, redrock, sidewinder, silverpine, thunder, union
+from . import (dustbowl, goldspike, gusher, lantern, longhorn, pelican, redrock, sidewinder, silverpine,
+               thunder, union)
 
 AREAS = [
     ("dustbowl", dustbowl, "Dustbowl Gulch"),
@@ -23,6 +24,7 @@ AREAS = [
     ("sidewinder", sidewinder, "Sidewinder Dunes"),
     ("gusher", gusher, "Gusher Flats"),
     ("pelican", pelican, "Pelican Wharf"),
+    ("longhorn", longhorn, "Longhorn Stockyards"),
 ]
 
 

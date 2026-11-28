@@ -814,4 +814,113 @@
       }
     }
   });
+  // ------------------------------------------------- Longhorn Stockyards
+  /* Sundown at the crossing: the herd stampeding down the cattle trail
+     over the Goodnight line, the stock gate swung across the track and the
+     Bluebird cart held at it, a drover galloping at the flank with his
+     rope going; the Longhorn Arch, the pens with their herds, a windpump,
+     the red mesas and the gap the herd came out of. */
+  function steer(k, x, z, yaw, hide, gallop) {
+    var sw = gallop ? 0.6 : 0.1;
+    k.attach(x, 0, z, yaw, [
+      { t: 'box', p: [0, 3.2, 0], s: [2.6, 2.3, 5.2], c: hide },
+      { t: 'box', p: [0, 2.9, 3.4], s: [1.3, 1.4, 1.9], c: hide, r: [0.4, 0, 0] },
+      { t: 'box', p: [1.9, 3.6, 3.3], s: [2.6, 0.32, 0.32], c: '#efe2c4', r: [0, 0, 0.15] },
+      { t: 'box', p: [-1.9, 3.6, 3.3], s: [2.6, 0.32, 0.32], c: '#efe2c4', r: [0, 0, -0.15] },
+      { t: 'box', p: [3.2, 4.1, 3.3], s: [0.26, 0.9, 0.26], c: '#3a3028', r: [0, 0, -0.5] },
+      { t: 'box', p: [-3.2, 4.1, 3.3], s: [0.26, 0.9, 0.26], c: '#3a3028', r: [0, 0, 0.5] },
+      { t: 'box', p: [0.85, 1.1, 1.8], s: [0.55, 2.3, 0.55], c: hide, r: [sw, 0, 0] },
+      { t: 'box', p: [-0.85, 1.1, 1.8], s: [0.55, 2.3, 0.55], c: hide, r: [-sw, 0, 0] },
+      { t: 'box', p: [0.85, 1.1, -1.8], s: [0.55, 2.3, 0.55], c: hide, r: [-sw, 0, 0] },
+      { t: 'box', p: [-0.85, 1.1, -1.8], s: [0.55, 2.3, 0.55], c: hide, r: [sw, 0, 0] },
+      { t: 'box', p: [0, 3.6, -3.2], s: [0.25, 0.25, 1.8], c: '#2a201a', r: [-0.5, 0.3, 0] }
+    ]);
+  }
+  Thumbs.registerWorld('rr_longhorn', {
+    sky: { top: '#2a3a7a', horizon: '#ffb060', sun: [-0.6, 0.22, -0.5], clouds: 0.35, tint: '#ffd8a0' },
+    camera: [[-36, 17, 38], [4, 5, -18], 52],
+    build: function (parts, k) {
+      k.box([0, -0.5, -10], [280, 1, 240], '#b8a060', { st: 1 });
+      // the trail, worn to dirt, crossing the line
+      k.box([6, -0.38, -20], [26, 1, 220], '#b08458', { st: 1 });
+      k.box([6, -0.3, -20], [8, 1, 220], '#93694a', { st: 1 });
+      straight(k, -90, 90, 8);
+      // the herd thundering down it
+      var hides = ['#8a5232', '#2a2220', '#a8703e', '#6a3a22', '#e8dcc8', '#7a2e1e', '#c8a070', '#5a4030'];
+      for (var i = 0; i < 22; i++) {
+        var hx = -2 + (i % 4) * 4.6 + ((i * 7) % 3) * 0.6, hz = -70 + Math.floor(i / 4) * 9 + (i % 2) * 3;
+        if (hz > 0) continue;
+        steer(k, hx, hz, 0.05, hides[i % hides.length], true);
+      }
+      for (var p = 0; p < 12; p++) {
+        k.shape('sph', [2 + (p % 3) * 6, 2 + (p % 2) * 2.4, -84 + p * 6.5], [10, 6, 9], '#d0a878', { a: 0.38 });
+      }
+      // the drover at the flank, his rope going round
+      k.attach(-14, 0, -40, 0.1, [
+        { t: 'box', p: [0, 4.2, 0], s: [2.2, 2.4, 5.4], c: '#5a3a24' },
+        { t: 'box', p: [0, 5.8, 2.9], s: [1.2, 3.0, 1.4], c: '#5a3a24', r: [0.55, 0, 0] },
+        { t: 'box', p: [0, 6.6, 4.2], s: [1.1, 1.2, 2.4], c: '#5a3a24' },
+        { t: 'box', p: [0.7, 2.0, 2.0], s: [0.5, 3.2, 0.5], c: '#5a3a24', r: [0.5, 0, 0] },
+        { t: 'box', p: [-0.7, 2.0, 2.0], s: [0.5, 3.2, 0.5], c: '#5a3a24', r: [-0.4, 0, 0] },
+        { t: 'box', p: [0.7, 2.0, -2.0], s: [0.5, 3.2, 0.5], c: '#5a3a24', r: [-0.5, 0, 0] },
+        { t: 'box', p: [-0.7, 2.0, -2.0], s: [0.5, 3.2, 0.5], c: '#5a3a24', r: [0.4, 0, 0] },
+        { t: 'box', p: [0, 6.9, -0.2], s: [2.0, 2.2, 1.0], c: '#c4281c' },
+        { t: 'box', p: [0, 8.7, -0.2], s: [1.3, 1.3, 1.3], c: '#f5cd30' },
+        { t: 'box', p: [0, 9.45, -0.2], s: [2.8, 0.18, 2.8], c: '#6a4a2a' },
+        { t: 'box', p: [0, 9.9, -0.2], s: [1.4, 0.8, 1.4], c: '#6a4a2a' },
+        { t: 'box', p: [1.3, 9.0, -0.2], s: [0.5, 2.4, 0.5], c: '#c4281c', r: [0, 0, -0.5] }
+      ]);
+      for (var q = 0; q < 10; q++) {
+        var a = q * Math.PI / 5;
+        k.box([-11.4 + Math.cos(a) * 2.4, 11.6, -40 + Math.sin(a) * 2.4], [0.3, 0.2, 1.6], '#e8d8b0', { r: [0, -a, 0] });
+      }
+      // the stock gate swung across the track, the cart held at it
+      k.box([-14, 3.2, 13.4], [1, 6.4, 1], '#6a4a30');
+      for (var g = 0; g < 6; g++) {
+        k.box([-14, 4.6, 12.2 - g * 1.5], [0.5, 0.5, 1.5], g % 2 ? '#e8d6b0' : '#6a4428');
+      }
+      k.box([-14, 5.4, 14.0], [0.8, 0.9, 0.8], '#ffb24a', { m: 'neon' });
+      cart(k, -24, 8, Math.PI / 2, BLUE);
+      pushers(k, -24, 8, Math.PI / 2, BLUE, 2, 0.4);
+      k.player(-22, 18, 1.2, { anim: 'idle', time: 0.3, wear: cap(BLUE) });
+      // the arch over the stockyard alley, the pens, a herd in one
+      k.box([30, 9, -40], [1.4, 18, 1.4], '#6a4a30');
+      k.box([30, 9, -26], [1.4, 18, 1.4], '#6a4a30');
+      k.box([30, 16.4, -33], [1.6, 2.6, 18], '#6a4a30');
+      k.box([29.1, 16.4, -33], [0.2, 2.0, 14], '#efe2c4');
+      k.box([30, 19.6, -33], [1.6, 2.4, 2.4], '#8a5a3a');
+      k.box([30, 20.2, -38], [0.8, 0.8, 7], '#efe2c4', { r: [0.12, 0, 0] });
+      k.box([30, 20.2, -28], [0.8, 0.8, 7], '#efe2c4', { r: [-0.12, 0, 0] });
+      for (var f = 0; f < 4; f++) {
+        k.box([46 + f * 12, 2.3, -46], [0.6, 4.6, 0.6], '#8a6440');
+        k.box([46 + f * 12, 2.3, -20], [0.6, 4.6, 0.6], '#8a6440');
+      }
+      for (var r2 = 0; r2 < 3; r2++) {
+        k.box([64, 1.3 + r2 * 1.2, -46], [36, 0.5, 0.3], '#8a6440');
+        k.box([64, 1.3 + r2 * 1.2, -20], [36, 0.5, 0.3], '#8a6440');
+        k.box([46, 1.3 + r2 * 1.2, -33], [0.3, 0.5, 26], '#8a6440');
+      }
+      steer(k, 56, -36, 1.2, '#2a2220', false);
+      steer(k, 66, -28, 2.6, '#a8703e', false);
+      steer(k, 72, -40, 0.4, '#e8dcc8', false);
+      // a windpump and its tank
+      for (var l = 0; l < 4; l++) {
+        k.box([-50 + (l % 2) * 2.4, 9, -40 + Math.floor(l / 2) * 2.4], [0.4, 18, 0.4], '#6a6a64', { m: 'metal' });
+      }
+      k.shape('cyl', [-48.8, 19.6, -38.4], [5, 0.6, 5], '#8a8a84', { r: [Math.PI / 2, 0, 0], m: 'metal' });
+      k.shape('cyl', [-42, 1, -36], [9, 2, 9], '#7a7a7e', { m: 'metal' });
+      // the mesas and the gap
+      [[-90, 30, 36], [-58, 22, 44], [-30, 26, 38], [38, 26, 40], [70, 40, 46], [104, 30, 36]].forEach(function (m, i) {
+        k.box([m[0], m[2] / 2, -112 - (i % 2) * 6], [m[1], m[2], 20], i % 2 ? '#8a4428' : '#a8502e');
+        k.box([m[0], m[2] + 1, -112 - (i % 2) * 6], [m[1] + 0.4, 2, 20.4], '#c8703e');
+        k.box([m[0] + 3, m[2] * 0.4, -101 - (i % 2) * 6], [m[1] * 0.7, m[2] * 0.8, 3], '#7a3a22');
+      });
+      k.box([4, 11, -118], [26, 22, 8], '#2a1a12');
+      // a skull by the trail, sage
+      k.shape('sph', [20, 0.5, 20], [1.2, 0.9, 1.6], '#efe8d8');
+      for (var sg = 0; sg < 6; sg++) {
+        k.shape('sph', [-40 + sg * 13, 0.6, 30 - (sg % 2) * 8], [2.6, 1.6, 2.4], '#8a9a78');
+      }
+    }
+  });
 })(window);

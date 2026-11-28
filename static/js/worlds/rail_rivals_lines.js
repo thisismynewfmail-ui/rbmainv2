@@ -241,11 +241,14 @@
     var st = { phase: 'idle' }, stAt = 0;
     var cars = [], carsN = -1;
     var bellAt = 0, whistled = false, rumbleAt = 0, joints = -1, puffs = [], puffAt = 0;
+    var stampede = false, herd = [], herdN = -1, dust = [], dustAt = 0, hoofAt = 0, mooAt = 0;
 
     function now() { return performance.now() / 1000; }
     function load(map) {
       var mk = (map && map.markers) || {};
       spec = (mk.extra || {}).sweep || {};
+      stampede = spec.style === 'stampede';
+      dust = [];
       main = spec.path ? new ctx.Lane(spec.path) : null;
       gates = (spec.gates || []).map(function (g) { return { g: g, up: 1 }; });
       calls = ((mk.points || {}).call || []).map(function (m) { return m.p; });
@@ -470,6 +473,137 @@
       }
     }
 
+    // ------------------------------------------------------- the herd
+    /* Longhorn Stockyards: the herd stampeding down the cattle trail --
+       longhorns of every colour packed across the trail's width, heads
+       down, legs going, horns tossing; drovers galloping at the flanks of
+       the tail swinging their ropes; dust boiling up behind it all. */
+    var HIDES = ['#8a5232', '#6a3a22', '#a8703e', '#2a2220', '#c8a070', '#7a2e1e', '#e8dcc8', '#5a4030'];
+    function makeHerd(n) {
+      var rnd = seeded(n * 104729 + 7), L = trainLen(), half = (spec.half || 9) - 1.6;
+      var out = [], count = Math.round(L / 3.4 * Math.max(1, half / 4.5));
+      for (var i = 0; i < count; i++) {
+        var back = 2 + rnd() * (L - 8), lat = (rnd() * 2 - 1) * half;
+        out.push({ back: back, lat: lat, hide: HIDES[Math.floor(rnd() * HIDES.length)],
+                   spots: rnd() < 0.35, size: 0.85 + rnd() * 0.3, ph: rnd() * 6.3, toss: rnd() * 6.3,
+                   horn: 2.4 + rnd() * 1.6, kind: 'steer' });
+      }
+      [[L - 4, half + 3.4, '#7a4a2a', '#d8322a'], [L - 10, -half - 3.4, '#2a2220', '#2f6aa8'],
+       [L * 0.45, half + 3.8, '#c8b8a0', '#e8b23a']].forEach(function (d, k) {
+        out.push({ back: d[0], lat: d[1], hide: d[2], shirt: d[3], ph: k * 1.7, kind: 'rider', k: k });
+      });
+      return out;
+    }
+    function legs(r, b, yaw, xs, zs, hip, len, ph, colour) {
+      for (var i = 0; i < 4; i++) {
+        var th = Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.7;
+        var x = xs[i % 2], z = zs[i < 2 ? 0 : 1];
+        part(r, b, yaw, 'box', [x, hip - Math.cos(th) * len / 2, z - Math.sin(th) * len / 2], [0.55, len, 0.55],
+             colour, { r: [th, 0, 0] });
+      }
+    }
+    function drawSteer(r, b, yaw, c, time) {
+      var ph = time * 10.5 + c.ph, k = c.size;
+      var bob = Math.abs(Math.sin(ph)) * 0.55;
+      var base = [b[0], b[1] + bob, b[2], 0];
+      part(r, base, yaw, 'box', [0, 3.3 * k, 0], [2.6 * k, 2.3 * k, 5.4 * k], c.hide);
+      part(r, base, yaw, 'box', [0, 3.9 * k, 1.6 * k], [2.7 * k, 1.4 * k, 1.8 * k], c.hide);
+      if (c.spots) {
+        part(r, base, yaw, 'box', [1.32 * k, 3.4 * k, -0.6 * k], [0.06, 1.3 * k, 1.8 * k], '#f2ece0');
+        part(r, base, yaw, 'box', [-1.32 * k, 3.0 * k, 1.0 * k], [0.06, 1.0 * k, 1.4 * k], '#f2ece0');
+      }
+      // the head down, tossing, the horns spread
+      var toss = Math.sin(time * 3.1 + c.toss) * 0.25;
+      var hy = 2.9 * k + toss * 0.6, hz = 3.6 * k;
+      part(r, base, yaw, 'box', [0, hy, hz], [1.3 * k, 1.4 * k, 1.9 * k], c.hide, { r: [0.4, 0, toss * 0.4] });
+      part(r, base, yaw, 'box', [0, hy - 0.4 * k, hz + 0.95 * k], [1.0 * k, 0.7 * k, 0.4 * k], '#2a201a');
+      var sw = c.horn * k;
+      for (var e = -1; e <= 1; e += 2) {
+        part(r, base, yaw, 'box', [e * (0.6 + sw / 2) * 1.0, hy + 0.65 * k + e * toss * 0.5, hz - 0.2 * k],
+             [sw, 0.32 * k, 0.32 * k], '#efe2c4', { r: [0, 0, e * 0.12 + toss * 0.4] });
+        part(r, base, yaw, 'box', [e * (0.6 + sw), hy + 1.15 * k + e * toss * 0.9, hz - 0.2 * k],
+             [0.26 * k, 0.9 * k, 0.26 * k], '#3a3028', { r: [0, 0, -e * 0.5] });
+      }
+      legs(r, base, yaw, [-0.85 * k, 0.85 * k], [1.8 * k, -1.8 * k], 2.3 * k - bob, 2.3 * k, ph, c.hide);
+      var tail = Math.sin(time * 7 + c.ph) * 0.6;
+      part(r, base, yaw, 'box', [Math.sin(tail) * 0.6, 3.4 * k, -2.9 * k], [0.25, 0.25, 1.8 * k], '#2a201a',
+           { r: [-0.5, tail, 0] });
+    }
+    function drawRider(r, b, yaw, c, time) {
+      var ph = time * 9.5 + c.ph;
+      var bob = Math.abs(Math.sin(ph)) * 0.7;
+      var base = [b[0], b[1] + bob, b[2], 0];
+      // the horse
+      part(r, base, yaw, 'box', [0, 4.2, 0], [2.2, 2.4, 5.6], c.hide);
+      part(r, base, yaw, 'box', [0, 5.8, 2.9], [1.2, 3.0, 1.4], c.hide, { r: [0.55, 0, 0] });
+      part(r, base, yaw, 'box', [0, 6.6, 4.2], [1.1, 1.2, 2.4], c.hide, { r: [0.25, 0, 0] });
+      part(r, base, yaw, 'box', [0, 6.9, 2.2], [0.4, 1.6, 1.8], '#1a1612', { r: [0.55, 0, 0] });
+      legs(r, base, yaw, [-0.7, 0.7], [2.0, -2.0], 3.1 - bob * 0.5, 3.2, ph, c.hide);
+      part(r, base, yaw, 'box', [0, 4.6, -3.2], [0.4, 0.4, 2.2], '#1a1612', { r: [-0.8 + Math.sin(ph) * 0.2, 0, 0] });
+      part(r, base, yaw, 'box', [0, 5.5, -0.2], [2.4, 0.4, 2.4], '#5a3a22');
+      // the drover: the classic figure, a hat, a rope going round
+      part(r, base, yaw, 'box', [0, 6.9, -0.2], [2.0, 2.2, 1.0], c.shirt);
+      for (var e = -1; e <= 1; e += 2) part(r, base, yaw, 'box', [e * 1.25, 5.4, 0.2], [0.8, 1.8, 0.8], '#2f6aa8');
+      part(r, base, yaw, 'box', [0, 8.7, -0.2], [1.3, 1.3, 1.3], '#f5cd30');
+      part(r, base, yaw, 'box', [0, 9.45, -0.2], [2.8, 0.18, 2.8], '#6a4a2a');
+      part(r, base, yaw, 'box', [0, 9.9, -0.2], [1.4, 0.8, 1.4], '#6a4a2a');
+      if (c.k === 0) {
+        var arm = time * 9;
+        part(r, base, yaw, 'box', [1.3, 8.6, -0.2], [0.5, 2.2, 0.5], c.shirt, { r: [0, 0, -0.4] });
+        for (var q = 0; q < 10; q++) {
+          var a = arm + q * Math.PI / 5;
+          part(r, base, yaw, 'box', [1.8 + Math.cos(a) * 2.2, 11.4, -0.2 + Math.sin(a) * 2.2], [0.25, 0.2, 1.4],
+               '#d8c8a0', { r: [0, -a, 0] });
+        }
+      } else {
+        for (var e2 = -1; e2 <= 1; e2 += 2) {
+          part(r, base, yaw, 'box', [e2 * 1.3, 7.0, 0.3], [0.5, 2.0, 0.5], c.shirt, { r: [0.4, 0, 0] });
+        }
+      }
+    }
+    function drawHerd(r, time, dt) {
+      if (st.phase !== 'run' || !main) return;
+      if (herdN !== (st.n || 0)) { herd = makeHerd(st.n || 0); herdN = st.n || 0; }
+      var h = head(), flip = (st.dir || 1) < 0 ? Math.PI : 0;
+      var near = ctx.client.local.pos;
+      for (var i = 0; i < herd.length; i++) {
+        var c = herd[i];
+        var s = travel(h - c.back);
+        if (s < show[0] - 10 || s > show[1] + 10) continue;
+        var at = main.at(s), yaw = at[2] + flip;
+        var lat = c.lat * (flip ? -1 : 1);
+        var x = at[0] + Math.cos(at[2]) * lat, z = at[1] - Math.sin(at[2]) * lat;
+        if (Math.hypot(x - near[0], z - near[2]) > 420) continue;
+        var base = [x, (at[3] || 0) + 0.1, z, 0];
+        if (c.kind === 'rider') drawRider(r, base, yaw, c, time);
+        else drawSteer(r, base, yaw, c, time);
+      }
+      // dust boiling up behind and among them
+      dustAt -= dt;
+      while (dustAt <= 0) {
+        dustAt += 0.035;
+        var b = Math.random() * trainLen() * 1.1, sd = travel(h - b);
+        if (sd < show[0] || sd > show[1]) continue;
+        var ad = main.at(sd), l2 = (Math.random() * 2 - 1) * ((spec.half || 9) + 2);
+        dust.push({ x: ad[0] + Math.cos(ad[2]) * l2, y: (ad[3] || 0) + 1.0, z: ad[1] - Math.sin(ad[2]) * l2,
+                    t: 0, s: 2.2 + Math.random() * 2.2 });
+      }
+    }
+    function drawDust(r, dt) {
+      dust = dust.filter(function (q) {
+        q.t += dt;
+        if (q.t > 3.2) return false;
+        var k = q.t / 3.2;
+        q.y += dt * (3.2 - k * 2.4);
+        q.x += dt * 1.4;
+        var size = q.s * (1 + k * 2.6);
+        r.pushRaw('sph', q.x, q.y, q.z, 0, 0, 0, size, size * 0.7, size, [0.78, 0.64, 0.46],
+                  0.5 * (1 - k), 0, 0, 0, null);
+        return true;
+      });
+      if (dust.length > 220) dust.splice(0, dust.length - 220);
+    }
+
     function drawPuffs(r, dt) {
       puffs = puffs.filter(function (q) {
         q.t += dt;
@@ -496,8 +630,9 @@
         var n = 6, seg = L / n;
         for (var i = 0; i < n; i++) {
           var u = (i + 0.5) * seg + 0.6;
+          var stripe = stampede ? (i % 2 ? [0.9, 0.84, 0.7] : [0.42, 0.27, 0.16]) : (i % 2 ? [0.95, 0.95, 0.92] : [0.82, 0.12, 0.1]);
           r.pushRaw('box', g.p[0] + dir[0] * u, g.p[1] + dir[1] * u, g.p[2] + dir[2] * u, -th, yaw, 0,
-                    0.32, 0.32, seg + 0.02, i % 2 ? [0.95, 0.95, 0.92] : [0.82, 0.12, 0.1], 1, 0, 0, 0, null);
+                    stampede ? 0.5 : 0.32, stampede ? 0.5 : 0.32, seg + 0.02, stripe, 1, 0, 0, 0, null);
         }
         var on = shut && Math.sin(time * 7.5) > 0;
         var tip = [g.p[0] + dir[0] * (L + 0.5), g.p[1] + dir[1] * (L + 0.5), g.p[2] + dir[2] * (L + 0.5)];
@@ -547,11 +682,12 @@
       var audio = ctx.client.audio, p = ctx.client.local.pos;
       var mid = main.at(cross.a !== undefined ? cross.a : main.length / 2);
       var toX = Math.hypot(mid[0] - p[0], mid[1] - p[2]);
-      if (anyClosed() && toX < 300 && time - bellAt > 0.55) {
+      if (anyClosed() && toX < 300 && time - bellAt > (stampede ? 0.32 : 0.55)) {
         bellAt = time;
-        audio.play('rr_xbell', { volume: Math.max(0.12, 0.7 * (1 - toX / 300)) });
+        audio.play(stampede ? 'rr_triangle' : 'rr_xbell', { volume: Math.max(0.12, 0.7 * (1 - toX / 300)) });
       }
       if (st.phase !== 'run') { whistled = false; joints = -1; return; }
+      if (stampede) { herdSounds(time, audio, p, toX); return; }
       var h = head();
       var ahead = travel(cross.a !== undefined ? cross.a : main.length / 2) - h;
       if (!whistled && ahead < 150 && ahead > 0) {
@@ -573,38 +709,94 @@
       }
     }
 
+    function herdSounds(time, audio, p, toX) {
+      var h = head();
+      var ahead = travel(cross.a !== undefined ? cross.a : main.length / 2) - h;
+      if (!whistled && ahead < 170 && ahead > 0) {
+        whistled = true;
+        audio.play('rr_yeehaw', { volume: Math.max(0.3, 0.9 * (1 - toX / 500)) });
+      }
+      var sp = main.project(p[0], p[2]), at = main.at(sp);
+      var off = Math.hypot(at[0] - p[0], at[1] - p[2]);
+      var u = travel(sp);
+      var by = u > h - trainLen() - 20 && u < h + 120;
+      if (off < 170 && by && time - hoofAt > 0.13) {
+        hoofAt = time;
+        audio.play('rr_hooves', { volume: Math.max(0.1, 0.85 * (1 - off / 170)) });
+      }
+      if (off < 200 && by && time - mooAt > 1.1 + Math.random() * 1.5) {
+        mooAt = time;
+        audio.play('rr_moo', { volume: Math.max(0.1, 0.6 * (1 - off / 200)) });
+      }
+      if (off < 140 && by && time - rumbleAt > 0.42) {
+        rumbleAt = time;
+        audio.play('rr_rumble', { volume: Math.max(0.1, 0.6 * (1 - off / 140)) });
+      }
+    }
+
     function draw(renderer, time, dt) {
-      drawTrain(renderer, time, dt);
-      drawPuffs(renderer, dt);
+      if (stampede) {
+        drawHerd(renderer, time, dt);
+        drawDust(renderer, dt);
+      } else {
+        drawTrain(renderer, time, dt);
+        drawPuffs(renderer, dt);
+      }
       drawGates(renderer, time, dt);
       drawDanger(renderer, time);
       drawCalls(renderer, time);
       sounds(time);
     }
 
+    var TEXT = {
+      freight: { busy: 'The main line is occupied', call: 'Hold <b>E</b> to call the through freight down now',
+                 due: 'The freight is due in ', wire: 'The wire is busy &bull; try again in a moment',
+                 clearing: 'The freight is clearing the junction',
+                 by: '<b>The freight is going by</b> &bull; both crossings shut',
+                 coming: '<b>FREIGHT COMING</b> &bull; crossings shut &bull; get off the main line',
+                 next: 'Through freight due in ', open: ' &bull; the call boxes are open',
+                 calledUs: 'FREIGHT CALLED ON THEM', calledThem: 'THEY CALLED THE FREIGHT',
+                 calledBy: ' called the through freight down', loose: 'FREIGHT COMING',
+                 looseSub: 'The crossings are shut &bull; get off the main line',
+                 beat: 'BEAT THE FREIGHT!', beatThem: 'THEY BEAT THE FREIGHT', held: 'HELD FOR THE FREIGHT',
+                 label: 'Calling the freight down' },
+      stampede: { busy: 'The trail is full of cattle', call: 'Hold <b>E</b> to turn the herd loose now',
+                  due: 'The herd breaks in ', wire: 'The drovers are resting &bull; try again in a moment',
+                  clearing: 'The stampede is clearing the trail',
+                  by: '<b>The herd is going by</b> &bull; both crossings shut',
+                  coming: '<b>STAMPEDE</b> &bull; crossings shut &bull; get off the cattle trail',
+                  next: 'The herd breaks in ', open: ' &bull; the corral gates are open',
+                  calledUs: 'HERD TURNED LOOSE ON THEM', calledThem: 'THEY TURNED THE HERD LOOSE',
+                  calledBy: ' turned the herd loose', loose: 'STAMPEDE!',
+                  looseSub: 'The crossings are shut &bull; get off the cattle trail',
+                  beat: 'OUTRAN THE HERD!', beatThem: 'THEY OUTRAN THE HERD', held: 'HELD FOR THE STAMPEDE',
+                  label: 'Opening the corral gate' }
+    };
+    function text() { return stampede ? TEXT.stampede : TEXT.freight; }
+
     function here(p) {
+      var T = text();
       for (var i = 0; i < calls.length; i++) {
         if (flat(calls[i], p) > CALL_R) continue;
-        if (st.phase === 'run') return { k: 'callx', text: 'The main line is occupied' };
-        if (st.call) return { k: 'call', text: 'Hold <b>E</b> to call the through freight down now' };
+        if (st.phase === 'run') return { k: 'callx', text: T.busy };
+        if (st.call) return { k: 'call', text: T.call };
         var left = waitLeft();
-        if (left <= 14) return { k: 'callx', text: 'The freight is due in ' + Math.ceil(left) + 's anyway' };
-        return { k: 'callx', text: 'The wire is busy &bull; try again in a moment' };
+        if (left <= 14) return { k: 'callx', text: T.due + Math.ceil(left) + 's anyway' };
+        return { k: 'callx', text: T.wire };
       }
       return null;
     }
 
     function hud() {
+      var T = text();
       if (st.phase === 'run') {
-        if (!anyClosed()) return 'The freight is clearing the junction';
+        if (!anyClosed()) return T.clearing;
         var h = head();
         var past = Object.keys(cross).every(function (l) { return h > travel(cross[l]); });
-        return past ? '<b>The freight is going by</b> &bull; both crossings shut'
-          : '<b>FREIGHT COMING</b> &bull; crossings shut &bull; get off the main line';
+        return past ? T.by : T.coming;
       }
       var left = waitLeft(), m = Math.floor(left / 60), s = Math.floor(left % 60);
-      return 'Through freight due in <b>' + m + ':' + ('0' + s).slice(-2) + '</b>' +
-        (st.call ? ' &bull; the call boxes are open' : '');
+      return T.next + '<b>' + m + ':' + ('0' + s).slice(-2) + '</b>' + (st.call ? T.open : '');
     }
 
     function message(msg) {
@@ -615,12 +807,13 @@
                  n: msg.n || 0 };
           stAt = now();
           whistled = false;
+          var T = text(), alarm = stampede ? 'rr_triangle' : 'rr_xbell';
           if (msg.by) {
             var ours = msg.team === me;
-            ctx.say('sweep', ours ? 'FREIGHT CALLED ON THEM' : 'THEY CALLED THE FREIGHT', ours ? 'go' : 'bad', 'rr_xbell',
-                    ctx.esc(msg.by) + ' called the through freight down');
+            ctx.say('sweep', ours ? T.calledUs : T.calledThem, ours ? 'go' : 'bad', alarm,
+                    ctx.esc(msg.by) + T.calledBy);
           } else {
-            ctx.say('sweep', 'FREIGHT COMING', 'bad', 'rr_xbell', 'The crossings are shut &bull; get off the main line');
+            ctx.say('sweep', T.loose, 'bad', alarm, T.looseSub);
           }
         } else {
           st = { phase: 'idle', next: 60, call: 0 };
@@ -630,7 +823,7 @@
       }
       if (msg.k === 'beat') {
         var mine = msg.team === me;
-        ctx.say('beat' + msg.team, mine ? 'BEAT THE FREIGHT!' : 'THEY BEAT THE FREIGHT', mine ? 'go' : 'bad', 'rr_whistle');
+        ctx.say('beat' + msg.team, mine ? text().beat : text().beatThem, mine ? 'go' : 'bad', stampede ? 'rr_yeehaw' : 'rr_whistle');
         return true;
       }
       return false;
@@ -638,8 +831,10 @@
 
     return {
       load: load, apply: apply, draw: draw, here: here, hud: hud, message: message,
-      held: function (reason) { return reason === 'freight' ? 'HELD FOR THE FREIGHT' : ''; },
-      labels: { call: 'Calling the freight down' },
+      held: function (reason) {
+        return reason === 'freight' ? TEXT.freight.held : reason === 'stampede' ? TEXT.stampede.held : '';
+      },
+      get labels() { return { call: text().label }; },
       carryName: function (kind) { return kind; }
     };
   };
@@ -876,6 +1071,40 @@
     GA.register('rr_rumble', function (vol) {
       this.noise({ freq: 220, freqEnd: 120, dur: 0.6, gain: 0.16 * vol });
       this.tone({ type: 'sawtooth', freq: 38, freqEnd: 34, dur: 0.5, gain: 0.04 * vol });
+    });
+    GA.register('rr_triangle', function (vol) {
+      // the chuckwagon's dinner triangle rung for an alarm
+      this.tone({ type: 'triangle', freq: 2093, freqEnd: 2080, dur: 0.5, gain: 0.08 * vol });
+      this.tone({ type: 'sine', freq: 3136, freqEnd: 3120, dur: 0.35, gain: 0.04 * vol });
+      this.tone({ type: 'sine', freq: 4186, freqEnd: 4170, dur: 0.2, gain: 0.025 * vol });
+      this.noise({ filter: 'highpass', freq: 5000, dur: 0.02, gain: 0.06 * vol });
+    });
+    GA.register('rr_hooves', function (vol) {
+      // the thunder of a herd's hooves: a ragged drumroll of thuds
+      for (var i = 0; i < 4; i++) {
+        this.later(i * 31 + (i * 17 % 13), function () {
+          this.noise({ filter: 'lowpass', freq: 380, freqEnd: 120, dur: 0.07, gain: 0.2 * vol });
+          this.tone({ type: 'sine', freq: 70, freqEnd: 40, dur: 0.06, gain: 0.12 * vol });
+        });
+      }
+    });
+    GA.register('rr_moo', function (vol) {
+      // a steer bellowing: a low reedy groan that rises and falls
+      this.tone({ type: 'sawtooth', freq: 150, freqEnd: 190, dur: 0.45, gain: 0.06 * vol });
+      this.tone({ type: 'sawtooth', freq: 152, freqEnd: 186, dur: 0.45, gain: 0.04 * vol });
+      this.later(420, function () {
+        this.tone({ type: 'sawtooth', freq: 190, freqEnd: 120, dur: 0.6, gain: 0.05 * vol });
+      });
+      this.noise({ filter: 'bandpass', freq: 600, dur: 0.9, gain: 0.03 * vol });
+    });
+    GA.register('rr_yeehaw', function (vol) {
+      // a drover's whoop: "yee--HAW"
+      this.tone({ type: 'square', freq: 520, freqEnd: 760, dur: 0.22, gain: 0.04 * vol });
+      this.later(240, function () {
+        this.tone({ type: 'square', freq: 820, freqEnd: 980, dur: 0.12, gain: 0.05 * vol });
+        this.later(110, function () { this.tone({ type: 'square', freq: 980, freqEnd: 600, dur: 0.4, gain: 0.05 * vol }); });
+      });
+      this.noise({ filter: 'bandpass', freq: 2400, dur: 0.6, gain: 0.02 * vol });
     });
     GA.register('rr_blowout', function (vol) {
       // the well letting go: a roar of gas, the boom of it catching
@@ -1847,6 +2076,170 @@
       [-w / 2 + 50, w / 2 - 50].forEach(function (cx) {
         ctx.beginPath(); ctx.arc(cx, 60 + h / 2, 12, 0, TAU); ctx.fill();
       });
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------- Longhorn Stockyards
+  /* Sundown over the mesas.  The triangle clangs; the herd breaks out of
+     the gap and comes stampeding across the prairie in a river of horns
+     and dust, a drover galloping after it swinging his rope; the dust
+     rolls up gold against the sun.  The name is burned into a plank sign
+     hanging from the Longhorn Arch, smoke curling off the letters. */
+  Intro.register('rr_longhorn', {
+    name: 'Longhorn Stockyards',
+    tagline: 'Turn the herd loose on their cart -- and keep off the trail.',
+    accent: '#ffb24a',
+    cues: [[0.15, 'rr_triangle', 0.6], [0.45, 'rr_triangle', 0.6], [0.6, 'rr_rumble', 0.6], [0.8, 'rr_hooves', 0.8],
+           [1.0, 'rr_moo', 0.6], [1.1, 'rr_hooves', 0.8], [1.4, 'rr_yeehaw', 0.7], [1.45, 'rr_hooves', 0.8],
+           [1.8, 'rr_moo', 0.5], [1.8, 'rr_hooves', 0.7], [2.2, 'rr_hooves', 0.6], [2.4, 'rr_rumble', 0.5]],
+    shakes: [[0.9, 3, 1.6]],
+    tagY: 452, tagAt: 3.0,
+    setup: function (r) {
+      var d = { far: [], herd: [], dust: [], mesas: [], grass: [] };
+      var hides = ['#3a2418', '#5a3420', '#2a1a12', '#6a4026', '#4a2a1a', '#7a4a2a'];
+      for (var i = 0; i < 36; i++) {
+        d.herd.push({ x: i * 62 + between(r, -30, 30), row: i % 3, ph: r() * 6.3, hide: hides[i % hides.length],
+                      horn: between(r, 34, 54), s: between(r, 0.85, 1.15) });
+      }
+      for (i = 0; i < 34; i++) d.dust.push({ x: r() * 2200, y: between(r, 560, 690), s: between(r, 30, 80), p: r() * 6 });
+      var x = -40;
+      while (x < VW + 60) {
+        var w = between(r, 160, 320);
+        d.mesas.push({ x: x, w: w, h: between(r, 70, 150) });
+        x += w * between(r, 0.8, 1.1);
+      }
+      for (i = 0; i < 60; i++) d.grass.push({ x: r() * VW, y: between(r, 620, 900), h: between(r, 8, 22) });
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var HZ = 520;
+      var sky = ctx.createLinearGradient(0, 0, 0, HZ);
+      sky.addColorStop(0, '#2a3a7a');
+      sky.addColorStop(0.55, '#c86a4a');
+      sky.addColorStop(1, '#ffc060');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, VW, HZ + 2);
+      additive(ctx, function () { dot(ctx, '#ffd890', 1120, HZ - 160, 280, 0.55); });
+      ctx.fillStyle = '#ffe2a0';
+      ctx.beginPath(); ctx.arc(1120, HZ - 150, 64, 0, TAU); ctx.fill();
+      // the mesas against the sun, the gap in them
+      d.mesas.forEach(function (m) {
+        ctx.fillStyle = '#5a2418';
+        ctx.fillRect(m.x, HZ - m.h, m.w, m.h + 2);
+        ctx.fillStyle = '#7a3420';
+        ctx.fillRect(m.x, HZ - m.h, m.w, 10);
+      });
+      // the prairie
+      var g = ctx.createLinearGradient(0, HZ, 0, VH);
+      g.addColorStop(0, '#b8783a');
+      g.addColorStop(1, '#6a4422');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, HZ, VW, VH - HZ);
+      // the herd: three rows, the far one smaller, all running left
+      var run = seg(t, 0.4, 3.6);
+      [0, 1, 2].forEach(function (row) {
+        var scale = 0.55 + row * 0.25, y = 560 + row * 70, speed = 900 + row * 260;
+        d.herd.forEach(function (c) {
+          if (c.row !== row) return;
+          var x = c.x + VW + 200 - run * speed * 3.2;
+          if (x < -200 || x > VW + 200) return;
+          var bob = Math.abs(Math.sin(t * 16 + c.ph)) * 8 * scale;
+          var k = scale * c.s;
+          ctx.save();
+          ctx.translate(x, y - bob);
+          ctx.scale(k, k);
+          ctx.fillStyle = c.hide;
+          ctx.beginPath(); ctx.ellipse(0, -46, 62, 30, 0, 0, TAU); ctx.fill();
+          // legs going
+          for (var l = 0; l < 4; l++) {
+            var lx = [-40, -26, 30, 44][l], sw = Math.sin(t * 16 + c.ph + (l % 2 ? Math.PI : 0)) * 18;
+            ctx.save(); ctx.translate(lx, -24); ctx.rotate(sw / 40);
+            ctx.fillRect(-5, 0, 10, 40); ctx.restore();
+          }
+          // head down, horns spread
+          ctx.save(); ctx.translate(-66, -44); ctx.rotate(0.35);
+          ctx.fillRect(-26, -12, 32, 26);
+          ctx.strokeStyle = '#efe2c4'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(-8, -10); ctx.quadraticCurveTo(-8 - c.horn * 0.4, -30, -8 - c.horn, -46);
+          ctx.moveTo(-8, -10); ctx.quadraticCurveTo(-8 + c.horn * 0.5, -36, -4 + c.horn * 0.8, -50); ctx.stroke();
+          ctx.restore();
+          ctx.fillRect(56, -60, 8, 30);
+          ctx.restore();
+        });
+      });
+      // the drover galloping after them, his rope going round
+      var dx = VW + 1500 - run * 3200;
+      if (dx > -200 && dx < VW + 400) {
+        var db = Math.abs(Math.sin(t * 14)) * 10;
+        ctx.save(); ctx.translate(dx, 740 - db);
+        ctx.fillStyle = '#4a2a1a';
+        ctx.beginPath(); ctx.ellipse(0, -70, 80, 34, 0, 0, TAU); ctx.fill();
+        ctx.fillRect(-100, -130, 30, 70);
+        ctx.beginPath(); ctx.ellipse(-104, -132, 30, 18, -0.4, 0, TAU); ctx.fill();
+        for (var hl = 0; hl < 4; hl++) {
+          var hs = Math.sin(t * 14 + (hl % 2 ? Math.PI : 0)) * 0.6;
+          ctx.save(); ctx.translate([-50, -34, 40, 56][hl], -46); ctx.rotate(hs); ctx.fillRect(-6, 0, 12, 56); ctx.restore();
+        }
+        ctx.fillStyle = '#c4281c'; ctx.fillRect(-14, -150, 34, 48);
+        ctx.fillStyle = '#2f6aa8'; ctx.fillRect(-12, -104, 30, 26);
+        ctx.fillStyle = '#f5cd30'; ctx.fillRect(-10, -182, 26, 28);
+        ctx.fillStyle = '#6a4a2a'; ctx.fillRect(-26, -186, 50, 6); ctx.fillRect(-12, -200, 24, 16);
+        ctx.strokeStyle = '#e8d8b0'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(14, -150); ctx.lineTo(40, -230); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(40 + Math.cos(t * 10) * 10, -250, 46, 16, Math.sin(t * 10) * 0.3, 0, TAU); ctx.stroke();
+        ctx.restore();
+      }
+      // the dust boiling up behind and over them, gold in the sun
+      d.dust.forEach(function (q) {
+        var x = q.x + VW + 300 - run * 2600;
+        if (x < -150 || x > VW + 150 || t < 0.5) return;
+        var a = Math.min(0.3, (t - 0.5) * 0.3) * (0.6 + 0.4 * Math.sin(t * 2 + q.p));
+        ctx.fillStyle = 'rgba(214,170,110,' + a.toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(x, q.y - (t - 0.5) * 40, q.s * (1 + (t - 0.5) * 0.3), 0, TAU); ctx.fill();
+      });
+      // stockyard rails across the foreground
+      ctx.fillStyle = '#4a2e1a';
+      for (var px = 40; px < VW; px += 220) ctx.fillRect(px, 700, 22, 120);
+      ctx.fillRect(0, 716, VW, 16); ctx.fillRect(0, 758, VW, 16);
+      d.grass.forEach(function (gr) {
+        if (gr.y < 760) return;
+        ctx.fillStyle = '#8a6a32'; ctx.fillRect(gr.x, gr.y - gr.h, 4, gr.h);
+      });
+    },
+    title: function (ctx, t, d, run) {
+      var name = (run.info.name || 'Longhorn Stockyards').toUpperCase();
+      var k = outBack(seg(t, 2.0, 2.45), 1.3);
+      if (k <= 0) return;
+      var swing = Math.sin(t * 3.0) * 0.04 * Math.max(0, 1 - seg(t, 2.4, 3.8));
+      ctx.save();
+      ctx.translate(800, 150);
+      // the arch's beam and its horns
+      ctx.fillStyle = '#3a2416';
+      ctx.fillRect(-560, -26, 1120, 30);
+      ctx.strokeStyle = '#efe2c4'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-30, -30); ctx.quadraticCurveTo(-180, -44, -280, -70);
+      ctx.moveTo(30, -30); ctx.quadraticCurveTo(180, -44, 280, -70); ctx.stroke();
+      ctx.fillStyle = '#5a3420'; ctx.beginPath(); ctx.ellipse(0, -36, 40, 28, 0, 0, TAU); ctx.fill();
+      ctx.rotate(swing);
+      ctx.scale(k, k);
+      ctx.strokeStyle = '#2a2a2e'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(-400, 4); ctx.lineTo(-400, 60); ctx.moveTo(400, 4); ctx.lineTo(400, 60); ctx.stroke();
+      var w = 1020, h = 170;
+      for (var p = 0; p < 4; p++) {
+        ctx.fillStyle = p % 2 ? '#a8784a' : '#b8885a';
+        ctx.fillRect(-w / 2, 60 + p * h / 4, w, h / 4 - 3);
+      }
+      ctx.strokeStyle = '#6a4428'; ctx.lineWidth = 6;
+      ctx.strokeRect(-w / 2, 60, w, h);
+      nameText(ctx, name, 0, 60 + h / 2 + 6, w - 110, '#2a160c', 'rgba(255,140,40,0.35)', 1);
+      // smoke off the burned letters
+      for (var sm = 0; sm < 7; sm++) {
+        var age = (t * 0.8 + sm * 0.37) % 1.4;
+        if (t < 2.2) break;
+        ctx.fillStyle = 'rgba(200,190,180,' + (0.35 * (1 - age / 1.4)).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(-380 + sm * 125 + Math.sin(age * 4 + sm) * 10, 60 - age * 70, 14 + age * 24, 0, TAU); ctx.fill();
+      }
       ctx.restore();
     }
   });

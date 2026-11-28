@@ -1220,8 +1220,8 @@ class RailRivalsWorld(ArenaWorld):
         rx, rz = math.cos(yaw), -math.sin(yaw)
         return [x + rx * side * off, cart.path.height(d), z + rz * side * off]
 
-    def _go(self, brain, point: Sequence[float], key: str) -> None:
-        brain.go(list(point), key)
+    def _go(self, brain, point: Sequence[float], key: str, precise: bool = False) -> None:
+        brain.go(list(point), key, precise=precise)
 
     def _bot_job(self, brain) -> bool:
         """What this bot does about the race right now; True to hold E.
@@ -1446,7 +1446,10 @@ class RailRivalsWorld(ArenaWorld):
                 abs(point[1] - p.pos[1]) < 3.5:
             brain.waypoints = []
             return hold
-        self._go(brain, point, key)
+        # the last few units straight to the spot: the nav grid's nearest
+        # node to a lever or a call box can be a step further off than an
+        # arm's reach
+        self._go(brain, point, key, precise=True)
         return False
 
     def _nearest_of_team(self, team: str, point: Sequence[float]) -> Optional[Player]:

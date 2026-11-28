@@ -887,7 +887,12 @@ def _tower(b: ArenaArea, rng: random.Random) -> None:
     b.box([-10.9, 4.6, 84.0], [0.6, 1.6, 1.0], "#5a3a22")
     b.box([-10.75, 5.0, 84.6], [0.3, 0.6, 0.3], "#1a1a1a", collide=False)
     b.box([-10.8, 3.4, 84.0], [0.6, 0.6, 2.2], WOOD_DARK)
-    b.mark("call", -12.0, 1.6, 84.0, name="the tower telephone")
+    # the line's own telephone out on the platform, on a post by the booth:
+    # it is worked from the platform (the booth is too snug to stand in)
+    b.box([-6.6, 3.2, 84.0], [0.5, 4.0, 0.5], WOOD_DARK)
+    b.box([-6.6, 5.4, 84.0], [0.9, 1.6, 1.2], "#5a3a22")
+    b.box([-7.1, 5.8, 84.0], [0.1, 0.6, 0.5], "#1a1a1a", collide=False)
+    b.mark("call", -8.0, 1.6, 84.0, name="the tower telephone")
     lantern(b, -8.2, 1.2, 70.0, WARM, post=9.0)
     # a pile of new ties and rails by the tower, a handcar on its stub
     sleeper_pile(b, -52.0, 100.0, "x")

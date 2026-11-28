@@ -432,13 +432,24 @@ SWEEP_STYLES = {
                             "When the crossing bells ring your cart is held short of the "
                             "crossing -- and anybody on the main line is in its way. Hold E "
                             "at a call box to call the next one down on their cart."),
-                "context": "the through freight"},
+                "context": "the through freight",
+                "called_event": "rr_freight_called", "beat_event": "rr_beat_freight",
+                "call_badge": "rr_freight_calls", "beat_badge": "rr_beat_freight",
+                "award": ("called", "Train Dispatcher", "called the freight down %d times"),
+                "job_lines": {"call": ["calling the freight down", "freight on them lol", "calling it in"]},
+                "line": "the main line", "box": "a call box"},
     "stampede": {"what": "the stampede", "held": "stampede",
                  "welcome": ("Every minute or so the herd breaks and stampedes down the cattle "
                              "trail across both lines. Your cart is held short of the trail "
                              "while it runs -- and anybody on the trail is trampled. Hold E at "
                              "a corral gate to turn the herd loose on their cart."),
-                 "context": "the stampede"},
+                 "context": "the stampede",
+                 "called_event": "rr_stampede_called", "beat_event": "rr_beat_stampede",
+                 "call_badge": "rr_stampede_calls", "beat_badge": "rr_beat_stampede",
+                 "award": ("called", "Trail Boss", "turned the herd loose %d times"),
+                 "job_lines": {"call": ["turning the herd loose", "stampede on them lol",
+                                        "opening the corral gate"]},
+                 "line": "the cattle trail", "box": "a corral gate"},
 }
 
 
@@ -467,9 +478,12 @@ class Sweep(Twist):
         spec = extra.get("sweep") or {}
         self.style = str(spec.get("style") or "freight")
         look = SWEEP_STYLES.get(self.style, SWEEP_STYLES["freight"])
+        self.look = look
         self.what = look["what"]
         self.reason = look["held"]
         self.welcome = look["welcome"]
+        self.award = look["award"]
+        self.job_lines = look["job_lines"]
         self.track = Lane(spec.get("path") or [[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
         self.speed = float(spec.get("speed", 40.0))
         self.length = float(spec.get("length", 230.0))
@@ -528,7 +542,7 @@ class Sweep(Twist):
                    "by": caller.username if caller is not None else "",
                    "team": caller.team if caller is not None else ""})
         if caller is not None:
-            self.event("rr_freight_called", caller, self.w.rival(caller.team))
+            self.event(self.look["called_event"], caller, self.w.rival(caller.team))
         self.w._broadcast_state()
 
     def finish(self, moment: float) -> None:
@@ -576,9 +590,9 @@ class Sweep(Twist):
                 self.beats += 1
                 pushers = [p for p in playing if p.pid in cart.pushers]
                 for p in pushers:
-                    self.score(p, 10, "beat", "rr_beat_freight")
+                    self.score(p, 10, "beat", self.look["beat_badge"])
                 self.send({"t": "rrx", "k": "beat", "lane": lane, "team": cart.team})
-                self.event("rr_beat_freight", pushers[0] if pushers else None, cart.team)
+                self.event(self.look["beat_event"], pushers[0] if pushers else None, cart.team)
         if head >= self.track.length + self.length + 10.0:
             self.finish(moment)
 
@@ -592,7 +606,7 @@ class Sweep(Twist):
         self.credited = True
         caller = self.w.players.get(pid)
         if caller is not None:
-            self.score(caller, 10, "", "rr_freight_calls")
+            self.score(caller, 10, "", self.look["call_badge"])
 
     # ------------------------------------------------------------ carts
     def limit(self, cart, moment):
@@ -652,11 +666,12 @@ class Sweep(Twist):
     def context(self):
         moment = now()
         if self.phase == "run":
-            return ["%s is coming through: both crossings are shut until it has gone by, "
-                    "and anybody on the line is in its way." % self.what.capitalize()]
+            return ["%s is coming through: both crossings of %s are shut until it has gone by, "
+                    "and anybody on %s is in its way." % (self.what.capitalize(), self.look["line"],
+                                                         self.look["line"])]
         return ["%s is due in about %d seconds%s." % (
             self.what.capitalize(), max(0, int(self.next_at - moment)),
-            "; a call box can bring it now" if self.callable(moment) else "")]
+            "; %s can bring it now" % self.look["box"] if self.callable(moment) else "")]
 
     # ------------------------------------------------------------- bots
     def _danger(self, pos: Sequence[float], moment: float) -> Optional[Tuple[float, float]]:
@@ -735,9 +750,10 @@ class Sweep(Twist):
         passes = max([o.get("passes", 0) for o in observations] or [0])
         held = max([o.get("held", 0) for o in observations] or [0])
         calls = max([o.get("calls", 0) for o in observations] or [0])
+        beats = max([o.get("beats", 0) for o in observations] or [0])
         return [("trains come through on the timetable", passes >= 2, passes),
-                ("a cart is held at a crossing, or a train is called down",
-                 held > 0 or calls > 0, {"held": held, "calls": calls})]
+                ("a cart is held at a crossing, races it over, or a train is called down",
+                 held > 0 or calls > 0 or beats > 0, {"held": held, "calls": calls, "beats": beats})]
 
 
 # ========================================================== the gushers
