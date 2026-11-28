@@ -185,7 +185,10 @@
         if (client.audio) client.audio.play(name, { volume: volume === undefined ? 1 : volume });
       },
       physics: function () { return client.physics || null; },
-      twist: function () { return twist; }
+      twist: function () { return twist; },
+      // the sea's height right now (the tide moves it): rigs that float on
+      // it (spec.tide) ride up and down with it
+      water: function () { return waterLevel(); }
     };
     function eye() {
       var cam = client.cameraPosition ? client.cameraPosition() : null;
@@ -2831,6 +2834,485 @@
         var sx = -560 + ((t - at) * 140 + s2 * 260) % 1160;
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.beginPath(); ctx.ellipse(sx, 60 - s2 * 22, 90, 26, 0, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------ Ghost Fleet Cove
+  /* A skeleton of the ghost crews, side on, climbing up out of the water:
+     ``rise`` 0..1 how far out, ``aim`` raising the pistol. */
+  function gfSkeleton(ctx, x, y, s, rise, aim, t, face) {
+    ctx.save();
+    ctx.translate(x, y + (1 - rise) * 120 * s);
+    ctx.scale(s * (face || 1), s);
+    ctx.strokeStyle = '#e8e4d4'; ctx.lineCap = 'round';
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(0, -80); ctx.stroke();
+    ctx.lineWidth = 4;
+    for (var r = 0; r < 4; r++) { ctx.beginPath(); ctx.moveTo(-12, -74 + r * 8); ctx.quadraticCurveTo(0, -70 + r * 8, 12, -74 + r * 8); ctx.stroke(); }
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-6, -40); ctx.lineTo(-10 + Math.sin(t * 6) * 4, 0); ctx.moveTo(6, -40); ctx.lineTo(10 - Math.sin(t * 6) * 4, 0); ctx.stroke();
+    var arm = -0.4 - aim * 1.1;
+    ctx.save(); ctx.translate(10, -78); ctx.rotate(arm);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 34); ctx.stroke();
+    ctx.fillStyle = '#4a4e56'; ctx.fillRect(-4, 30, 8, 22);
+    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(-10, -78); ctx.lineTo(-18, -50); ctx.stroke();
+    ctx.fillStyle = '#4a3a2a';
+    ctx.beginPath(); ctx.moveTo(-16, -84); ctx.lineTo(16, -84); ctx.lineTo(18, -52); ctx.lineTo(-18, -52); ctx.closePath();
+    ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#e8e4d4'; ctx.beginPath(); ctx.arc(0, -96, 13, 0, TAU); ctx.fill();
+    ctx.fillRect(-7, -88, 14, 8);
+    ctx.fillStyle = '#1a1a22';
+    ctx.beginPath(); ctx.moveTo(-18, -104); ctx.quadraticCurveTo(0, -124, 18, -104); ctx.fill();
+    additive(ctx, function () {
+      dot(ctx, '#7aff9a', -5, -97, 6, 0.9); dot(ctx, '#7aff9a', 5, -97, 6, 0.9);
+    });
+    ctx.fillStyle = '#7aff9a'; ctx.fillRect(-6, -99, 3, 3); ctx.fillRect(3, -99, 3, 3);
+    ctx.restore();
+  }
+
+  Intro.register('pb_ghostfleet', {
+    name: 'Ghost Fleet Cove',
+    tagline: 'A cove full of wrecks under the moon. When the fog comes up, so do their crews.',
+    accent: '#7aff9a',
+    cues: [[0.2, 'pb_waves', 0.6], [1.2, 'pb_twist_ghosts', 0.8], [1.8, 'pb_bones', 0.7], [2.3, 'pb_bones', 0.6],
+           [3.0, 'pb_pistol', 0.7], [3.2, 'pb_pistol', 0.6], [4.4, 'pb_go', 0.6]],
+    shakes: [],
+    tagY: 612, tagAt: 3.4,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 90, 0, 360), wisps: [], fog: [] };
+      for (var i = 0; i < 14; i++) d.wisps.push([between(r, 0, VW), between(r, 300, 640), r() * 6, between(r, 0.4, 1)]);
+      for (var f = 0; f < 18; f++) d.fog.push([between(r, -200, VW), between(r, 560, 760), between(r, 160, 320), r()]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 560);
+      sky.addColorStop(0, '#060a1e'); sky.addColorStop(0.7, '#1c2a4a'); sky.addColorStop(1, '#34486e');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      stars(ctx, d.stars, t, 0.8);
+      // the full moon, ringed, low over the cove
+      additive(ctx, function () { dot(ctx, '#d8e8ff', 980, 250, 260, 0.35); });
+      ctx.fillStyle = '#eef2e4'; ctx.beginPath(); ctx.arc(980, 250, 110, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(180,190,170,0.5)';
+      [[950, 220, 22], [1020, 280, 16], [990, 300, 10], [940, 290, 12]].forEach(function (c) { ctx.beginPath(); ctx.arc(c[0], c[1], c[2], 0, TAU); ctx.fill(); });
+      // the graveyard hill on the left, the crypt and its ghost-light
+      ctx.fillStyle = '#1a2620';
+      ctx.beginPath(); ctx.moveTo(0, 560); ctx.lineTo(0, 380); ctx.lineTo(120, 360); ctx.lineTo(260, 330); ctx.lineTo(420, 360); ctx.lineTo(560, 470); ctx.lineTo(560, 560); ctx.fill();
+      ctx.fillStyle = '#4a4a56'; ctx.fillRect(210, 290, 90, 50);
+      ctx.beginPath(); ctx.moveTo(200, 292); ctx.lineTo(255, 262); ctx.lineTo(310, 292); ctx.fill();
+      additive(ctx, function () {
+        var g = ctx.createLinearGradient(0, 0, 0, 290);
+        g.addColorStop(0, 'rgba(122,255,154,0)'); g.addColorStop(1, 'rgba(122,255,154,0.35)');
+        ctx.fillStyle = g; ctx.fillRect(240, 0, 30, 290);
+      });
+      ctx.fillStyle = '#3a3a44';
+      for (var gs = 0; gs < 12; gs++) {
+        var gx = 40 + gs * 40, gy = 400 + Math.abs(gs - 6) * 9;
+        ctx.fillRect(gx, gy - 18, 12, 18);
+        if (gs % 3 === 0) ctx.fillRect(gx - 5, gy - 13, 22, 4);
+      }
+      // the water of the cove
+      waves(ctx, 520, '#14283a', t, 6, 0.8, 1);
+      // the flagship, sunk to her gunwales: black against the moon, rags of
+      // sail, her stern windows lit green
+      ctx.fillStyle = '#100e0c';
+      ctx.beginPath(); ctx.moveTo(700, 520); ctx.lineTo(720, 470); ctx.lineTo(1260, 470); ctx.lineTo(1300, 410); ctx.lineTo(1320, 420); ctx.lineTo(1300, 520); ctx.fill();
+      ctx.fillRect(1180, 400, 120, 72);
+      [[820, 230], [1000, 170], [1200, 250]].forEach(function (m, i) {
+        ctx.fillRect(m[0] - 5, m[1], 10, 470 - m[1]);
+        ctx.fillRect(m[0] - 70, m[1] + 30, 140, 6);
+        ctx.fillStyle = 'rgba(170,200,170,0.28)';
+        for (var rag = 0; rag < 4; rag++) {
+          if (rag === 2) continue;
+          var rx = m[0] - 64 + rag * 34;
+          ctx.beginPath(); ctx.moveTo(rx, m[1] + 36); ctx.lineTo(rx + 28, m[1] + 36);
+          ctx.lineTo(rx + 24 + Math.sin(t * 2 + rag + i) * 4, m[1] + 120 - rag * 12); ctx.lineTo(rx + 6, m[1] + 100); ctx.fill();
+        }
+        ctx.fillStyle = '#100e0c';
+      });
+      additive(ctx, function () {
+        for (var w = 0; w < 4; w++) {
+          dot(ctx, '#7aff9a', 1200 + w * 26, 436, 18, 0.7 + 0.2 * Math.sin(t * 3 + w));
+        }
+      });
+      ctx.fillStyle = '#7aff9a';
+      for (var w2 = 0; w2 < 4; w2++) ctx.fillRect(1192 + w2 * 26, 428, 16, 14);
+      // masts of the drowned fleet standing out of the water
+      ctx.fillStyle = '#16120e';
+      [[560, 330], [620, 400], [1420, 340], [1500, 300]].forEach(function (m) {
+        ctx.fillRect(m[0] - 4, m[1], 8, 560 - m[1]); ctx.fillRect(m[0] - 40, m[1] + 30, 80, 5);
+      });
+      // the pier in front, our Corsair on it with a lantern
+      ctx.fillStyle = '#3a2a1e'; ctx.fillRect(0, 700, VW, 26);
+      ctx.fillStyle = '#2a1e14';
+      for (var pp = 0; pp < 18; pp++) ctx.fillRect(pp * 92 + 20, 726, 12, 120);
+      var walk = seg(t, 0.2, 2.6);
+      var px = lerp(120, 520, walk);
+      pirate(ctx, px, 700, 1.0, t, 0, t > 2.8 ? 1 : 0);
+      additive(ctx, function () { dot(ctx, '#ffd890', px - 30, 640, 60, 0.5); });
+      ctx.fillStyle = '#ffd890'; ctx.fillRect(px - 36, 630, 12, 16);
+      // the fog rising, then the dead climbing up out of the water
+      var fogUp = seg(t, 1.0, 2.2);
+      d.fog.forEach(function (f) {
+        var x = (f[0] + t * 30 * (0.5 + f[3])) % (VW + 400) - 200;
+        ctx.fillStyle = 'rgba(200,220,220,' + (0.12 + 0.22 * fogUp) + ')';
+        ctx.beginPath(); ctx.ellipse(x, f[1] - fogUp * 60, f[2], 30, 0, 0, TAU); ctx.fill();
+      });
+      [[760, 640, 0.9, 1.6], [940, 660, 1.0, 1.9], [1140, 650, 0.95, 2.2], [1340, 670, 1.05, 2.0]].forEach(function (sk, i) {
+        var rise = outCubic(seg(t, sk[3], sk[3] + 0.8));
+        if (rise <= 0) return;
+        var aim = seg(t, 2.7, 3.0);
+        gfSkeleton(ctx, sk[0], sk[1], sk[2], rise, aim, t, -1);
+        if (t > 3.0 + i * 0.08 && t < 3.2 + i * 0.08) {
+          additive(ctx, function () { dot(ctx, '#aaffcc', sk[0] - 60 * sk[2], sk[1] - 120 * sk[2], 40, 0.9); });
+        }
+      });
+      d.wisps.forEach(function (w) {
+        var x = w[0] + Math.sin(t * 0.6 + w[2]) * 40, y = w[1] + Math.cos(t * 0.8 + w[2]) * 20;
+        additive(ctx, function () {
+          dot(ctx, '#7aff9a', x, y, 22 * w[3], 0.5 + 0.3 * Math.sin(t * 3 + w[2]));
+          dot(ctx, '#e8ffe8', x, y, 5, 0.9);
+        });
+      });
+    },
+    title: function (ctx, t, d, run) {
+      // the flagship's nameboard, salvaged: black planks on two chains,
+      // swinging, the letters in ghost-light -- flickering
+      var at = 0.9;
+      if (t < at) return;
+      var k = outBack(seg(t, at, at + 0.5), 1.2);
+      ctx.save();
+      ctx.translate(800, 150 - (1 - k) * 300);
+      var swing = Math.sin((t - at) * 2.2) * 0.04 * Math.max(0.3, 1 - (t - at) * 0.3);
+      ctx.rotate(swing);
+      ctx.strokeStyle = '#6a6a72'; ctx.lineWidth = 5;
+      for (var c = -1; c <= 1; c += 2) {
+        ctx.beginPath(); ctx.moveTo(c * 380, -300); ctx.lineTo(c * 400, -50); ctx.stroke();
+        for (var l = 0; l < 10; l++) {
+          ctx.beginPath(); ctx.ellipse(c * (380 + l * 2), -280 + l * 24, 5, 9, 0, 0, TAU); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(ctx, -510, -54, 1036, 156, 8); ctx.fill();
+      for (var pl = 0; pl < 3; pl++) {
+        ctx.fillStyle = pl % 2 ? '#2a2018' : '#33281e';
+        ctx.fillRect(-520, -60 + pl * 50, 1040, 50);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(-520, -60 + pl * 50 + 46, 1040, 4);
+      }
+      ctx.fillStyle = '#2a5a3a';
+      for (var wd = 0; wd < 14; wd++) ctx.fillRect(-500 + wd * 76, 88, 10, 14 + (wd * 7 % 5) * 6);
+      ctx.fillStyle = '#8a7030';
+      [[-500, -44], [500, -44], [-500, 74], [500, 74]].forEach(function (p) { ctx.beginPath(); ctx.arc(p[0], p[1], 7, 0, TAU); ctx.fill(); });
+      ctx.globalAlpha = run.alpha;
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#8a7030';
+      ctx.fillText('PLUNDER BAY', 0, -28);
+      var flick = Math.sin(t * 23) > 0.92 ? 0.35 : 1;
+      var name = (run.info.name || 'Ghost Fleet Cove').toUpperCase();
+      titleText(ctx, name, 0, 34, 860, 84, 'rgba(200,255,214,' + flick + ')', '#0a1a10', 8);
+      additive(ctx, function () {
+        ctx.globalAlpha = 0.5 * flick * run.alpha;
+        titleText(ctx, name, 0, 34, 860, 84, '#7aff9a', null);
+        ctx.globalAlpha = run.alpha;
+      });
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------ Glowtide Lagoon
+  Intro.register('pb_glowtide', {
+    name: 'Glowtide Lagoon',
+    tagline: 'A lagoon that lights up when you wade it. When the tide goes out, the clams give up their pearls.',
+    accent: '#5af0ff',
+    cues: [[0.2, 'pb_waves', 0.6], [1.3, 'pb_twist_tide', 0.7], [1.6, 'pb_tide', 0.7], [2.9, 'pb_coins', 0.6],
+           [3.6, 'pb_pick', 0.6], [4.4, 'pb_go', 0.6]],
+    shakes: [],
+    tagY: 612, tagAt: 3.3,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 70, 0, 300), glints: [], sky: [], floats: [] };
+      for (var i = 0; i < 70; i++) d.glints.push([between(r, 0, VW), between(r, 0, 1), r() * 6]);
+      for (var s = 0; s < 12; s++) d.sky.push([between(r, 1060, 1500), r(), between(r, 0.6, 1.2), r() * 6]);
+      for (var f = 0; f < 14; f++) d.floats.push([between(r, 60, 1540), between(r, 0, 1), r() * 6]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 470);
+      sky.addColorStop(0, '#0e1240'); sky.addColorStop(0.5, '#4a2e6e'); sky.addColorStop(0.85, '#c86a8a'); sky.addColorStop(1, '#f0a88a');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      stars(ctx, d.stars, t, 0.7);
+      // a thin moon, the festival's sky lanterns going up on the right
+      ctx.fillStyle = '#f4f0e4'; ctx.beginPath(); ctx.arc(330, 150, 46, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#2a2056'; ctx.beginPath(); ctx.arc(350, 140, 42, 0, TAU); ctx.fill();
+      d.sky.forEach(function (s) {
+        var u = (s[1] + t * 0.06 * s[2]) % 1;
+        var x = s[0] + u * 120 + Math.sin(t + s[3]) * 8, y = 470 - u * 440;
+        additive(ctx, function () { dot(ctx, '#ffb84a', x, y, 22 * (1 - u * 0.5), 0.55 * (1 - u)); });
+        ctx.fillStyle = 'rgba(255,200,110,' + (1 - u) + ')'; ctx.fillRect(x - 5, y - 7, 10, 14);
+      });
+      // mangroves black against the sky, either side
+      ctx.fillStyle = '#121a26';
+      [[0, 300, 260], [120, 330, 200], [1340, 320, 240], [1480, 290, 260]].forEach(function (m) {
+        ctx.beginPath(); ctx.ellipse(m[0] + 60, m[1], m[2] / 2, 70, 0, 0, TAU); ctx.fill();
+        ctx.fillRect(m[0] + 50, m[1], 14, 180);
+        for (var rt = 0; rt < 5; rt++) { ctx.fillRect(m[0] + 20 + rt * 18, m[1] + 120 + (rt % 2) * 20, 5, 70); }
+      });
+      // the moon temple out in the lagoon, its crescents glowing, the idol on top
+      var tiers = [[460, 500], [380, 456], [300, 414], [220, 372], [140, 330]];
+      tiers.forEach(function (tr, i) {
+        ctx.fillStyle = i % 2 ? '#3a4660' : '#46526e';
+        ctx.fillRect(800 - tr[0] / 2, tr[1], tr[0], 540 - tr[1]);
+      });
+      ctx.fillStyle = '#2a3348'; ctx.fillRect(780, 330, 40, 210);
+      additive(ctx, function () {
+        [[640, 440], [960, 440]].forEach(function (c) { dot(ctx, '#7ad8ff', c[0], c[1], 26, 0.8); });
+        dot(ctx, '#ffd040', 800, 312, 46, 0.7 + 0.2 * Math.sin(t * 3));
+      });
+      ctx.strokeStyle = '#bfefff'; ctx.lineWidth = 5;
+      [[640, 440], [960, 440]].forEach(function (c) { ctx.beginPath(); ctx.arc(c[0], c[1], 14, -1.2, 1.9); ctx.stroke(); });
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(790, 300, 20, 30);
+      // the lagoon, falling with the tide: the causeway coming up out of it,
+      // the clams on the floor opening, their pearls lit
+      var ebb = seg(t, 1.5, 2.8);
+      var water = 540 + ebb * 90;
+      ctx.fillStyle = '#2a3a52'; ctx.fillRect(0, 540, VW, 360);
+      ctx.fillStyle = '#5a6a84'; ctx.fillRect(740, 600, 120, 300);
+      ctx.fillStyle = '#6a7a96'; ctx.fillRect(740, 596, 120, 8);
+      [[360, 760], [560, 700], [1060, 710], [1260, 770], [460, 840], [1160, 850]].forEach(function (c, i) {
+        var open = seg(t, 2.6 + i * 0.08, 3.0 + i * 0.08);
+        ctx.fillStyle = '#9a8ab8';
+        ctx.beginPath(); ctx.ellipse(c[0], c[1], 44, 16, 0, 0, Math.PI); ctx.fill();
+        ctx.save(); ctx.translate(c[0] - 44, c[1]); ctx.rotate(-open * 0.7);
+        ctx.beginPath(); ctx.ellipse(44, 0, 44, 16, 0, Math.PI, TAU); ctx.fill(); ctx.restore();
+        if (open > 0) additive(ctx, function () { dot(ctx, '#f4f8ff', c[0], c[1] - 6, 22 * open, 0.9); });
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(c[0], c[1] - 6, 6 * open, 0, TAU); ctx.fill();
+      });
+      ctx.fillStyle = 'rgba(14,74,138,0.72)'; ctx.fillRect(0, water, VW, VH - water);
+      d.glints.forEach(function (g) {
+        var y = water + 8 + g[1] * (VH - water - 8);
+        additive(ctx, function () { dot(ctx, '#5af0ff', g[0] + Math.sin(t + g[2]) * 10, y, 5, 0.4 + 0.4 * Math.sin(t * 4 + g[2])); });
+      });
+      d.floats.forEach(function (f) {
+        var x = f[0] + Math.sin(t * 0.4 + f[2]) * 20, y = water - 6 + Math.sin(t * 1.4 + f[2]) * 2;
+        ctx.fillStyle = ['#ff6a4a', '#ffb84a', '#ff8ad8', '#ffe07a'][Math.floor(f[2]) % 4];
+        ctx.fillRect(x - 7, y - 12, 14, 14);
+        additive(ctx, function () { dot(ctx, '#ffb84a', x, y - 5, 18, 0.4); });
+      });
+      // our Corsair wading out along the causeway, the water lit round her
+      // legs -- then dry, and stooping for a pearl
+      var walk = seg(t, 0.3, 3.4);
+      var px = 800, py = lerp(900, 640, outCubic(walk)), ps = lerp(1.25, 0.7, walk);
+      if (py > water - 4) {
+        additive(ctx, function () {
+          for (var rr = 0; rr < 3; rr++) {
+            var u = (t * 0.9 + rr / 3) % 1;
+            ctx.strokeStyle = 'rgba(90,240,255,' + (0.7 * (1 - u)) + ')'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.ellipse(px, Math.min(py, water + 6), 30 + u * 70, 8 + u * 16, 0, 0, TAU); ctx.stroke();
+          }
+        });
+      }
+      pirate(ctx, px, py, ps, t, 0, t > 3.5 ? 2 : 0);
+    },
+    title: function (ctx, t, d, run) {
+      // the name written in moonlight over the water, its reflection
+      // rippling under it
+      var at = 1.0;
+      if (t < at) return;
+      var k = seg(t, at, at + 0.8);
+      var name = (run.info.name || 'Glowtide Lagoon').toUpperCase();
+      ctx.save();
+      ctx.globalAlpha = run.alpha * k;
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd8a0';
+      ctx.fillText('PLUNDER BAY', 800, 110);
+      ctx.strokeStyle = '#ffd8a0'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(800, 76, 14, -2.2, 1.2); ctx.stroke();
+      var y = 176 - (1 - outCubic(k)) * 30;
+      additive(ctx, function () { titleText(ctx, name, 800, y, 1000, 104, 'rgba(90,240,255,0.55)', null); });
+      titleText(ctx, name, 800, y, 1000, 104, '#e8fcff', '#1a2a5a', 6);
+      // the reflection, in slices, each pushed by the ripple
+      for (var sl = 0; sl < 14; sl++) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, y + 52 + sl * 7, VW, 7); ctx.clip();
+        ctx.translate(Math.sin(t * 3 + sl * 0.9) * 6 * (1 + sl * 0.1), 2 * (y + 52) - 0);
+        ctx.scale(1, -1);
+        ctx.globalAlpha = run.alpha * k * 0.32 * (1 - sl / 14);
+        titleText(ctx, name, 800, y, 1000, 104, '#7ad8ff', null);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  });
+
+  // ------------------------------------------------ Frostfang Floe
+  /* A frosted tentacle bursting up out of a hole in the ice: ``up`` how
+     far out, ``curl`` how far it has bent over to slam. */
+  function ffTentacle(ctx, x, y, s, up, curl, t, seed) {
+    var n = 14, h = 300 * s * up;
+    var pts = [];
+    for (var i = 0; i <= n; i++) {
+      var f = i / n;
+      var bend = curl * f * f * 1.6 + Math.sin(t * 2 + seed + f * 3) * 0.12 * f;
+      pts.push([x + Math.sin(bend) * h * f * 0.8, y - Math.cos(bend) * h * f, (1 - f) * 34 * s + 5 * s]);
+    }
+    for (var j = 0; j < n; j++) {
+      var a = pts[j], c = pts[j + 1];
+      ctx.strokeStyle = j % 2 ? '#7aa8c8' : '#8ab8d4'; ctx.lineCap = 'round'; ctx.lineWidth = a[2];
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
+      if (j % 2 === 0 && j < n - 2) {
+        ctx.fillStyle = '#f0faff';
+        ctx.beginPath(); ctx.arc(a[0] + a[2] * 0.35, a[1], a[2] * 0.22, 0, TAU); ctx.fill();
+      }
+      if (j % 4 === 1) {
+        ctx.fillStyle = 'rgba(240,250,255,0.9)';
+        ctx.beginPath(); ctx.moveTo(a[0] - a[2] * 0.5, a[1]); ctx.lineTo(a[0] - a[2] * 0.3, a[1] + a[2] * 0.9); ctx.lineTo(a[0] - a[2] * 0.1, a[1]); ctx.fill();
+      }
+    }
+  }
+
+  Intro.register('pb_frostfang', {
+    name: 'Frostfang Floe',
+    tagline: 'A galleon frozen into the ice at the top of the world. Something big lives under it.',
+    accent: '#9ae8ff',
+    cues: [[0.2, 'pb_waves', 0.4], [1.2, 'pb_twist_kraken', 0.8], [1.5, 'pb_kraken', 0.9], [2.8, 'pb_slam', 0.9],
+           [3.4, 'pb_kraken', 0.6], [4.4, 'pb_go', 0.6]],
+    shakes: [[1.5, 6, 0.5], [2.8, 12, 0.5]],
+    tagY: 612, tagAt: 3.4,
+    setup: function (r) {
+      var d = { snow: [], shards: [], sparkle: [] };
+      for (var i = 0; i < 120; i++) d.snow.push([r() * VW, r() * VH, between(r, 0.4, 1.2), r() * 6]);
+      for (var s = 0; s < 30; s++) d.shards.push([between(r, -1, 1), between(r, 0.5, 1.2), r(), r() * 6]);
+      for (var g = 0; g < 40; g++) d.sparkle.push([r() * VW, between(r, 560, 900), r() * 6]);
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 480);
+      sky.addColorStop(0, '#2a7ad8'); sky.addColorStop(1, '#e8f4ff');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      additive(ctx, function () { dot(ctx, '#ffffff', 1260, 120, 220, 0.5); });
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(1260, 120, 44, 0, TAU); ctx.fill();
+      // the glacier behind, in three blue-white steps
+      [[0, 1600, 470, 380, '#bfe4f4'], [180, 1420, 380, 300, '#d4eef8'], [360, 1240, 300, 230, '#bfe4f4']].forEach(function (g) {
+        ctx.fillStyle = g[4]; ctx.fillRect(g[0], g[3], g[1] - g[0], g[2] - g[3] + 120);
+        ctx.fillStyle = '#f4f8fc'; ctx.fillRect(g[0], g[3] - 8, g[1] - g[0], 10);
+        ctx.fillStyle = 'rgba(74,144,184,0.5)';
+        for (var c = g[0] + 30; c < g[1] - 20; c += 64) ctx.fillRect(c, g[3] + 8, 10, 40 + (c * 7 % 5) * 12);
+        ctx.fillStyle = '#e8f8ff';
+        for (var ic = g[0] + 50; ic < g[1] - 20; ic += 48) {
+          ctx.beginPath(); ctx.moveTo(ic, g[3] + 2); ctx.lineTo(ic + 8, g[3] + 2); ctx.lineTo(ic + 4, g[3] + 26 + (ic * 3 % 4) * 6); ctx.fill();
+        }
+      });
+      // the pack ice, and the frozen galleon held in it
+      ctx.fillStyle = '#d8eef8'; ctx.fillRect(0, 520, VW, 380);
+      ctx.fillStyle = '#5a3a20';
+      ctx.beginPath(); ctx.moveTo(560, 560); ctx.lineTo(600, 500); ctx.lineTo(1000, 500); ctx.lineTo(1060, 470); ctx.lineTo(1050, 560); ctx.fill();
+      ctx.fillStyle = '#f4f8fc'; ctx.fillRect(600, 494, 400, 10);
+      [[680, 260], [800, 200], [930, 280]].forEach(function (m, i) {
+        ctx.fillStyle = '#4a3020'; ctx.fillRect(m[0] - 5, m[1], 10, 500 - m[1]);
+        for (var yd = 0; yd < 2; yd++) {
+          var yy = m[1] + 30 + yd * 90;
+          ctx.fillStyle = '#4a3020'; ctx.fillRect(m[0] - 70 + yd * 10, yy, 140 - yd * 20, 6);
+          ctx.fillStyle = '#f4f8fc'; ctx.fillRect(m[0] - 64 + yd * 10, yy + 6, 128 - yd * 20, 64);
+          ctx.fillStyle = '#e8f8ff';
+          for (var c2 = 0; c2 < 6; c2++) {
+            var cx = m[0] - 60 + yd * 10 + c2 * 22;
+            ctx.beginPath(); ctx.moveTo(cx, yy + 70); ctx.lineTo(cx + 6, yy + 70); ctx.lineTo(cx + 3, yy + 90); ctx.fill();
+          }
+        }
+      });
+      ctx.fillStyle = '#e8b830'; ctx.fillRect(982, 448, 18, 24);
+      additive(ctx, function () { dot(ctx, '#ffe080', 991, 460, 30, 0.6); });
+      // the breathing holes in the ice in front, black water in them
+      var holes = [[300, 700], [1300, 700], [520, 820], [1080, 820]];
+      holes.forEach(function (h) {
+        ctx.fillStyle = '#123a5a'; ctx.beginPath(); ctx.ellipse(h[0], h[1], 90, 26, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#f0faff';
+        for (var e = 0; e < 8; e++) {
+          var a = e * TAU / 8;
+          ctx.fillRect(h[0] + Math.cos(a) * 92 - 8, h[1] + Math.sin(a) * 27 - 4, 16, 8);
+        }
+      });
+      d.sparkle.forEach(function (g) {
+        additive(ctx, function () { dot(ctx, '#ffffff', g[0], g[1], 4, 0.3 + 0.5 * Math.max(0, Math.sin(t * 3 + g[2]))); });
+      });
+      // the kraken comes up through them: shards of ice flung out
+      var burst = seg(t, 1.4, 1.9), slam = seg(t, 2.4, 2.8), back = seg(t, 3.6, 4.4);
+      holes.forEach(function (h, i) {
+        var up = outBack(seg(t, 1.4 + i * 0.12, 1.9 + i * 0.12), 1.2) * (1 - back);
+        if (up <= 0) return;
+        var curl = i === 2 ? slam * 1.4 : Math.sin(t * 1.5 + i) * 0.2;
+        ffTentacle(ctx, h[0], h[1], i < 2 ? 0.8 : 1.0, up, curl, t, i);
+      });
+      if (burst > 0 && burst < 1) {
+        d.shards.forEach(function (sh, i) {
+          var h = holes[i % 4];
+          var x = h[0] + sh[0] * 200 * burst, y = h[1] - sh[1] * 260 * burst + 300 * burst * burst;
+          ctx.fillStyle = 'rgba(240,250,255,' + (1 - burst) + ')';
+          ctx.save(); ctx.translate(x, y); ctx.rotate(t * 8 + sh[3]); ctx.fillRect(-6, -10, 12, 20); ctx.restore();
+        });
+      }
+      // our Corsair running across the ice with a jewel; the slam lands
+      // just behind her
+      var run = seg(t, 0.3, 4.4);
+      var px = lerp(160, 900, run);
+      pirate(ctx, px, 860, 1.0, t, 0, 0);
+      ctx.fillStyle = '#3ad0ff';
+      ctx.beginPath(); ctx.moveTo(px + 30, 730); ctx.lineTo(px + 44, 744); ctx.lineTo(px + 30, 758); ctx.lineTo(px + 16, 744); ctx.fill();
+      if (t > 2.3 && t < 2.8) {
+        ctx.strokeStyle = 'rgba(154,232,255,' + (0.5 + 0.5 * Math.sin(t * 30)) + ')'; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.ellipse(700, 840, 110, 30, 0, 0, TAU); ctx.stroke();
+      }
+      if (t > 2.8 && t < 3.6) {
+        var age = t - 2.8;
+        additive(ctx, function () { dot(ctx, '#e8f8ff', 700, 840, 140 + age * 200, Math.max(0, 0.9 - age * 1.2)); });
+      }
+      // penguins watching from the edge
+      [[1440, 600], [1480, 610], [1520, 596]].forEach(function (p, i) {
+        var w = Math.sin(t * 6 + i) * 0.1;
+        ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(w);
+        ctx.fillStyle = '#1e2228'; ctx.beginPath(); ctx.ellipse(0, -22, 12, 22, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#f4f4f0'; ctx.beginPath(); ctx.ellipse(2, -18, 8, 16, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ff9a2a'; ctx.fillRect(8, -38, 8, 4);
+        ctx.restore();
+      });
+      // the snow, blowing
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      d.snow.forEach(function (sn) {
+        var x = (sn[0] + t * 60 * sn[2] + Math.sin(t + sn[3]) * 20) % VW, y = (sn[1] + t * 90 * sn[2]) % VH;
+        ctx.beginPath(); ctx.arc(x, y, 2 + sn[2] * 2, 0, TAU); ctx.fill();
+      });
+    },
+    title: function (ctx, t, d, run) {
+      // a slab of clear blue ice, the name cut into it in frost, icicles
+      // hanging off its lower edge
+      var at = 1.0;
+      if (t < at) return;
+      var k = outBack(seg(t, at, at + 0.45), 1.5);
+      ctx.save();
+      ctx.translate(800, 168 - (1 - k) * 320);
+      ctx.rotate(-0.01 + wobble(t, at + 0.45, 0.02, 12, 5));
+      var g = ctx.createLinearGradient(0, -90, 0, 90);
+      g.addColorStop(0, 'rgba(220,244,255,0.95)'); g.addColorStop(1, 'rgba(140,200,232,0.95)');
+      ctx.fillStyle = 'rgba(30,60,90,0.25)'; roundRect(ctx, -490, -78, 1000, 180, 18); ctx.fill();
+      ctx.fillStyle = g; roundRect(ctx, -500, -90, 1000, 180, 18); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; roundRect(ctx, -486, -76, 972, 152, 12); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath(); ctx.moveTo(-480, -70); ctx.lineTo(-300, -70); ctx.lineTo(-420, 60); ctx.lineTo(-480, 60); ctx.fill();
+      ctx.fillStyle = '#e8f8ff';
+      for (var ic = -460; ic < 480; ic += 46) {
+        var len = 18 + ((ic + 500) * 7 % 5) * 9;
+        ctx.beginPath(); ctx.moveTo(ic, 88); ctx.lineTo(ic + 14, 88); ctx.lineTo(ic + 7, 88 + len); ctx.fill();
+      }
+      ctx.globalAlpha = run.alpha;
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#2a6aa0';
+      ctx.fillText('PLUNDER BAY', 0, -42);
+      titleText(ctx, (run.info.name || 'Frostfang Floe').toUpperCase(), 0, 20, 860, 92, '#ffffff', '#2a6aa0', 8);
+      var shine = seg(t, at + 0.4, at + 1.3);
+      if (shine > 0 && shine < 1) {
+        additive(ctx, function () {
+          var sx = lerp(-500, 500, shine);
+          var sg = ctx.createLinearGradient(sx - 70, 0, sx + 70, 0);
+          sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.6)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = sg; ctx.fillRect(sx - 70, -90, 140, 180);
+        });
       }
       ctx.restore();
     }

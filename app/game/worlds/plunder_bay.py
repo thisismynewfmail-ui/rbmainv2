@@ -340,7 +340,7 @@ class PlunderBayWorld(ArenaWorld):
             "melee_kills", "ranged_kills", "cannons", "cannon_hits", "drops", "twists",
             "npc_hits", "npc_kills", "slams", "volleys", "bombs", "spews", "sunken", "washed",
             "idols", "lava", "stops", "bolts", "geysers", "pulled", "drowned", "throws",
-            "skeletons")}
+            "skeletons", "uncovered")}
         self.twist_runs: Dict[str, int] = {}
         self.events_said: Dict[str, float] = {}
         self.landmarks: List[Tuple[List[float], str]] = []
@@ -1265,8 +1265,11 @@ class PlunderBayWorld(ArenaWorld):
         tw["next_geyser"] = moment + 0.6
         tw["next_throw"] = moment + 1.4
         if kind == "kraken":
+            # (a place where the tentacles come up in the thick of things can
+            # make them tougher: extra["kraken_hp"])
+            tent_hp = float(self.extra.get("kraken_hp", TENT_HP))
             for k, base in enumerate(self.tentacle_marks):
-                npc = self._new_npc("tentacle", [base[0], self.water_y - 1.0, base[2]], TENT_HP)
+                npc = self._new_npc("tentacle", [base[0], self.water_y - 1.0, base[2]], tent_hp)
                 npc.data.update({"base": list(base), "next": moment + 1.6 + self.rng.uniform(*SLAM_EVERY),
                                  "hit_by": set()})
                 npc.state = "rise"
@@ -1361,6 +1364,7 @@ class PlunderBayWorld(ArenaWorld):
         for k, spot in enumerate(self.sunken_marks):
             item = self._new_item(kinds[k % len(kinds)], spot, "sunken")
             item["feat"] = True
+            self.counts["uncovered"] += 1
         self.broadcast({"t": "pbx", "k": "uncover", "n": len(self.sunken_marks)})
 
     def _wash(self, moment: float) -> None:
@@ -2420,6 +2424,13 @@ class PlunderBayWorld(ArenaWorld):
             ("the twist comes round", c["twists"] >= 1, c["twists"]),
             ("carriers drop what they carry", c["drops"] >= 1, c["drops"]),
         ] + [(name, ok, detail) for kind, name, ok, detail in (
+            ("tide", "the low tide uncovers treasure", c["uncovered"] >= 1, c["uncovered"]),
+            ("kraken", "the kraken's tentacles come up and fight", c["slams"] + c["npc_hits"] >= 1,
+             "%d slams, %d hits on it" % (c["slams"], c["npc_hits"])),
+            ("redcoats", "the patrols march and shoot", c["volleys"] + c["npc_hits"] >= 1,
+             "%d volleys, %d hits on them" % (c["volleys"], c["npc_hits"])),
+            ("eruption", "the eruption throws bombs and gold", c["bombs"] + c["spews"] >= 1,
+             "%d bombs, %d spews" % (c["bombs"], c["spews"])),
             ("storm", "the storm's lightning strikes", c["bolts"] >= 3, c["bolts"]),
             ("geysers", "the geysers blow", c["geysers"] >= 3, c["geysers"]),
             ("maelstrom", "the maelstrom throws up treasure", c["throws"] >= 2, c["throws"]),

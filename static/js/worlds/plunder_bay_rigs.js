@@ -20,7 +20,14 @@
      pb_sampan      a little boat bobbing at its mooring
      pb_ferris      a Ferris wheel turning, its cars hanging level
      pb_firework    fireworks going up over the fair
-     pb_sparks      St Elmo's fire crackling round a lightning rod's tip */
+     pb_sparks      St Elmo's fire crackling round a lightning rod's tip
+     pb_skylanterns paper sky lanterns rising from a festival, drifting off
+     pb_wake        the water lighting up round anybody wading in it
+
+   A rig that floats (pb_glow, pb_lanterns, pb_sampan; rr_surf too) and is
+   given ``tide: true`` rides the sea's height (ctx.water()) instead of its
+   own y, so it goes out with the tide; ``floor`` is as low as it goes (a
+   boat settles on the mud). */
 (function (global) {
   'use strict';
   var Rigs = global.Rigs;
@@ -29,6 +36,12 @@
   var TAU = Math.PI * 2;
 
   function dist(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+  /* the height a floating rig rides at: the sea's, if it follows the tide */
+  function afloat(spec, ctx, dy) {
+    if (!spec.tide || !ctx || !ctx.water) return spec.p[1];
+    var y = ctx.water() + (dy || 0);
+    return spec.floor === undefined ? y : Math.max(spec.floor, y);
+  }
   function near(ctx, p, r) {
     var v = ctx.viewer ? ctx.viewer() : null;
     return v && v.eye && dist(v.eye, p) < r;
@@ -231,19 +244,20 @@
   // ========================================================== the glow
   /* Bioluminescence: sparkles of light on the dark water, twinkling and
      drifting, brighter where something moves. */
-  Rigs.register('pb_glow', function (spec) {
+  Rigs.register('pb_glow', function (spec, ctx) {
     var n = spec.n || 40, W = spec.w || 40, D = spec.d || 40, seed = spec.seed || 0;
     var cols = spec.colours || ['#5af0ff', '#7affd8', '#4ab8ff', '#b8fff0'];
     return {
       radius: Math.max(W, D) / 2 + 40,
       draw: function (pen, t) {
+        var y0 = afloat(spec, ctx, 0.05);
         for (var i = 0; i < n; i++) {
           var tw = Math.sin(t * (1.4 + hash(seed + i) * 2) + i * 1.9);
           if (tw < 0) continue;
           var x = spec.p[0] + (hash(seed + i * 3.1) - 0.5) * W + Math.sin(t * 0.2 + i) * 1.2;
           var z = spec.p[2] + (hash(seed + i * 5.3) - 0.5) * D + Math.cos(t * 0.17 + i) * 1.2;
           var s = 0.35 + tw * 0.5;
-          pen.part(frame([x, spec.p[1] + (spec.lift ? hash(seed + i * 7) * spec.lift : 0), z], 0, 1), 'sph', [0, 0, 0],
+          pen.part(frame([x, y0 + (spec.lift ? hash(seed + i * 7) * spec.lift : 0), z], 0, 1), 'sph', [0, 0, 0],
                    [s, s, s], cols[i % cols.length], { m: 'neon', a: 0.5 + tw * 0.5 });
         }
       }
@@ -330,16 +344,17 @@
   // ========================================================== the bazaar
   /* Paper lanterns floating on the water, bobbing, drifting slow loops,
      lit from inside. */
-  Rigs.register('pb_lanterns', function (spec) {
+  Rigs.register('pb_lanterns', function (spec, ctx) {
     var n = spec.n || 10, W = spec.w || 30, D = spec.d || 30, seed = spec.seed || 0;
     var cols = ['#ff6a4a', '#ffb84a', '#ff8ad8', '#ffe07a'];
     return {
       radius: Math.max(W, D) / 2 + 40,
       draw: function (pen, t) {
+        var y0 = afloat(spec, ctx, 0);
         for (var i = 0; i < n; i++) {
           var x = spec.p[0] + (hash(seed + i * 3.7) - 0.5) * W + Math.sin(t * 0.1 + i) * 3;
           var z = spec.p[2] + (hash(seed + i * 6.1) - 0.5) * D + Math.cos(t * 0.08 + i) * 3;
-          var y = spec.p[1] + Math.sin(t * 1.1 + i * 1.7) * 0.15;
+          var y = y0 + Math.sin(t * 1.1 + i * 1.7) * 0.15;
           var f = frame([x, y, z], t * 0.1 + i, 1);
           pen.part(f, 'box', [0, 0.1, 0], [1.6, 0.2, 1.6], '#6a4a2a');
           pen.part(f, 'box', [0, 0.9, 0], [1.3, 1.4, 1.3], cols[i % cols.length], { a: 0.85, m: 'neon' });
@@ -351,13 +366,14 @@
 
   /* A little boat at its mooring, bobbing and swinging on its line: the
      hull, a woven canopy, a lantern on a pole. */
-  Rigs.register('pb_sampan', function (spec) {
+  Rigs.register('pb_sampan', function (spec, ctx) {
     var seed = spec.seed || 0, colour = spec.colour || '#8a5a3a', roof = spec.roof || '#c8a060';
     return {
       radius: 40,
       draw: function (pen, t) {
-        var bob = Math.sin(t * 1.2 + seed) * 0.18, roll = Math.sin(t * 0.9 + seed) * 0.05;
-        var f = child(frame([spec.p[0], spec.p[1] + bob, spec.p[2]], (spec.yaw || 0) + Math.sin(t * 0.2 + seed) * 0.08, 1),
+        var y0 = afloat(spec, ctx, 0), aground = spec.floor !== undefined && y0 <= spec.floor + 1e-3;
+        var bob = aground ? 0 : Math.sin(t * 1.2 + seed) * 0.18, roll = aground ? 0.06 : Math.sin(t * 0.9 + seed) * 0.05;
+        var f = child(frame([spec.p[0], y0 + bob, spec.p[2]], (spec.yaw || 0) + (aground ? 0 : Math.sin(t * 0.2 + seed) * 0.08), 1),
                       [0, 0, 0], Math.sin(t * 1.1 + seed) * 0.03, 0, roll);
         pen.part(f, 'box', [0, 0.3, 0], [3.2, 1.0, 10], colour);
         pen.part(f, 'box', [0, 0.9, 5.4], [1.8, 0.8, 1.4], colour, { rx: -0.4 });
@@ -473,6 +489,59 @@
           }
         }
         pen.part(frame(spec.p, 0, 1), 'sph', [0, 0, 0], [0.9, 0.9, 0.9], '#e8f6ff', { m: 'neon', a: 0.6 + 0.4 * Math.sin(t * 30) });
+      }
+    };
+  });
+
+  // ======================================================= the festival
+  /* Sky lanterns: paper lanterns let go from a spot one after another,
+     rising slowly, swaying, drifting off downwind, fading as they climb. */
+  Rigs.register('pb_skylanterns', function (spec) {
+    var n = spec.n || 12, H = spec.h || 140, R = spec.r || 10, life = spec.life || 26, seed = spec.seed || 0;
+    var wind = spec.wind || [0.6, 0.3];
+    var cols = ['#ffb84a', '#ff8a4a', '#ffd86a', '#ff6a5a'];
+    return {
+      radius: H + 200,
+      draw: function (pen, t) {
+        for (var i = 0; i < n; i++) {
+          var u = ((t + i * life / n + seed * 3) % life) / life;
+          var slot = Math.floor((t + i * life / n + seed * 3) / life);
+          var a = hash(i * 3.7 + slot * 1.3 + seed) * TAU, r = R * hash(i * 5.1 + slot);
+          var up = u * H, drift = u * u * H * 0.7;
+          var x = spec.p[0] + Math.cos(a) * r + wind[0] * drift + Math.sin(t * 0.7 + i) * 1.4;
+          var z = spec.p[2] + Math.sin(a) * r + wind[1] * drift + Math.cos(t * 0.6 + i) * 1.4;
+          var fade = u < 0.08 ? u / 0.08 : 1 - Math.max(0, (u - 0.7) / 0.3);
+          var c = cols[(i + slot) % cols.length];
+          var f = child(frame([x, spec.p[1] + up, z], t * 0.2 + i, 1), [0, 0, 0], Math.sin(t * 1.3 + i) * 0.08, 0, 0);
+          pen.part(f, 'box', [0, 0, 0], [1.2, 1.6, 1.2], c, { m: 'neon', a: 0.9 * fade });
+          pen.part(f, 'sph', [0, 0, 0], [3.4, 3.4, 3.4], c, { m: 'neon', a: 0.16 * fade });
+        }
+      }
+    };
+  });
+
+  /* The water lighting up round anybody wading in it: rings of blue
+     light spreading from their legs, brighter the deeper they are. */
+  Rigs.register('pb_wake', function (spec, ctx) {
+    var W = spec.w || 60, D = spec.d || 60, colour = spec.colour || '#5af0ff';
+    return {
+      radius: Math.max(W, D) / 2 + 40,
+      draw: function (pen, t) {
+        if (!ctx || !ctx.players || !ctx.water) return;
+        var w = ctx.water();
+        ctx.players().forEach(function (p, j) {
+          var x = p.pos[0], z = p.pos[2];
+          if (Math.abs(x - spec.p[0]) > W / 2 || Math.abs(z - spec.p[2]) > D / 2) return;
+          var depth = w - p.pos[1];
+          if (depth < 0.2) return;
+          var k = Math.min(1, depth / 2.5);
+          for (var r = 0; r < 3; r++) {
+            var u = (t * 0.9 + r / 3 + j * 0.37) % 1;
+            pen.part(frame([x, w + 0.04, z], 0, 1), 'torus', [0, 0, 0], [2 + u * 7, 0.3, 2 + u * 7], colour,
+                     { m: 'neon', a: (0.25 + 0.5 * k) * (1 - u) });
+          }
+          pen.part(frame([x, w + 0.03, z], 0, 1), 'cyl', [0, 0, 0], [3.2, 0.04, 3.2], '#c8fcff', { m: 'neon', a: 0.35 * k });
+        });
       }
     };
   });

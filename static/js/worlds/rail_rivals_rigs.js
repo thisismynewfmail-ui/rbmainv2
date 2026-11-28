@@ -768,12 +768,19 @@
   });
 
   /* Surf: lines of foam rolling in onto a beach, breaking, sliding back. */
-  Rigs.register('rr_surf', function (spec) {
+  Rigs.register('rr_surf', function (spec, ctx) {
     var w = spec.w || 80, yaw = spec.yaw || 0;
     return {
       radius: w / 2 + 30,
       draw: function (pen, t) {
-        var f = frame(spec.p, yaw, 1);
+        // on a tidal shore (spec.tide) the surf rides the sea's height and
+        // follows the water's edge out (spec.ebb units per unit it drops)
+        var p = spec.p;
+        if (spec.tide && ctx && ctx.water) {
+          var sea = ctx.water(), off = Math.max(0, (spec.high === undefined ? -1 : spec.high) - sea) * (spec.ebb || 0);
+          p = [spec.p[0] + Math.sin(yaw) * off, sea + 0.3, spec.p[2] + Math.cos(yaw) * off];
+        }
+        var f = frame(p, yaw, 1);
         for (var i = 0; i < 4; i++) {
           var u = ((t * 0.18 + i / 4) % 1);
           var z = 18 - u * 22;

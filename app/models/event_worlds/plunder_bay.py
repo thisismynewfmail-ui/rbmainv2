@@ -79,6 +79,18 @@ WORLD: Dict[str, Any] = {
          "blurb": "White travertine terraces brimming with turquoise pools, climbing to a ruined "
                   "bathhouse with the idol in its plunge pool; a rainbow spring with a boardwalk "
                   "across it; the crews' sulphur mines and powder works. The geysers blow."},
+        {"id": "ghostfleet", "name": "Ghost Fleet Cove",
+         "blurb": "A moonlit cove full of wrecks, the drowned flagship in the middle of it with the "
+                  "idol on her quarterdeck, a graveyard climbing to a crypt, beached hulks and a "
+                  "drowned chapel. The fog rises, and the dead crews walk."},
+        {"id": "glowtide", "name": "Glowtide Lagoon",
+         "blurb": "A lagoon at the blue hour that lights up wherever it is stirred: a stepped moon "
+                  "temple with the idol on its crown, causeways out to it, a mangrove swamp, stilt "
+                  "villages in tidal bays and a lantern festival. The tide goes out."},
+        {"id": "frostfang", "name": "Frostfang Floe",
+         "blurb": "A blinding white island at the top of the world: a galleon frozen into the pack "
+                  "ice with the idol on her quarterdeck, a glacier in three steps with a grotto in its "
+                  "foot, whalers' camps and ice floes. The frost kraken comes up through the ice."},
     ],
     "areas_note": "One haul on each island, then the crews sail on to another one.",
     "howto": [
