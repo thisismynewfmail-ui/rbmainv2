@@ -3613,4 +3613,261 @@
       ctx.restore();
     }
   });
+  // ------------------------------------------------ Jolly Roger Fair
+  /* a firework's burst: streaks out from (x, y), sparks falling at their
+     tips, fading as ``k`` goes 0..1 */
+  function jrBurst(ctx, x, y, r, k, colour, colour2, n, seed) {
+    if (k <= 0 || k >= 1) return;
+    var R = r * outCubic(Math.min(1, k * 1.6)), fall = k * k * r * 0.35, a = 1 - k;
+    additive(ctx, function () {
+      dot(ctx, colour, x, y + fall * 0.3, r * 0.5 * (1 - k * 0.6), 0.35 * a);
+      for (var i = 0; i < n; i++) {
+        var ang = i * TAU / n + seed, ex = x + Math.cos(ang) * R, ey = y + Math.sin(ang) * R + fall;
+        ctx.strokeStyle = i % 2 ? colour : colour2; ctx.globalAlpha = a; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x + Math.cos(ang) * R * 0.45, y + Math.sin(ang) * R * 0.45 + fall * 0.5);
+        ctx.lineTo(ex, ey); ctx.stroke();
+        dot(ctx, i % 2 ? colour : colour2, ex, ey, 7, a);
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+  /* a rocket on its way: the red tube, its stick, sparks behind */
+  function jrRocket(ctx, x, y, ang, t) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.fillStyle = '#d83a32'; ctx.fillRect(-6, -18, 12, 26);
+    ctx.fillStyle = '#f4f0e8'; ctx.beginPath(); ctx.moveTo(-6, -18); ctx.lineTo(0, -30); ctx.lineTo(6, -18); ctx.fill();
+    ctx.fillStyle = '#8a6a3a'; ctx.fillRect(-1.5, 8, 3, 30);
+    ctx.restore();
+    additive(ctx, function () {
+      for (var i = 1; i < 6; i++) {
+        dot(ctx, i % 2 ? '#ffd86a' : '#ff8a3a', x - Math.sin(ang) * -i * 9 + Math.sin(t * 40 + i) * 3,
+            y + Math.cos(ang) * i * 9, 9 - i, 0.9 - i * 0.14);
+      }
+    });
+  }
+
+  Intro.register('pb_jollyroger', {
+    name: 'Jolly Roger Fair',
+    tagline: 'Win the fair\'s prize gold. When the fireworks barge goes up, run for cover.',
+    accent: '#ff5ad8',
+    cues: [[0.2, 'pb_gull', 0.4], [0.7, 'pb_fuse', 0.8], [1.0, 'pb_twist_eruption', 0.8], [1.9, 'pb_pop', 0.8],
+           [2.3, 'pb_pop', 0.8], [2.8, 'pb_blast', 0.7], [3.15, 'pb_blast', 0.6], [3.55, 'pb_pop', 1.0],
+           [4.0, 'pb_coins', 0.7]],
+    shakes: [[2.8, 6, 0.35], [3.15, 5, 0.3]],
+    tagY: 640, tagAt: 3.7,
+    setup: function (r) {
+      var d = { stars: makeStars(r, 60, 0, 300), coins: [], lights: [] };
+      for (var i = 0; i < 26; i++) d.coins.push([between(r, 300, 1300), between(r, -0.5, 0.5), between(r, 0.6, 1.2), r() * 6]);
+      for (var l = 0; l < 40; l++) d.lights.push(r());
+      return d;
+    },
+    draw: function (ctx, t, d) {
+      // dusk: violet overhead, orange along the sea, the first stars
+      var sky = ctx.createLinearGradient(0, 0, 0, 560);
+      sky.addColorStop(0, '#241e5a'); sky.addColorStop(0.55, '#a8507a'); sky.addColorStop(1, '#ffa868');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+      stars(ctx, d.stars, t, 0.6);
+      additive(ctx, function () { dot(ctx, '#ffcf8a', 140, 470, 260, 0.45); });
+      // the cliffs, the roller coaster along their tops, its train racing
+      ctx.fillStyle = '#4a2e3e';
+      ctx.beginPath(); ctx.moveTo(0, 520);
+      [[0, 400], [180, 380], [360, 404], [560, 376], [780, 398], [980, 372], [1180, 396], [1400, 378], [1600, 400], [1600, 520]]
+        .forEach(function (q) { ctx.lineTo(q[0], q[1]); });
+      ctx.fill();
+      function track(x) { return 300 - 60 * Math.sin(x * 0.006) - 30 * Math.sin(x * 0.017 + 1); }
+      ctx.strokeStyle = 'rgba(244,240,232,0.85)'; ctx.lineWidth = 3;
+      for (var px = 20; px < VW; px += 50) { ctx.beginPath(); ctx.moveTo(px, track(px)); ctx.lineTo(px, 392); ctx.stroke(); }
+      ctx.strokeStyle = '#e8302a'; ctx.lineWidth = 6; ctx.beginPath();
+      for (var tx = 0; tx <= VW; tx += 10) { if (tx) ctx.lineTo(tx, track(tx)); else ctx.moveTo(tx, track(tx)); }
+      ctx.stroke();
+      var head = (t * 520 + 200) % (VW + 300) - 150;
+      ['#e8302a', '#ffd84a', '#2a8ae8', '#3ac85a'].forEach(function (c, i) {
+        var cx = head - i * 34, cy = track(cx), slope = (track(cx + 5) - track(cx - 5)) / 10;
+        ctx.save(); ctx.translate(cx, cy - 12); ctx.rotate(Math.atan(slope));
+        ctx.fillStyle = c; ctx.fillRect(-15, -8, 30, 16);
+        ctx.fillStyle = '#f5cd30'; ctx.fillRect(-9, -18, 8, 9); ctx.fillRect(3, -18, 8, 9);
+        ctx.restore();
+      });
+      // the Jolly Roger over all
+      var JX = 1420, JY = 236, JW = 150, JH = 96;
+      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(JX - 8, JY - 10, 8, 400 - JY + 10);
+      var wv = function (u) { return Math.sin(t * 5 - u * 4) * 7 * u; };
+      ctx.fillStyle = '#141418'; ctx.beginPath(); ctx.moveTo(JX, JY);
+      for (var u = 0; u <= 1.001; u += 0.1) ctx.lineTo(JX + u * JW, JY + wv(u));
+      for (var u2 = 1; u2 >= -0.001; u2 -= 0.1) ctx.lineTo(JX + u2 * JW, JY + JH + wv(u2));
+      ctx.fill();
+      var sxk = JX + JW / 2, syk = JY + 38 + wv(0.5);
+      ctx.fillStyle = '#f4f0e0';
+      ctx.beginPath(); ctx.arc(sxk, syk, 19, 0, TAU); ctx.fill();
+      ctx.fillRect(sxk - 9, syk + 12, 18, 11);
+      ctx.save(); ctx.translate(sxk, syk + 34);
+      ctx.rotate(0.5); ctx.fillRect(-32, -3, 64, 6); ctx.rotate(-1.0); ctx.fillRect(-32, -3, 64, 6);
+      ctx.restore();
+      ctx.fillStyle = '#141418';
+      ctx.beginPath(); ctx.arc(sxk - 7, syk - 2, 5, 0, TAU); ctx.arc(sxk + 7, syk - 2, 5, 0, TAU); ctx.fill();
+      // the Ferris wheel turning, its bulbs chasing
+      var fx = 420, fy = 330, FR = 150, spin = t * 0.35;
+      ctx.strokeStyle = '#f4f0e8'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(fx - 90, 560); ctx.lineTo(fx, fy); ctx.lineTo(fx + 90, 560); ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(fx, fy, FR, 0, TAU); ctx.stroke();
+      for (var sp = 0; sp < 12; sp++) {
+        var a = spin + sp * TAU / 12;
+        ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + Math.cos(a) * FR, fy + Math.sin(a) * FR); ctx.stroke();
+      }
+      for (var b2 = 0; b2 < 36; b2++) {
+        var ab = spin + b2 * TAU / 36, lit = (Math.floor(t * 8) + b2) % 3 === 0;
+        additive(ctx, function () { dot(ctx, lit ? '#fff0a0' : '#ff8a5a', fx + Math.cos(ab) * FR, fy + Math.sin(ab) * FR, lit ? 10 : 6, 0.9); });
+      }
+      ['#ff5a5a', '#5ab8ff', '#ffd84a', '#7aff7a', '#ff8ad8', '#c8a0ff'].forEach(function (c, i) {
+        for (var h = 0; h < 2; h++) {
+          var ag = spin + (i * 2 + h) * TAU / 12, gx = fx + Math.cos(ag) * FR, gy = fy + Math.sin(ag) * FR;
+          ctx.fillStyle = c; roundRect(ctx, gx - 16, gy + 4, 32, 26, 6); ctx.fill();
+          ctx.fillStyle = '#f4f0e8'; ctx.fillRect(gx - 18, gy + 2, 36, 5);
+        }
+      });
+      // the big top, striped, its pennant flying
+      var bx = 1040, by = 600;
+      for (var st = 0; st < 10; st++) {
+        var x0 = bx - 260 + st * 52, x1 = x0 + 52;
+        ctx.fillStyle = st % 2 ? '#f4f0e8' : '#d83a32';
+        ctx.beginPath(); ctx.moveTo(bx, 340); ctx.lineTo(x0, 470); ctx.lineTo(x1, 470); ctx.fill();
+        ctx.fillRect(x0, 470, 52, 130);
+      }
+      ctx.fillStyle = '#3a1a1a'; ctx.fillRect(bx - 40, 510, 80, 90);
+      ctx.fillStyle = '#e8b830';
+      for (var v2 = 0; v2 < 10; v2++) { ctx.beginPath(); ctx.moveTo(bx - 260 + v2 * 52, 470); ctx.lineTo(bx - 234 + v2 * 52, 494); ctx.lineTo(bx - 208 + v2 * 52, 470); ctx.fill(); }
+      ctx.fillStyle = '#3a2a1a'; ctx.fillRect(bx - 3, 300, 6, 42);
+      ctx.fillStyle = '#e8b830'; ctx.beginPath(); ctx.moveTo(bx + 3, 302); ctx.lineTo(bx + 44, 310 + Math.sin(t * 6) * 4); ctx.lineTo(bx + 3, 322); ctx.fill();
+      // bunting from the big top down to the fair
+      [[bx, 350, 640, 470], [bx, 350, 1480, 480]].forEach(function (bt, j) {
+        for (var pn = 0; pn < 14; pn++) {
+          var uu = (pn + 0.5) / 14, qx = lerp(bt[0], bt[2], uu), qy = lerp(bt[1], bt[3], uu) + Math.sin(uu * Math.PI) * 26;
+          ctx.fillStyle = ['#ffd84a', '#ff5ad8', '#5ae8ff', '#7aff7a'][(pn + j) % 4];
+          ctx.beginPath(); ctx.moveTo(qx - 9, qy); ctx.lineTo(qx + 9, qy); ctx.lineTo(qx + Math.sin(t * 4 + pn) * 3, qy + 22); ctx.fill();
+        }
+      });
+      // the sea at the left, the barge moored in it, its fuse being lit
+      ctx.fillStyle = '#2a4a7a'; ctx.fillRect(0, 560, 640, 340);
+      waves(ctx, 570, '#3a5a8a', t, 6, 1.2, 0.8);
+      ctx.fillStyle = '#5a4a3e'; ctx.fillRect(90, 640, 320, 50);
+      ctx.fillStyle = '#3a3a42';
+      for (var m = 0; m < 3; m++) ctx.fillRect(130 + m * 84, 608, 54, 32);
+      ctx.fillStyle = '#d83a32'; ctx.fillRect(366, 616, 30, 24);
+      var lit2 = seg(t, 0.6, 1.0);
+      if (t > 0.6 && t < 1.4) additive(ctx, function () { dot(ctx, '#ffd86a', lerp(396, 330, lit2), 604 + Math.sin(t * 40) * 3, 16, 1); });
+      // the boardwalk along the bottom: planks, lamps, a string of lights
+      ctx.fillStyle = '#a87a4a'; ctx.fillRect(640, 700, 960, 200);
+      ctx.fillStyle = '#8a6038';
+      for (var pl = 640; pl < VW; pl += 40) ctx.fillRect(pl, 700, 3, 200);
+      ctx.fillStyle = '#f4f0e8'; ctx.fillRect(640, 690, 960, 10);
+      for (var lp = 700; lp < VW; lp += 220) {
+        ctx.fillStyle = '#2a2a32'; ctx.fillRect(lp - 4, 520, 8, 172);
+        additive(ctx, function () { dot(ctx, '#fff0a0', lp, 516, 26, 0.9); });
+      }
+      for (var sl = 0; sl < 40; sl++) {
+        var lx = 640 + sl * 24, ly = 540 + Math.sin((sl % 10) / 10 * Math.PI) * 30;
+        additive(ctx, function () { dot(ctx, ['#ffd27a', '#ff6a4a', '#7ae0ff', '#a8ff7a', '#ff9ae0'][sl % 5], lx, ly, 6, 0.6 + 0.4 * Math.sin(t * 6 + sl)); });
+      }
+      // the rockets: up from the barge to burst over the fair, then two
+      // coming down on the boardwalk; the finale a skull in the sky
+      var launches = [[1.0, 300, 330, '#ff5ad8', '#ffffff'], [1.3, 1300, 360, '#5ae8ff', '#ffd84a'], [1.6, 640, 400, '#ffe05a', '#ff7a3a']];
+      launches.forEach(function (L, i) {
+        var up = seg(t, L[0], L[0] + 0.8);
+        if (up > 0 && up < 1) {
+          var sx0 = 250 + i * 60, rx = lerp(sx0, L[1], up), ry = lerp(610, L[2], outCubic(up));
+          jrRocket(ctx, rx, ry, Math.atan2(L[1] - sx0, 400) * (1 - up * 0.5), t);
+        }
+        jrBurst(ctx, L[1], L[2], 140, seg(t, L[0] + 0.8, L[0] + 2.2), L[3], L[4], 16, i);
+      });
+      [[2.0, 2.8, 1000], [2.35, 3.15, 1340]].forEach(function (D, i) {
+        var k = seg(t, D[0], D[1]);
+        if (k > 0 && k < 1) {
+          var rx = lerp(300, D[2], k), ry = 610 - Math.sin(k * Math.PI) * 400 + k * 120;
+          jrRocket(ctx, rx, ry, k < 0.5 ? 0.6 : 2.6, t);
+        }
+        var blast = seg(t, D[1], D[1] + 0.9);
+        if (blast > 0 && blast < 1) {
+          additive(ctx, function () { dot(ctx, '#fff0c0', D[2], 730, 150 * (1 - blast * 0.5), 0.9 * (1 - blast)); });
+          jrBurst(ctx, D[2], 720, 100, blast, '#ff5ad8', '#ffd84a', 14, i * 2);
+        }
+      });
+      var fin = seg(t, 3.55, 4.6), SKX = 800, SKY_ = 410;
+      if (fin > 0 && fin < 1) {
+        var sk = outCubic(Math.min(1, fin * 1.8)), al = 1 - Math.max(0, (fin - 0.5) * 2);
+        additive(ctx, function () {
+          ctx.globalAlpha = al;
+          dot(ctx, '#ff9ae8', SKX, SKY_, 200 * sk, 0.25);
+          for (var i = 0; i < 40; i++) {
+            var a = i * TAU / 40;
+            dot(ctx, '#ffffff', SKX + Math.cos(a) * 120 * sk, SKY_ + Math.sin(a) * 104 * sk, 7, 1);
+          }
+          [[-44, -14], [44, -14]].forEach(function (e) {
+            for (var j = 0; j < 12; j++) {
+              var a2 = j * TAU / 12;
+              dot(ctx, '#ff5ad8', SKX + (e[0] + Math.cos(a2) * 24) * sk, SKY_ + (e[1] + Math.sin(a2) * 24) * sk, 6, 1);
+            }
+          });
+          for (var tt = -3; tt <= 3; tt++) dot(ctx, '#ffd84a', SKX + tt * 18 * sk, SKY_ + 66 * sk, 6, 1);
+          ctx.globalAlpha = 1;
+        });
+      }
+      // the prize gold raining out of it
+      if (t > 3.6) {
+        d.coins.forEach(function (c) {
+          var fall = (t - 3.6) * 300 * c[2], cx2 = c[0] + c[1] * fall * 0.3, cy2 = 400 + fall - c[3] * 40;
+          if (cy2 > 390 && cy2 < 780) coin(ctx, cx2, cy2, 12, t * 8 + c[3]);
+        });
+      }
+      // our Corsair running the boardwalk with a chest, ducking the blasts
+      var run = seg(t, 0.2, 4.5), px2 = lerp(1560, 760, run);
+      var hop = (t > 2.75 && t < 3.0) || (t > 3.1 && t < 3.35) ? -40 : 0;
+      pirate(ctx, px2, 790 + hop, 1.0, t, 0, t > 4.1 ? 1 : 0, -1);
+      if (t <= 4.1) {
+        ctx.fillStyle = '#7a4a26'; ctx.fillRect(px2 - 54, 670 + hop, 44, 30);
+        ctx.fillStyle = '#e8b830'; ctx.fillRect(px2 - 54, 682 + hop, 44, 4); ctx.fillRect(px2 - 34, 670 + hop, 4, 30);
+      }
+    },
+    title: function (ctx, t, d, run) {
+      // a fairground marquee: a board with a round crest on top, bulbs
+      // chasing round its edge, the name in big gold letters
+      var at = 1.1;
+      if (t < at) return;
+      var k = outBack(seg(t, at, at + 0.45), 1.6);
+      ctx.save();
+      ctx.translate(800, 222);
+      ctx.scale(k * 0.84, k * 0.84);
+      ctx.rotate(wobble(t, at + 0.45, 0.02, 10, 5));
+      ctx.fillStyle = 'rgba(20,10,30,0.35)'; roundRect(ctx, -486, -50, 990, 150, 26); ctx.fill();
+      var g = ctx.createLinearGradient(0, -130, 0, 90);
+      g.addColorStop(0, '#d8306a'); g.addColorStop(1, '#7a1a4a');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, -60, 96, Math.PI, TAU); ctx.fill();
+      roundRect(ctx, -500, -62, 1000, 150, 24); ctx.fill();
+      ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 5;
+      roundRect(ctx, -478, -42, 956, 110, 14); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -60, 76, Math.PI + 0.12, TAU - 0.12); ctx.stroke();
+      var spots = [];
+      for (var i = 0; i < 36; i++) {
+        var u = i / 36;
+        if (u < 0.4) spots.push([-478 + u / 0.4 * 956, -42]);
+        else if (u < 0.5) spots.push([478, -42 + (u - 0.4) / 0.1 * 110]);
+        else if (u < 0.9) spots.push([478 - (u - 0.5) / 0.4 * 956, 68]);
+        else spots.push([-478, 68 - (u - 0.9) / 0.1 * 110]);
+      }
+      for (var c = 0; c < 9; c++) {
+        var a = Math.PI + 0.25 + c * (Math.PI - 0.5) / 8;
+        spots.push([Math.cos(a) * 88, -60 + Math.sin(a) * 88]);
+      }
+      spots.forEach(function (sp, i) {
+        var on = (Math.floor(t * 10) + i) % 4 < 2;
+        additive(ctx, function () { dot(ctx, on ? '#fff6b0' : '#ff8a5a', sp[0], sp[1], on ? 12 : 7, 0.95); });
+      });
+      ctx.globalAlpha = run.alpha;
+      ctx.font = 'bold 22px ' + HEAVY; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd86a';
+      ctx.fillText('PLUNDER BAY', 0, -84);
+      titleText(ctx, (run.info.name || 'Jolly Roger Fair').toUpperCase(), 0, 14, 880, 92, '#ffd040', '#4a0a2a', 10);
+      ctx.restore();
+    }
+  });
 })(window);

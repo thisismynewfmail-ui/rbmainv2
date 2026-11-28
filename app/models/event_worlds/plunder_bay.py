@@ -1,4 +1,4 @@
-"""Plunder Bay: a treasure haul between two pirate crews, in four places.
+"""Plunder Bay: a treasure haul between two pirate crews, on twelve islands.
 
 Two crews -- the Scarlet Corsairs and the Azure Buccaneers -- moor their
 ships at either end of an island and race to haul its treasure aboard:
@@ -7,9 +7,11 @@ spot, and one cursed idol.  Treasure is carried one piece at a time (a
 chest in both hands, no sword), tossed to a crewmate, dropped by whoever
 is cut down carrying it, and stolen out of the other crew's hold by a bold
 raider.  Each place has a twist: the tide goes out in Skull Cove, a kraken
-rises on the Coral Reef, the redcoats march out of Port Royale's fort, and
-Doubloon Isle's volcano erupts gold.  The rules are in
-app/game/worlds/plunder_bay.py and the four places in
+rises on the Coral Reef, the redcoats march out of Port Royale's fort,
+Doubloon Isle's volcano erupts gold -- and on the islands since, a
+maelstrom, a lightning storm, geysers, ghost crews, a frost kraken, the
+Company's marines and a fireworks barge going up.  The rules are in
+app/game/worlds/plunder_bay.py and the islands in
 app/game/maps/events/plunder_bay/.
 """
 from __future__ import annotations
@@ -31,9 +33,12 @@ WORLD: Dict[str, Any] = {
         "your own ship's hold one piece at a time -- a chest takes both hands, so your crew "
         "had better watch your back -- toss it to a crewmate when you are chased, and cut "
         "down anybody carrying the other crew's plunder to drop it where they fall. A bold "
-        "raider can even steal gold out of the enemy hold. Every place has its twist: the "
+        "raider can even steal gold out of the enemy hold. Every island has its twist: the "
         "tide goes out in Skull Cove, a kraken rises on the Coral Reef, the redcoats march "
-        "out of Port Royale's fort, and Doubloon Isle's volcano erupts in gold."),
+        "out of Port Royale's fort, Doubloon Isle's volcano erupts in gold, a maelstrom "
+        "opens off Whalebone Atoll, lightning hunts the gold carriers on Thunderhead Rock, "
+        "the springs blow, the dead crews rise, and the Jolly Roger Fair's fireworks barge "
+        "goes up -- twelve islands, and the crews sail on to a new one after every haul."),
     "max_players": 16,
     "team_count": 2,
     "mode": "treasure_haul",
@@ -45,7 +50,7 @@ WORLD: Dict[str, Any] = {
     "game_scripts": ["/static/js/worlds/rail_rivals_rigs.js", "/static/js/worlds/plunder_bay_rigs.js",
                      "/static/js/worlds/plunder_bay.js"],
     "features": ["16 players", "Treasure haul", "Pirate crews", "Dig for chests", "Your own weapons",
-                 "Ship cannons", "Raids", "4 twists", "4 rotating islands"],
+                 "Ship cannons", "Raids", "8 twists", "12 rotating islands"],
     # an enemy is just a name on the tag: you read your own crew's health at a
     # glance, never theirs
     "ally_health_only": True,
@@ -95,6 +100,10 @@ WORLD: Dict[str, Any] = {
          "blurb": "A canal port in the warm rain: the Company's white customs house and its clock "
                   "tower, an avenue of shophouses down to a grand bazaar with the idol on its dais, "
                   "humped bridges, dyers' yards and a pagoda lighthouse. The marines march out."},
+        {"id": "jollyroger", "name": "Jolly Roger Fair",
+         "blurb": "The pirates' own funfair at dusk: a big top with the idol in the circus ring, a "
+                  "midway of booths, a Ferris wheel, a roller coaster along the cliffs, carousels, "
+                  "swinging galleons and hedge mazes. Then the fireworks barge goes up."},
     ],
     "areas_note": "One haul on each island, then the crews sail on to another one.",
     "howto": [
@@ -159,11 +168,12 @@ BADGES: List[Tuple[Any, ...]] = [
      "Caught treasure a crewmate tossed you.", "em_pb_catch", "catches"),
     ("pb_old_salt", "Old Salt", "pb_twists", [1, 10, 40, 120, 300],
      ["Landlubber", "Sea Legs", "Old Salt", "Storm Rider", "Legend of the Deep"],
-     "Took on the sea itself: sunken treasure at low tide, blows on the kraken, redcoats "
-     "downed, gold from the eruption.", "em_pb_anchor", "feats"),
-    ("pb_every_port", "Every Port", "pb_areas", [1, 2, 3, 4],
+     "Took on the sea itself: sunken treasure at low tide, blows on the kraken, redcoats, "
+     "marines and ghosts downed, gold thrown up by the eruption, the maelstrom, the geysers "
+     "and the fireworks.", "em_pb_anchor", "feats"),
+    ("pb_every_port", "Every Port", "pb_areas", [1, 3, 6, 12],
      ["Visitor", "Traveller", "Navigator", "Every Port"],
-     "Won a haul in each of Plunder Bay's four places.", "em_pb_map", "places"),
+     "Won a haul on each of Plunder Bay's twelve islands.", "em_pb_map", "places"),
 ]
 
 DERIVED = {"pb_areas": "pb_area_"}

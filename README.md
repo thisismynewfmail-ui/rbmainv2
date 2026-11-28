@@ -973,7 +973,8 @@ worth out of it -- if the crew coming back to life beside it lets them.
 
 **Arms**: everybody fights with **their own hotbar** -- whatever weapons
 they set on it -- against the other crew and against the island's own (the
-redcoats, the kraken's tentacles), which take a hit from anything: a blade,
+redcoats and marines, the ghost crews, the kraken's tentacles), which take
+a hit from anything: a blade,
 a bullet, a rocket's blast. Your own crew's health shows under their names;
 the other crew is only a name. Each ship has two deck **cannons**: stand at one of your own and a ring shows where
 the shell would land, where you are looking within its arc; **E** fires it.
@@ -1009,6 +1010,57 @@ studded top, the same as the floors everywhere else.
   on top, the old gold mine, hot springs and jungle. The lava is death at
   any time. *The eruption*: lava bombs rain on the island (rings again) and
   the volcano spews gold all over it.
+* **Whalebone Atoll** -- a ring of white sand round a turquoise lagoon and,
+  lying across it, the bones of a whale bigger than any ship: its skull on
+  the north shore, its spine a bridge of vertebrae over the lagoon, its ribs
+  arching overhead, its flukes on the south strand; a whalers' station on
+  either wing. *The maelstrom*: a whirlpool opens in the lagoon -- the
+  current drags whoever is in the water round and in, its eye drowns them,
+  and it throws the deep's treasure up onto the beaches round it.
+* **Thunderhead Rock** -- black basalt under a purple sky: a sheer mesa
+  with a lighthouse on top, a causeway of six-sided columns stepping down
+  from its summit, a sea cave straight through its foot, a wreck broken in
+  two on the strand and the wreckers' villages that put her there. *The
+  storm*: lightning strikes again and again, and it seeks out metal --
+  whoever is carrying gold is struck first (rings again).
+* **Sulphur Springs** -- white travertine terraces brimming with turquoise
+  pools climb to a ruined bathhouse; a great rainbow spring with a boardwalk
+  across it, mud pots and fumaroles; a sulphur mine and powder works on
+  either wing. *The geysers*: the springs blow in turn, throwing everybody
+  on them into the air and the treasure out of their hands -- and throwing
+  up treasure of their own.
+* **Ghost Fleet Cove** -- a moonlit cove where a whole fleet went down:
+  masts standing out of the black water, hulls rotting on the sand, the
+  flagship sunk to her gunwales with the idol on her quarterdeck, a
+  graveyard climbing to a crypt, drowned chapels and green lights drifting.
+  *The ghosts*: the dead crews rise out of the wrecks and march their beats
+  with pistols cocked, like redcoats; a skeleton cut down drops its purse.
+* **Glowtide Lagoon** -- the blue hour over a lagoon that lights up wherever
+  it is stirred: the stepped moon temple in the middle with causeways out
+  to it, a mangrove boardwalk to a moon shrine, the pearl divers' stilt
+  villages and a lantern festival on the strand. *Low tide*, in three
+  steps: the lagoon drains and the treasure on its floor glows.
+* **Frostfang Floe** -- the top of the world: a galleon frozen fast in the
+  pack ice with the idol on her quarterdeck, breathing holes round her, a
+  glacier of blue ice in three steps with a grotto in its foot, whalers'
+  camps and penguins on the floes. *The frost kraken*: tougher tentacles
+  burst up through the breathing holes and slam down on the ice.
+* **Monsoon Bazaar** -- a canal port in the warm rain: the Company's white
+  customs house and its clock tower, an avenue of shophouses down to a
+  grand bazaar with the idol on its dais, humped bridges, dyers' yards,
+  white stupas hung with prayer flags, tea gardens, a pagoda lighthouse,
+  fishing piers with great cantilevered nets, and waterfalls pouring off
+  the cliffs into the canals. *The marines*: the customs gong sounds and
+  the Company's marines march their beats round the bazaar and over the
+  bridge, shooting pirates on sight.
+* **Jolly Roger Fair** -- the pirates' own funfair at dusk: a big top with
+  the idol in the circus ring and a trapeze artist overhead, a midway of
+  booths, a Ferris wheel and chair-o-planes on a terrace, a roller coaster
+  along the cliffs under a great Jolly Roger, carousels, swinging galleons,
+  helter-skelters, halls of mirrors, hedge mazes, a bandstand, and the
+  boardwalk with its high strikers. *The fireworks*: somebody lights the
+  barge in the bay and its whole show comes down on the fair -- rockets
+  (rings again) and the prize gold with them.
 
 **Badges** (struck on a doubloon): Jolly Roger (hauls won), Plunderer
 (doubloons banked), X Marks the Spot (chests dug up), Heavy Lifter (chests
@@ -1016,8 +1068,9 @@ banked), Cursed (the idol banked), Raider (raids), Swashbuckler (rival
 pirates cut down up close), Dead Shot (rival pirates brought down from
 range), Broadside (cannon hits), Good
 Catch (catches), Old Salt (taking on the sea: sunken treasure, blows on the
-kraken, redcoats downed, gold from the eruption) and Every Port (a haul won
-on each of the four islands).
+kraken, redcoats, marines and ghosts downed, gold thrown up by the eruption,
+the maelstrom, the geysers and the fireworks) and Every Port (a haul won on
+each of the twelve islands).
 
 **Bots** are haulers, raiders or guards, and fight with their own hotbars
 like everybody else. Haulers go for the best treasure
@@ -1028,8 +1081,8 @@ carriers (a chest or the idol from furthest off) and slip aboard to rob
 their hold when it is not too well guarded. Guards stay by their ship,
 repel boarders, go out to meet a crewmate being chased home, and man the
 cannons, leading their target. Everybody steps out of a ring about to come
-down, fights the tentacles and the redcoats, goes for the sunken and
-erupted gold, keeps off the trench rims, and shouts it in quick chat
+down, fights the tentacles, the redcoats and the ghosts, goes for the
+sunken and erupted gold, keeps off the trench rims, and shouts it in quick chat
 (*got a chest*, *cover me*, *raiders!*, *FIRE*, *yoink*). The Bots Zone's
 **Plunder Bay** subtab sets how many haul, how many of the rest raid or
 guard, how far they chase a carrier, how readily they fire the cannons, and

@@ -435,7 +435,8 @@ def _half(isle: Isle, sgn: float) -> None:
         for e in (-1.0, 1.0):
             b.cyl([X(80.0 + e * 17.0), 3.2, z], [0.4, 6.4, 0.4], TIMBER)
         b.rig("rr_clothesline", X(80.0), 6.2, z, w=33.0,
-              colours=[MAGENTA, SAFFRON, TEAL, INDIGO, "#c8302a"] if k == 0 else [LIME, "#ff8ad8", SAFFRON, TEAL, MAGENTA])
+              colours=([MAGENTA, SAFFRON, TEAL, INDIGO, "#c8302a"] if k == 0
+                       else [LIME, "#ff8ad8", SAFFRON, TEAL, MAGENTA]))
     isle.loot(X(80.0), None, -24.0, "any", "the dyers' yard")
     # ---- the boatyard by the great canal: a boat up on blocks, timber
     bx, bz = X(78.0), 24.0
